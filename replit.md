@@ -61,7 +61,7 @@ artifacts-monorepo/
 - `teams.ts` — teams
 - `memberships.ts` — user-team memberships with roles
 - `players.ts` — team players with attributes
-- `setPieceTemplates.ts` — template library
+- `setPieceTemplates.ts` — template library (auto-seeded on startup via `seedTemplates.ts`)
 - `setPieces.ts` — team set pieces with versioning
 - `setPieceRoles.ts` — roles within set pieces
 - `roleAssignments.ts` — role-to-player mapping

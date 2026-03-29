@@ -10,7 +10,17 @@ import { Plus, ArrowRight, Sparkles, LayoutDashboard } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { Link } from 'wouter';
 
-const CATEGORIES = ['all', 'attacking_corner', 'defending_corner', 'attacking_freekick', 'defending_freekick', 'throw_in', 'goal_kick', 'penalty', 'kickoff'];
+const CATEGORIES = [
+  'all',
+  'offensive_corner_left',
+  'offensive_corner_right',
+  'defensive_corner_left',
+  'defensive_corner_right',
+  'direct_free_kick_central',
+  'indirect_free_kick_wide',
+  'attacking_throw_in',
+  'defensive_throw_in',
+];
 
 export default function Templates() {
   const [, params] = useRoute('/teams/:teamId/templates');
@@ -23,7 +33,7 @@ export default function Templates() {
 
   const [category, setCategory] = useState('all');
   const [blankOpen, setBlankOpen] = useState(false);
-  const [form, setForm] = useState({ title: '', category: 'attacking_corner' });
+  const [form, setForm] = useState({ title: '', category: 'offensive_corner_left' });
 
   const filteredTemplates = templates?.filter(t => category === 'all' || t.category === category) || [];
 

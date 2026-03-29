@@ -177,7 +177,7 @@ function SetPiecesTab({ teamId }: { teamId: string }) {
   const { data: templates } = useListTemplates();
   const createSP = useCreateSetPiece();
   const [open, setOpen] = useState(false);
-  const [form, setForm] = useState({ title: '', category: 'attacking_corner', templateId: '' });
+  const [form, setForm] = useState({ title: '', category: 'offensive_corner_left', templateId: '' });
 
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -209,10 +209,14 @@ function SetPiecesTab({ teamId }: { teamId: string }) {
               <div className="space-y-2">
                 <label className="text-xs text-muted-foreground uppercase font-bold tracking-wider">Category</label>
                 <select value={form.category} onChange={e => setForm({...form, category: e.target.value})} className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm focus:border-primary outline-none">
-                  <option value="attacking_corner">Attacking Corner</option>
-                  <option value="defending_corner">Defending Corner</option>
-                  <option value="attacking_freekick">Attacking Free Kick</option>
-                  <option value="defending_freekick">Defending Free Kick</option>
+                  <option value="offensive_corner_left">Offensive Corner Left</option>
+                  <option value="offensive_corner_right">Offensive Corner Right</option>
+                  <option value="defensive_corner_left">Defensive Corner Left</option>
+                  <option value="defensive_corner_right">Defensive Corner Right</option>
+                  <option value="direct_free_kick_central">Direct Free Kick Central</option>
+                  <option value="indirect_free_kick_wide">Indirect Free Kick Wide</option>
+                  <option value="attacking_throw_in">Attacking Throw In</option>
+                  <option value="defensive_throw_in">Defensive Throw In</option>
                 </select>
               </div>
               <div className="space-y-2">
