@@ -64,13 +64,13 @@ router.post("/teams/:teamId/share-links", async (req, res): Promise<void> => {
       matchdayScope: matchdayScope || null,
       allowedSetPieceIds: allowedSetPieceIds || null,
       expiresAt: expiresAt ? new Date(expiresAt) : null,
-      createdBy: req.user!.id,
+      createdBy: (req.user as any).id,
     })
     .returning();
 
   await db.insert(auditEventsTable).values({
     teamId,
-    userId: req.user!.id,
+    userId: (req.user as any).id,
     eventType: "share_link_generated",
     entityType: "share_link",
     entityId: link.id,

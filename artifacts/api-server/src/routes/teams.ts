@@ -30,7 +30,7 @@ router.get("/teams", async (req, res): Promise<void> => {
   const memberships = await db
     .select()
     .from(membershipsTable)
-    .where(eq(membershipsTable.userId, req.user.id));
+    .where(eq(membershipsTable.userId, (req.user as any).id));
 
   if (memberships.length === 0) {
     res.json([]);
@@ -70,12 +70,12 @@ router.post("/teams", async (req, res): Promise<void> => {
       coachName: coachName || null,
       logoUrl: logoUrl || null,
       teamColors: teamColors || null,
-      ownerId: req.user.id,
+      ownerId: (req.user as any).id,
     })
     .returning();
 
   await db.insert(membershipsTable).values({
-    userId: req.user.id,
+    userId: (req.user as any).id,
     teamId: team.id,
     role: "head_coach",
   });
