@@ -27,7 +27,31 @@ app.use(
     },
   }),
 );
-app.use(cors({ credentials: true, origin: true }));
+const allowedOrigins = process.env.ALLOWED_ORIGINS
+  ? process.env.ALLOWED_ORIGINS.split(",")
+  : [];
+
+if (process.env.REPLIT_DEV_DOMAIN) {
+  allowedOrigins.push(`https://${process.env.REPLIT_DEV_DOMAIN}`);
+}
+if (process.env.REPLIT_DOMAINS) {
+  for (const d of process.env.REPLIT_DOMAINS.split(",")) {
+    allowedOrigins.push(`https://${d.trim()}`);
+  }
+}
+
+app.use(
+  cors({
+    credentials: true,
+    origin: (origin, callback) => {
+      if (!origin || allowedOrigins.some((o) => origin.startsWith(o))) {
+        callback(null, true);
+      } else {
+        callback(new Error("Not allowed by CORS"));
+      }
+    },
+  }),
+);
 app.use(cookieParser());
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true }));

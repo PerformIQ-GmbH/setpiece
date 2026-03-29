@@ -188,6 +188,11 @@ router.post("/teams/:teamId/matchdays/:matchdayId/set-pieces", async (req, res):
     })
     .returning();
 
+  await db
+    .update(setPiecesTable)
+    .set({ status: "active_matchday" })
+    .where(eq(setPiecesTable.id, setPieceId));
+
   res.status(201).json(entry);
 });
 
@@ -221,6 +226,18 @@ router.delete("/teams/:teamId/matchdays/:matchdayId/set-pieces", async (req, res
         eq(matchdaySetPiecesTable.setPieceId, setPieceId),
       ),
     );
+
+  const remaining = await db
+    .select()
+    .from(matchdaySetPiecesTable)
+    .where(eq(matchdaySetPiecesTable.setPieceId, setPieceId));
+
+  if (remaining.length === 0) {
+    await db
+      .update(setPiecesTable)
+      .set({ status: "ready" })
+      .where(eq(setPiecesTable.id, setPieceId));
+  }
 
   res.sendStatus(204);
 });
