@@ -138,13 +138,15 @@ Express 5 API server with Replit Auth, structured pino logging.
 React + Vite frontend (Coach Dashboard + Player PWA).
 
 - Preview path: `/setpiece/`
-- Pages: Landing, Dashboard, TeamDetail, SetPieceEditor, PlayerPWA, PlayerQuiz
-- Components: Pitch (SVG tactical board), Layout (CoachLayout with sidebar)
+- Pages: Landing, Dashboard, TeamDashboard, Players, Templates, SetPieceEditor, Matchdays, MatchdayDetail, Readiness, GhostMode, Pricing, Settings, PlayerPWA, PlayerQuiz
+- Components: Pitch (SVG tactical board), Layout (CoachLayout with sidebar + mobile drawer), StatusBadge
 - Uses generated React Query hooks from `@workspace/api-client-react`
 - API base URL: empty string (API server is at root `/api/...` path)
 - Auth: login redirects to `/api/login`, logout to `/api/logout`
 - Player view: `/p/:shareToken` — mobile-first PWA, no auth needed
-- Dependencies: framer-motion, lucide-react, qrcode.react, date-fns, wouter
+- PWA: manifest.json, service worker (sw.js), offline-first caching
+- Design: Dark navy theme, emerald primary (#10b981), Outfit display font, Inter body font
+- Dependencies: framer-motion, lucide-react, qrcode.react, date-fns, wouter, zustand, html2canvas, jspdf
 
 ### `lib/db` (`@workspace/db`)
 

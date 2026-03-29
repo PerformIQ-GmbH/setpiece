@@ -192,7 +192,7 @@ export default function PlayerQuiz() {
                         <rect x="35" y="2" width="30" height="10" />
                         <circle cx="50" cy="100" r="15" />
                       </g>
-                      {answers[currentQ.id] && typeof answers[currentQ.id] === 'object' && (
+                      {answers[currentQ.id] != null && typeof answers[currentQ.id] === 'object' ? (
                         <circle
                           cx={(answers[currentQ.id] as { x: number; y: number }).x}
                           cy={(answers[currentQ.id] as { x: number; y: number }).y}
@@ -201,7 +201,7 @@ export default function PlayerQuiz() {
                           stroke="white"
                           strokeWidth="1"
                         />
-                      )}
+                      ) : null}
                     </svg>
                   </div>
                 </div>

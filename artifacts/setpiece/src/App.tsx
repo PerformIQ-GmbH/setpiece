@@ -1,45 +1,51 @@
-import React from "react";
 import { Switch, Route, Router as WouterRouter } from "wouter";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 
-// Pages
 import Landing from "./pages/Landing";
 import Dashboard from "./pages/Dashboard";
-import TeamDetail from "./pages/TeamDetail";
+import TeamDashboard from "./pages/TeamDashboard";
+import Players from "./pages/Players";
+import Templates from "./pages/Templates";
 import SetPieceEditor from "./pages/SetPieceEditor";
+import Matchdays from "./pages/Matchdays";
+import MatchdayDetail from "./pages/MatchdayDetail";
+import Readiness from "./pages/Readiness";
+import GhostMode from "./pages/GhostMode";
+import Pricing from "./pages/Pricing";
+import Settings from "./pages/Settings";
 import PlayerPWA from "./pages/PlayerPWA";
 import PlayerQuiz from "./pages/PlayerQuiz";
 import NotFound from "./pages/not-found";
 
-// The generated Orval hooks use customFetch which relies on the global fetch.
-// Set up React Query client
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
       retry: false,
       refetchOnWindowFocus: false,
-      staleTime: 5 * 60 * 1000, // 5 minutes
+      staleTime: 5 * 60 * 1000,
     },
   },
 });
 
-function Router() {
+function AppRouter() {
   return (
     <Switch>
-      {/* Public / Auth */}
       <Route path="/" component={Landing} />
-      
-      {/* Coach Dashboard (Protected via API returning null user) */}
       <Route path="/dashboard" component={Dashboard} />
-      <Route path="/teams/:teamId" component={TeamDetail} />
+      <Route path="/teams/:teamId" component={TeamDashboard} />
+      <Route path="/teams/:teamId/players" component={Players} />
+      <Route path="/teams/:teamId/templates" component={Templates} />
       <Route path="/teams/:teamId/set-pieces/:setPieceId/editor" component={SetPieceEditor} />
-      
-      {/* Player View (Mobile PWA accessible via token) */}
+      <Route path="/teams/:teamId/matchdays" component={Matchdays} />
+      <Route path="/teams/:teamId/matchdays/:matchdayId" component={MatchdayDetail} />
+      <Route path="/teams/:teamId/readiness" component={Readiness} />
+      <Route path="/teams/:teamId/ghost/:setPieceId" component={GhostMode} />
+      <Route path="/pricing" component={Pricing} />
+      <Route path="/settings" component={Settings} />
       <Route path="/p/:shareToken" component={PlayerPWA} />
       <Route path="/p/:shareToken/quiz" component={PlayerQuiz} />
-      
       <Route component={NotFound} />
     </Switch>
   );
@@ -50,7 +56,7 @@ function App() {
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
         <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
-          <Router />
+          <AppRouter />
         </WouterRouter>
         <Toaster />
       </TooltipProvider>
