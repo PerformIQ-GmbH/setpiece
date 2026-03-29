@@ -1,5 +1,5 @@
 import { eq, and } from "drizzle-orm";
-import { db, membershipsTable, shareLinksTable } from "@workspace/db";
+import { db, membershipsTable, shareLinksTable, matchdaySetPiecesTable } from "@workspace/db";
 import type { Request, Response, NextFunction } from "express";
 
 type MemberRole = "head_coach" | "assistant_coach" | "player";
@@ -55,6 +55,26 @@ export function requireHeadCoachAccess(req: Request, res: Response): Promise<str
 
 export function parseParam(param: string | string[]): string {
   return Array.isArray(param) ? param[0] : param;
+}
+
+export async function isSetPieceInShareScope(
+  link: ValidatedShareLink,
+  setPieceId: string,
+): Promise<boolean> {
+  if (link.allowedSetPieceIds && link.allowedSetPieceIds.length > 0) {
+    return link.allowedSetPieceIds.includes(setPieceId);
+  }
+
+  if (link.matchdayScope) {
+    const mdSps = await db
+      .select()
+      .from(matchdaySetPiecesTable)
+      .where(eq(matchdaySetPiecesTable.matchdayId, link.matchdayScope));
+    const allowedIds = mdSps.map((m) => m.setPieceId);
+    return allowedIds.includes(setPieceId);
+  }
+
+  return true;
 }
 
 export interface ValidatedShareLink {

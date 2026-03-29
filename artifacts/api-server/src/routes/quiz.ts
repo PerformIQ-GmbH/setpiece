@@ -10,7 +10,7 @@ import {
   playerReadinessTable,
   auditEventsTable,
 } from "@workspace/db";
-import { requireShareToken, parseParam } from "../lib/authorization";
+import { requireShareToken, isSetPieceInShareScope, parseParam } from "../lib/authorization";
 import { z } from "zod/v4";
 
 const router: IRouter = Router();
@@ -131,7 +131,7 @@ router.get("/p/:shareToken/quiz", async (req, res): Promise<void> => {
     return;
   }
 
-  if (link.allowedSetPieceIds && link.allowedSetPieceIds.length > 0 && !link.allowedSetPieceIds.includes(setPieceId)) {
+  if (!(await isSetPieceInShareScope(link, setPieceId))) {
     res.status(403).json({ error: "Set piece not in scope for this link" });
     return;
   }
@@ -198,7 +198,7 @@ router.post("/p/:shareToken/quiz", async (req, res): Promise<void> => {
     return;
   }
 
-  if (link.allowedSetPieceIds && link.allowedSetPieceIds.length > 0 && !link.allowedSetPieceIds.includes(setPieceId)) {
+  if (!(await isSetPieceInShareScope(link, setPieceId))) {
     res.status(403).json({ error: "Set piece not in scope for this link" });
     return;
   }
