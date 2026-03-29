@@ -1,0 +1,925 @@
+You are a principal product engineer, world-class product designer, elite UX architect, and launch-focused SaaS builder.
+
+Build a real, polished, launchable V1 product called:
+
+SETPIECE by PerformIQ
+
+This is a product in the PerformIQ family.
+
+It must be good enough to:
+- use with real teams next week
+- demo confidently next week
+- start selling next week
+
+Do NOT build a toy prototype.
+Do NOT build an overengineered enterprise platform.
+Do NOT build a generic CRUD admin dashboard.
+Do NOT build an ugly developer-first app.
+
+Build a premium, focused, football-specific product with excellent UI/UX.
+
+==================================================
+1. PRODUCT VISION
+==================================================
+
+SETPIECE by PerformIQ is a football set-piece execution system.
+
+It helps coaches:
+- create set pieces quickly
+- assign exact roles to players
+- share each player’s task via QR/mobile
+- verify player understanding before matchday
+- manage substitutions without chaos
+- create printable and shareable matchday outputs
+
+This is NOT just a tactics whiteboard.
+This is a workflow product for planning, assigning, communicating, learning, and executing set pieces.
+
+Main launch promise:
+“Create set pieces in minutes, send them to players via QR, and make sure everyone understands their role.”
+
+==================================================
+2. PRODUCT STRATEGY
+==================================================
+
+Build this as:
+
+- Coach/Admin = Web App
+- Player experience = PWA (Progressive Web App)
+- Backend = Firebase
+- Architecture = future-native-ready
+
+Important:
+The player app must be built as a PWA first.
+It should feel app-like on mobile and be installable.
+Later, it should be possible to rebuild or extend the player experience as a native app without rewriting the whole business logic.
+
+Therefore:
+- keep business logic separate from UI
+- keep shared schemas and domain logic reusable
+- keep player flows simple and portable
+- do not tightly couple core logic to browser-only hacks
+
+The tactical editor remains WEB-FIRST.
+Do NOT try to force the full editor into a native-mobile-first architecture.
+
+==================================================
+3. MAIN GOAL
+==================================================
+
+This product must feel immediately:
+- premium
+- clear
+- useful
+- trustworthy
+- simple
+- football-specific
+
+The first impression is critical.
+
+The first 30 seconds must make a coach feel:
+- this is polished
+- this is not complicated
+- this saves me time
+- this is ready for real use
+
+==================================================
+4. WHAT TO BUILD NOW
+==================================================
+
+Build only the launchable V1 with strong UI/UX.
+
+Must-have modules:
+1. Auth
+2. Team setup / onboarding
+3. Player management
+4. Set-piece template library
+5. Tactical editor
+6. Role definitions and player assignments
+7. QR / share flow
+8. Player PWA view
+9. Mini quiz
+10. Readiness dashboard
+11. Ghost mode light
+12. Match pack one-page PDF export
+13. Pricing page and billing-ready structure
+14. Demo data and demo-ready experience
+15. PWA setup for player routes
+
+Do NOT build now:
+- native app store release flow
+- full Expo / React Native app
+- CRDT collaboration
+- deep analytics suite
+- full club-wide enterprise permissions
+- advanced AI opponent scouting
+- wearables
+- voice control
+- huge tactical version comparison system
+- unnecessary complexity
+
+==================================================
+5. MONOREPO / FOLDER STRUCTURE
+==================================================
+
+Use a clean monorepo structure inside one Replit project.
+
+Use:
+- pnpm workspaces
+- TypeScript everywhere
+- shared types and validation
+- clean separation of domains
+
+Repository structure:
+
+/apps/web
+  -> coach/admin web app
+  -> also serves player PWA routes
+
+/packages/shared
+  -> shared types, zod schemas, constants, utilities, domain helpers
+
+/firebase
+  -> firestore rules, indexes, cloud functions config, seed helpers
+
+/docs
+  -> setup docs, product docs, launch docs, architecture notes
+
+Do NOT split into too many apps right now.
+Keep it simple and launchable.
+
+==================================================
+6. TECH STACK
+==================================================
+
+Use:
+
+Frontend:
+- React
+- TypeScript
+- Vite
+- Tailwind CSS
+- shadcn/ui
+- React Router
+- TanStack Query
+- Zustand
+- React Hook Form
+- Zod
+- Framer Motion
+- lucide-react
+- React Konva / Konva
+
+PWA:
+- manifest
+- service worker
+- installable player experience
+- mobile-first responsive design
+- caching strategy for player routes and core assets
+
+Backend:
+- Firebase Auth
+- Cloud Firestore
+- Firebase Storage
+- Firebase Functions
+
+Utilities:
+- QR code generation
+- PDF export
+- image / canvas snapshot export where useful
+
+Billing:
+- Stripe-ready architecture
+- pricing page
+- upgrade flow UI
+- environment variables and service layer for Stripe
+- if final secrets are missing, still build the full integration surface cleanly
+
+==================================================
+7. DESIGN SYSTEM / VISUAL IDENTITY
+==================================================
+
+Product brand:
+SETPIECE by PerformIQ
+
+The design must feel:
+- premium football-tech
+- modern
+- calm
+- structured
+- high-trust
+- not flashy
+- not childish
+- not cluttered
+
+Visual direction:
+- dark app shell
+- refined surfaces
+- strong hierarchy
+- subtle premium motion
+- elegant dashboard cards
+- clear typography
+- clean spacing
+- professional football-specific feel
+
+Style inspiration:
+- premium SaaS clarity
+- modern product design
+- sports software with discipline and restraint
+
+Color strategy:
+- deep navy / charcoal base
+- subtle layered surfaces
+- one strong primary accent
+- blue for ghost/substitution states
+- green for readiness/success
+- amber for warnings
+- red only for destructive actions
+- do not use too many colors
+
+Typography:
+- strong page titles
+- compact readable body copy
+- good contrast
+- use spacing and weight, not color noise
+
+Components:
+- rounded-xl / 2xl
+- premium buttons
+- elegant cards
+- clean modals and drawers
+- consistent badges
+- refined tables
+- polished empty states
+- subtle shadows and borders
+- skeleton loaders where useful
+- high consistency across all screens
+
+Motion:
+- subtle, smooth, fast
+- use motion to clarify transitions
+- no decorative over-animation
+
+==================================================
+8. UX PRINCIPLES
+==================================================
+
+Every screen must answer:
+- what is this?
+- what do I do next?
+- why is this useful?
+
+Core UX rules:
+- one clear primary action per page
+- no clutter
+- keep flows short
+- reduce cognitive load
+- fast onboarding
+- coaches must feel efficient
+- players must feel zero confusion
+
+Player UX rules:
+- one main action per screen
+- large touch targets
+- minimal text
+- app-like card layout
+- high contrast
+- role clarity above everything
+
+Coach UX rules:
+- fast navigation
+- structured editor
+- clear status feedback
+- powerful but simple workflow
+- dashboard must feel alive, not empty
+
+==================================================
+9. INFORMATION ARCHITECTURE
+==================================================
+
+Build these coach routes:
+
+- /login
+- /signup
+- /onboarding
+- /dashboard
+- /players
+- /templates
+- /setpieces
+- /setpieces/:id
+- /matchday
+- /pricing
+- /settings
+
+Build these player routes:
+
+- /p/:shareToken
+- /p/:shareToken/quiz
+
+Important:
+The player routes must be:
+- mobile-first
+- PWA-friendly
+- fast to open from QR
+- installable
+- clean and distraction-free
+
+Coach layout:
+- left sidebar
+- clear top header
+- central content area
+- right inspector only when useful
+- do not overload navigation
+
+==================================================
+10. USER ROLES FOR V1
+==================================================
+
+Keep roles simple:
+
+- head_coach
+- assistant_coach
+- player
+
+Permissions:
+- head coach manages everything for the team
+- assistant can help manage but with simpler permissions
+- player only sees own shared or assigned content
+
+Do not build a complex enterprise permission matrix yet.
+
+==================================================
+11. ONBOARDING FLOW
+==================================================
+
+This must be one of the strongest parts of the product.
+
+Build a 5-step onboarding wizard with a clean progress UI.
+
+Steps:
+1. Create Team
+2. Add Players
+3. Choose Starter Template
+4. Assign Key Roles
+5. Generate QR and Share
+
+UX requirements:
+- one clear task per step
+- large primary CTA
+- minimal text
+- strong visual progress
+- polished success states
+- coach should feel fast and successful
+
+At the end:
+Show a success state with:
+- “Your first set piece is ready”
+- preview card
+- QR share button
+- open editor button
+- open player preview button
+
+==================================================
+12. DASHBOARD
+==================================================
+
+The dashboard must NOT look like a blank admin panel.
+
+It must immediately show value.
+
+Sections:
+- team header
+- primary CTA: Create Set Piece
+- secondary CTA: Use Template
+- readiness summary cards
+- active set pieces with visual previews
+- template quick start section
+- matchday quick panel
+- recent player activity
+
+Design rules:
+- premium cards
+- useful preview thumbnails
+- clear hierarchy
+- no boring generic dashboard widgets
+- no raw table as main impression
+
+The dashboard must feel like a real football product.
+
+==================================================
+13. PLAYER MANAGEMENT
+==================================================
+
+Build a polished roster page.
+
+Player fields:
+- firstName
+- lastName
+- shirtNumber
+- dominantFoot
+- height
+- status
+- tags
+- headingStrength
+- speed
+- notes
+
+Useful tags:
+- left_foot
+- right_foot
+- best_header
+- fast_runner
+- strong_blocker
+- delivery_specialist
+- far_post_target
+- rebound_hunter
+
+Features:
+- add player
+- edit player
+- remove player
+- search
+- filter by status/tag
+- clean profile side panel or drawer
+
+Design:
+- strong table styling
+- clean rows
+- clear tags
+- no ugly spreadsheet feel
+
+==================================================
+14. TEMPLATE LIBRARY
+==================================================
+
+The template library is critical to perceived product quality.
+
+Build it as premium cards, not a boring list.
+
+Create at least 10 useful seed templates across:
+- offensive corner left
+- offensive corner right
+- defensive corner left
+- defensive corner right
+- direct free kick central
+- indirect free kick wide
+- attacking throw-in final third
+- defensive throw-in
+
+Each template must include:
+- title
+- category
+- short description
+- tiny board preview
+- default roles
+- coaching note
+- use template button
+
+Make coaches feel:
+“I can start immediately.”
+
+==================================================
+15. TACTICAL EDITOR
+==================================================
+
+This is the product heart.
+
+Build a premium React Konva tactical editor.
+
+Layout:
+- compact left toolbar
+- central pitch board
+- right inspector panel
+- top action bar
+
+Top action bar:
+- set piece title
+- save status
+- duplicate
+- share
+- export
+- preview
+- assign players
+
+Board features:
+- realistic pitch proportions
+- elegant player markers
+- opponent markers
+- ball marker
+- arrows
+- curved run paths
+- labels
+- zones
+- drag and drop
+- selection states
+- undo / redo
+- autosave
+- save / update set piece
+
+Critical rule:
+Roles are first-class objects.
+A set piece is NOT just shapes on canvas.
+
+Each set piece must contain:
+- structured roles
+- role metadata
+- assignments
+- coaching notes
+- board layout
+
+Inspector panel should show:
+- selected object settings
+- role details
+- assignment controls
+- coaching note field
+
+UX rules:
+- keep tool count focused
+- do not overwhelm the user
+- keep the board elegant and uncluttered
+- every interaction should feel intentional and premium
+
+==================================================
+16. ROLE ASSIGNMENT
+==================================================
+
+Build a clear role assignment system.
+
+For each role:
+- role name
+- assigned player
+- backup player
+- optional note
+
+Features:
+- assign player to role
+- unassigned warning
+- unavailable player warning
+- simple role suitability hints
+- simple suggestion helper based on tags
+
+UI:
+- structured cards or split layout
+- easy to scan
+- obvious who does what
+- obvious what is missing
+
+The assignment UI must feel clear and coach-friendly.
+
+==================================================
+17. QR / SHARE FLOW
+==================================================
+
+This is a sales-critical moment.
+
+Build a polished share modal/drawer with:
+- QR code
+- copy link
+- regenerate link
+- player preview
+- one-line explanation
+
+Requirements:
+- coach can share player access quickly
+- player can open from QR directly
+- share flow must feel clean and trustworthy
+
+==================================================
+18. PLAYER PWA EXPERIENCE
+==================================================
+
+The player experience is PWA-first.
+
+Build it so that:
+- it works beautifully on mobile
+- it is installable
+- it feels app-like
+- it can later be ported to native more easily
+
+Do not overload this experience.
+Keep it ultra simple.
+
+Player screens must answer immediately:
+- what set piece is this?
+- what is my role?
+- where do I start?
+- where do I move?
+- what is my key coaching point?
+- am I ready?
+
+Screen structure:
+- compact header
+- set piece card
+- role card
+- board preview / mini animation
+- coaching point
+- ready button
+- quiz CTA
+
+Features:
+- Today’s set pieces
+- My role
+- Start position
+- First run
+- Coaching point
+- Ready status
+- Quiz access
+- simple matchday view
+
+Design rules:
+- one main action per screen
+- minimal navigation
+- large touch targets
+- strong contrast
+- very little text
+- app-like card flow
+
+==================================================
+19. MINI QUIZ
+==================================================
+
+This is a core differentiator and must feel smooth.
+
+Keep it lightweight for V1.
+
+Question types:
+- tap your start zone
+- choose your first run
+- yes/no understanding confirmation
+
+Store:
+- openedAt
+- completedAt
+- passed
+- score
+
+Coach must see statuses:
+- not opened
+- opened
+- passed
+- needs review
+
+Quiz UX:
+- one question at a time
+- progress indicator
+- quick feedback
+- subtle confirmation states
+- simple and fast
+- not school-like
+- not heavy
+
+==================================================
+20. READINESS DASHBOARD
+==================================================
+
+This is very important for coaches.
+
+Build a readiness page that shows:
+- total players
+- not opened
+- opened
+- passed
+- needs review
+
+Also show:
+- player list with readiness status
+- quick follow-up visibility
+- filters if useful
+
+This page should make coaches feel in control instantly.
+
+==================================================
+21. GHOST MODE LIGHT
+==================================================
+
+Build a simple but visually impressive substitution helper.
+
+Flow:
+- coach selects player out
+- coach selects replacement
+- app shows updated role position
+- app shows blue ghost marker
+- app shows movement arrow
+- coach confirms or cancels
+
+Important:
+Do NOT build a huge AI cascade engine in V1.
+Keep it simple, useful, and demo-friendly.
+
+Design:
+- blue ghost layer
+- clean animation
+- clear before/after understanding
+- minimal friction
+- strong visual storytelling
+
+This must be one of the most memorable demo features.
+
+==================================================
+22. MATCHDAY PAGE
+==================================================
+
+Build a calm quick-control page for matchday.
+
+Show:
+- active set pieces
+- readiness summary
+- quick access to ghost mode
+- quick access to QR/share
+- quick player lookup if useful
+
+Design:
+- big touch-friendly cards
+- minimal clutter
+- confidence and control
+- fast decisions
+
+==================================================
+23. MATCH PACK EXPORT
+==================================================
+
+Build one strong one-page PDF export flow.
+
+Need:
+- set piece title
+- board image
+- role list
+- coaching notes
+- QR code
+
+The export must be:
+- clean
+- printable
+- professional
+- white-background export-friendly
+- useful for real coaches
+
+==================================================
+24. PRICING / BILLING
+==================================================
+
+The product must look sellable.
+
+Build a pricing page with:
+- Solo Coach = 8 CHF / month
+- Team plan
+- clear value differentiation
+- premium presentation
+- demo / trial CTA
+- upgrade CTA
+
+Build Stripe-ready architecture:
+- service layer
+- env placeholders
+- clean entitlement model
+- billing settings page skeleton if useful
+
+If secrets are missing:
+- still build the final structure properly
+- document exact final setup steps
+
+==================================================
+25. DATA MODEL
+==================================================
+
+Keep the data model clean, typed, and launchable.
+
+Entities:
+- users
+- teams
+- memberships
+- players
+- setPieces
+- setPieceTemplates
+- setPieceRoles
+- roleAssignments
+- playerReadiness
+- quizAttempts
+- shareLinks
+
+Each entity should include:
+- id
+- createdAt
+- updatedAt
+
+Use:
+- shared TypeScript types
+- Zod validation
+- simple repository/service structure
+
+==================================================
+26. SECURITY
+==================================================
+
+Implement production-minded basics.
+
+Need:
+- Firebase auth integration
+- protected routes
+- Firestore rules
+- role-based access
+- players cannot access unrelated team data
+- clean team isolation
+- share tokens scoped correctly
+
+Create:
+- firestore.rules
+- firestore indexes
+- security notes in docs
+
+==================================================
+27. PWA REQUIREMENTS
+==================================================
+
+The player experience must be a true PWA foundation.
+
+Implement:
+- manifest.json
+- service worker
+- install prompt support where appropriate
+- cache strategy for player pages and core assets
+- mobile home-screen friendly layout
+- offline-tolerant shell where reasonable
+
+PWA scope:
+- player routes are the priority
+- coach area can remain primarily standard web app
+
+Important:
+Build the PWA cleanly, but do not waste time on edge-case perfection.
+Focus on launchable quality.
+
+==================================================
+28. NATIVE-READY ARCHITECTURE REQUIREMENTS
+==================================================
+
+Because the player app may later become native, architect carefully.
+
+Requirements:
+- business logic separate from presentation
+- shared schemas and validation in /packages/shared
+- reusable domain helpers for readiness and quiz scoring
+- no deeply browser-coupled logic in domain layer
+- player flow logic should be portable
+
+Do NOT build native now.
+Just make future migration realistic.
+
+==================================================
+29. DEMO / SEED DATA
+==================================================
+
+This is critical for first impression.
+
+Seed:
+- 1 demo team
+- 14 players
+- 5 polished set pieces
+- realistic role assignments
+- readiness statuses
+- 1 ghost mode example
+- template cards with strong content
+- one example match pack export
+
+The product must be demo-ready immediately after build.
+
+==================================================
+30. MICROCOPY
+==================================================
+
+All copy must be:
+- short
+- clear
+- confident
+- practical
+
+Examples of tone:
+- Create Set Piece
+- Assign Roles
+- Share with Players
+- Ready for Matchday
+- Players Still Need Review
+- Open Player View
+- Export Match Pack
+
+Avoid:
+- robotic developer text
+- long explanations
+- generic placeholder copy
+
+==================================================
+31. PERFORMANCE
+==================================================
+
+The tactical editor must feel smooth.
+
+Requirements:
+- avoid unnecessary Konva rerenders
+- separate layers properly
+- stable references
+- memoization where needed
+- smooth drag interactions
+- responsive player mobile screens
+- no giant unstructured components
+
+==================================================
+32. DELIVER

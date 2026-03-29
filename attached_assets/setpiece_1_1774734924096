@@ -1,0 +1,26 @@
+Now do a final launch polish pass for SETPIECE by PerformIQ.
+
+Focus only on:
+- first impression
+- premium UI
+- dashboard quality
+- onboarding smoothness
+- template card quality
+- tactical editor refinement
+- role assignment clarity
+- QR/share modal polish
+- player PWA simplicity
+- quiz UX
+- readiness dashboard clarity
+- ghost mode visual impact
+- matchday page calmness
+- pricing page quality
+- consistency of spacing, colors, buttons, cards, badges, modals, typography
+- empty states
+- loading states
+- error states
+
+Do NOT add new features.
+Do NOT expand scope.
+Do NOT rebuild architecture.
+Only improve the design, UX, clarity, and product polish until it feels like a premium, launchable product.
