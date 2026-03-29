@@ -13,6 +13,7 @@ import {
   matchdaySetPiecesTable,
   auditEventsTable,
   shareLinksTable,
+  quizAttemptsTable,
 } from "@workspace/db";
 import crypto from "crypto";
 
@@ -345,6 +346,29 @@ async function seed() {
     });
   }
   console.log("Created matchday with 3 active set pieces");
+
+  const quizAttemptData = [
+    { playerIdx: 0, pieceIdx: 0, score: 80, passed: true },
+    { playerIdx: 3, pieceIdx: 0, score: 100, passed: true },
+    { playerIdx: 5, pieceIdx: 0, score: 40, passed: false },
+    { playerIdx: 7, pieceIdx: 1, score: 90, passed: true },
+    { playerIdx: 9, pieceIdx: 1, score: 70, passed: true },
+    { playerIdx: 8, pieceIdx: 3, score: 50, passed: false },
+  ];
+
+  for (const qa of quizAttemptData) {
+    await db.insert(quizAttemptsTable).values({
+      playerId: players[qa.playerIdx].id,
+      setPieceId: createdPieces[qa.pieceIdx].id,
+      score: qa.score,
+      passed: qa.passed,
+      answers: [
+        { questionId: "q1", answer: "correct", correct: true },
+        { questionId: "q2", answer: "wrong", correct: !qa.passed },
+      ],
+    });
+  }
+  console.log(`Created ${quizAttemptData.length} quiz attempts`);
 
   const shareToken = crypto.randomBytes(32).toString("hex");
   await db.insert(shareLinksTable).values({

@@ -13,12 +13,14 @@ import readinessRouter from "./readiness";
 import ghostRouter from "./ghost";
 import auditRouter from "./audit";
 import pricingRouter from "./pricing";
+import membershipsRouter from "./memberships";
 
 const router: IRouter = Router();
 
 router.use(healthRouter);
 router.use(authRouter);
 router.use(teamsRouter);
+router.use(membershipsRouter);
 router.use(playersRouter);
 router.use(templatesRouter);
 router.use(setPiecesRouter);
