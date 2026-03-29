@@ -1,5 +1,6 @@
 import { CoachLayout } from '@/components/Layout';
 import { useGetPricingData } from '@workspace/api-client-react';
+import type { PricingDataTiersItem } from '@workspace/api-client-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { CheckCircle2, Sparkles } from 'lucide-react';
@@ -7,7 +8,7 @@ import { motion } from 'framer-motion';
 
 export default function Pricing() {
   const { data } = useGetPricingData();
-  const tiers = data?.tiers || [];
+  const tiers: PricingDataTiersItem[] = data?.tiers || [];
 
   return (
     <CoachLayout>
@@ -18,7 +19,7 @@ export default function Pricing() {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {tiers.map((tier: any, idx: number) => (
+          {tiers.map((tier, idx) => (
             <motion.div key={tier.id} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: idx * 0.1 }}>
               <Card className={`bg-card border-border relative overflow-hidden h-full ${tier.highlighted ? 'border-primary shadow-xl shadow-primary/10 ring-1 ring-primary/20' : ''}`}>
                 {tier.highlighted && (
@@ -34,12 +35,12 @@ export default function Pricing() {
                     <h2 className="text-xl font-display font-bold text-white">{tier.name}</h2>
                     <div className="flex items-baseline gap-1 mt-2">
                       <span className="text-4xl font-bold text-white">{tier.price}</span>
-                      <span className="text-muted-foreground text-sm">CHF/mo</span>
+                      <span className="text-muted-foreground text-sm">{tier.currency}/mo</span>
                     </div>
                   </div>
 
                   <ul className="space-y-2.5 flex-1 mb-6">
-                    {tier.features?.map((f: string, i: number) => (
+                    {tier.features?.map((f, i) => (
                       <li key={i} className="flex items-start gap-2 text-sm">
                         <CheckCircle2 className="h-4 w-4 text-primary mt-0.5 shrink-0" />
                         <span className="text-muted-foreground">{f}</span>
@@ -48,7 +49,7 @@ export default function Pricing() {
                   </ul>
 
                   <Button className={`w-full ${tier.highlighted ? '' : 'bg-secondary text-foreground hover:bg-secondary/80'}`}>
-                    {tier.cta}
+                    {tier.cta || 'Get Started'}
                   </Button>
                 </CardContent>
               </Card>

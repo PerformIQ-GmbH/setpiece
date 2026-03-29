@@ -2,6 +2,12 @@ import { useState } from 'react';
 import { CoachLayout } from '@/components/Layout';
 import { useRoute, Link } from 'wouter';
 import { useGetTeam, useGetSetPiece, useListPlayers, usePreviewGhostSubstitution } from '@workspace/api-client-react';
+import type {
+  GhostSubstitutionResponse,
+  GhostSubstitutionResponseAfterPositionsItem,
+  GhostSubstitutionResponseUpdatedRoleMappingItem,
+  GhostSubstitutionResponseSuitabilityHintsItem,
+} from '@workspace/api-client-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Pitch } from '@/components/Pitch';
@@ -19,7 +25,7 @@ export default function GhostMode() {
 
   const [playerOut, setPlayerOut] = useState('');
   const [playerIn, setPlayerIn] = useState('');
-  const [result, setResult] = useState<any>(null);
+  const [result, setResult] = useState<GhostSubstitutionResponse | null>(null);
 
   const assignedPlayerIds = setPiece?.assignments?.map(a => a.playerId) || [];
   const assignedPlayers = players?.filter(p => assignedPlayerIds.includes(p.id)) || [];
@@ -31,8 +37,8 @@ export default function GhostMode() {
     setResult(res);
   };
 
-  const afterRoles = result?.afterPositions?.map((ap: any) => ({
-    id: ap.roleId,
+  const afterRoles = result?.afterPositions?.map((ap: GhostSubstitutionResponseAfterPositionsItem) => ({
+    id: ap.roleId || '',
     name: ap.roleName || '',
     startPosition: ap.position,
     color: ap.isGhost ? '#3b82f6' : undefined,
@@ -89,9 +95,9 @@ export default function GhostMode() {
                   <CardContent className="p-5">
                     <h3 className="font-display font-bold text-base text-white mb-3">Substitution Result</h3>
 
-                    {result.warnings?.length > 0 && (
+                    {result.warnings.length > 0 && (
                       <div className="mb-3 space-y-2">
-                        {result.warnings.map((w: string, i: number) => (
+                        {result.warnings.map((w, i) => (
                           <div key={i} className="flex items-start gap-2 p-2 rounded-lg bg-amber-500/10 border border-amber-500/20">
                             <AlertTriangle className="h-4 w-4 text-amber-400 mt-0.5 shrink-0" />
                             <p className="text-xs text-amber-300">{w}</p>
@@ -100,7 +106,7 @@ export default function GhostMode() {
                       </div>
                     )}
 
-                    {result.updatedRoleMapping?.map((mapping: any) => (
+                    {result.updatedRoleMapping.map((mapping: GhostSubstitutionResponseUpdatedRoleMappingItem) => (
                       <div key={mapping.roleId} className="flex items-center justify-between p-2 rounded-lg bg-secondary/30 mb-1.5">
                         <span className="text-sm font-medium text-white">{mapping.roleName}</span>
                         <div className="flex items-center gap-2 text-xs">
@@ -111,9 +117,9 @@ export default function GhostMode() {
                       </div>
                     ))}
 
-                    {result.suitabilityHints?.length > 0 && (
+                    {result.suitabilityHints.length > 0 && (
                       <div className="mt-3 space-y-1.5">
-                        {result.suitabilityHints.map((hint: any, i: number) => (
+                        {result.suitabilityHints.map((hint: GhostSubstitutionResponseSuitabilityHintsItem, i: number) => (
                           <div key={i} className={`flex items-start gap-2 p-2 rounded-lg text-xs ${hint.severity === 'critical' ? 'bg-red-500/10 text-red-300 border border-red-500/20' : hint.severity === 'warning' ? 'bg-amber-500/10 text-amber-300 border border-amber-500/20' : 'bg-blue-500/10 text-blue-300 border border-blue-500/20'}`}>
                             <Info className="h-3.5 w-3.5 mt-0.5 shrink-0" />
                             <span>{hint.roleName}: {hint.hint}</span>
@@ -122,7 +128,7 @@ export default function GhostMode() {
                       </div>
                     )}
 
-                    {(!result.warnings || result.warnings.length === 0) && (!result.suitabilityHints || result.suitabilityHints.length === 0) && (
+                    {result.warnings.length === 0 && result.suitabilityHints.length === 0 && (
                       <div className="flex items-center gap-2 text-emerald-400 text-sm mt-2">
                         <CheckCircle2 className="h-4 w-4" /> Clean substitution - no issues detected
                       </div>

@@ -18,6 +18,7 @@ import Settings from "./pages/Settings";
 import PlayerPWA from "./pages/PlayerPWA";
 import PlayerQuiz from "./pages/PlayerQuiz";
 import NotFound from "./pages/not-found";
+import { InstallPrompt } from "./components/InstallPrompt";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -57,6 +58,7 @@ function App() {
       <TooltipProvider>
         <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
           <AppRouter />
+          <InstallPrompt />
         </WouterRouter>
         <Toaster />
       </TooltipProvider>

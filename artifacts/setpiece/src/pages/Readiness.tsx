@@ -1,10 +1,19 @@
 import { CoachLayout } from '@/components/Layout';
 import { useRoute } from 'wouter';
 import { useGetTeam, useGetReadinessDashboard } from '@workspace/api-client-react';
+import type { ReadinessDashboardPlayersItem, PlayerReadinessStatus } from '@workspace/api-client-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { StatusBadge } from '@/components/StatusBadge';
 import { Eye, EyeOff, CheckCircle2, AlertTriangle, Users } from 'lucide-react';
 import { motion } from 'framer-motion';
+
+function computeBestStatus(readiness: PlayerReadinessStatus[]): string {
+  if (readiness.length === 0) return 'not_opened';
+  if (readiness.some(r => r.status === 'passed')) return 'passed';
+  if (readiness.some(r => r.status === 'needs_review')) return 'needs_review';
+  if (readiness.some(r => r.status === 'opened')) return 'opened';
+  return 'not_opened';
+}
 
 export default function Readiness() {
   const [, params] = useRoute('/teams/:teamId/readiness');
@@ -58,10 +67,10 @@ export default function Readiness() {
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
-              {players.map((entry: any, idx: number) => {
+              {players.map((entry: ReadinessDashboardPlayersItem, idx: number) => {
                 const p = entry.player;
                 const r = entry.readiness || [];
-                const bestStatus = r.length === 0 ? 'not_opened' : r.some((x: any) => x.status === 'passed') ? 'passed' : r.some((x: any) => x.status === 'needs_review') ? 'needs_review' : 'opened';
+                const bestStatus = computeBestStatus(r);
                 return (
                   <motion.tr key={p.id} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: idx * 0.02 }} className="hover:bg-secondary/20">
                     <td className="px-4 py-3">
