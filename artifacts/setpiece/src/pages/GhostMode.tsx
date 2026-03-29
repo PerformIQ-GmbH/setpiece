@@ -29,6 +29,7 @@ export default function GhostMode() {
   const [result, setResult] = useState<GhostSubstitutionResponse | null>(null);
   const [applying, setApplying] = useState(false);
   const [applied, setApplied] = useState(false);
+  const [applyError, setApplyError] = useState<string | null>(null);
 
   const assignedPlayerIds = setPiece?.assignments?.map(a => a.playerId) || [];
   const assignedPlayers = players?.filter(p => assignedPlayerIds.includes(p.id)) || [];
@@ -137,6 +138,12 @@ export default function GhostMode() {
                       </div>
                     )}
 
+                    {applyError && (
+                      <div className="mt-3 p-3 rounded-lg bg-red-500/10 border border-red-500/20 text-red-300 text-sm">
+                        {applyError}
+                      </div>
+                    )}
+
                     {applied ? (
                       <div className="flex items-center gap-2 text-emerald-400 text-sm mt-4 p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/20">
                         <CheckCircle2 className="h-4 w-4" /> Substitution applied successfully
@@ -148,16 +155,22 @@ export default function GhostMode() {
                           disabled={applying}
                           onClick={async () => {
                             setApplying(true);
-                            for (const mapping of result.updatedRoleMapping) {
-                              if (mapping.roleId && mapping.newPlayerId) {
-                                await upsertAssignment.mutateAsync({
-                                  teamId, setPieceId,
-                                  data: { roleId: mapping.roleId, playerId: mapping.newPlayerId }
-                                });
+                            setApplyError(null);
+                            try {
+                              for (const mapping of result.updatedRoleMapping) {
+                                if (mapping.roleId && mapping.newPlayerId) {
+                                  await upsertAssignment.mutateAsync({
+                                    teamId, setPieceId,
+                                    data: { roleId: mapping.roleId, playerId: mapping.newPlayerId }
+                                  });
+                                }
                               }
+                              setApplied(true);
+                            } catch (err) {
+                              setApplyError(err instanceof Error ? err.message : 'Failed to apply substitution. Some assignments may have been partially applied.');
+                            } finally {
+                              setApplying(false);
                             }
-                            setApplying(false);
-                            setApplied(true);
                           }}
                         >
                           <Check className="h-4 w-4 mr-2" /> {applying ? 'Applying...' : 'Confirm Substitution'}

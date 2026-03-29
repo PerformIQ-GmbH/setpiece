@@ -45,21 +45,31 @@ export default function MatchdayDetail() {
     refetch();
   };
 
+  const [shareError, setShareError] = useState('');
+
   const handleShare = async () => {
+    setShareError('');
+    if (shareScope === 'selected' && selectedPlayers.length === 0) {
+      setShareError('Please select at least one player, or choose "All Players".');
+      return;
+    }
     const body: CreateShareLinkBody = {
       matchdayScope: matchdayId,
     };
-    if (shareScope === 'selected' && selectedPlayers.length > 0) {
+    if (shareScope === 'selected') {
       body.playerScope = selectedPlayers;
     }
     if (expiryHours && parseInt(expiryHours) > 0) {
       const expiry = new Date(Date.now() + parseInt(expiryHours) * 60 * 60 * 1000);
       body.expiresAt = expiry.toISOString();
     }
-    const link = await createShareLink.mutateAsync({ teamId, data: body });
-    const url = `${window.location.origin}${import.meta.env.BASE_URL}p/${link.token}`;
-    setShareLink(url);
-    setShareOpen(true);
+    try {
+      const link = await createShareLink.mutateAsync({ teamId, data: body });
+      const url = `${window.location.origin}${import.meta.env.BASE_URL}p/${link.token}`;
+      setShareLink(url);
+    } catch (err) {
+      setShareError(err instanceof Error ? err.message : 'Failed to create share link.');
+    }
   };
 
   const handleCopy = () => {
@@ -224,6 +234,11 @@ export default function MatchdayDetail() {
                 </select>
               </div>
 
+              {shareError && (
+                <div className="p-3 rounded-lg bg-red-500/10 border border-red-500/20 text-red-300 text-sm">
+                  {shareError}
+                </div>
+              )}
               <Button className="w-full" onClick={handleShare} disabled={createShareLink.isPending}>
                 {createShareLink.isPending ? 'Generating...' : 'Generate Share Link'}
               </Button>
