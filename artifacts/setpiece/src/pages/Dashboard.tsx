@@ -73,11 +73,18 @@ export default function Dashboard() {
       ) : teams?.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-24 px-4 text-center border-2 border-dashed border-border rounded-3xl bg-card/30">
           <ShieldAlert className="h-16 w-16 text-muted-foreground mb-4" />
-          <h2 className="text-xl font-bold mb-2 text-foreground">No Teams Found</h2>
-          <p className="text-muted-foreground max-w-md mb-6">Get started by creating your first team. You can then add players, design set pieces, and manage matchdays.</p>
-          <Button onClick={() => setOpen(true)} size="lg" variant="outline" className="border-primary text-primary hover:bg-primary/10">
-            Create Your First Team
-          </Button>
+          <h2 className="text-xl font-bold mb-2 text-foreground">Welcome, Coach!</h2>
+          <p className="text-muted-foreground max-w-md mb-6">Let's set up your team in under a minute. Add players, choose your focus, and start building set pieces right away.</p>
+          <div className="flex gap-3">
+            <Link href="/onboarding">
+              <Button size="lg" className="shadow-lg shadow-primary/20">
+                <ArrowRight className="h-5 w-5 mr-2" /> Start Setup Wizard
+              </Button>
+            </Link>
+            <Button onClick={() => setOpen(true)} size="lg" variant="outline" className="border-border">
+              Quick Create Team
+            </Button>
+          </div>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">

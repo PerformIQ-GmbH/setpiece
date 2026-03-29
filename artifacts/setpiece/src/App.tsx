@@ -17,6 +17,7 @@ import Pricing from "./pages/Pricing";
 import Settings from "./pages/Settings";
 import PlayerPWA from "./pages/PlayerPWA";
 import PlayerQuiz from "./pages/PlayerQuiz";
+import Onboarding from "./pages/Onboarding";
 import NotFound from "./pages/not-found";
 import { InstallPrompt } from "./components/InstallPrompt";
 
@@ -35,6 +36,7 @@ function AppRouter() {
     <Switch>
       <Route path="/" component={Landing} />
       <Route path="/dashboard" component={Dashboard} />
+      <Route path="/onboarding" component={Onboarding} />
       <Route path="/teams/:teamId" component={TeamDashboard} />
       <Route path="/teams/:teamId/players" component={Players} />
       <Route path="/teams/:teamId/templates" component={Templates} />
