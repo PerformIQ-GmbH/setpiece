@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { CoachLayout } from '@/components/Layout';
 import { useRoute } from 'wouter';
-import { useGetTeam, useGetReadinessDashboard, useListMatchdays, useListSetPieces } from '@workspace/api-client-react';
+import { useGetTeam, useGetReadinessDashboard, useListMatchdays, useListSetPieces, useGetMatchday } from '@workspace/api-client-react';
 import type { ReadinessDashboardPlayersItem, PlayerReadinessStatus } from '@workspace/api-client-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { StatusBadge } from '@/components/StatusBadge';
@@ -26,7 +26,10 @@ export default function Readiness() {
 
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [setPieceFilter, setSetPieceFilter] = useState<string>('all');
+  const [matchdayFilter, setMatchdayFilter] = useState<string>('all');
   const [searchTerm, setSearchTerm] = useState('');
+
+  const { data: selectedMatchday } = useGetMatchday(teamId, matchdayFilter !== 'all' ? matchdayFilter : '__none__');
 
   const summary = readiness?.summary;
   const allPlayers = readiness?.players || [];
@@ -41,6 +44,12 @@ export default function Readiness() {
     if (setPieceFilter !== 'all') {
       const hasMatch = r.some(rd => rd.setPieceId === setPieceFilter);
       if (!hasMatch && setPieceFilter !== 'none') return false;
+    }
+
+    if (matchdayFilter !== 'all' && selectedMatchday) {
+      const mdSetPieceIds = selectedMatchday.setPieces?.map((sp: { id: string }) => sp.id) || [];
+      const hasMatchday = r.some(rd => mdSetPieceIds.includes(rd.setPieceId));
+      if (!hasMatchday) return false;
     }
 
     if (searchTerm) {
@@ -108,6 +117,18 @@ export default function Readiness() {
             <option value="all">All Set Pieces</option>
             {setPieces.map(sp => (
               <option key={sp.id} value={sp.id}>{sp.title}</option>
+            ))}
+          </select>
+        )}
+        {matchdays && matchdays.length > 0 && (
+          <select
+            value={matchdayFilter}
+            onChange={e => setMatchdayFilter(e.target.value)}
+            className="bg-card border border-border rounded-lg px-3 py-2 text-sm focus:border-primary outline-none text-muted-foreground"
+          >
+            <option value="all">All Matchdays</option>
+            {matchdays.map(md => (
+              <option key={md.id} value={md.id}>{md.title}</option>
             ))}
           </select>
         )}

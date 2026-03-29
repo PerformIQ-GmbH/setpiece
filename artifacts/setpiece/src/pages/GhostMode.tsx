@@ -191,15 +191,36 @@ export default function GhostMode() {
           </AnimatePresence>
         </div>
 
-        <div>
-          <Card className="bg-card border-border overflow-hidden">
-            <CardContent className="p-0">
-              <Pitch
-                roles={afterRoles.length > 0 ? afterRoles : (setPiece?.roles || [])}
-                halfPitch={setPiece?.category?.includes('corner') || setPiece?.category?.includes('freekick')}
-              />
-            </CardContent>
-          </Card>
+        <div className="space-y-4">
+          {result && (
+            <div>
+              <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">Before</h3>
+              <Card className="bg-card border-border overflow-hidden opacity-60">
+                <CardContent className="p-0">
+                  <Pitch
+                    roles={(setPiece?.roles || []).map(r => ({
+                      id: r.id,
+                      name: r.name,
+                      startPosition: r.startPosition,
+                      color: result.updatedRoleMapping.some(m => m.roleId === r.id) ? '#ef4444' : undefined,
+                    }))}
+                    halfPitch={setPiece?.category?.includes('corner') || setPiece?.category?.includes('freekick')}
+                  />
+                </CardContent>
+              </Card>
+            </div>
+          )}
+          <div>
+            {result && <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">After</h3>}
+            <Card className={`bg-card border-border overflow-hidden ${result ? 'ring-1 ring-primary/40' : ''}`}>
+              <CardContent className="p-0">
+                <Pitch
+                  roles={afterRoles.length > 0 ? afterRoles : (setPiece?.roles || [])}
+                  halfPitch={setPiece?.category?.includes('corner') || setPiece?.category?.includes('freekick')}
+                />
+              </CardContent>
+            </Card>
+          </div>
         </div>
       </div>
     </CoachLayout>

@@ -19,12 +19,11 @@
   <body>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
-    <script>
+    <script type="module">
       if ('serviceWorker' in navigator) {
         window.addEventListener('load', function() {
-          var base = document.querySelector('base');
-          var scope = base ? base.getAttribute('href') : '/setpiece/';
-          navigator.serviceWorker.register(scope + 'sw.js', { scope: scope }).catch(function() {});
+          var base = import.meta.env.BASE_URL || '/setpiece/';
+          navigator.serviceWorker.register(base + 'sw.js', { scope: base }).catch(function() {});
         });
       }
     </script>

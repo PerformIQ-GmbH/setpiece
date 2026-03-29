@@ -4,7 +4,7 @@ import { useCreateTeam, useCreatePlayer, useListTemplates, useCreateSetPiece, us
 import type { SetPieceTemplate } from '@workspace/api-client-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { CheckCircle2, Users, Shirt, LayoutTemplate, UserCog, Trophy, ArrowRight, ArrowLeft, QrCode, ExternalLink } from 'lucide-react';
+import { CheckCircle2, Users, Shirt, LayoutTemplate, UserCog, Trophy, ArrowRight, ArrowLeft, QrCode, ExternalLink, Plus, Calendar } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { QRCodeSVG } from 'qrcode.react';
 
@@ -317,7 +317,10 @@ export default function Onboarding() {
                           </Button>
                         )}
                         <Button variant="outline" onClick={() => navigate(`/teams/${teamId}/templates`)} className="border-border text-xs">
-                          Browse Templates
+                          <Plus className="w-3 h-3 mr-1" /> Add Set Piece
+                        </Button>
+                        <Button variant="outline" onClick={() => navigate(`/teams/${teamId}/matchdays`)} className="border-border text-xs">
+                          <Calendar className="w-3 h-3 mr-1" /> Go to Matchday
                         </Button>
                         <Button onClick={() => navigate(`/teams/${teamId}`)} className="col-span-2">
                           Go to Dashboard <ArrowRight className="w-4 h-4 ml-2" />

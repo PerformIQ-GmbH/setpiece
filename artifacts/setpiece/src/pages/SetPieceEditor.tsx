@@ -6,7 +6,7 @@ import { KonvaPitch } from '@/components/KonvaPitch';
 import { StatusBadge } from '@/components/StatusBadge';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Plus, Users, ArrowLeft, ShieldCheck, Trash2, Ghost, FileDown, Loader2, Cloud, CloudOff, MousePointer2, Move, Hand } from 'lucide-react';
+import { Plus, Users, ArrowLeft, ShieldCheck, Trash2, Ghost, FileDown, Loader2, Cloud, CloudOff, MousePointer2, Undo2, Redo2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Link } from 'wouter';
 
@@ -38,6 +38,10 @@ export default function SetPieceEditor() {
   const [editingTitle, setEditingTitle] = useState(false);
   const [titleDraft, setTitleDraft] = useState('');
 
+  interface UndoEntry { roleId: string; prevPos: { x: number; y: number }; newPos: { x: number; y: number } }
+  const [undoStack, setUndoStack] = useState<UndoEntry[]>([]);
+  const [redoStack, setRedoStack] = useState<UndoEntry[]>([]);
+
   const canvasRef = useRef<HTMLDivElement>(null);
   const [canvasSize, setCanvasSize] = useState({ width: 600, height: 500 });
 
@@ -55,6 +59,10 @@ export default function SetPieceEditor() {
   }, []);
 
   const handleRoleDragEnd = useCallback(async (roleId: string, pos: { x: number; y: number }) => {
+    const role = setPiece?.roles.find(r => r.id === roleId);
+    const prevPos = { x: role?.startPosition?.x ?? 50, y: role?.startPosition?.y ?? 50 };
+    setUndoStack(prev => [...prev, { roleId, prevPos, newPos: pos }]);
+    setRedoStack([]);
     setSaveState('saving');
     try {
       await updateRole.mutateAsync({
@@ -66,7 +74,52 @@ export default function SetPieceEditor() {
     } catch {
       setSaveState('error');
     }
-  }, [teamId, setPieceId, updateRole, refetch]);
+  }, [teamId, setPieceId, updateRole, refetch, setPiece?.roles]);
+
+  const handleUndo = useCallback(async () => {
+    const entry = undoStack[undoStack.length - 1];
+    if (!entry) return;
+    setUndoStack(prev => prev.slice(0, -1));
+    setRedoStack(prev => [...prev, entry]);
+    setSaveState('saving');
+    try {
+      await updateRole.mutateAsync({
+        teamId, setPieceId, roleId: entry.roleId,
+        data: { startPosition: entry.prevPos }
+      });
+      await refetch();
+      setSaveState('saved');
+    } catch {
+      setSaveState('error');
+    }
+  }, [undoStack, teamId, setPieceId, updateRole, refetch]);
+
+  const handleRedo = useCallback(async () => {
+    const entry = redoStack[redoStack.length - 1];
+    if (!entry) return;
+    setRedoStack(prev => prev.slice(0, -1));
+    setUndoStack(prev => [...prev, entry]);
+    setSaveState('saving');
+    try {
+      await updateRole.mutateAsync({
+        teamId, setPieceId, roleId: entry.roleId,
+        data: { startPosition: entry.newPos }
+      });
+      await refetch();
+      setSaveState('saved');
+    } catch {
+      setSaveState('error');
+    }
+  }, [redoStack, teamId, setPieceId, updateRole, refetch]);
+
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'z' && !e.shiftKey) { e.preventDefault(); handleUndo(); }
+      if ((e.metaKey || e.ctrlKey) && (e.key === 'y' || (e.key === 'z' && e.shiftKey))) { e.preventDefault(); handleRedo(); }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [handleUndo, handleRedo]);
 
   const handlePitchClick = async (pos: { x: number; y: number }) => {
     if (activeTool === 'place') {
@@ -292,6 +345,23 @@ export default function SetPieceEditor() {
               <t.icon className="w-4 h-4" />
             </button>
           ))}
+          <div className="w-6 border-t border-border" />
+          <button
+            onClick={handleUndo}
+            disabled={undoStack.length === 0}
+            title="Undo (Ctrl+Z)"
+            className="w-9 h-9 rounded-lg flex items-center justify-center transition-colors text-muted-foreground hover:bg-secondary hover:text-white disabled:opacity-30 disabled:pointer-events-none"
+          >
+            <Undo2 className="w-4 h-4" />
+          </button>
+          <button
+            onClick={handleRedo}
+            disabled={redoStack.length === 0}
+            title="Redo (Ctrl+Shift+Z)"
+            className="w-9 h-9 rounded-lg flex items-center justify-center transition-colors text-muted-foreground hover:bg-secondary hover:text-white disabled:opacity-30 disabled:pointer-events-none"
+          >
+            <Redo2 className="w-4 h-4" />
+          </button>
         </div>
 
         <main className="flex-1 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-background via-card to-background relative overflow-hidden flex items-center justify-center">
