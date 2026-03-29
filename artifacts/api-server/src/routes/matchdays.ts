@@ -201,6 +201,15 @@ router.delete("/teams/:teamId/matchdays/:matchdayId/set-pieces", async (req, res
   const matchdayId = parseParam(req.params.matchdayId);
   const { setPieceId } = parsed.data;
 
+  const [matchday] = await db
+    .select()
+    .from(matchdaysTable)
+    .where(and(eq(matchdaysTable.id, matchdayId), eq(matchdaysTable.teamId, teamId)));
+  if (!matchday) {
+    res.status(404).json({ error: "Matchday not found" });
+    return;
+  }
+
   await db
     .delete(matchdaySetPiecesTable)
     .where(
