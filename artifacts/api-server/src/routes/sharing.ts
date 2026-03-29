@@ -215,7 +215,12 @@ router.post("/p/:shareToken/ready", async (req, res): Promise<void> => {
 
   const { playerId, setPieceId, roleId } = parsed.data;
 
-  if (link.playerScope && link.playerScope.length > 0 && !link.playerScope.includes(playerId)) {
+  if (!link.playerScope || link.playerScope.length === 0) {
+    res.status(403).json({ error: "Player-scoped share link required for write actions" });
+    return;
+  }
+
+  if (!link.playerScope.includes(playerId)) {
     res.status(403).json({ error: "Player not in scope for this link" });
     return;
   }
