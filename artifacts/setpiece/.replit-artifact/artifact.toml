@@ -1,0 +1,31 @@
+kind = "web"
+previewPath = "/setpiece/"
+title = "SETPIECE by PerformIQ"
+version = "1.0.0"
+id = "artifacts/setpiece"
+router = "path"
+
+[[integratedSkills]]
+name = "react-vite"
+version = "1.0.0"
+
+[[services]]
+name = "web"
+paths = [ "/setpiece/" ]
+localPort = 19174
+
+[services.development]
+run = "pnpm --filter @workspace/setpiece run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/setpiece", "run", "build" ]
+publicDir = "artifacts/setpiece/dist/public"
+serve = "static"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "19174"
+BASE_PATH = "/setpiece/"

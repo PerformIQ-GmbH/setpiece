@@ -1,0 +1,17 @@
+packages:
+  "framer-motion": "Animations and page transitions for premium feel"
+  "qrcode.react": "Generating QR codes for player share links"
+  "date-fns": "Date formatting for matchdays and audit logs"
+  "lucide-react": "Icons for UI elements"
+
+images:
+  - path: "artifacts/setpiece/public/images/hero-bg.png"
+    description: "Abstract dark sporty background with neon green and dark slate geometric lines, dynamic football tactical feel, 4k"
+    aspect_ratio: "16:9"
+  - path: "artifacts/setpiece/public/images/logo-mark.png"
+    description: "Minimalist modern football tactical board logo in neon green and white on transparent background, sleek"
+    aspect_ratio: "1:1"
+
+notes:
+  - Assuming API prefix /api-server/api/ is handled by the monorepo configuration or customFetch. If not, window.location.href login redirects are explicitly hardcoded to /api-server/api/login.
+  - Using generated Orval hooks from @workspace/api-client-react as instructed.

@@ -3,20 +3,44 @@ info:
   # Do not change the title, if the title changes, the import paths will be broken
   title: Api
   version: 0.1.0
-  description: API specification
+  description: SETPIECE by PerformIQ API
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
     description: Health operations
+  - name: Auth
+    description: Browser and mobile authentication endpoints.
+  - name: teams
+    description: Team management
+  - name: players
+    description: Player management
+  - name: templates
+    description: Set piece template library
+  - name: setPieces
+    description: Set piece management
+  - name: roles
+    description: Role and assignment management
+  - name: matchdays
+    description: Matchday management
+  - name: sharing
+    description: Share links and player access
+  - name: quiz
+    description: Quiz and readiness
+  - name: ghost
+    description: Ghost mode substitution
+  - name: audit
+    description: Audit trail
+  - name: pricing
+    description: Pricing and billing
+
 paths:
   /healthz:
     get:
       operationId: healthCheck
       tags: [health]
       summary: Health check
-      description: Returns server health status
       responses:
         "200":
           description: Healthy
@@ -24,7 +48,963 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+
+  # ─── Auth ───
+  /auth/user:
+    get:
+      tags: [Auth]
+      operationId: getCurrentAuthUser
+      summary: Get the currently authenticated user
+      parameters:
+        - $ref: '#/components/parameters/AuthorizationSessionHeader'
+        - $ref: '#/components/parameters/SessionCookie'
+      responses:
+        '200':
+          description: Auth status resolved successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthUserEnvelope'
+  /login:
+    get:
+      tags: [Auth]
+      operationId: beginBrowserLogin
+      summary: Start the browser OIDC login flow
+      parameters:
+        - name: returnTo
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        '302':
+          description: Redirect to the OIDC authorization endpoint.
+  /callback:
+    get:
+      tags: [Auth]
+      operationId: handleBrowserLoginCallback
+      summary: Complete the browser OIDC login flow
+      parameters:
+        - name: code
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: state
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: iss
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uri
+      responses:
+        '302':
+          description: Redirect on success or failure.
+  /logout:
+    get:
+      tags: [Auth]
+      operationId: logoutBrowserSession
+      summary: Clear session and begin OIDC logout
+      parameters:
+        - $ref: '#/components/parameters/AuthorizationSessionHeader'
+        - $ref: '#/components/parameters/SessionCookie'
+      responses:
+        '302':
+          description: Redirect to OIDC logout.
+  /mobile-auth/token-exchange:
+    post:
+      tags: [Auth]
+      operationId: exchangeMobileAuthorizationCode
+      summary: Exchange mobile OIDC code for session
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MobileTokenExchangeRequest'
+      responses:
+        '200':
+          description: Session created.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MobileTokenExchangeSuccess'
+        '400':
+          description: Invalid fields.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+  /mobile-auth/logout:
+    post:
+      tags: [Auth]
+      operationId: logoutMobileSession
+      summary: Delete mobile session
+      parameters:
+        - $ref: '#/components/parameters/AuthorizationSessionHeader'
+      responses:
+        '200':
+          description: Logout processed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LogoutSuccess'
+
+  # ─── Teams ───
+  /teams:
+    get:
+      operationId: listTeams
+      tags: [teams]
+      summary: List teams for current user
+      responses:
+        "200":
+          description: List of teams
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Team"
+    post:
+      operationId: createTeam
+      tags: [teams]
+      summary: Create a new team
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateTeamBody"
+      responses:
+        "201":
+          description: Team created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Team"
+  /teams/{teamId}:
+    get:
+      operationId: getTeam
+      tags: [teams]
+      summary: Get team by ID
+      parameters:
+        - $ref: "#/components/parameters/TeamId"
+      responses:
+        "200":
+          description: Team details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Team"
+    patch:
+      operationId: updateTeam
+      tags: [teams]
+      summary: Update team
+      parameters:
+        - $ref: "#/components/parameters/TeamId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateTeamBody"
+      responses:
+        "200":
+          description: Team updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Team"
+
+  # ─── Players ───
+  /teams/{teamId}/players:
+    get:
+      operationId: listPlayers
+      tags: [players]
+      summary: List players for a team
+      parameters:
+        - $ref: "#/components/parameters/TeamId"
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: tag
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: search
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        "200":
+          description: List of players
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Player"
+    post:
+      operationId: createPlayer
+      tags: [players]
+      summary: Add a player to the team
+      parameters:
+        - $ref: "#/components/parameters/TeamId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreatePlayerBody"
+      responses:
+        "201":
+          description: Player created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Player"
+  /teams/{teamId}/players/{playerId}:
+    get:
+      operationId: getPlayer
+      tags: [players]
+      summary: Get player by ID
+      parameters:
+        - $ref: "#/components/parameters/TeamId"
+        - $ref: "#/components/parameters/PlayerId"
+      responses:
+        "200":
+          description: Player details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Player"
+    patch:
+      operationId: updatePlayer
+      tags: [players]
+      summary: Update player
+      parameters:
+        - $ref: "#/components/parameters/TeamId"
+        - $ref: "#/components/parameters/PlayerId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdatePlayerBody"
+      responses:
+        "200":
+          description: Player updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Player"
+    delete:
+      operationId: deletePlayer
+      tags: [players]
+      summary: Remove player from team
+      parameters:
+        - $ref: "#/components/parameters/TeamId"
+        - $ref: "#/components/parameters/PlayerId"
+      responses:
+        "204":
+          description: Player deleted
+
+  # ─── Templates ───
+  /templates:
+    get:
+      operationId: listTemplates
+      tags: [templates]
+      summary: List set piece templates
+      parameters:
+        - name: category
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Template list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/SetPieceTemplate"
+  /templates/{templateId}:
+    get:
+      operationId: getTemplate
+      tags: [templates]
+      summary: Get template by ID
+      parameters:
+        - name: templateId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Template details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SetPieceTemplate"
+
+  # ─── Set Pieces ───
+  /teams/{teamId}/set-pieces:
+    get:
+      operationId: listSetPieces
+      tags: [setPieces]
+      summary: List set pieces for a team
+      parameters:
+        - $ref: "#/components/parameters/TeamId"
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Set piece list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/SetPiece"
+    post:
+      operationId: createSetPiece
+      tags: [setPieces]
+      summary: Create a set piece
+      parameters:
+        - $ref: "#/components/parameters/TeamId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateSetPieceBody"
+      responses:
+        "201":
+          description: Set piece created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SetPiece"
+  /teams/{teamId}/set-pieces/{setPieceId}:
+    get:
+      operationId: getSetPiece
+      tags: [setPieces]
+      summary: Get set piece by ID
+      parameters:
+        - $ref: "#/components/parameters/TeamId"
+        - $ref: "#/components/parameters/SetPieceId"
+      responses:
+        "200":
+          description: Set piece details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SetPieceDetail"
+    patch:
+      operationId: updateSetPiece
+      tags: [setPieces]
+      summary: Update set piece
+      parameters:
+        - $ref: "#/components/parameters/TeamId"
+        - $ref: "#/components/parameters/SetPieceId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateSetPieceBody"
+      responses:
+        "200":
+          description: Set piece updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SetPiece"
+    delete:
+      operationId: deleteSetPiece
+      tags: [setPieces]
+      summary: Delete set piece
+      parameters:
+        - $ref: "#/components/parameters/TeamId"
+        - $ref: "#/components/parameters/SetPieceId"
+      responses:
+        "204":
+          description: Set piece deleted
+  /teams/{teamId}/set-pieces/{setPieceId}/status:
+    patch:
+      operationId: updateSetPieceStatus
+      tags: [setPieces]
+      summary: Update set piece status
+      parameters:
+        - $ref: "#/components/parameters/TeamId"
+        - $ref: "#/components/parameters/SetPieceId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateStatusBody"
+      responses:
+        "200":
+          description: Status updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SetPiece"
+
+  # ─── Roles ───
+  /teams/{teamId}/set-pieces/{setPieceId}/roles:
+    get:
+      operationId: listRoles
+      tags: [roles]
+      summary: List roles for a set piece
+      parameters:
+        - $ref: "#/components/parameters/TeamId"
+        - $ref: "#/components/parameters/SetPieceId"
+      responses:
+        "200":
+          description: Role list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/SetPieceRole"
+    post:
+      operationId: createRole
+      tags: [roles]
+      summary: Create a role
+      parameters:
+        - $ref: "#/components/parameters/TeamId"
+        - $ref: "#/components/parameters/SetPieceId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateRoleBody"
+      responses:
+        "201":
+          description: Role created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SetPieceRole"
+  /teams/{teamId}/set-pieces/{setPieceId}/roles/{roleId}:
+    patch:
+      operationId: updateRole
+      tags: [roles]
+      summary: Update a role
+      parameters:
+        - $ref: "#/components/parameters/TeamId"
+        - $ref: "#/components/parameters/SetPieceId"
+        - $ref: "#/components/parameters/RoleId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateRoleBody"
+      responses:
+        "200":
+          description: Role updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SetPieceRole"
+    delete:
+      operationId: deleteRole
+      tags: [roles]
+      summary: Delete a role
+      parameters:
+        - $ref: "#/components/parameters/TeamId"
+        - $ref: "#/components/parameters/SetPieceId"
+        - $ref: "#/components/parameters/RoleId"
+      responses:
+        "204":
+          description: Role deleted
+
+  # ─── Assignments ───
+  /teams/{teamId}/set-pieces/{setPieceId}/assignments:
+    get:
+      operationId: listAssignments
+      tags: [roles]
+      summary: List role assignments for a set piece
+      parameters:
+        - $ref: "#/components/parameters/TeamId"
+        - $ref: "#/components/parameters/SetPieceId"
+      responses:
+        "200":
+          description: Assignment list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/RoleAssignment"
+    put:
+      operationId: upsertAssignment
+      tags: [roles]
+      summary: Create or update a role assignment
+      parameters:
+        - $ref: "#/components/parameters/TeamId"
+        - $ref: "#/components/parameters/SetPieceId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpsertAssignmentBody"
+      responses:
+        "200":
+          description: Assignment saved
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RoleAssignment"
+
+  # ─── Matchdays ───
+  /teams/{teamId}/matchdays:
+    get:
+      operationId: listMatchdays
+      tags: [matchdays]
+      summary: List matchdays
+      parameters:
+        - $ref: "#/components/parameters/TeamId"
+      responses:
+        "200":
+          description: Matchday list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Matchday"
+    post:
+      operationId: createMatchday
+      tags: [matchdays]
+      summary: Create a matchday
+      parameters:
+        - $ref: "#/components/parameters/TeamId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateMatchdayBody"
+      responses:
+        "201":
+          description: Matchday created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Matchday"
+  /teams/{teamId}/matchdays/{matchdayId}:
+    get:
+      operationId: getMatchday
+      tags: [matchdays]
+      summary: Get matchday detail
+      parameters:
+        - $ref: "#/components/parameters/TeamId"
+        - $ref: "#/components/parameters/MatchdayId"
+      responses:
+        "200":
+          description: Matchday with set pieces
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MatchdayDetail"
+    patch:
+      operationId: updateMatchday
+      tags: [matchdays]
+      summary: Update matchday
+      parameters:
+        - $ref: "#/components/parameters/TeamId"
+        - $ref: "#/components/parameters/MatchdayId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateMatchdayBody"
+      responses:
+        "200":
+          description: Matchday updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Matchday"
+    delete:
+      operationId: deleteMatchday
+      tags: [matchdays]
+      summary: Delete matchday
+      parameters:
+        - $ref: "#/components/parameters/TeamId"
+        - $ref: "#/components/parameters/MatchdayId"
+      responses:
+        "204":
+          description: Matchday deleted
+  /teams/{teamId}/matchdays/{matchdayId}/set-pieces:
+    post:
+      operationId: addSetPieceToMatchday
+      tags: [matchdays]
+      summary: Activate a set piece for matchday
+      parameters:
+        - $ref: "#/components/parameters/TeamId"
+        - $ref: "#/components/parameters/MatchdayId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AddToMatchdayBody"
+      responses:
+        "201":
+          description: Added
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MatchdaySetPieceEntry"
+    delete:
+      operationId: removeSetPieceFromMatchday
+      tags: [matchdays]
+      summary: Deactivate a set piece from matchday
+      parameters:
+        - $ref: "#/components/parameters/TeamId"
+        - $ref: "#/components/parameters/MatchdayId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [setPieceId]
+              properties:
+                setPieceId:
+                  type: string
+      responses:
+        "204":
+          description: Removed
+
+  # ─── Sharing ───
+  /teams/{teamId}/share-links:
+    get:
+      operationId: listShareLinks
+      tags: [sharing]
+      summary: List share links for a team
+      parameters:
+        - $ref: "#/components/parameters/TeamId"
+      responses:
+        "200":
+          description: Share link list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ShareLink"
+    post:
+      operationId: createShareLink
+      tags: [sharing]
+      summary: Create a share link
+      parameters:
+        - $ref: "#/components/parameters/TeamId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateShareLinkBody"
+      responses:
+        "201":
+          description: Share link created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ShareLink"
+  /teams/{teamId}/share-links/{linkId}/revoke:
+    post:
+      operationId: revokeShareLink
+      tags: [sharing]
+      summary: Revoke a share link
+      parameters:
+        - $ref: "#/components/parameters/TeamId"
+        - name: linkId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Link revoked
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ShareLink"
+
+  # ─── Player Access (via share token) ───
+  /p/{shareToken}:
+    get:
+      operationId: getPlayerView
+      tags: [sharing]
+      summary: Get player view for a share token
+      parameters:
+        - name: shareToken
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Player view data
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlayerViewData"
+        "404":
+          description: Invalid or expired link
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+  /p/{shareToken}/ready:
+    post:
+      operationId: markPlayerReady
+      tags: [sharing]
+      summary: Mark player as ready
+      parameters:
+        - name: shareToken
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MarkReadyBody"
+      responses:
+        "200":
+          description: Readiness updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlayerReadinessStatus"
+  /p/{shareToken}/quiz:
+    get:
+      operationId: getQuizQuestions
+      tags: [quiz]
+      summary: Get quiz questions for the share token
+      parameters:
+        - name: shareToken
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: setPieceId
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Quiz questions
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/QuizData"
+    post:
+      operationId: submitQuiz
+      tags: [quiz]
+      summary: Submit quiz answers
+      parameters:
+        - name: shareToken
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SubmitQuizBody"
+      responses:
+        "200":
+          description: Quiz result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/QuizResult"
+
+  # ─── Readiness ───
+  /teams/{teamId}/readiness:
+    get:
+      operationId: getReadinessDashboard
+      tags: [quiz]
+      summary: Get readiness dashboard data
+      parameters:
+        - $ref: "#/components/parameters/TeamId"
+        - name: matchdayId
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: setPieceId
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Readiness data
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReadinessDashboard"
+
+  # ─── Ghost Mode ───
+  /teams/{teamId}/set-pieces/{setPieceId}/ghost:
+    post:
+      operationId: previewGhostSubstitution
+      tags: [ghost]
+      summary: Preview a ghost mode substitution
+      parameters:
+        - $ref: "#/components/parameters/TeamId"
+        - $ref: "#/components/parameters/SetPieceId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GhostSubstitutionRequest"
+      responses:
+        "200":
+          description: Ghost substitution preview
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GhostSubstitutionResponse"
+
+  # ─── Match Pack ───
+  /teams/{teamId}/set-pieces/{setPieceId}/match-pack:
+    get:
+      operationId: getMatchPackData
+      tags: [setPieces]
+      summary: Get match pack export data
+      parameters:
+        - $ref: "#/components/parameters/TeamId"
+        - $ref: "#/components/parameters/SetPieceId"
+      responses:
+        "200":
+          description: Match pack data
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MatchPackData"
+
+  # ─── Audit ───
+  /teams/{teamId}/audit:
+    get:
+      operationId: listAuditEvents
+      tags: [audit]
+      summary: List audit events
+      parameters:
+        - $ref: "#/components/parameters/TeamId"
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 50
+        - name: eventType
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Audit events
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/AuditEvent"
+
+  # ─── Pricing ───
+  /pricing:
+    get:
+      operationId: getPricingData
+      tags: [pricing]
+      summary: Get pricing tiers
+      responses:
+        "200":
+          description: Pricing data
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PricingData"
+
 components:
+  parameters:
+    AuthorizationSessionHeader:
+      name: Authorization
+      in: header
+      required: false
+      schema:
+        type: string
+    SessionCookie:
+      name: sid
+      in: cookie
+      required: false
+      schema:
+        type: string
+    TeamId:
+      name: teamId
+      in: path
+      required: true
+      schema:
+        type: string
+    PlayerId:
+      name: playerId
+      in: path
+      required: true
+      schema:
+        type: string
+    SetPieceId:
+      name: setPieceId
+      in: path
+      required: true
+      schema:
+        type: string
+    RoleId:
+      name: roleId
+      in: path
+      required: true
+      schema:
+        type: string
+    MatchdayId:
+      name: matchdayId
+      in: path
+      required: true
+      schema:
+        type: string
+
   schemas:
     HealthStatus:
       type: object
@@ -34,3 +1014,1028 @@ components:
       required:
         - status
 
+    ErrorEnvelope:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: string
+
+    # ─── Auth Schemas ───
+    AuthUser:
+      type: object
+      required: [id, email, firstName, lastName, profileImageUrl]
+      properties:
+        id:
+          type: string
+        email:
+          type: [string, 'null']
+          format: email
+        firstName:
+          type: [string, 'null']
+        lastName:
+          type: [string, 'null']
+        profileImageUrl:
+          type: [string, 'null']
+    AuthUserEnvelope:
+      type: object
+      required: [user]
+      properties:
+        user:
+          oneOf:
+            - $ref: '#/components/schemas/AuthUser'
+            - type: 'null'
+    MobileTokenExchangeRequest:
+      type: object
+      required: [code, code_verifier, redirect_uri, state]
+      properties:
+        code:
+          type: string
+          minLength: 1
+        code_verifier:
+          type: string
+          minLength: 1
+        redirect_uri:
+          type: string
+          minLength: 1
+          format: uri
+        state:
+          type: string
+          minLength: 1
+        nonce:
+          type: string
+          minLength: 1
+    MobileTokenExchangeSuccess:
+      type: object
+      required: [token]
+      properties:
+        token:
+          type: string
+    LogoutSuccess:
+      type: object
+      required: [success]
+      properties:
+        success:
+          type: boolean
+          const: true
+
+    # ─── Team ───
+    Team:
+      type: object
+      required: [id, name, ownerId, tier, createdAt, updatedAt]
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        clubName:
+          type: [string, 'null']
+        coachName:
+          type: [string, 'null']
+        logoUrl:
+          type: [string, 'null']
+        teamColors:
+          type: [object, 'null']
+          properties:
+            primary:
+              type: string
+            secondary:
+              type: string
+        ownerId:
+          type: string
+        tier:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+    CreateTeamBody:
+      type: object
+      required: [name]
+      properties:
+        name:
+          type: string
+          minLength: 1
+        clubName:
+          type: string
+        coachName:
+          type: string
+        logoUrl:
+          type: string
+        teamColors:
+          type: object
+          properties:
+            primary:
+              type: string
+            secondary:
+              type: string
+    UpdateTeamBody:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+        clubName:
+          type: string
+        coachName:
+          type: string
+        logoUrl:
+          type: string
+        teamColors:
+          type: object
+          properties:
+            primary:
+              type: string
+            secondary:
+              type: string
+
+    # ─── Player ───
+    Player:
+      type: object
+      required: [id, teamId, firstName, lastName, status, createdAt, updatedAt]
+      properties:
+        id:
+          type: string
+        teamId:
+          type: string
+        firstName:
+          type: string
+        lastName:
+          type: string
+        shirtNumber:
+          type: [integer, 'null']
+        dominantFoot:
+          type: [string, 'null']
+        height:
+          type: [integer, 'null']
+        status:
+          type: string
+        tags:
+          type: [array, 'null']
+          items:
+            type: string
+        headingStrength:
+          type: [integer, 'null']
+        speed:
+          type: [integer, 'null']
+        notes:
+          type: [string, 'null']
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+    CreatePlayerBody:
+      type: object
+      required: [firstName, lastName]
+      properties:
+        firstName:
+          type: string
+          minLength: 1
+        lastName:
+          type: string
+          minLength: 1
+        shirtNumber:
+          type: integer
+        dominantFoot:
+          type: string
+        height:
+          type: integer
+        status:
+          type: string
+        tags:
+          type: array
+          items:
+            type: string
+        headingStrength:
+          type: integer
+        speed:
+          type: integer
+        notes:
+          type: string
+    UpdatePlayerBody:
+      type: object
+      properties:
+        firstName:
+          type: string
+        lastName:
+          type: string
+        shirtNumber:
+          type: integer
+        dominantFoot:
+          type: string
+        height:
+          type: integer
+        status:
+          type: string
+        tags:
+          type: array
+          items:
+            type: string
+        headingStrength:
+          type: integer
+        speed:
+          type: integer
+        notes:
+          type: string
+
+    # ─── Template ───
+    SetPieceTemplate:
+      type: object
+      required: [id, title, category, createdAt, updatedAt]
+      properties:
+        id:
+          type: string
+        title:
+          type: string
+        category:
+          type: string
+        description:
+          type: [string, 'null']
+        boardData:
+          type: [object, 'null']
+        previewImageUrl:
+          type: [string, 'null']
+        defaultRoles:
+          type: [array, 'null']
+          items:
+            type: object
+            properties:
+              name:
+                type: string
+              description:
+                type: string
+              startPosition:
+                type: object
+                properties:
+                  x:
+                    type: number
+                  y:
+                    type: number
+              coachingPoint:
+                type: string
+        coachingNote:
+          type: [string, 'null']
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    # ─── Set Piece ───
+    SetPiece:
+      type: object
+      required: [id, teamId, title, category, status, versionNumber, createdAt, updatedAt]
+      properties:
+        id:
+          type: string
+        teamId:
+          type: string
+        title:
+          type: string
+        category:
+          type: string
+        status:
+          type: string
+        description:
+          type: [string, 'null']
+        boardData:
+          type: [object, 'null']
+        previewImageUrl:
+          type: [string, 'null']
+        versionNumber:
+          type: integer
+        coachingNotes:
+          type: [string, 'null']
+        createdBy:
+          type: [string, 'null']
+        updatedBy:
+          type: [string, 'null']
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+    SetPieceDetail:
+      type: object
+      required: [id, teamId, title, category, status, versionNumber, roles, assignments, createdAt, updatedAt]
+      properties:
+        id:
+          type: string
+        teamId:
+          type: string
+        title:
+          type: string
+        category:
+          type: string
+        status:
+          type: string
+        description:
+          type: [string, 'null']
+        boardData:
+          type: [object, 'null']
+        previewImageUrl:
+          type: [string, 'null']
+        versionNumber:
+          type: integer
+        lastSavedBoardSnapshot:
+          type: [object, 'null']
+        coachingNotes:
+          type: [string, 'null']
+        createdBy:
+          type: [string, 'null']
+        updatedBy:
+          type: [string, 'null']
+        roles:
+          type: array
+          items:
+            $ref: "#/components/schemas/SetPieceRole"
+        assignments:
+          type: array
+          items:
+            $ref: "#/components/schemas/RoleAssignment"
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+    CreateSetPieceBody:
+      type: object
+      required: [title, category]
+      properties:
+        title:
+          type: string
+          minLength: 1
+        category:
+          type: string
+        description:
+          type: string
+        boardData:
+          type: object
+        coachingNotes:
+          type: string
+        templateId:
+          type: string
+    UpdateSetPieceBody:
+      type: object
+      properties:
+        title:
+          type: string
+        description:
+          type: string
+        boardData:
+          type: object
+        previewImageUrl:
+          type: string
+        coachingNotes:
+          type: string
+    UpdateStatusBody:
+      type: object
+      required: [status]
+      properties:
+        status:
+          type: string
+          enum: [draft, ready, active_matchday, archived]
+
+    # ─── Set Piece Role ───
+    SetPieceRole:
+      type: object
+      required: [id, setPieceId, name, sortOrder, createdAt, updatedAt]
+      properties:
+        id:
+          type: string
+        setPieceId:
+          type: string
+        name:
+          type: string
+        description:
+          type: [string, 'null']
+        startPosition:
+          type: [object, 'null']
+          properties:
+            x:
+              type: number
+            y:
+              type: number
+        movementPath:
+          type: [array, 'null']
+          items:
+            type: object
+            properties:
+              x:
+                type: number
+              y:
+                type: number
+        coachingPoint:
+          type: [string, 'null']
+        sortOrder:
+          type: integer
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+    CreateRoleBody:
+      type: object
+      required: [name]
+      properties:
+        name:
+          type: string
+          minLength: 1
+        description:
+          type: string
+        startPosition:
+          type: object
+          properties:
+            x:
+              type: number
+            y:
+              type: number
+        movementPath:
+          type: array
+          items:
+            type: object
+            properties:
+              x:
+                type: number
+              y:
+                type: number
+        coachingPoint:
+          type: string
+        sortOrder:
+          type: integer
+    UpdateRoleBody:
+      type: object
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+        startPosition:
+          type: object
+          properties:
+            x:
+              type: number
+            y:
+              type: number
+        movementPath:
+          type: array
+          items:
+            type: object
+            properties:
+              x:
+                type: number
+              y:
+                type: number
+        coachingPoint:
+          type: string
+        sortOrder:
+          type: integer
+
+    # ─── Role Assignment ───
+    RoleAssignment:
+      type: object
+      required: [id, roleId, playerId, createdAt, updatedAt]
+      properties:
+        id:
+          type: string
+        roleId:
+          type: string
+        playerId:
+          type: string
+        backupPlayerId:
+          type: [string, 'null']
+        notes:
+          type: [string, 'null']
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+    UpsertAssignmentBody:
+      type: object
+      required: [roleId, playerId]
+      properties:
+        roleId:
+          type: string
+        playerId:
+          type: string
+        backupPlayerId:
+          type: string
+        notes:
+          type: string
+
+    # ─── Matchday ───
+    Matchday:
+      type: object
+      required: [id, teamId, title, createdAt, updatedAt]
+      properties:
+        id:
+          type: string
+        teamId:
+          type: string
+        title:
+          type: string
+        date:
+          type: [string, 'null']
+          format: date-time
+        opponent:
+          type: [string, 'null']
+        notes:
+          type: [string, 'null']
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+    MatchdayDetail:
+      type: object
+      required: [id, teamId, title, setPieces, createdAt, updatedAt]
+      properties:
+        id:
+          type: string
+        teamId:
+          type: string
+        title:
+          type: string
+        date:
+          type: [string, 'null']
+          format: date-time
+        opponent:
+          type: [string, 'null']
+        notes:
+          type: [string, 'null']
+        setPieces:
+          type: array
+          items:
+            $ref: "#/components/schemas/SetPiece"
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+    CreateMatchdayBody:
+      type: object
+      required: [title]
+      properties:
+        title:
+          type: string
+          minLength: 1
+        date:
+          type: string
+          format: date-time
+        opponent:
+          type: string
+        notes:
+          type: string
+    UpdateMatchdayBody:
+      type: object
+      properties:
+        title:
+          type: string
+        date:
+          type: string
+          format: date-time
+        opponent:
+          type: string
+        notes:
+          type: string
+    AddToMatchdayBody:
+      type: object
+      required: [setPieceId]
+      properties:
+        setPieceId:
+          type: string
+        sortOrder:
+          type: integer
+    MatchdaySetPieceEntry:
+      type: object
+      required: [id, matchdayId, setPieceId, sortOrder, createdAt]
+      properties:
+        id:
+          type: string
+        matchdayId:
+          type: string
+        setPieceId:
+          type: string
+        sortOrder:
+          type: integer
+        createdAt:
+          type: string
+          format: date-time
+
+    # ─── Share Link ───
+    ShareLink:
+      type: object
+      required: [id, teamId, token, createdAt, updatedAt]
+      properties:
+        id:
+          type: string
+        teamId:
+          type: string
+        token:
+          type: string
+        playerScope:
+          type: [array, 'null']
+          items:
+            type: string
+        matchdayScope:
+          type: [string, 'null']
+        allowedSetPieceIds:
+          type: [array, 'null']
+          items:
+            type: string
+        expiresAt:
+          type: [string, 'null']
+          format: date-time
+        revokedAt:
+          type: [string, 'null']
+          format: date-time
+        lastAccessedAt:
+          type: [string, 'null']
+          format: date-time
+        createdBy:
+          type: [string, 'null']
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+    CreateShareLinkBody:
+      type: object
+      properties:
+        playerScope:
+          type: array
+          items:
+            type: string
+        matchdayScope:
+          type: string
+        allowedSetPieceIds:
+          type: array
+          items:
+            type: string
+        expiresAt:
+          type: string
+          format: date-time
+
+    # ─── Player View ───
+    PlayerViewData:
+      type: object
+      required: [team, setPieces]
+      properties:
+        team:
+          type: object
+          required: [id, name]
+          properties:
+            id:
+              type: string
+            name:
+              type: string
+            clubName:
+              type: [string, 'null']
+            logoUrl:
+              type: [string, 'null']
+            teamColors:
+              type: [object, 'null']
+        setPieces:
+          type: array
+          items:
+            type: object
+            required: [id, title, category, status]
+            properties:
+              id:
+                type: string
+              title:
+                type: string
+              category:
+                type: string
+              status:
+                type: string
+              previewImageUrl:
+                type: [string, 'null']
+              boardData:
+                type: [object, 'null']
+              coachingNotes:
+                type: [string, 'null']
+              roles:
+                type: array
+                items:
+                  $ref: "#/components/schemas/SetPieceRole"
+              playerRole:
+                oneOf:
+                  - $ref: "#/components/schemas/SetPieceRole"
+                  - type: 'null'
+              readiness:
+                oneOf:
+                  - $ref: "#/components/schemas/PlayerReadinessStatus"
+                  - type: 'null'
+
+    # ─── Readiness ───
+    PlayerReadinessStatus:
+      type: object
+      required: [id, playerId, setPieceId, status, viewCount, createdAt, updatedAt]
+      properties:
+        id:
+          type: string
+        playerId:
+          type: string
+        setPieceId:
+          type: string
+        roleId:
+          type: [string, 'null']
+        status:
+          type: string
+        lastOpenedAt:
+          type: [string, 'null']
+          format: date-time
+        readyAt:
+          type: [string, 'null']
+          format: date-time
+        quizCompletedAt:
+          type: [string, 'null']
+          format: date-time
+        viewCount:
+          type: integer
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+    MarkReadyBody:
+      type: object
+      required: [playerId, setPieceId]
+      properties:
+        playerId:
+          type: string
+        setPieceId:
+          type: string
+        roleId:
+          type: string
+    ReadinessDashboard:
+      type: object
+      required: [summary, players]
+      properties:
+        summary:
+          type: object
+          required: [total, notOpened, opened, passed, needsReview]
+          properties:
+            total:
+              type: integer
+            notOpened:
+              type: integer
+            opened:
+              type: integer
+            passed:
+              type: integer
+            needsReview:
+              type: integer
+        players:
+          type: array
+          items:
+            type: object
+            required: [player, readiness]
+            properties:
+              player:
+                $ref: "#/components/schemas/Player"
+              readiness:
+                type: array
+                items:
+                  $ref: "#/components/schemas/PlayerReadinessStatus"
+
+    # ─── Quiz ───
+    QuizData:
+      type: object
+      required: [setPieceId, questions]
+      properties:
+        setPieceId:
+          type: string
+        roleId:
+          type: [string, 'null']
+        questions:
+          type: array
+          items:
+            type: object
+            required: [id, type, prompt]
+            properties:
+              id:
+                type: string
+              type:
+                type: string
+                enum: [tap_zone, multiple_choice, yes_no]
+              prompt:
+                type: string
+              options:
+                type: array
+                items:
+                  type: string
+              correctAnswer:
+                {}
+    SubmitQuizBody:
+      type: object
+      required: [playerId, setPieceId, answers]
+      properties:
+        playerId:
+          type: string
+        setPieceId:
+          type: string
+        roleId:
+          type: string
+        answers:
+          type: array
+          items:
+            type: object
+            required: [questionId, answer]
+            properties:
+              questionId:
+                type: string
+              answer:
+                {}
+    QuizResult:
+      type: object
+      required: [passed, score, total]
+      properties:
+        passed:
+          type: boolean
+        score:
+          type: integer
+        total:
+          type: integer
+
+    # ─── Ghost Mode ───
+    GhostSubstitutionRequest:
+      type: object
+      required: [playerOutId, playerInId]
+      properties:
+        playerOutId:
+          type: string
+        playerInId:
+          type: string
+    GhostSubstitutionResponse:
+      type: object
+      required: [beforePositions, afterPositions, updatedRoleMapping, warnings, suitabilityHints]
+      properties:
+        beforePositions:
+          type: array
+          items:
+            type: object
+            properties:
+              roleId:
+                type: string
+              roleName:
+                type: string
+              playerId:
+                type: string
+              playerName:
+                type: string
+              position:
+                type: object
+                properties:
+                  x:
+                    type: number
+                  y:
+                    type: number
+        afterPositions:
+          type: array
+          items:
+            type: object
+            properties:
+              roleId:
+                type: string
+              roleName:
+                type: string
+              playerId:
+                type: string
+              playerName:
+                type: string
+              position:
+                type: object
+                properties:
+                  x:
+                    type: number
+                  y:
+                    type: number
+              isGhost:
+                type: boolean
+        updatedRoleMapping:
+          type: array
+          items:
+            type: object
+            properties:
+              roleId:
+                type: string
+              roleName:
+                type: string
+              previousPlayerId:
+                type: string
+              newPlayerId:
+                type: string
+        warnings:
+          type: array
+          items:
+            type: string
+        suitabilityHints:
+          type: array
+          items:
+            type: object
+            properties:
+              roleId:
+                type: string
+              roleName:
+                type: string
+              hint:
+                type: string
+              severity:
+                type: string
+                enum: [info, warning, critical]
+
+    # ─── Match Pack ───
+    MatchPackData:
+      type: object
+      required: [team, setPiece, roles, assignments]
+      properties:
+        team:
+          $ref: "#/components/schemas/Team"
+        setPiece:
+          $ref: "#/components/schemas/SetPiece"
+        roles:
+          type: array
+          items:
+            $ref: "#/components/schemas/SetPieceRole"
+        assignments:
+          type: array
+          items:
+            type: object
+            properties:
+              role:
+                $ref: "#/components/schemas/SetPieceRole"
+              player:
+                $ref: "#/components/schemas/Player"
+              backupPlayer:
+                oneOf:
+                  - $ref: "#/components/schemas/Player"
+                  - type: 'null'
+
+    # ─── Audit ───
+    AuditEvent:
+      type: object
+      required: [id, teamId, eventType, createdAt]
+      properties:
+        id:
+          type: string
+        teamId:
+          type: string
+        userId:
+          type: [string, 'null']
+        eventType:
+          type: string
+        entityType:
+          type: [string, 'null']
+        entityId:
+          type: [string, 'null']
+        metadata:
+          type: [object, 'null']
+        createdAt:
+          type: string
+          format: date-time
+
+    # ─── Pricing ───
+    PricingData:
+      type: object
+      required: [tiers]
+      properties:
+        tiers:
+          type: array
+          items:
+            type: object
+            required: [id, name, price, currency, interval, features]
+            properties:
+              id:
+                type: string
+              name:
+                type: string
+              price:
+                type: number
+              currency:
+                type: string
+              interval:
+                type: string
+              features:
+                type: array
+                items:
+                  type: string
+              highlighted:
+                type: boolean
+              cta:
+                type: string
