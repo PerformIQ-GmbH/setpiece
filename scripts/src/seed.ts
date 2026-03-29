@@ -88,6 +88,7 @@ async function seed() {
       category: "offensive_corner_left" as const,
       description: "Classic near post corner with a flick-on to the far post area. The delivery targets the near post where a strong header flicks towards the far post runners.",
       coachingNote: "Delivery must be fast and flat to the near post. Timing of runs is everything.",
+      previewImageUrl: "https://placehold.co/400x300/2d5a3d/ffffff?text=Near+Post+Flick",
       defaultRoles: [
         { name: "Delivery", description: "Takes the corner kick", startPosition: { x: 0, y: 0 }, coachingPoint: "Fast, flat delivery to near post" },
         { name: "Near Post Flick", description: "First contact at near post", startPosition: { x: 35, y: 25 }, coachingPoint: "Glancing header towards far post" },
@@ -101,6 +102,7 @@ async function seed() {
       category: "offensive_corner_right" as const,
       description: "Overload the far post with three attackers making staggered runs. Creates chaos in the defensive zone.",
       coachingNote: "Stagger runs: first runner pulls defender, second attacks space, third covers rebounds.",
+      previewImageUrl: "https://placehold.co/400x300/2d5a3d/ffffff?text=Far+Post+Overload",
       defaultRoles: [
         { name: "Delivery", description: "Takes the corner", startPosition: { x: 100, y: 0 }, coachingPoint: "Outswinging delivery to far post zone" },
         { name: "First Runner", description: "Lead run to far post", startPosition: { x: 55, y: 30 }, coachingPoint: "Drag defender away, create space" },
@@ -114,6 +116,7 @@ async function seed() {
       category: "defensive_corner_left" as const,
       description: "Zone-based defensive setup with players marking spaces rather than players. Priorities: first contact, near post, far post, edge of box.",
       coachingNote: "Own your zone. Attack the ball aggressively when it enters your area.",
+      previewImageUrl: "https://placehold.co/400x300/5a2d2d/ffffff?text=Zonal+Wall",
       defaultRoles: [
         { name: "Near Post Guard", description: "Covers near post zone", startPosition: { x: 30, y: 20 }, coachingPoint: "Nothing gets past the near post" },
         { name: "Central Zone 1", description: "Central defensive zone", startPosition: { x: 40, y: 20 }, coachingPoint: "Aggressive clearance, head it high and wide" },
@@ -127,6 +130,7 @@ async function seed() {
       category: "defensive_corner_right" as const,
       description: "Man-marking defensive corner with each player assigned a specific attacker. Goalkeeper commands the area.",
       coachingNote: "Stay tight to your man. Go with them, not the ball. GK calls for everything in the 6-yard box.",
+      previewImageUrl: "https://placehold.co/400x300/5a2d2d/ffffff?text=Man-Mark+Press",
       defaultRoles: [
         { name: "Marker 1", description: "Marks tallest attacker", startPosition: { x: 35, y: 20 }, coachingPoint: "Stay goalside, be physical" },
         { name: "Marker 2", description: "Marks second target", startPosition: { x: 45, y: 22 }, coachingPoint: "Stay tight, don't get turned" },
@@ -140,6 +144,7 @@ async function seed() {
       category: "direct_free_kick_central" as const,
       description: "Direct free kick from central position. Two-man setup with a shooter and a decoy. Wall manipulation and curved shot.",
       coachingNote: "Decoy runs over the ball. Shooter aims for the far post with curve.",
+      previewImageUrl: "https://placehold.co/400x300/3d2d5a/ffffff?text=Wall+Buster",
       defaultRoles: [
         { name: "Shooter", description: "Takes the shot", startPosition: { x: 50, y: 60 }, coachingPoint: "Curve it over or around the wall, aim far post" },
         { name: "Decoy", description: "Runs over the ball", startPosition: { x: 48, y: 60 }, coachingPoint: "Sell the run, look like you're shooting" },
@@ -153,6 +158,7 @@ async function seed() {
       category: "indirect_free_kick_wide" as const,
       description: "Indirect free kick from wide position. Quick combination play to create a crossing opportunity.",
       coachingNote: "Speed is key. First pass must be quick, cross must be early.",
+      previewImageUrl: "https://placehold.co/400x300/3d2d5a/ffffff?text=Quick+Wide+Play",
       defaultRoles: [
         { name: "Taker", description: "Plays the initial pass", startPosition: { x: 15, y: 55 }, coachingPoint: "Quick, short pass to runner" },
         { name: "Runner", description: "Receives and crosses", startPosition: { x: 20, y: 50 }, coachingPoint: "One touch and cross early" },
@@ -166,6 +172,7 @@ async function seed() {
       category: "attacking_throw_in" as const,
       description: "Long throw-in into the box with a near-post flick-on. Creates a second-ball opportunity in a dangerous area.",
       coachingNote: "Thrower must target the near post zone. Everyone else reacts to the flick.",
+      previewImageUrl: "https://placehold.co/400x300/5a4a2d/ffffff?text=Long+Throw+Flick",
       defaultRoles: [
         { name: "Thrower", description: "Takes the long throw", startPosition: { x: 0, y: 30 }, coachingPoint: "Flat trajectory to near post" },
         { name: "Flick Target", description: "Flicks on at near post", startPosition: { x: 25, y: 22 }, coachingPoint: "Glancing touch towards goal" },
@@ -178,6 +185,7 @@ async function seed() {
       category: "defensive_throw_in" as const,
       description: "Defensive throw-in pattern to retain possession safely. Two short options and one long option.",
       coachingNote: "Keep it simple. Retain possession first, then look to progress.",
+      previewImageUrl: "https://placehold.co/400x300/5a4a2d/ffffff?text=Safe+Outlet",
       defaultRoles: [
         { name: "Thrower", description: "Takes the throw", startPosition: { x: 0, y: 70 }, coachingPoint: "Quick release, closest open player" },
         { name: "Short Option 1", description: "Close support", startPosition: { x: 10, y: 65 }, coachingPoint: "Show for the ball, play it back if pressed" },
@@ -190,6 +198,7 @@ async function seed() {
       category: "offensive_corner_left" as const,
       description: "High delivery to the back post where the tallest attacker attacks from deep. Decoy runners clear the zone.",
       coachingNote: "Delivery MUST be to the back post. Decoy runners clear at the right moment.",
+      previewImageUrl: "https://placehold.co/400x300/2d5a3d/ffffff?text=Back+Post+Bomb",
       defaultRoles: [
         { name: "Delivery", description: "High corner to far post", startPosition: { x: 0, y: 0 }, coachingPoint: "High, hanging delivery to back post" },
         { name: "Target Man", description: "Far post header", startPosition: { x: 65, y: 25 }, coachingPoint: "Attack from deep, aggressive header" },
@@ -203,6 +212,7 @@ async function seed() {
       category: "direct_free_kick_central" as const,
       description: "Rehearsed routine with a disguised pass into a shooting position. Two decoys run over the ball while the third lays off.",
       coachingNote: "Timing must be drilled. The disguise only works if decoys sell it.",
+      previewImageUrl: "https://placehold.co/400x300/3d2d5a/ffffff?text=Training+Ground+Special",
       defaultRoles: [
         { name: "Passer", description: "Plays disguised pass", startPosition: { x: 50, y: 58 }, coachingPoint: "Wait for decoys to move, then slide pass right" },
         { name: "Decoy 1", description: "Runs over ball left", startPosition: { x: 48, y: 58 }, coachingPoint: "Sprint past convincingly" },
@@ -221,11 +231,11 @@ async function seed() {
   console.log(`Created ${createdTemplates.length} templates`);
 
   const setPieceData = [
-    { title: "Corner Left - Near Post Flick", category: "offensive_corner_left" as const, status: "active_matchday" as const, templateIdx: 0 },
-    { title: "Corner Right - Far Post Overload", category: "offensive_corner_right" as const, status: "ready" as const, templateIdx: 1 },
-    { title: "Defensive Corner Left - Zonal", category: "defensive_corner_left" as const, status: "active_matchday" as const, templateIdx: 2 },
-    { title: "Free Kick Central - Wall Buster", category: "direct_free_kick_central" as const, status: "active_matchday" as const, templateIdx: 4 },
-    { title: "Attacking Throw-in - Long Flick", category: "attacking_throw_in" as const, status: "draft" as const, templateIdx: 6 },
+    { title: "Corner Left - Near Post Flick", category: "offensive_corner_left" as const, status: "active_matchday" as const, templateIdx: 0, previewImageUrl: "https://placehold.co/600x400/1e3a5f/e2b53a?text=Near+Post+Flick" },
+    { title: "Corner Right - Far Post Overload", category: "offensive_corner_right" as const, status: "ready" as const, templateIdx: 1, previewImageUrl: "https://placehold.co/600x400/1e3a5f/e2b53a?text=Far+Post+Overload" },
+    { title: "Defensive Corner Left - Zonal", category: "defensive_corner_left" as const, status: "active_matchday" as const, templateIdx: 2, previewImageUrl: "https://placehold.co/600x400/1e3a5f/e2b53a?text=Zonal+Wall" },
+    { title: "Free Kick Central - Wall Buster", category: "direct_free_kick_central" as const, status: "active_matchday" as const, templateIdx: 4, previewImageUrl: "https://placehold.co/600x400/1e3a5f/e2b53a?text=Wall+Buster" },
+    { title: "Attacking Throw-in - Long Flick", category: "attacking_throw_in" as const, status: "draft" as const, templateIdx: 6, previewImageUrl: null },
   ];
 
   const createdPieces = [];
@@ -241,6 +251,7 @@ async function seed() {
         description: template.description,
         boardData: template.boardData,
         coachingNotes: template.coachingNote,
+        previewImageUrl: spd.previewImageUrl,
         createdBy: demoUser.id,
         updatedBy: demoUser.id,
       })
