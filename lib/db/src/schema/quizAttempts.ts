@@ -17,8 +17,9 @@ export const quizAttemptsTable = pgTable("quiz_attempts", {
   score: integer("score"),
   answers: jsonb("answers").$type<Array<{ questionId: string; answer: unknown; correct: boolean }>>(),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
 });
 
-export const insertQuizAttemptSchema = createInsertSchema(quizAttemptsTable).omit({ id: true, createdAt: true });
+export const insertQuizAttemptSchema = createInsertSchema(quizAttemptsTable).omit({ id: true, createdAt: true, updatedAt: true });
 export type InsertQuizAttempt = z.infer<typeof insertQuizAttemptSchema>;
 export type QuizAttempt = typeof quizAttemptsTable.$inferSelect;

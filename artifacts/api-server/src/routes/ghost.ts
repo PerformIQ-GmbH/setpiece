@@ -1,13 +1,25 @@
 import { Router, type IRouter } from "express";
 import { eq, and } from "drizzle-orm";
 import { db, setPiecesTable, setPieceRolesTable, roleAssignmentsTable, playersTable } from "@workspace/db";
-import { requireTeamAccess, parseParam } from "../lib/authorization";
+import { requireCoachAccess, parseParam } from "../lib/authorization";
+import { z } from "zod/v4";
 
 const router: IRouter = Router();
 
+const ghostSubSchema = z.object({
+  playerOutId: z.string().min(1),
+  playerInId: z.string().min(1),
+});
+
 router.post("/teams/:teamId/set-pieces/:setPieceId/ghost", async (req, res): Promise<void> => {
-  const teamId = await requireTeamAccess(req, res);
+  const teamId = await requireCoachAccess(req, res);
   if (!teamId) return;
+
+  const parsed = ghostSubSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: "Validation failed", details: parsed.error.issues });
+    return;
+  }
 
   const setPieceId = parseParam(req.params.setPieceId);
 
@@ -20,11 +32,7 @@ router.post("/teams/:teamId/set-pieces/:setPieceId/ghost", async (req, res): Pro
     return;
   }
 
-  const { playerOutId, playerInId } = req.body;
-  if (!playerOutId || !playerInId) {
-    res.status(400).json({ error: "playerOutId and playerInId are required" });
-    return;
-  }
+  const { playerOutId, playerInId } = parsed.data;
 
   const [playerOut] = await db.select().from(playersTable).where(and(eq(playersTable.id, playerOutId), eq(playersTable.teamId, teamId)));
   const [playerIn] = await db.select().from(playersTable).where(and(eq(playersTable.id, playerInId), eq(playersTable.teamId, teamId)));

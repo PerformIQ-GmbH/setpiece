@@ -1,9 +1,33 @@
 import { Router, type IRouter } from "express";
 import { eq, and } from "drizzle-orm";
 import { db, matchdaysTable, matchdaySetPiecesTable, setPiecesTable } from "@workspace/db";
-import { requireTeamAccess, parseParam } from "../lib/authorization";
+import { requireCoachAccess, requireTeamAccess, parseParam } from "../lib/authorization";
+import { z } from "zod/v4";
 
 const router: IRouter = Router();
+
+const createMatchdaySchema = z.object({
+  title: z.string().min(1).max(255),
+  date: z.string().optional(),
+  opponent: z.string().max(255).optional(),
+  notes: z.string().optional(),
+});
+
+const updateMatchdaySchema = z.object({
+  title: z.string().min(1).max(255).optional(),
+  date: z.string().nullable().optional(),
+  opponent: z.string().max(255).nullable().optional(),
+  notes: z.string().nullable().optional(),
+});
+
+const addSetPieceSchema = z.object({
+  setPieceId: z.string().min(1),
+  sortOrder: z.number().int().optional(),
+});
+
+const removeSetPieceSchema = z.object({
+  setPieceId: z.string().min(1),
+});
 
 router.get("/teams/:teamId/matchdays", async (req, res): Promise<void> => {
   const teamId = await requireTeamAccess(req, res);
@@ -17,14 +41,15 @@ router.get("/teams/:teamId/matchdays", async (req, res): Promise<void> => {
 });
 
 router.post("/teams/:teamId/matchdays", async (req, res): Promise<void> => {
-  const teamId = await requireTeamAccess(req, res);
+  const teamId = await requireCoachAccess(req, res);
   if (!teamId) return;
 
-  const { title, date, opponent, notes } = req.body;
-  if (!title) {
-    res.status(400).json({ error: "title is required" });
+  const parsed = createMatchdaySchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: "Validation failed", details: parsed.error.issues });
     return;
   }
+  const { title, date, opponent, notes } = parsed.data;
 
   const [matchday] = await db
     .insert(matchdaysTable)
@@ -73,15 +98,22 @@ router.get("/teams/:teamId/matchdays/:matchdayId", async (req, res): Promise<voi
 });
 
 router.patch("/teams/:teamId/matchdays/:matchdayId", async (req, res): Promise<void> => {
-  const teamId = await requireTeamAccess(req, res);
+  const teamId = await requireCoachAccess(req, res);
   if (!teamId) return;
 
+  const parsed = updateMatchdaySchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: "Validation failed", details: parsed.error.issues });
+    return;
+  }
+
   const matchdayId = parseParam(req.params.matchdayId);
+  const data = parsed.data;
   const updates: Record<string, unknown> = {};
-  if (req.body.title !== undefined) updates.title = req.body.title;
-  if (req.body.date !== undefined) updates.date = req.body.date ? new Date(req.body.date) : null;
-  if (req.body.opponent !== undefined) updates.opponent = req.body.opponent;
-  if (req.body.notes !== undefined) updates.notes = req.body.notes;
+  if (data.title !== undefined) updates.title = data.title;
+  if (data.date !== undefined) updates.date = data.date ? new Date(data.date) : null;
+  if (data.opponent !== undefined) updates.opponent = data.opponent;
+  if (data.notes !== undefined) updates.notes = data.notes;
 
   const [matchday] = await db
     .update(matchdaysTable)
@@ -97,7 +129,7 @@ router.patch("/teams/:teamId/matchdays/:matchdayId", async (req, res): Promise<v
 });
 
 router.delete("/teams/:teamId/matchdays/:matchdayId", async (req, res): Promise<void> => {
-  const teamId = await requireTeamAccess(req, res);
+  const teamId = await requireCoachAccess(req, res);
   if (!teamId) return;
 
   const matchdayId = parseParam(req.params.matchdayId);
@@ -114,16 +146,17 @@ router.delete("/teams/:teamId/matchdays/:matchdayId", async (req, res): Promise<
 });
 
 router.post("/teams/:teamId/matchdays/:matchdayId/set-pieces", async (req, res): Promise<void> => {
-  const teamId = await requireTeamAccess(req, res);
+  const teamId = await requireCoachAccess(req, res);
   if (!teamId) return;
 
-  const matchdayId = parseParam(req.params.matchdayId);
-  const { setPieceId, sortOrder } = req.body;
-
-  if (!setPieceId) {
-    res.status(400).json({ error: "setPieceId is required" });
+  const parsed = addSetPieceSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: "Validation failed", details: parsed.error.issues });
     return;
   }
+
+  const matchdayId = parseParam(req.params.matchdayId);
+  const { setPieceId, sortOrder } = parsed.data;
 
   const [matchday] = await db
     .select()
@@ -156,16 +189,17 @@ router.post("/teams/:teamId/matchdays/:matchdayId/set-pieces", async (req, res):
 });
 
 router.delete("/teams/:teamId/matchdays/:matchdayId/set-pieces", async (req, res): Promise<void> => {
-  const teamId = await requireTeamAccess(req, res);
+  const teamId = await requireCoachAccess(req, res);
   if (!teamId) return;
 
-  const matchdayId = parseParam(req.params.matchdayId);
-  const { setPieceId } = req.body;
-
-  if (!setPieceId) {
-    res.status(400).json({ error: "setPieceId is required" });
+  const parsed = removeSetPieceSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: "Validation failed", details: parsed.error.issues });
     return;
   }
+
+  const matchdayId = parseParam(req.params.matchdayId);
+  const { setPieceId } = parsed.data;
 
   await db
     .delete(matchdaySetPiecesTable)

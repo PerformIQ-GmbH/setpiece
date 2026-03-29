@@ -1,9 +1,26 @@
 import { Router, type IRouter } from "express";
 import { eq, and } from "drizzle-orm";
 import { db, teamsTable, membershipsTable } from "@workspace/db";
-import { parseParam } from "../lib/authorization";
+import { parseParam, requireTeamAccess, requireHeadCoachAccess } from "../lib/authorization";
+import { z } from "zod/v4";
 
 const router: IRouter = Router();
+
+const createTeamSchema = z.object({
+  name: z.string().min(1).max(255),
+  clubName: z.string().max(255).optional(),
+  coachName: z.string().max(255).optional(),
+  logoUrl: z.string().url().optional(),
+  teamColors: z.any().optional(),
+});
+
+const updateTeamSchema = z.object({
+  name: z.string().min(1).max(255).optional(),
+  clubName: z.string().max(255).nullable().optional(),
+  coachName: z.string().max(255).nullable().optional(),
+  logoUrl: z.string().url().nullable().optional(),
+  teamColors: z.any().optional(),
+});
 
 router.get("/teams", async (req, res): Promise<void> => {
   if (!req.isAuthenticated()) {
@@ -37,11 +54,13 @@ router.post("/teams", async (req, res): Promise<void> => {
     res.status(401).json({ error: "Unauthorized" });
     return;
   }
-  const { name, clubName, coachName, logoUrl, teamColors } = req.body;
-  if (!name || typeof name !== "string" || name.trim().length === 0) {
-    res.status(400).json({ error: "Team name is required" });
+
+  const parsed = createTeamSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: "Validation failed", details: parsed.error.issues });
     return;
   }
+  const { name, clubName, coachName, logoUrl, teamColors } = parsed.data;
 
   const [team] = await db
     .insert(teamsTable)
@@ -65,25 +84,8 @@ router.post("/teams", async (req, res): Promise<void> => {
 });
 
 router.get("/teams/:teamId", async (req, res): Promise<void> => {
-  if (!req.isAuthenticated()) {
-    res.status(401).json({ error: "Unauthorized" });
-    return;
-  }
-  const teamId = parseParam(req.params.teamId);
-
-  const [membership] = await db
-    .select()
-    .from(membershipsTable)
-    .where(
-      and(
-        eq(membershipsTable.userId, req.user.id),
-        eq(membershipsTable.teamId, teamId),
-      ),
-    );
-  if (!membership) {
-    res.status(403).json({ error: "Access denied" });
-    return;
-  }
+  const teamId = await requireTeamAccess(req, res);
+  if (!teamId) return;
 
   const [team] = await db
     .select()
@@ -97,32 +99,22 @@ router.get("/teams/:teamId", async (req, res): Promise<void> => {
 });
 
 router.patch("/teams/:teamId", async (req, res): Promise<void> => {
-  if (!req.isAuthenticated()) {
-    res.status(401).json({ error: "Unauthorized" });
-    return;
-  }
-  const teamId = parseParam(req.params.teamId);
+  const teamId = await requireHeadCoachAccess(req, res);
+  if (!teamId) return;
 
-  const [membership] = await db
-    .select()
-    .from(membershipsTable)
-    .where(
-      and(
-        eq(membershipsTable.userId, req.user.id),
-        eq(membershipsTable.teamId, teamId),
-      ),
-    );
-  if (!membership) {
-    res.status(403).json({ error: "Access denied" });
+  const parsed = updateTeamSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: "Validation failed", details: parsed.error.issues });
     return;
   }
 
   const updates: Record<string, unknown> = {};
-  if (req.body.name !== undefined) updates.name = req.body.name;
-  if (req.body.clubName !== undefined) updates.clubName = req.body.clubName;
-  if (req.body.coachName !== undefined) updates.coachName = req.body.coachName;
-  if (req.body.logoUrl !== undefined) updates.logoUrl = req.body.logoUrl;
-  if (req.body.teamColors !== undefined) updates.teamColors = req.body.teamColors;
+  const data = parsed.data;
+  if (data.name !== undefined) updates.name = data.name;
+  if (data.clubName !== undefined) updates.clubName = data.clubName;
+  if (data.coachName !== undefined) updates.coachName = data.coachName;
+  if (data.logoUrl !== undefined) updates.logoUrl = data.logoUrl;
+  if (data.teamColors !== undefined) updates.teamColors = data.teamColors;
 
   const [team] = await db
     .update(teamsTable)

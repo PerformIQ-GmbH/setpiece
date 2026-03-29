@@ -71,6 +71,13 @@ artifacts-monorepo/
 - `matchdays.ts` — matchdays + matchday_set_pieces junction
 - `auditEvents.ts` — audit trail
 
+## Authorization & Security
+
+- **Role-based access control**: `requireTeamAccess(req, res, roles?)` checks membership; `requireCoachAccess` (head_coach + assistant_coach) and `requireHeadCoachAccess` (head_coach only) enforce write permissions
+- **Share-token middleware**: `requireShareToken(req, res)` validates token, checks expiry/revocation, updates `lastAccessedAt`
+- **Cross-team integrity**: Assignment writes verify player belongs to team; share-token write paths verify player and set piece belong to link's team
+- **Zod validation**: All request bodies and query parameters validated with Zod schemas; errors return 400 with structured details
+
 ## API Routes
 
 All mounted at `/api` via Express router. Key routes:
@@ -131,7 +138,7 @@ Express 5 API server with Replit Auth, structured pino logging.
 React + Vite frontend (Coach Dashboard + Player PWA).
 
 - Preview path: `/setpiece/`
-- Pages: Landing, Dashboard, TeamDetail, SetPieceEditor, PlayerPWA
+- Pages: Landing, Dashboard, TeamDetail, SetPieceEditor, PlayerPWA, PlayerQuiz
 - Components: Pitch (SVG tactical board), Layout (CoachLayout with sidebar)
 - Uses generated React Query hooks from `@workspace/api-client-react`
 - API base URL: empty string (API server is at root `/api/...` path)

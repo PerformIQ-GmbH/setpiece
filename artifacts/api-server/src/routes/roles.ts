@@ -1,9 +1,28 @@
 import { Router, type IRouter } from "express";
 import { eq, and } from "drizzle-orm";
-import { db, setPiecesTable, setPieceRolesTable, roleAssignmentsTable, auditEventsTable } from "@workspace/db";
-import { requireTeamAccess, parseParam } from "../lib/authorization";
+import { db, setPiecesTable, setPieceRolesTable, roleAssignmentsTable, playersTable, auditEventsTable } from "@workspace/db";
+import { requireCoachAccess, requireTeamAccess, parseParam } from "../lib/authorization";
+import { z } from "zod/v4";
 
 const router: IRouter = Router();
+
+const createRoleSchema = z.object({
+  name: z.string().min(1).max(100),
+  description: z.string().optional(),
+  startPosition: z.object({ x: z.number(), y: z.number() }).optional(),
+  movementPath: z.array(z.object({ x: z.number(), y: z.number() })).optional(),
+  coachingPoint: z.string().optional(),
+  sortOrder: z.number().int().optional(),
+});
+
+const updateRoleSchema = createRoleSchema.partial();
+
+const upsertAssignmentSchema = z.object({
+  roleId: z.string().min(1),
+  playerId: z.string().min(1),
+  backupPlayerId: z.string().optional(),
+  notes: z.string().optional(),
+});
 
 async function verifySetPieceBelongsToTeam(setPieceId: string, teamId: string): Promise<boolean> {
   const [sp] = await db
@@ -11,6 +30,14 @@ async function verifySetPieceBelongsToTeam(setPieceId: string, teamId: string): 
     .from(setPiecesTable)
     .where(and(eq(setPiecesTable.id, setPieceId), eq(setPiecesTable.teamId, teamId)));
   return !!sp;
+}
+
+async function verifyPlayerBelongsToTeam(playerId: string, teamId: string): Promise<boolean> {
+  const [p] = await db
+    .select()
+    .from(playersTable)
+    .where(and(eq(playersTable.id, playerId), eq(playersTable.teamId, teamId)));
+  return !!p;
 }
 
 router.get("/teams/:teamId/set-pieces/:setPieceId/roles", async (req, res): Promise<void> => {
@@ -31,8 +58,14 @@ router.get("/teams/:teamId/set-pieces/:setPieceId/roles", async (req, res): Prom
 });
 
 router.post("/teams/:teamId/set-pieces/:setPieceId/roles", async (req, res): Promise<void> => {
-  const teamId = await requireTeamAccess(req, res);
+  const teamId = await requireCoachAccess(req, res);
   if (!teamId) return;
+
+  const parsed = createRoleSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: "Validation failed", details: parsed.error.issues });
+    return;
+  }
 
   const setPieceId = parseParam(req.params.setPieceId);
   if (!(await verifySetPieceBelongsToTeam(setPieceId, teamId))) {
@@ -40,22 +73,17 @@ router.post("/teams/:teamId/set-pieces/:setPieceId/roles", async (req, res): Pro
     return;
   }
 
-  const { name, description, startPosition, movementPath, coachingPoint, sortOrder } = req.body;
-  if (!name) {
-    res.status(400).json({ error: "name is required" });
-    return;
-  }
-
+  const data = parsed.data;
   const [role] = await db
     .insert(setPieceRolesTable)
     .values({
       setPieceId,
-      name,
-      description: description || null,
-      startPosition: startPosition || null,
-      movementPath: movementPath || null,
-      coachingPoint: coachingPoint || null,
-      sortOrder: sortOrder ?? 0,
+      name: data.name,
+      description: data.description || null,
+      startPosition: data.startPosition || null,
+      movementPath: data.movementPath || null,
+      coachingPoint: data.coachingPoint || null,
+      sortOrder: data.sortOrder ?? 0,
     })
     .returning();
 
@@ -63,8 +91,14 @@ router.post("/teams/:teamId/set-pieces/:setPieceId/roles", async (req, res): Pro
 });
 
 router.patch("/teams/:teamId/set-pieces/:setPieceId/roles/:roleId", async (req, res): Promise<void> => {
-  const teamId = await requireTeamAccess(req, res);
+  const teamId = await requireCoachAccess(req, res);
   if (!teamId) return;
+
+  const parsed = updateRoleSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: "Validation failed", details: parsed.error.issues });
+    return;
+  }
 
   const setPieceId = parseParam(req.params.setPieceId);
   if (!(await verifySetPieceBelongsToTeam(setPieceId, teamId))) {
@@ -74,9 +108,10 @@ router.patch("/teams/:teamId/set-pieces/:setPieceId/roles/:roleId", async (req, 
 
   const roleId = parseParam(req.params.roleId);
   const updates: Record<string, unknown> = {};
-  const fields = ["name", "description", "startPosition", "movementPath", "coachingPoint", "sortOrder"];
+  const data = parsed.data;
+  const fields = ["name", "description", "startPosition", "movementPath", "coachingPoint", "sortOrder"] as const;
   for (const f of fields) {
-    if (req.body[f] !== undefined) updates[f] = req.body[f];
+    if (data[f] !== undefined) updates[f] = data[f];
   }
 
   const [role] = await db
@@ -93,7 +128,7 @@ router.patch("/teams/:teamId/set-pieces/:setPieceId/roles/:roleId", async (req, 
 });
 
 router.delete("/teams/:teamId/set-pieces/:setPieceId/roles/:roleId", async (req, res): Promise<void> => {
-  const teamId = await requireTeamAccess(req, res);
+  const teamId = await requireCoachAccess(req, res);
   if (!teamId) return;
 
   const setPieceId = parseParam(req.params.setPieceId);
@@ -137,8 +172,14 @@ router.get("/teams/:teamId/set-pieces/:setPieceId/assignments", async (req, res)
 });
 
 router.put("/teams/:teamId/set-pieces/:setPieceId/assignments", async (req, res): Promise<void> => {
-  const teamId = await requireTeamAccess(req, res);
+  const teamId = await requireCoachAccess(req, res);
   if (!teamId) return;
+
+  const parsed = upsertAssignmentSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: "Validation failed", details: parsed.error.issues });
+    return;
+  }
 
   const setPieceId = parseParam(req.params.setPieceId);
   if (!(await verifySetPieceBelongsToTeam(setPieceId, teamId))) {
@@ -146,9 +187,15 @@ router.put("/teams/:teamId/set-pieces/:setPieceId/assignments", async (req, res)
     return;
   }
 
-  const { roleId, playerId, backupPlayerId, notes } = req.body;
-  if (!roleId || !playerId) {
-    res.status(400).json({ error: "roleId and playerId are required" });
+  const { roleId, playerId, backupPlayerId, notes } = parsed.data;
+
+  if (!(await verifyPlayerBelongsToTeam(playerId, teamId))) {
+    res.status(400).json({ error: "Player does not belong to this team" });
+    return;
+  }
+
+  if (backupPlayerId && !(await verifyPlayerBelongsToTeam(backupPlayerId, teamId))) {
+    res.status(400).json({ error: "Backup player does not belong to this team" });
     return;
   }
 

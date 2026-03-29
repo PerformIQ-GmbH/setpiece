@@ -9,24 +9,30 @@ import {
   setPieceRolesTable,
   roleAssignmentsTable,
   playerReadinessTable,
+  playersTable,
   auditEventsTable,
   matchdaySetPiecesTable,
 } from "@workspace/db";
-import { requireTeamAccess, parseParam } from "../lib/authorization";
+import { requireCoachAccess, requireShareToken, parseParam } from "../lib/authorization";
+import { z } from "zod/v4";
 
 const router: IRouter = Router();
 
-function validateShareLink(link: {
-  revokedAt: Date | null;
-  expiresAt: Date | null;
-}): string | null {
-  if (link.revokedAt) return "This share link has been revoked";
-  if (link.expiresAt && link.expiresAt < new Date()) return "This share link has expired";
-  return null;
-}
+const createShareLinkSchema = z.object({
+  playerScope: z.array(z.string()).optional(),
+  matchdayScope: z.string().optional(),
+  allowedSetPieceIds: z.array(z.string()).optional(),
+  expiresAt: z.string().optional(),
+});
+
+const markReadySchema = z.object({
+  playerId: z.string().min(1),
+  setPieceId: z.string().min(1),
+  roleId: z.string().optional(),
+});
 
 router.get("/teams/:teamId/share-links", async (req, res): Promise<void> => {
-  const teamId = await requireTeamAccess(req, res);
+  const teamId = await requireCoachAccess(req, res);
   if (!teamId) return;
 
   const links = await db
@@ -37,10 +43,16 @@ router.get("/teams/:teamId/share-links", async (req, res): Promise<void> => {
 });
 
 router.post("/teams/:teamId/share-links", async (req, res): Promise<void> => {
-  const teamId = await requireTeamAccess(req, res);
+  const teamId = await requireCoachAccess(req, res);
   if (!teamId) return;
 
-  const { playerScope, matchdayScope, allowedSetPieceIds, expiresAt } = req.body;
+  const parsed = createShareLinkSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: "Validation failed", details: parsed.error.issues });
+    return;
+  }
+
+  const { playerScope, matchdayScope, allowedSetPieceIds, expiresAt } = parsed.data;
   const token = crypto.randomBytes(32).toString("hex");
 
   const [link] = await db
@@ -69,7 +81,7 @@ router.post("/teams/:teamId/share-links", async (req, res): Promise<void> => {
 });
 
 router.post("/teams/:teamId/share-links/:linkId/revoke", async (req, res): Promise<void> => {
-  const teamId = await requireTeamAccess(req, res);
+  const teamId = await requireCoachAccess(req, res);
   if (!teamId) return;
 
   const linkId = parseParam(req.params.linkId);
@@ -88,28 +100,8 @@ router.post("/teams/:teamId/share-links/:linkId/revoke", async (req, res): Promi
 });
 
 router.get("/p/:shareToken", async (req, res): Promise<void> => {
-  const shareToken = parseParam(req.params.shareToken);
-
-  const [link] = await db
-    .select()
-    .from(shareLinksTable)
-    .where(eq(shareLinksTable.token, shareToken));
-
-  if (!link) {
-    res.status(404).json({ error: "Invalid share link" });
-    return;
-  }
-
-  const validationError = validateShareLink(link);
-  if (validationError) {
-    res.status(404).json({ error: validationError });
-    return;
-  }
-
-  await db
-    .update(shareLinksTable)
-    .set({ lastAccessedAt: new Date() })
-    .where(eq(shareLinksTable.id, link.id));
+  const link = await requireShareToken(req, res);
+  if (!link) return;
 
   const [team] = await db
     .select()
@@ -209,25 +201,16 @@ router.get("/p/:shareToken", async (req, res): Promise<void> => {
 });
 
 router.post("/p/:shareToken/ready", async (req, res): Promise<void> => {
-  const shareToken = parseParam(req.params.shareToken);
+  const link = await requireShareToken(req, res);
+  if (!link) return;
 
-  const [link] = await db
-    .select()
-    .from(shareLinksTable)
-    .where(eq(shareLinksTable.token, shareToken));
-
-  if (!link) {
-    res.status(404).json({ error: "Invalid share link" });
+  const parsed = markReadySchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: "Validation failed", details: parsed.error.issues });
     return;
   }
 
-  const validationError = validateShareLink(link);
-  if (validationError) {
-    res.status(404).json({ error: validationError });
-    return;
-  }
-
-  const { playerId, setPieceId, roleId } = req.body;
+  const { playerId, setPieceId, roleId } = parsed.data;
 
   if (link.playerScope && link.playerScope.length > 0 && !link.playerScope.includes(playerId)) {
     res.status(403).json({ error: "Player not in scope for this link" });
@@ -236,6 +219,24 @@ router.post("/p/:shareToken/ready", async (req, res): Promise<void> => {
 
   if (link.allowedSetPieceIds && link.allowedSetPieceIds.length > 0 && !link.allowedSetPieceIds.includes(setPieceId)) {
     res.status(403).json({ error: "Set piece not in scope for this link" });
+    return;
+  }
+
+  const [player] = await db
+    .select()
+    .from(playersTable)
+    .where(and(eq(playersTable.id, playerId), eq(playersTable.teamId, link.teamId)));
+  if (!player) {
+    res.status(403).json({ error: "Player does not belong to this team" });
+    return;
+  }
+
+  const [sp] = await db
+    .select()
+    .from(setPiecesTable)
+    .where(and(eq(setPiecesTable.id, setPieceId), eq(setPiecesTable.teamId, link.teamId)));
+  if (!sp) {
+    res.status(404).json({ error: "Set piece not found in this team" });
     return;
   }
 

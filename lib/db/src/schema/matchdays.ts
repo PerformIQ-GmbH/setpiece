@@ -22,12 +22,13 @@ export const matchdaySetPiecesTable = pgTable("matchday_set_pieces", {
   setPieceId: varchar("set_piece_id").notNull().references(() => setPiecesTable.id, { onDelete: "cascade" }),
   sortOrder: integer("sort_order").notNull().default(0),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
 });
 
 export const insertMatchdaySchema = createInsertSchema(matchdaysTable).omit({ id: true, createdAt: true, updatedAt: true });
 export type InsertMatchday = z.infer<typeof insertMatchdaySchema>;
 export type Matchday = typeof matchdaysTable.$inferSelect;
 
-export const insertMatchdaySetPieceSchema = createInsertSchema(matchdaySetPiecesTable).omit({ id: true, createdAt: true });
+export const insertMatchdaySetPieceSchema = createInsertSchema(matchdaySetPiecesTable).omit({ id: true, createdAt: true, updatedAt: true });
 export type InsertMatchdaySetPiece = z.infer<typeof insertMatchdaySetPieceSchema>;
 export type MatchdaySetPiece = typeof matchdaySetPiecesTable.$inferSelect;

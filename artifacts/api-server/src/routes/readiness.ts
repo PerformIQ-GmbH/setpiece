@@ -2,15 +2,26 @@ import { Router, type IRouter } from "express";
 import { eq } from "drizzle-orm";
 import { db, playersTable, playerReadinessTable, matchdaySetPiecesTable } from "@workspace/db";
 import { requireTeamAccess } from "../lib/authorization";
+import { z } from "zod/v4";
 
 const router: IRouter = Router();
+
+const readinessQuerySchema = z.object({
+  matchdayId: z.string().optional(),
+  setPieceId: z.string().optional(),
+});
 
 router.get("/teams/:teamId/readiness", async (req, res): Promise<void> => {
   const teamId = await requireTeamAccess(req, res);
   if (!teamId) return;
 
-  const matchdayId = req.query.matchdayId as string | undefined;
-  const setPieceIdFilter = req.query.setPieceId as string | undefined;
+  const parsed = readinessQuerySchema.safeParse(req.query);
+  if (!parsed.success) {
+    res.status(400).json({ error: "Invalid query parameters", details: parsed.error.issues });
+    return;
+  }
+
+  const { matchdayId, setPieceId: setPieceIdFilter } = parsed.data;
 
   const players = await db
     .select()

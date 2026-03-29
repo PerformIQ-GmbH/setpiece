@@ -10,20 +10,52 @@ import {
   setPieceTemplatesTable,
   auditEventsTable,
 } from "@workspace/db";
-import { requireTeamAccess, parseParam } from "../lib/authorization";
+import { requireTeamAccess, requireCoachAccess, parseParam } from "../lib/authorization";
+import { z } from "zod/v4";
 
 const router: IRouter = Router();
+
+const createSetPieceSchema = z.object({
+  title: z.string().min(1).max(255),
+  category: z.string().min(1).max(100),
+  description: z.string().optional(),
+  boardData: z.any().optional(),
+  coachingNotes: z.string().optional(),
+  templateId: z.string().optional(),
+});
+
+const updateSetPieceSchema = z.object({
+  title: z.string().min(1).max(255).optional(),
+  description: z.string().nullable().optional(),
+  boardData: z.any().optional(),
+  previewImageUrl: z.string().nullable().optional(),
+  coachingNotes: z.string().nullable().optional(),
+});
+
+const updateStatusSchema = z.object({
+  status: z.enum(["draft", "ready", "active_matchday", "archived"]),
+});
+
+const listSetPiecesQuerySchema = z.object({
+  status: z.enum(["draft", "ready", "active_matchday", "archived"]).optional(),
+});
 
 router.get("/teams/:teamId/set-pieces", async (req, res): Promise<void> => {
   const teamId = await requireTeamAccess(req, res);
   if (!teamId) return;
+
+  const qParsed = listSetPiecesQuerySchema.safeParse(req.query);
+  if (!qParsed.success) {
+    res.status(400).json({ error: "Invalid query parameters", details: qParsed.error.issues });
+    return;
+  }
 
   let pieces = await db
     .select()
     .from(setPiecesTable)
     .where(eq(setPiecesTable.teamId, teamId));
 
-  const statusFilter = req.query.status as string | undefined;
+  const statusFilter = qParsed.data.status;
   if (statusFilter) {
     pieces = pieces.filter((p) => p.status === statusFilter);
   }
@@ -32,15 +64,15 @@ router.get("/teams/:teamId/set-pieces", async (req, res): Promise<void> => {
 });
 
 router.post("/teams/:teamId/set-pieces", async (req, res): Promise<void> => {
-  const teamId = await requireTeamAccess(req, res);
+  const teamId = await requireCoachAccess(req, res);
   if (!teamId) return;
 
-  const { title, category, description, boardData, coachingNotes, templateId } = req.body;
-
-  if (!title || !category) {
-    res.status(400).json({ error: "title and category are required" });
+  const parsed = createSetPieceSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: "Validation failed", details: parsed.error.issues });
     return;
   }
+  const { title, category, description, boardData, coachingNotes, templateId } = parsed.data;
 
   let finalBoardData = boardData;
   let finalRoles: Array<{
@@ -139,8 +171,14 @@ router.get("/teams/:teamId/set-pieces/:setPieceId", async (req, res): Promise<vo
 });
 
 router.patch("/teams/:teamId/set-pieces/:setPieceId", async (req, res): Promise<void> => {
-  const teamId = await requireTeamAccess(req, res);
+  const teamId = await requireCoachAccess(req, res);
   if (!teamId) return;
+
+  const parsed = updateSetPieceSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: "Validation failed", details: parsed.error.issues });
+    return;
+  }
 
   const setPieceId = parseParam(req.params.setPieceId);
 
@@ -154,15 +192,17 @@ router.patch("/teams/:teamId/set-pieces/:setPieceId", async (req, res): Promise<
     return;
   }
 
+  const data = parsed.data;
   const updates: Record<string, unknown> = {
     updatedBy: req.user!.id,
   };
-  const fields = ["title", "description", "boardData", "previewImageUrl", "coachingNotes"];
-  for (const f of fields) {
-    if (req.body[f] !== undefined) updates[f] = req.body[f];
-  }
+  if (data.title !== undefined) updates.title = data.title;
+  if (data.description !== undefined) updates.description = data.description;
+  if (data.boardData !== undefined) updates.boardData = data.boardData;
+  if (data.previewImageUrl !== undefined) updates.previewImageUrl = data.previewImageUrl;
+  if (data.coachingNotes !== undefined) updates.coachingNotes = data.coachingNotes;
 
-  if (req.body.boardData !== undefined) {
+  if (data.boardData !== undefined) {
     updates.lastSavedBoardSnapshot = existing.boardData;
     updates.versionNumber = existing.versionNumber + 1;
   }
@@ -177,7 +217,7 @@ router.patch("/teams/:teamId/set-pieces/:setPieceId", async (req, res): Promise<
 });
 
 router.delete("/teams/:teamId/set-pieces/:setPieceId", async (req, res): Promise<void> => {
-  const teamId = await requireTeamAccess(req, res);
+  const teamId = await requireCoachAccess(req, res);
   if (!teamId) return;
 
   const setPieceId = parseParam(req.params.setPieceId);
@@ -194,16 +234,17 @@ router.delete("/teams/:teamId/set-pieces/:setPieceId", async (req, res): Promise
 });
 
 router.patch("/teams/:teamId/set-pieces/:setPieceId/status", async (req, res): Promise<void> => {
-  const teamId = await requireTeamAccess(req, res);
+  const teamId = await requireCoachAccess(req, res);
   if (!teamId) return;
 
-  const setPieceId = parseParam(req.params.setPieceId);
-  const { status } = req.body;
-
-  if (!["draft", "ready", "active_matchday", "archived"].includes(status)) {
-    res.status(400).json({ error: "Invalid status" });
+  const parsed = updateStatusSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: "Validation failed", details: parsed.error.issues });
     return;
   }
+
+  const setPieceId = parseParam(req.params.setPieceId);
+  const { status } = parsed.data;
 
   const [piece] = await db
     .update(setPiecesTable)

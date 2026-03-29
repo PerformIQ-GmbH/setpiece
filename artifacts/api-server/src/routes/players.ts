@@ -1,22 +1,50 @@
 import { Router, type IRouter } from "express";
 import { eq, and } from "drizzle-orm";
 import { db, playersTable } from "@workspace/db";
-import { requireTeamAccess, parseParam } from "../lib/authorization";
+import { requireCoachAccess, requireTeamAccess, parseParam } from "../lib/authorization";
+import { z } from "zod/v4";
 
 const router: IRouter = Router();
+
+const createPlayerSchema = z.object({
+  firstName: z.string().min(1).max(100),
+  lastName: z.string().min(1).max(100),
+  shirtNumber: z.number().int().min(1).max(99).optional(),
+  dominantFoot: z.enum(["left", "right", "both"]).optional(),
+  height: z.number().min(100).max(230).optional(),
+  status: z.enum(["active", "injured", "suspended", "inactive"]).optional(),
+  tags: z.array(z.string()).optional(),
+  headingStrength: z.number().int().min(1).max(10).optional(),
+  speed: z.number().int().min(1).max(10).optional(),
+  notes: z.string().optional(),
+});
+
+const updatePlayerSchema = createPlayerSchema.partial();
+
+const listPlayersQuerySchema = z.object({
+  status: z.enum(["active", "injured", "suspended", "inactive"]).optional(),
+  search: z.string().max(100).optional(),
+  tag: z.string().max(50).optional(),
+});
 
 router.get("/teams/:teamId/players", async (req, res): Promise<void> => {
   const teamId = await requireTeamAccess(req, res);
   if (!teamId) return;
+
+  const qParsed = listPlayersQuerySchema.safeParse(req.query);
+  if (!qParsed.success) {
+    res.status(400).json({ error: "Invalid query parameters", details: qParsed.error.issues });
+    return;
+  }
 
   let players = await db
     .select()
     .from(playersTable)
     .where(eq(playersTable.teamId, teamId));
 
-  const statusFilter = req.query.status as string | undefined;
-  const searchFilter = req.query.search as string | undefined;
-  const tagFilter = req.query.tag as string | undefined;
+  const statusFilter = qParsed.data.status;
+  const searchFilter = qParsed.data.search;
+  const tagFilter = qParsed.data.tag;
 
   if (statusFilter) {
     players = players.filter((p) => p.status === statusFilter);
@@ -37,30 +65,30 @@ router.get("/teams/:teamId/players", async (req, res): Promise<void> => {
 });
 
 router.post("/teams/:teamId/players", async (req, res): Promise<void> => {
-  const teamId = await requireTeamAccess(req, res);
+  const teamId = await requireCoachAccess(req, res);
   if (!teamId) return;
 
-  const { firstName, lastName, shirtNumber, dominantFoot, height, status, tags, headingStrength, speed, notes } = req.body;
-
-  if (!firstName || !lastName) {
-    res.status(400).json({ error: "firstName and lastName are required" });
+  const parsed = createPlayerSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: "Validation failed", details: parsed.error.issues });
     return;
   }
+  const data = parsed.data;
 
   const [player] = await db
     .insert(playersTable)
     .values({
       teamId,
-      firstName,
-      lastName,
-      shirtNumber: shirtNumber ?? null,
-      dominantFoot: dominantFoot ?? null,
-      height: height ?? null,
-      status: status ?? "active",
-      tags: tags ?? null,
-      headingStrength: headingStrength ?? null,
-      speed: speed ?? null,
-      notes: notes ?? null,
+      firstName: data.firstName,
+      lastName: data.lastName,
+      shirtNumber: data.shirtNumber ?? null,
+      dominantFoot: data.dominantFoot ?? null,
+      height: data.height ?? null,
+      status: data.status ?? "active",
+      tags: data.tags ?? null,
+      headingStrength: data.headingStrength ?? null,
+      speed: data.speed ?? null,
+      notes: data.notes ?? null,
     })
     .returning();
 
@@ -84,14 +112,21 @@ router.get("/teams/:teamId/players/:playerId", async (req, res): Promise<void> =
 });
 
 router.patch("/teams/:teamId/players/:playerId", async (req, res): Promise<void> => {
-  const teamId = await requireTeamAccess(req, res);
+  const teamId = await requireCoachAccess(req, res);
   if (!teamId) return;
+
+  const parsed = updatePlayerSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: "Validation failed", details: parsed.error.issues });
+    return;
+  }
 
   const playerId = parseParam(req.params.playerId);
   const updates: Record<string, unknown> = {};
-  const fields = ["firstName", "lastName", "shirtNumber", "dominantFoot", "height", "status", "tags", "headingStrength", "speed", "notes"];
+  const data = parsed.data;
+  const fields = ["firstName", "lastName", "shirtNumber", "dominantFoot", "height", "status", "tags", "headingStrength", "speed", "notes"] as const;
   for (const f of fields) {
-    if (req.body[f] !== undefined) updates[f] = req.body[f];
+    if (data[f] !== undefined) updates[f] = data[f];
   }
 
   const [player] = await db
@@ -108,7 +143,7 @@ router.patch("/teams/:teamId/players/:playerId", async (req, res): Promise<void>
 });
 
 router.delete("/teams/:teamId/players/:playerId", async (req, res): Promise<void> => {
-  const teamId = await requireTeamAccess(req, res);
+  const teamId = await requireCoachAccess(req, res);
   if (!teamId) return;
 
   const playerId = parseParam(req.params.playerId);

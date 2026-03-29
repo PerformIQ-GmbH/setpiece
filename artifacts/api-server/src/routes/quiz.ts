@@ -2,17 +2,28 @@ import { Router, type IRouter } from "express";
 import { eq, and } from "drizzle-orm";
 import {
   db,
-  shareLinksTable,
   setPiecesTable,
   setPieceRolesTable,
   roleAssignmentsTable,
+  playersTable,
   quizAttemptsTable,
   playerReadinessTable,
   auditEventsTable,
 } from "@workspace/db";
-import { parseParam } from "../lib/authorization";
+import { requireShareToken, parseParam } from "../lib/authorization";
+import { z } from "zod/v4";
 
 const router: IRouter = Router();
+
+const submitQuizSchema = z.object({
+  playerId: z.string().min(1),
+  setPieceId: z.string().min(1),
+  roleId: z.string().optional(),
+  answers: z.array(z.object({
+    questionId: z.string(),
+    answer: z.any(),
+  })),
+});
 
 interface QuizQuestion {
   id: string;
@@ -110,37 +121,13 @@ function scoreAnswers(
   };
 }
 
-function validateShareLink(link: {
-  revokedAt: Date | null;
-  expiresAt: Date | null;
-}): string | null {
-  if (link.revokedAt) return "This share link has been revoked";
-  if (link.expiresAt && link.expiresAt < new Date()) return "This share link has expired";
-  return null;
-}
-
 router.get("/p/:shareToken/quiz", async (req, res): Promise<void> => {
-  const shareToken = parseParam(req.params.shareToken);
+  const link = await requireShareToken(req, res);
+  if (!link) return;
+
   const setPieceId = req.query.setPieceId as string;
-
   if (!setPieceId) {
-    res.status(400).json({ error: "setPieceId is required" });
-    return;
-  }
-
-  const [link] = await db
-    .select()
-    .from(shareLinksTable)
-    .where(eq(shareLinksTable.token, shareToken));
-
-  if (!link) {
-    res.status(404).json({ error: "Invalid share link" });
-    return;
-  }
-
-  const validationError = validateShareLink(link);
-  if (validationError) {
-    res.status(404).json({ error: validationError });
+    res.status(400).json({ error: "setPieceId query parameter is required" });
     return;
   }
 
@@ -195,30 +182,16 @@ router.get("/p/:shareToken/quiz", async (req, res): Promise<void> => {
 });
 
 router.post("/p/:shareToken/quiz", async (req, res): Promise<void> => {
-  const shareToken = parseParam(req.params.shareToken);
+  const link = await requireShareToken(req, res);
+  if (!link) return;
 
-  const [link] = await db
-    .select()
-    .from(shareLinksTable)
-    .where(eq(shareLinksTable.token, shareToken));
-
-  if (!link) {
-    res.status(404).json({ error: "Invalid share link" });
+  const parsed = submitQuizSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: "Validation failed", details: parsed.error.issues });
     return;
   }
 
-  const validationError = validateShareLink(link);
-  if (validationError) {
-    res.status(404).json({ error: validationError });
-    return;
-  }
-
-  const { playerId, setPieceId, roleId, answers } = req.body;
-
-  if (!playerId || !setPieceId || !answers) {
-    res.status(400).json({ error: "playerId, setPieceId, and answers are required" });
-    return;
-  }
+  const { playerId, setPieceId, roleId, answers } = parsed.data;
 
   if (link.playerScope && link.playerScope.length > 0 && !link.playerScope.includes(playerId)) {
     res.status(403).json({ error: "Player not in scope for this link" });
@@ -227,6 +200,15 @@ router.post("/p/:shareToken/quiz", async (req, res): Promise<void> => {
 
   if (link.allowedSetPieceIds && link.allowedSetPieceIds.length > 0 && !link.allowedSetPieceIds.includes(setPieceId)) {
     res.status(403).json({ error: "Set piece not in scope for this link" });
+    return;
+  }
+
+  const [player] = await db
+    .select()
+    .from(playersTable)
+    .where(and(eq(playersTable.id, playerId), eq(playersTable.teamId, link.teamId)));
+  if (!player) {
+    res.status(403).json({ error: "Player does not belong to this team" });
     return;
   }
 
