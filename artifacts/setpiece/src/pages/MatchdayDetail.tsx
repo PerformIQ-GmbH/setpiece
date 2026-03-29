@@ -87,7 +87,7 @@ export default function MatchdayDetail() {
             {matchday?.date && ` · ${new Date(matchday.date).toLocaleDateString()}`}
           </p>
         </div>
-        <Button size="sm" variant="outline" onClick={() => { setShareLink(''); setShareOpen(false); setShareScope('all'); setSelectedPlayers([]); setExpiryHours(''); handleShare(); }} className="border-primary/30 text-primary">
+        <Button size="sm" variant="outline" onClick={() => { setShareLink(''); setShareScope('all'); setSelectedPlayers([]); setExpiryHours(''); setShareOpen(true); }} className="border-primary/30 text-primary">
           <QrCode className="h-4 w-4 mr-2" /> Share
         </Button>
         <Button size="sm" onClick={() => setAddOpen(true)}>

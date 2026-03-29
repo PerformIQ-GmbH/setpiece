@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { CoachLayout } from '@/components/Layout';
 import { useRoute, Link } from 'wouter';
-import { useGetTeam, useGetSetPiece, useListPlayers, usePreviewGhostSubstitution } from '@workspace/api-client-react';
+import { useGetTeam, useGetSetPiece, useListPlayers, usePreviewGhostSubstitution, useUpsertAssignment } from '@workspace/api-client-react';
 import type {
   GhostSubstitutionResponse,
   GhostSubstitutionResponseAfterPositionsItem,
@@ -11,7 +11,7 @@ import type {
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Pitch } from '@/components/Pitch';
-import { ArrowLeft, UserMinus, UserPlus, ArrowRight, AlertTriangle, CheckCircle2, Info } from 'lucide-react';
+import { ArrowLeft, UserMinus, UserPlus, ArrowRight, AlertTriangle, CheckCircle2, Info, Check, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 export default function GhostMode() {
@@ -22,10 +22,13 @@ export default function GhostMode() {
   const { data: setPiece, isLoading } = useGetSetPiece(teamId, setPieceId);
   const { data: players } = useListPlayers(teamId);
   const ghostSub = usePreviewGhostSubstitution();
+  const upsertAssignment = useUpsertAssignment();
 
   const [playerOut, setPlayerOut] = useState('');
   const [playerIn, setPlayerIn] = useState('');
   const [result, setResult] = useState<GhostSubstitutionResponse | null>(null);
+  const [applying, setApplying] = useState(false);
+  const [applied, setApplied] = useState(false);
 
   const assignedPlayerIds = setPiece?.assignments?.map(a => a.playerId) || [];
   const assignedPlayers = players?.filter(p => assignedPlayerIds.includes(p.id)) || [];
@@ -131,6 +134,41 @@ export default function GhostMode() {
                     {result.warnings.length === 0 && result.suitabilityHints.length === 0 && (
                       <div className="flex items-center gap-2 text-emerald-400 text-sm mt-2">
                         <CheckCircle2 className="h-4 w-4" /> Clean substitution - no issues detected
+                      </div>
+                    )}
+
+                    {applied ? (
+                      <div className="flex items-center gap-2 text-emerald-400 text-sm mt-4 p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/20">
+                        <CheckCircle2 className="h-4 w-4" /> Substitution applied successfully
+                      </div>
+                    ) : (
+                      <div className="flex gap-3 mt-4 pt-3 border-t border-border">
+                        <Button
+                          className="flex-1"
+                          disabled={applying}
+                          onClick={async () => {
+                            setApplying(true);
+                            for (const mapping of result.updatedRoleMapping) {
+                              if (mapping.roleId && mapping.newPlayerId) {
+                                await upsertAssignment.mutateAsync({
+                                  teamId, setPieceId,
+                                  data: { roleId: mapping.roleId, playerId: mapping.newPlayerId }
+                                });
+                              }
+                            }
+                            setApplying(false);
+                            setApplied(true);
+                          }}
+                        >
+                          <Check className="h-4 w-4 mr-2" /> {applying ? 'Applying...' : 'Confirm Substitution'}
+                        </Button>
+                        <Button
+                          variant="outline"
+                          className="border-border"
+                          onClick={() => { setResult(null); setPlayerOut(''); setPlayerIn(''); }}
+                        >
+                          <X className="h-4 w-4 mr-2" /> Cancel
+                        </Button>
                       </div>
                     )}
                   </CardContent>

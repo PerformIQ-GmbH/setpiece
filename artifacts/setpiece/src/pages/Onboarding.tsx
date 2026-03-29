@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useLocation } from 'wouter';
-import { useCreateTeam, useCreatePlayer, useListTemplates, useCreateSetPiece, useCreateRole, useCreateShareLink } from '@workspace/api-client-react';
+import { useCreateTeam, useCreatePlayer, useListTemplates, useCreateSetPiece, useCreateRole, useCreateShareLink, useUpsertAssignment } from '@workspace/api-client-react';
 import type { SetPieceTemplate } from '@workspace/api-client-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -42,8 +42,10 @@ export default function Onboarding() {
   const createSetPiece = useCreateSetPiece();
   const createRole = useCreateRole();
   const createShareLink = useCreateShareLink();
+  const upsertAssignment = useUpsertAssignment();
 
   const [step, setStep] = useState(0);
+  const [stepError, setStepError] = useState<string | null>(null);
   const [teamName, setTeamName] = useState('');
   const [teamId, setTeamId] = useState('');
   const [playerDrafts, setPlayerDrafts] = useState<PlayerDraft[]>([
@@ -68,6 +70,7 @@ export default function Onboarding() {
 
   const handleNext = async () => {
     setIsSubmitting(true);
+    setStepError(null);
     try {
       if (step === 0 && !teamId) {
         const team = await createTeam.mutateAsync({ data: { name: teamName.trim() } });
@@ -78,17 +81,15 @@ export default function Onboarding() {
         const validPlayers = playerDrafts.filter(p => p.firstName.trim() && p.lastName.trim());
         const created: CreatedPlayer[] = [];
         for (const p of validPlayers) {
-          try {
-            const res = await createPlayer.mutateAsync({
-              teamId,
-              data: {
-                firstName: p.firstName.trim(),
-                lastName: p.lastName.trim(),
-                shirtNumber: p.shirtNumber ? parseInt(p.shirtNumber) : undefined,
-              }
-            });
-            created.push({ id: res.id, firstName: p.firstName.trim(), lastName: p.lastName.trim(), shirtNumber: p.shirtNumber ? parseInt(p.shirtNumber) : undefined });
-          } catch { /* skip */ }
+          const res = await createPlayer.mutateAsync({
+            teamId,
+            data: {
+              firstName: p.firstName.trim(),
+              lastName: p.lastName.trim(),
+              shirtNumber: p.shirtNumber ? parseInt(p.shirtNumber) : undefined,
+            }
+          });
+          created.push({ id: res.id, firstName: p.firstName.trim(), lastName: p.lastName.trim(), shirtNumber: p.shirtNumber ? parseInt(p.shirtNumber) : undefined });
         }
         setCreatedPlayers(created);
       }
@@ -106,35 +107,41 @@ export default function Onboarding() {
           const roles: CreatedRole[] = [];
           for (const roleItem of defaultRoles) {
             const roleName = roleItem.name || 'Role';
-            try {
-              const pos = roleItem.startPosition
-                ? { x: roleItem.startPosition.x ?? 50, y: roleItem.startPosition.y ?? 50 }
-                : { x: 30 + Math.random() * 40, y: 20 + Math.random() * 60 };
-              const r = await createRole.mutateAsync({
-                teamId, setPieceId: sp.id,
-                data: { name: roleName, startPosition: pos }
-              });
-              roles.push({ id: r.id, name: roleName });
-            } catch { /* skip */ }
+            const pos = roleItem.startPosition
+              ? { x: roleItem.startPosition.x ?? 50, y: roleItem.startPosition.y ?? 50 }
+              : { x: 30 + Math.random() * 40, y: 20 + Math.random() * 60 };
+            const r = await createRole.mutateAsync({
+              teamId, setPieceId: sp.id,
+              data: { name: roleName, startPosition: pos }
+            });
+            roles.push({ id: r.id, name: roleName });
           }
           setCreatedRoles(roles);
         }
       }
 
       if (step === 3 && teamId && setPieceId) {
-        try {
-          const link = await createShareLink.mutateAsync({
-            teamId,
-            data: {}
-          });
-          const url = `${window.location.origin}${import.meta.env.BASE_URL}p/${link.token}`;
-          setShareLink(url);
-        } catch { /* non-blocking */ }
+        for (const [roleId, playerId] of Object.entries(roleAssignments)) {
+          if (playerId) {
+            await upsertAssignment.mutateAsync({
+              teamId, setPieceId,
+              data: { roleId, playerId }
+            });
+          }
+        }
+
+        const link = await createShareLink.mutateAsync({
+          teamId,
+          data: {}
+        });
+        const url = `${window.location.origin}${import.meta.env.BASE_URL}p/${link.token}`;
+        setShareLink(url);
       }
 
       setStep(s => Math.min(s + 1, STEPS.length - 1));
-    } catch {
-      /* show error state */
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Something went wrong. Please try again.';
+      setStepError(message);
     }
     setIsSubmitting(false);
   };
@@ -322,6 +329,12 @@ export default function Onboarding() {
                           <ExternalLink className="w-3 h-3 mr-1" /> Preview Player View
                         </Button>
                       )}
+                    </div>
+                  )}
+
+                  {stepError && (
+                    <div className="mt-4 p-3 rounded-lg bg-red-500/10 border border-red-500/20 text-red-300 text-sm">
+                      {stepError}
                     </div>
                   )}
 
