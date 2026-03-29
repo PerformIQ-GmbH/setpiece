@@ -1,7 +1,7 @@
 import { Router, type IRouter } from "express";
 import { eq, and } from "drizzle-orm";
 import { db, playersTable } from "@workspace/db";
-import { requireCoachAccess, requireTeamAccess, parseParam } from "../lib/authorization";
+import { requireCoachAccess, requireHeadCoachAccess, requireTeamAccess, parseParam } from "../lib/authorization";
 import { z } from "zod/v4";
 
 const router: IRouter = Router();
@@ -143,7 +143,7 @@ router.patch("/teams/:teamId/players/:playerId", async (req, res): Promise<void>
 });
 
 router.delete("/teams/:teamId/players/:playerId", async (req, res): Promise<void> => {
-  const teamId = await requireCoachAccess(req, res);
+  const teamId = await requireHeadCoachAccess(req, res);
   if (!teamId) return;
 
   const playerId = parseParam(req.params.playerId);

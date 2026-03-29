@@ -10,7 +10,7 @@ import {
   setPieceTemplatesTable,
   auditEventsTable,
 } from "@workspace/db";
-import { requireTeamAccess, requireCoachAccess, parseParam } from "../lib/authorization";
+import { requireTeamAccess, requireCoachAccess, requireHeadCoachAccess, parseParam } from "../lib/authorization";
 import { z } from "zod/v4";
 
 const router: IRouter = Router();
@@ -102,8 +102,8 @@ router.post("/teams/:teamId/set-pieces", async (req, res): Promise<void> => {
       description: description || null,
       boardData: finalBoardData || null,
       coachingNotes: coachingNotes || null,
-      createdBy: (req.user as any).id,
-      updatedBy: (req.user as any).id,
+      createdBy: req.user!.id,
+      updatedBy: req.user!.id,
     })
     .returning();
 
@@ -123,7 +123,7 @@ router.post("/teams/:teamId/set-pieces", async (req, res): Promise<void> => {
 
   await db.insert(auditEventsTable).values({
     teamId,
-    userId: (req.user as any).id,
+    userId: req.user!.id,
     eventType: "set_piece_created",
     entityType: "set_piece",
     entityId: piece.id,
@@ -194,7 +194,7 @@ router.patch("/teams/:teamId/set-pieces/:setPieceId", async (req, res): Promise<
 
   const data = parsed.data;
   const updates: Record<string, unknown> = {
-    updatedBy: (req.user as any).id,
+    updatedBy: req.user!.id,
   };
   if (data.title !== undefined) updates.title = data.title;
   if (data.description !== undefined) updates.description = data.description;
@@ -217,7 +217,7 @@ router.patch("/teams/:teamId/set-pieces/:setPieceId", async (req, res): Promise<
 });
 
 router.delete("/teams/:teamId/set-pieces/:setPieceId", async (req, res): Promise<void> => {
-  const teamId = await requireCoachAccess(req, res);
+  const teamId = await requireHeadCoachAccess(req, res);
   if (!teamId) return;
 
   const setPieceId = parseParam(req.params.setPieceId);
@@ -234,7 +234,7 @@ router.delete("/teams/:teamId/set-pieces/:setPieceId", async (req, res): Promise
 });
 
 router.patch("/teams/:teamId/set-pieces/:setPieceId/status", async (req, res): Promise<void> => {
-  const teamId = await requireCoachAccess(req, res);
+  const teamId = await requireHeadCoachAccess(req, res);
   if (!teamId) return;
 
   const parsed = updateStatusSchema.safeParse(req.body);
@@ -248,7 +248,7 @@ router.patch("/teams/:teamId/set-pieces/:setPieceId/status", async (req, res): P
 
   const [piece] = await db
     .update(setPiecesTable)
-    .set({ status, updatedBy: (req.user as any).id })
+    .set({ status, updatedBy: req.user!.id })
     .where(and(eq(setPiecesTable.id, setPieceId), eq(setPiecesTable.teamId, teamId)))
     .returning();
 

@@ -13,7 +13,7 @@ import {
   auditEventsTable,
   matchdaySetPiecesTable,
 } from "@workspace/db";
-import { requireCoachAccess, requireShareToken, isSetPieceInShareScope, parseParam } from "../lib/authorization";
+import { requireCoachAccess, requireHeadCoachAccess, requireShareToken, isSetPieceInShareScope, parseParam } from "../lib/authorization";
 import { z } from "zod/v4";
 
 const router: IRouter = Router();
@@ -43,7 +43,7 @@ router.get("/teams/:teamId/share-links", async (req, res): Promise<void> => {
 });
 
 router.post("/teams/:teamId/share-links", async (req, res): Promise<void> => {
-  const teamId = await requireCoachAccess(req, res);
+  const teamId = await requireHeadCoachAccess(req, res);
   if (!teamId) return;
 
   const parsed = createShareLinkSchema.safeParse(req.body);
@@ -64,13 +64,13 @@ router.post("/teams/:teamId/share-links", async (req, res): Promise<void> => {
       matchdayScope: matchdayScope || null,
       allowedSetPieceIds: allowedSetPieceIds || null,
       expiresAt: expiresAt ? new Date(expiresAt) : null,
-      createdBy: (req.user as any).id,
+      createdBy: req.user!.id,
     })
     .returning();
 
   await db.insert(auditEventsTable).values({
     teamId,
-    userId: (req.user as any).id,
+    userId: req.user!.id,
     eventType: "share_link_generated",
     entityType: "share_link",
     entityId: link.id,
@@ -81,7 +81,7 @@ router.post("/teams/:teamId/share-links", async (req, res): Promise<void> => {
 });
 
 router.post("/teams/:teamId/share-links/:linkId/revoke", async (req, res): Promise<void> => {
-  const teamId = await requireCoachAccess(req, res);
+  const teamId = await requireHeadCoachAccess(req, res);
   if (!teamId) return;
 
   const linkId = parseParam(req.params.linkId);

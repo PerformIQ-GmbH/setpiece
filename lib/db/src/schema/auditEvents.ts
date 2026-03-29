@@ -26,6 +26,7 @@ export const auditEventsTable = pgTable("audit_events", {
   entityId: varchar("entity_id"),
   metadata: jsonb("metadata").$type<Record<string, unknown>>(),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
 }, (table) => [index("idx_audit_events_team").on(table.teamId)]);
 
 export const insertAuditEventSchema = createInsertSchema(auditEventsTable).omit({ id: true, createdAt: true });

@@ -238,7 +238,7 @@ router.put("/teams/:teamId/set-pieces/:setPieceId/assignments", async (req, res)
 
   await db.insert(auditEventsTable).values({
     teamId,
-    userId: (req.user as any).id,
+    userId: req.user!.id,
     eventType: "assignment_changed",
     entityType: "role_assignment",
     entityId: assignment.id,

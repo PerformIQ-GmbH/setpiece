@@ -1,7 +1,6 @@
 import * as oidc from "openid-client";
 import { type Request, type Response, type NextFunction } from "express";
 import {
-  type AuthUser,
   clearSession,
   getOidcConfig,
   getSessionId,
@@ -9,22 +8,6 @@ import {
   updateSession,
   type SessionData,
 } from "../lib/auth";
-
-declare global {
-  namespace Express {
-    interface User extends AuthUser {}
-
-    interface Request {
-      isAuthenticated(): this is AuthedRequest;
-
-      user?: User | undefined;
-    }
-
-    export interface AuthedRequest {
-      user: User;
-    }
-  }
-}
 
 async function refreshIfExpired(
   sid: string,

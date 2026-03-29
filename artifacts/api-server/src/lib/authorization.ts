@@ -25,7 +25,7 @@ export async function requireTeamAccess(
     .from(membershipsTable)
     .where(
       and(
-        eq(membershipsTable.userId, (req.user as any).id),
+        eq(membershipsTable.userId, req.user!.id),
         eq(membershipsTable.teamId, teamId),
       ),
     );
