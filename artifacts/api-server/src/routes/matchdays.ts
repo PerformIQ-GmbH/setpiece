@@ -2,6 +2,7 @@ import { Router, type IRouter } from "express";
 import { eq, and } from "drizzle-orm";
 import { db, matchdaysTable, matchdaySetPiecesTable, setPiecesTable } from "@workspace/db";
 import { requireCoachAccess, requireHeadCoachAccess, requireTeamAccess, parseParam } from "../lib/authorization";
+import { checkEntitlement } from "../lib/entitlements";
 import { z } from "zod/v4";
 
 const router: IRouter = Router();
@@ -43,6 +44,8 @@ router.get("/teams/:teamId/matchdays", async (req, res): Promise<void> => {
 router.post("/teams/:teamId/matchdays", async (req, res): Promise<void> => {
   const teamId = await requireCoachAccess(req, res);
   if (!teamId) return;
+
+  if (!(await checkEntitlement(teamId, "matchdays", res))) return;
 
   const parsed = createMatchdaySchema.safeParse(req.body);
   if (!parsed.success) {

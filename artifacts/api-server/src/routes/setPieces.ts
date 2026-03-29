@@ -11,6 +11,7 @@ import {
   auditEventsTable,
 } from "@workspace/db";
 import { requireTeamAccess, requireCoachAccess, requireHeadCoachAccess, parseParam } from "../lib/authorization";
+import { checkEntitlement } from "../lib/entitlements";
 import { z } from "zod/v4";
 
 const router: IRouter = Router();
@@ -66,6 +67,8 @@ router.get("/teams/:teamId/set-pieces", async (req, res): Promise<void> => {
 router.post("/teams/:teamId/set-pieces", async (req, res): Promise<void> => {
   const teamId = await requireCoachAccess(req, res);
   if (!teamId) return;
+
+  if (!(await checkEntitlement(teamId, "set_pieces", res))) return;
 
   const parsed = createSetPieceSchema.safeParse(req.body);
   if (!parsed.success) {
@@ -300,6 +303,50 @@ router.get("/teams/:teamId/set-pieces/:setPieceId/match-pack", async (req, res):
     roles,
     assignments: assignmentsResult,
   });
+});
+
+router.put("/teams/:teamId/set-pieces/:setPieceId/preview", async (req, res): Promise<void> => {
+  const teamId = await requireCoachAccess(req, res);
+  if (!teamId) return;
+
+  const setPieceId = parseParam(req.params.setPieceId);
+  const previewSchema = z.object({
+    previewImageUrl: z.string().url(),
+  });
+  const parsed = previewSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: "Validation failed", details: parsed.error.issues });
+    return;
+  }
+
+  const [piece] = await db
+    .update(setPiecesTable)
+    .set({ previewImageUrl: parsed.data.previewImageUrl, updatedBy: req.user!.id })
+    .where(and(eq(setPiecesTable.id, setPieceId), eq(setPiecesTable.teamId, teamId)))
+    .returning();
+
+  if (!piece) {
+    res.status(404).json({ error: "Set piece not found" });
+    return;
+  }
+  res.json({ previewImageUrl: piece.previewImageUrl });
+});
+
+router.get("/teams/:teamId/set-pieces/:setPieceId/preview", async (req, res): Promise<void> => {
+  const teamId = await requireTeamAccess(req, res);
+  if (!teamId) return;
+
+  const setPieceId = parseParam(req.params.setPieceId);
+  const [piece] = await db
+    .select({ previewImageUrl: setPiecesTable.previewImageUrl })
+    .from(setPiecesTable)
+    .where(and(eq(setPiecesTable.id, setPieceId), eq(setPiecesTable.teamId, teamId)));
+
+  if (!piece) {
+    res.status(404).json({ error: "Set piece not found" });
+    return;
+  }
+  res.json({ previewImageUrl: piece.previewImageUrl });
 });
 
 export default router;

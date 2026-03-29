@@ -14,6 +14,7 @@ import {
   matchdaySetPiecesTable,
 } from "@workspace/db";
 import { requireCoachAccess, requireHeadCoachAccess, requireShareToken, isSetPieceInShareScope, parseParam } from "../lib/authorization";
+import { checkEntitlement } from "../lib/entitlements";
 import { z } from "zod/v4";
 
 const router: IRouter = Router();
@@ -45,6 +46,8 @@ router.get("/teams/:teamId/share-links", async (req, res): Promise<void> => {
 router.post("/teams/:teamId/share-links", async (req, res): Promise<void> => {
   const teamId = await requireHeadCoachAccess(req, res);
   if (!teamId) return;
+
+  if (!(await checkEntitlement(teamId, "share_links", res))) return;
 
   const parsed = createShareLinkSchema.safeParse(req.body);
   if (!parsed.success) {
