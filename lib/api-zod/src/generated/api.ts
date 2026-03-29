@@ -187,6 +187,70 @@ export const UpdateTeamResponse = zod.object({
 });
 
 /**
+ * @summary List team members
+ */
+export const ListMembersParams = zod.object({
+  teamId: zod.coerce.string(),
+});
+
+export const ListMembersResponseItem = zod.object({
+  id: zod.string(),
+  userId: zod.string(),
+  teamId: zod.string(),
+  role: zod.enum(["head_coach", "assistant_coach", "player"]),
+  createdAt: zod.coerce.date(),
+  email: zod.string().nullish(),
+  firstName: zod.string().nullish(),
+  lastName: zod.string().nullish(),
+  profileImageUrl: zod.string().nullish(),
+});
+export const ListMembersResponse = zod.array(ListMembersResponseItem);
+
+/**
+ * @summary Add a member to the team (head coach only)
+ */
+export const AddMemberParams = zod.object({
+  teamId: zod.coerce.string(),
+});
+
+export const AddMemberBody = zod.object({
+  userId: zod.string(),
+  role: zod.enum(["head_coach", "assistant_coach", "player"]),
+});
+
+/**
+ * @summary Update a member's role (head coach only)
+ */
+export const UpdateMemberParams = zod.object({
+  teamId: zod.coerce.string(),
+  membershipId: zod.coerce.string(),
+});
+
+export const UpdateMemberBody = zod.object({
+  role: zod.enum(["head_coach", "assistant_coach", "player"]),
+});
+
+export const UpdateMemberResponse = zod.object({
+  id: zod.string(),
+  userId: zod.string(),
+  teamId: zod.string(),
+  role: zod.enum(["head_coach", "assistant_coach", "player"]),
+  createdAt: zod.coerce.date(),
+  email: zod.string().nullish(),
+  firstName: zod.string().nullish(),
+  lastName: zod.string().nullish(),
+  profileImageUrl: zod.string().nullish(),
+});
+
+/**
+ * @summary Remove a member from the team (head coach only)
+ */
+export const RemoveMemberParams = zod.object({
+  teamId: zod.coerce.string(),
+  membershipId: zod.coerce.string(),
+});
+
+/**
  * @summary List players for a team
  */
 export const ListPlayersParams = zod.object({
@@ -1351,6 +1415,34 @@ export const GetMatchPackDataResponse = zod.object({
         .optional(),
     }),
   ),
+});
+
+/**
+ * @summary Upload board preview image URL
+ */
+export const UpdateBoardPreviewParams = zod.object({
+  teamId: zod.coerce.string(),
+  setPieceId: zod.coerce.string(),
+});
+
+export const UpdateBoardPreviewBody = zod.object({
+  previewImageUrl: zod.string().url(),
+});
+
+export const UpdateBoardPreviewResponse = zod.object({
+  previewImageUrl: zod.string().nullish(),
+});
+
+/**
+ * @summary Get board preview image URL
+ */
+export const GetBoardPreviewParams = zod.object({
+  teamId: zod.coerce.string(),
+  setPieceId: zod.coerce.string(),
+});
+
+export const GetBoardPreviewResponse = zod.object({
+  previewImageUrl: zod.string().nullish(),
 });
 
 /**

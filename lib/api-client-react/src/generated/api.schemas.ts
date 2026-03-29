@@ -51,6 +51,31 @@ export const LogoutSuccessValue = {
 } as const;
 export type LogoutSuccess = typeof LogoutSuccessValue;
 
+export type MembershipRole =
+  (typeof MembershipRole)[keyof typeof MembershipRole];
+
+export const MembershipRole = {
+  head_coach: "head_coach",
+  assistant_coach: "assistant_coach",
+  player: "player",
+} as const;
+
+export interface Membership {
+  id: string;
+  userId: string;
+  teamId: string;
+  role: MembershipRole;
+  createdAt: string;
+  /** @nullable */
+  email?: string | null;
+  /** @nullable */
+  firstName?: string | null;
+  /** @nullable */
+  lastName?: string | null;
+  /** @nullable */
+  profileImageUrl?: string | null;
+}
+
 /**
  * @nullable
  */
@@ -719,6 +744,33 @@ export type HandleBrowserLoginCallbackParams = {
   iss?: string;
 };
 
+export type AddMemberBodyRole =
+  (typeof AddMemberBodyRole)[keyof typeof AddMemberBodyRole];
+
+export const AddMemberBodyRole = {
+  head_coach: "head_coach",
+  assistant_coach: "assistant_coach",
+  player: "player",
+} as const;
+
+export type AddMemberBody = {
+  userId: string;
+  role: AddMemberBodyRole;
+};
+
+export type UpdateMemberBodyRole =
+  (typeof UpdateMemberBodyRole)[keyof typeof UpdateMemberBodyRole];
+
+export const UpdateMemberBodyRole = {
+  head_coach: "head_coach",
+  assistant_coach: "assistant_coach",
+  player: "player",
+} as const;
+
+export type UpdateMemberBody = {
+  role: UpdateMemberBodyRole;
+};
+
 export type ListPlayersParams = {
   status?: string;
   tag?: string;
@@ -744,6 +796,20 @@ export type GetQuizQuestionsParams = {
 export type GetReadinessDashboardParams = {
   matchdayId?: string;
   setPieceId?: string;
+};
+
+export type UpdateBoardPreviewBody = {
+  previewImageUrl: string;
+};
+
+export type UpdateBoardPreview200 = {
+  /** @nullable */
+  previewImageUrl?: string | null;
+};
+
+export type GetBoardPreview200 = {
+  /** @nullable */
+  previewImageUrl?: string | null;
 };
 
 export type ListAuditEventsParams = {

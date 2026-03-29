@@ -220,6 +220,95 @@ paths:
               schema:
                 $ref: "#/components/schemas/Team"
 
+  # ─── Memberships ───
+  /teams/{teamId}/members:
+    get:
+      operationId: listMembers
+      tags: [memberships]
+      summary: List team members
+      parameters:
+        - $ref: "#/components/parameters/TeamId"
+      responses:
+        "200":
+          description: List of team members
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Membership"
+    post:
+      operationId: addMember
+      tags: [memberships]
+      summary: Add a member to the team (head coach only)
+      parameters:
+        - $ref: "#/components/parameters/TeamId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [userId, role]
+              properties:
+                userId:
+                  type: string
+                role:
+                  type: string
+                  enum: [head_coach, assistant_coach, player]
+      responses:
+        "201":
+          description: Member added
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Membership"
+
+  /teams/{teamId}/members/{membershipId}:
+    patch:
+      operationId: updateMember
+      tags: [memberships]
+      summary: Update a member's role (head coach only)
+      parameters:
+        - $ref: "#/components/parameters/TeamId"
+        - name: membershipId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [role]
+              properties:
+                role:
+                  type: string
+                  enum: [head_coach, assistant_coach, player]
+      responses:
+        "200":
+          description: Member updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Membership"
+    delete:
+      operationId: removeMember
+      tags: [memberships]
+      summary: Remove a member from the team (head coach only)
+      parameters:
+        - $ref: "#/components/parameters/TeamId"
+        - name: membershipId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "204":
+          description: Member removed
+
   # ─── Players ───
   /teams/{teamId}/players:
     get:
@@ -1126,6 +1215,32 @@ components:
         success:
           type: boolean
           const: true
+
+    # ─── Membership ───
+    Membership:
+      type: object
+      required: [id, userId, teamId, role, createdAt]
+      properties:
+        id:
+          type: string
+        userId:
+          type: string
+        teamId:
+          type: string
+        role:
+          type: string
+          enum: [head_coach, assistant_coach, player]
+        createdAt:
+          type: string
+          format: date-time
+        email:
+          type: [string, 'null']
+        firstName:
+          type: [string, 'null']
+        lastName:
+          type: [string, 'null']
+        profileImageUrl:
+          type: [string, 'null']
 
     # ─── Team ───
     Team:

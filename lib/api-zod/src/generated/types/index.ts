@@ -6,6 +6,8 @@
  * OpenAPI spec version: 0.1.0
  */
 
+export * from "./addMemberBody";
+export * from "./addMemberBodyRole";
 export * from "./addToMatchdayBody";
 export * from "./auditEvent";
 export * from "./auditEventMetadata";
@@ -24,6 +26,7 @@ export * from "./createShareLinkBody";
 export * from "./createTeamBody";
 export * from "./createTeamBodyTeamColors";
 export * from "./errorEnvelope";
+export * from "./getBoardPreview200";
 export * from "./getQuizQuestionsParams";
 export * from "./getReadinessDashboardParams";
 export * from "./ghostSubstitutionRequest";
@@ -48,6 +51,8 @@ export * from "./matchdayDetail";
 export * from "./matchdaySetPieceEntry";
 export * from "./matchPackData";
 export * from "./matchPackDataAssignmentsItem";
+export * from "./membership";
+export * from "./membershipRole";
 export * from "./mobileTokenExchangeRequest";
 export * from "./mobileTokenExchangeSuccess";
 export * from "./player";
@@ -85,7 +90,11 @@ export * from "./submitQuizBody";
 export * from "./submitQuizBodyAnswersItem";
 export * from "./team";
 export * from "./teamTeamColors";
+export * from "./updateBoardPreview200";
+export * from "./updateBoardPreviewBody";
 export * from "./updateMatchdayBody";
+export * from "./updateMemberBody";
+export * from "./updateMemberBodyRole";
 export * from "./updatePlayerBody";
 export * from "./updateRoleBody";
 export * from "./updateRoleBodyMovementPathItem";

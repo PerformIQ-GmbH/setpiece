@@ -17,6 +17,7 @@ import type {
 } from "@tanstack/react-query";
 
 import type {
+  AddMemberBody,
   AddToMatchdayBody,
   AuditEvent,
   AuthUserEnvelope,
@@ -28,6 +29,7 @@ import type {
   CreateShareLinkBody,
   CreateTeamBody,
   ErrorEnvelope,
+  GetBoardPreview200,
   GetQuizQuestionsParams,
   GetReadinessDashboardParams,
   GhostSubstitutionRequest,
@@ -44,6 +46,7 @@ import type {
   Matchday,
   MatchdayDetail,
   MatchdaySetPieceEntry,
+  Membership,
   MobileTokenExchangeRequest,
   MobileTokenExchangeSuccess,
   Player,
@@ -62,7 +65,10 @@ import type {
   ShareLink,
   SubmitQuizBody,
   Team,
+  UpdateBoardPreview200,
+  UpdateBoardPreviewBody,
   UpdateMatchdayBody,
+  UpdateMemberBody,
   UpdatePlayerBody,
   UpdateRoleBody,
   UpdateSetPieceBody,
@@ -992,6 +998,353 @@ export const useUpdateTeam = <
   TContext
 > => {
   return useMutation(getUpdateTeamMutationOptions(options));
+};
+
+/**
+ * @summary List team members
+ */
+export const getListMembersUrl = (teamId: string) => {
+  return `/api/teams/${teamId}/members`;
+};
+
+export const listMembers = async (
+  teamId: string,
+  options?: RequestInit,
+): Promise<Membership[]> => {
+  return customFetch<Membership[]>(getListMembersUrl(teamId), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getListMembersQueryKey = (teamId: string) => {
+  return [`/api/teams/${teamId}/members`] as const;
+};
+
+export const getListMembersQueryOptions = <
+  TData = Awaited<ReturnType<typeof listMembers>>,
+  TError = ErrorType<unknown>,
+>(
+  teamId: string,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof listMembers>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getListMembersQueryKey(teamId);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof listMembers>>> = ({
+    signal,
+  }) => listMembers(teamId, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!teamId,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof listMembers>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type ListMembersQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listMembers>>
+>;
+export type ListMembersQueryError = ErrorType<unknown>;
+
+/**
+ * @summary List team members
+ */
+
+export function useListMembers<
+  TData = Awaited<ReturnType<typeof listMembers>>,
+  TError = ErrorType<unknown>,
+>(
+  teamId: string,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof listMembers>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getListMembersQueryOptions(teamId, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Add a member to the team (head coach only)
+ */
+export const getAddMemberUrl = (teamId: string) => {
+  return `/api/teams/${teamId}/members`;
+};
+
+export const addMember = async (
+  teamId: string,
+  addMemberBody: AddMemberBody,
+  options?: RequestInit,
+): Promise<Membership> => {
+  return customFetch<Membership>(getAddMemberUrl(teamId), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(addMemberBody),
+  });
+};
+
+export const getAddMemberMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof addMember>>,
+    TError,
+    { teamId: string; data: BodyType<AddMemberBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof addMember>>,
+  TError,
+  { teamId: string; data: BodyType<AddMemberBody> },
+  TContext
+> => {
+  const mutationKey = ["addMember"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof addMember>>,
+    { teamId: string; data: BodyType<AddMemberBody> }
+  > = (props) => {
+    const { teamId, data } = props ?? {};
+
+    return addMember(teamId, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type AddMemberMutationResult = NonNullable<
+  Awaited<ReturnType<typeof addMember>>
+>;
+export type AddMemberMutationBody = BodyType<AddMemberBody>;
+export type AddMemberMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Add a member to the team (head coach only)
+ */
+export const useAddMember = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof addMember>>,
+    TError,
+    { teamId: string; data: BodyType<AddMemberBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof addMember>>,
+  TError,
+  { teamId: string; data: BodyType<AddMemberBody> },
+  TContext
+> => {
+  return useMutation(getAddMemberMutationOptions(options));
+};
+
+/**
+ * @summary Update a member's role (head coach only)
+ */
+export const getUpdateMemberUrl = (teamId: string, membershipId: string) => {
+  return `/api/teams/${teamId}/members/${membershipId}`;
+};
+
+export const updateMember = async (
+  teamId: string,
+  membershipId: string,
+  updateMemberBody: UpdateMemberBody,
+  options?: RequestInit,
+): Promise<Membership> => {
+  return customFetch<Membership>(getUpdateMemberUrl(teamId, membershipId), {
+    ...options,
+    method: "PATCH",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(updateMemberBody),
+  });
+};
+
+export const getUpdateMemberMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateMember>>,
+    TError,
+    { teamId: string; membershipId: string; data: BodyType<UpdateMemberBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof updateMember>>,
+  TError,
+  { teamId: string; membershipId: string; data: BodyType<UpdateMemberBody> },
+  TContext
+> => {
+  const mutationKey = ["updateMember"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof updateMember>>,
+    { teamId: string; membershipId: string; data: BodyType<UpdateMemberBody> }
+  > = (props) => {
+    const { teamId, membershipId, data } = props ?? {};
+
+    return updateMember(teamId, membershipId, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type UpdateMemberMutationResult = NonNullable<
+  Awaited<ReturnType<typeof updateMember>>
+>;
+export type UpdateMemberMutationBody = BodyType<UpdateMemberBody>;
+export type UpdateMemberMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Update a member's role (head coach only)
+ */
+export const useUpdateMember = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateMember>>,
+    TError,
+    { teamId: string; membershipId: string; data: BodyType<UpdateMemberBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof updateMember>>,
+  TError,
+  { teamId: string; membershipId: string; data: BodyType<UpdateMemberBody> },
+  TContext
+> => {
+  return useMutation(getUpdateMemberMutationOptions(options));
+};
+
+/**
+ * @summary Remove a member from the team (head coach only)
+ */
+export const getRemoveMemberUrl = (teamId: string, membershipId: string) => {
+  return `/api/teams/${teamId}/members/${membershipId}`;
+};
+
+export const removeMember = async (
+  teamId: string,
+  membershipId: string,
+  options?: RequestInit,
+): Promise<void> => {
+  return customFetch<void>(getRemoveMemberUrl(teamId, membershipId), {
+    ...options,
+    method: "DELETE",
+  });
+};
+
+export const getRemoveMemberMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof removeMember>>,
+    TError,
+    { teamId: string; membershipId: string },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof removeMember>>,
+  TError,
+  { teamId: string; membershipId: string },
+  TContext
+> => {
+  const mutationKey = ["removeMember"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof removeMember>>,
+    { teamId: string; membershipId: string }
+  > = (props) => {
+    const { teamId, membershipId } = props ?? {};
+
+    return removeMember(teamId, membershipId, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type RemoveMemberMutationResult = NonNullable<
+  Awaited<ReturnType<typeof removeMember>>
+>;
+
+export type RemoveMemberMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Remove a member from the team (head coach only)
+ */
+export const useRemoveMember = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof removeMember>>,
+    TError,
+    { teamId: string; membershipId: string },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof removeMember>>,
+  TError,
+  { teamId: string; membershipId: string },
+  TContext
+> => {
+  return useMutation(getRemoveMemberMutationOptions(options));
 };
 
 /**
@@ -4382,6 +4735,221 @@ export function useGetMatchPackData<
   },
 ): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
   const queryOptions = getGetMatchPackDataQueryOptions(
+    teamId,
+    setPieceId,
+    options,
+  );
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Upload board preview image URL
+ */
+export const getUpdateBoardPreviewUrl = (
+  teamId: string,
+  setPieceId: string,
+) => {
+  return `/api/teams/${teamId}/set-pieces/${setPieceId}/preview`;
+};
+
+export const updateBoardPreview = async (
+  teamId: string,
+  setPieceId: string,
+  updateBoardPreviewBody: UpdateBoardPreviewBody,
+  options?: RequestInit,
+): Promise<UpdateBoardPreview200> => {
+  return customFetch<UpdateBoardPreview200>(
+    getUpdateBoardPreviewUrl(teamId, setPieceId),
+    {
+      ...options,
+      method: "PUT",
+      headers: { "Content-Type": "application/json", ...options?.headers },
+      body: JSON.stringify(updateBoardPreviewBody),
+    },
+  );
+};
+
+export const getUpdateBoardPreviewMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateBoardPreview>>,
+    TError,
+    {
+      teamId: string;
+      setPieceId: string;
+      data: BodyType<UpdateBoardPreviewBody>;
+    },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof updateBoardPreview>>,
+  TError,
+  {
+    teamId: string;
+    setPieceId: string;
+    data: BodyType<UpdateBoardPreviewBody>;
+  },
+  TContext
+> => {
+  const mutationKey = ["updateBoardPreview"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof updateBoardPreview>>,
+    {
+      teamId: string;
+      setPieceId: string;
+      data: BodyType<UpdateBoardPreviewBody>;
+    }
+  > = (props) => {
+    const { teamId, setPieceId, data } = props ?? {};
+
+    return updateBoardPreview(teamId, setPieceId, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type UpdateBoardPreviewMutationResult = NonNullable<
+  Awaited<ReturnType<typeof updateBoardPreview>>
+>;
+export type UpdateBoardPreviewMutationBody = BodyType<UpdateBoardPreviewBody>;
+export type UpdateBoardPreviewMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Upload board preview image URL
+ */
+export const useUpdateBoardPreview = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateBoardPreview>>,
+    TError,
+    {
+      teamId: string;
+      setPieceId: string;
+      data: BodyType<UpdateBoardPreviewBody>;
+    },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof updateBoardPreview>>,
+  TError,
+  {
+    teamId: string;
+    setPieceId: string;
+    data: BodyType<UpdateBoardPreviewBody>;
+  },
+  TContext
+> => {
+  return useMutation(getUpdateBoardPreviewMutationOptions(options));
+};
+
+/**
+ * @summary Get board preview image URL
+ */
+export const getGetBoardPreviewUrl = (teamId: string, setPieceId: string) => {
+  return `/api/teams/${teamId}/set-pieces/${setPieceId}/preview`;
+};
+
+export const getBoardPreview = async (
+  teamId: string,
+  setPieceId: string,
+  options?: RequestInit,
+): Promise<GetBoardPreview200> => {
+  return customFetch<GetBoardPreview200>(
+    getGetBoardPreviewUrl(teamId, setPieceId),
+    {
+      ...options,
+      method: "GET",
+    },
+  );
+};
+
+export const getGetBoardPreviewQueryKey = (
+  teamId: string,
+  setPieceId: string,
+) => {
+  return [`/api/teams/${teamId}/set-pieces/${setPieceId}/preview`] as const;
+};
+
+export const getGetBoardPreviewQueryOptions = <
+  TData = Awaited<ReturnType<typeof getBoardPreview>>,
+  TError = ErrorType<unknown>,
+>(
+  teamId: string,
+  setPieceId: string,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getBoardPreview>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getGetBoardPreviewQueryKey(teamId, setPieceId);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getBoardPreview>>> = ({
+    signal,
+  }) => getBoardPreview(teamId, setPieceId, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!(teamId && setPieceId),
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof getBoardPreview>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetBoardPreviewQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getBoardPreview>>
+>;
+export type GetBoardPreviewQueryError = ErrorType<unknown>;
+
+/**
+ * @summary Get board preview image URL
+ */
+
+export function useGetBoardPreview<
+  TData = Awaited<ReturnType<typeof getBoardPreview>>,
+  TError = ErrorType<unknown>,
+>(
+  teamId: string,
+  setPieceId: string,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getBoardPreview>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetBoardPreviewQueryOptions(
     teamId,
     setPieceId,
     options,
