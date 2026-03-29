@@ -1,16 +1,17 @@
-import React, { useState, useCallback, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useRoute } from 'wouter';
 import { useGetTeam, useGetSetPiece, useCreateRole, useUpdateRole, useDeleteRole, useUpsertAssignment, useListPlayers, useUpdateSetPieceStatus, useUpdateSetPiece } from '@workspace/api-client-react';
 import type { SetPieceRole, RoleAssignment } from '@workspace/api-client-react';
-import { Pitch } from '@/components/Pitch';
+import { KonvaPitch } from '@/components/KonvaPitch';
 import { StatusBadge } from '@/components/StatusBadge';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Plus, Users, ArrowLeft, ShieldCheck, Trash2, Ghost, FileDown, Loader2, Check, Cloud, CloudOff } from 'lucide-react';
+import { Plus, Users, ArrowLeft, ShieldCheck, Trash2, Ghost, FileDown, Loader2, Cloud, CloudOff, MousePointer2, Move, Hand } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Link } from 'wouter';
 
 type SaveState = 'saved' | 'saving' | 'unsaved' | 'error';
+type EditorTool = 'select' | 'place' | 'pan';
 
 export default function SetPieceEditor() {
   const [, params] = useRoute('/teams/:teamId/set-pieces/:setPieceId/editor');
@@ -33,26 +34,46 @@ export default function SetPieceEditor() {
   const [newRoleName, setNewRoleName] = useState('');
   const [saveState, setSaveState] = useState<SaveState>('saved');
   const [pendingPos, setPendingPos] = useState<{ x: number; y: number } | null>(null);
-  const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [activeTool, setActiveTool] = useState<EditorTool>('select');
   const [editingTitle, setEditingTitle] = useState(false);
   const [titleDraft, setTitleDraft] = useState('');
 
+  const canvasRef = useRef<HTMLDivElement>(null);
+  const [canvasSize, setCanvasSize] = useState({ width: 600, height: 500 });
+
   useEffect(() => {
-    return () => {
-      if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
-    };
+    const el = canvasRef.current;
+    if (!el) return;
+    const observer = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        const { width, height } = entry.contentRect;
+        setCanvasSize({ width: Math.floor(width), height: Math.floor(height) });
+      }
+    });
+    observer.observe(el);
+    return () => observer.disconnect();
   }, []);
 
-  const markUnsaved = useCallback(() => {
-    setSaveState('unsaved');
-    if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
-    saveTimerRef.current = setTimeout(() => {
+  const handleRoleDragEnd = useCallback(async (roleId: string, pos: { x: number; y: number }) => {
+    setSaveState('saving');
+    try {
+      await updateRole.mutateAsync({
+        teamId, setPieceId, roleId,
+        data: { startPosition: pos }
+      });
+      await refetch();
       setSaveState('saved');
-    }, 3000);
-  }, []);
+    } catch {
+      setSaveState('error');
+    }
+  }, [teamId, setPieceId, updateRole, refetch]);
 
   const handlePitchClick = async (pos: { x: number; y: number }) => {
-    if (activeRoleId) {
+    if (activeTool === 'place') {
+      setPendingPos(pos);
+      setNewRoleName('');
+      setRoleFormOpen(true);
+    } else if (activeTool === 'select' && activeRoleId) {
       setSaveState('saving');
       try {
         await updateRole.mutateAsync({
@@ -64,10 +85,6 @@ export default function SetPieceEditor() {
       } catch {
         setSaveState('error');
       }
-    } else {
-      setPendingPos(pos);
-      setNewRoleName('');
-      setRoleFormOpen(true);
     }
   };
 
@@ -84,6 +101,7 @@ export default function SetPieceEditor() {
       setRoleFormOpen(false);
       setPendingPos(null);
       setActiveRoleId(res.id);
+      setActiveTool('select');
       await refetch();
       setSaveState('saved');
     } catch {
@@ -94,10 +112,7 @@ export default function SetPieceEditor() {
   const assignPlayer = async (roleId: string, playerId: string) => {
     setSaveState('saving');
     try {
-      await upsertAssignment.mutateAsync({
-        teamId, setPieceId,
-        data: { roleId, playerId }
-      });
+      await upsertAssignment.mutateAsync({ teamId, setPieceId, data: { roleId, playerId } });
       await refetch();
       setSaveState('saved');
     } catch {
@@ -119,12 +134,9 @@ export default function SetPieceEditor() {
   };
 
   const handleExportPDF = async () => {
-    const pitchEl = document.querySelector('[data-pitch-container]');
-    if (!pitchEl) return;
-    const html2canvas = (await import('html2canvas')).default;
+    const stageEl = canvasRef.current?.querySelector('canvas');
+    if (!stageEl) return;
     const jsPDF = (await import('jspdf')).default;
-    const canvas = await html2canvas(pitchEl as HTMLElement, { backgroundColor: '#0a4d2e', scale: 2 });
-    const imgData = canvas.toDataURL('image/png');
     const pdf = new jsPDF('p', 'mm', 'a4');
     pdf.setFillColor(10, 14, 23);
     pdf.rect(0, 0, 210, 297, 'F');
@@ -134,24 +146,25 @@ export default function SetPieceEditor() {
     pdf.setFontSize(10);
     pdf.setTextColor(150, 150, 150);
     pdf.text(setPiece?.category?.replace(/_/g, ' ').toUpperCase() || '', 105, 28, { align: 'center' });
+    const imgData = stageEl.toDataURL('image/png');
     const imgWidth = 170;
-    const imgHeight = (canvas.height / canvas.width) * imgWidth;
+    const imgHeight = (stageEl.height / stageEl.width) * imgWidth;
     pdf.addImage(imgData, 'PNG', 20, 35, imgWidth, imgHeight);
-    let yOffset = 40 + imgHeight + 10;
+    let yOff = 40 + imgHeight + 10;
     pdf.setTextColor(255, 255, 255);
     pdf.setFontSize(12);
-    pdf.text('Roles & Assignments', 20, yOffset);
-    yOffset += 8;
+    pdf.text('Roles & Assignments', 20, yOff);
+    yOff += 8;
     pdf.setFontSize(9);
     setPiece?.roles?.forEach((role: SetPieceRole) => {
       const assignment = setPiece.assignments?.find((a: RoleAssignment) => a.roleId === role.id);
       const player = assignment ? players?.find(p => p.id === assignment.playerId) : null;
       const playerName = player ? `${player.firstName} ${player.lastName} (#${player.shirtNumber || '?'})` : 'Unassigned';
       pdf.setTextColor(16, 185, 129);
-      pdf.text(role.name, 20, yOffset);
+      pdf.text(role.name, 20, yOff);
       pdf.setTextColor(200, 200, 200);
-      pdf.text(playerName, 80, yOffset);
-      yOffset += 6;
+      pdf.text(playerName, 80, yOff);
+      yOff += 6;
     });
     pdf.save(`${setPiece?.title || 'setpiece'}.pdf`);
   };
@@ -262,28 +275,53 @@ export default function SetPieceEditor() {
       </header>
 
       <div className="flex-1 flex overflow-hidden">
-        <main className="flex-1 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-background via-card to-background relative overflow-auto p-4 md:p-8 flex items-center justify-center">
-          <div className="w-full max-w-2xl" data-pitch-container>
-            <Pitch
+        <div className="w-12 border-r border-border bg-card/50 flex flex-col items-center py-3 gap-1 shrink-0">
+          {([
+            { tool: 'select' as EditorTool, icon: MousePointer2, label: 'Select & Move' },
+            { tool: 'place' as EditorTool, icon: Plus, label: 'Place Role' },
+          ]).map(t => (
+            <button
+              key={t.tool}
+              onClick={() => setActiveTool(t.tool)}
+              title={t.label}
+              className={cn(
+                "w-9 h-9 rounded-lg flex items-center justify-center transition-colors",
+                activeTool === t.tool ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-secondary hover:text-white"
+              )}
+            >
+              <t.icon className="w-4 h-4" />
+            </button>
+          ))}
+        </div>
+
+        <main className="flex-1 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-background via-card to-background relative overflow-hidden flex items-center justify-center">
+          <div ref={canvasRef} className="w-full h-full max-w-3xl max-h-[80vh] p-4 flex items-center justify-center" data-pitch-container>
+            <KonvaPitch
+              width={canvasSize.width}
+              height={canvasSize.height}
               roles={setPiece.roles}
               activeRoleId={activeRoleId}
-              onRoleClick={(id) => setActiveRoleId(id === activeRoleId ? null : id)}
-              onPitchClick={handlePitchClick}
-              interactive={true}
               halfPitch={setPiece.category.includes('corner') || setPiece.category.includes('freekick')}
+              onRoleClick={(id) => setActiveRoleId(id === activeRoleId ? null : id)}
+              onRoleDragEnd={handleRoleDragEnd}
+              onPitchClick={handlePitchClick}
             />
           </div>
           <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex items-center gap-2">
-            {activeRole ? (
+            {activeTool === 'place' ? (
+              <div className="bg-primary/20 backdrop-blur-sm border border-primary/30 rounded-xl px-4 py-2 shadow-lg">
+                <span className="text-xs text-primary font-semibold">Click on the pitch to place a new role</span>
+              </div>
+            ) : activeRole ? (
               <div className="bg-card/80 backdrop-blur-sm border border-primary/30 rounded-xl px-4 py-2 flex items-center gap-3 shadow-lg">
                 <div className="w-3 h-3 rounded-full bg-primary animate-pulse" />
                 <span className="text-sm text-white font-semibold">{activeRole.name}</span>
-                <span className="text-xs text-muted-foreground">Click pitch to reposition</span>
+                <span className="text-xs text-muted-foreground">Drag to reposition</span>
                 <button onClick={() => setActiveRoleId(null)} className="text-muted-foreground hover:text-white text-xs ml-2 underline">Deselect</button>
               </div>
             ) : (
               <div className="bg-card/60 backdrop-blur-sm border border-border rounded-xl px-4 py-2 shadow-lg">
-                <span className="text-xs text-muted-foreground">Click a role to select, or click empty pitch to add a new role</span>
+                <span className="text-xs text-muted-foreground">Click a role to select, or use the Place tool to add new roles</span>
               </div>
             )}
           </div>
@@ -366,7 +404,7 @@ export default function SetPieceEditor() {
             {setPiece.roles.length === 0 && (
               <div className="text-center py-8 border-2 border-dashed border-border rounded-xl">
                 <p className="text-muted-foreground text-sm mb-2">No roles defined yet.</p>
-                <p className="text-xs text-muted-foreground mb-3">Click on the pitch to place a role, or use the Add button above.</p>
+                <p className="text-xs text-muted-foreground mb-3">Use the Place tool or click Add to create roles.</p>
                 <Button variant="link" onClick={() => setRoleFormOpen(true)} className="text-primary text-xs">Create first role</Button>
               </div>
             )}
