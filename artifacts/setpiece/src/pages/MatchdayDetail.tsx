@@ -7,7 +7,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { StatusBadge } from '@/components/StatusBadge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Plus, Trash2, Share2, QrCode, ArrowLeft, LayoutDashboard, Copy, Check, Clock, Users } from 'lucide-react';
+import { Plus, Trash2, Share2, QrCode, ArrowLeft, LayoutDashboard, Copy, Check, Clock, Users, FileDown, Loader2 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { QRCodeSVG } from 'qrcode.react';
 
@@ -25,6 +25,126 @@ export default function MatchdayDetail() {
 
   const [addOpen, setAddOpen] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
+  const [exportingPDF, setExportingPDF] = useState(false);
+
+  const handleExportMatchPack = async () => {
+    if (!matchday) return;
+    setExportingPDF(true);
+    try {
+      const jsPDF = (await import('jspdf')).default;
+      const pdf = new jsPDF('p', 'mm', 'a4');
+      const pw = 210;
+      const ph = 297;
+
+      pdf.setFillColor(10, 14, 23);
+      pdf.rect(0, 0, pw, ph, 'F');
+
+      pdf.setFillColor(16, 185, 129);
+      pdf.rect(0, 0, pw, 4, 'F');
+
+      pdf.setTextColor(16, 185, 129);
+      pdf.setFontSize(10);
+      pdf.text('SETPIECE by PerformIQ', 15, 18);
+
+      pdf.setTextColor(255, 255, 255);
+      pdf.setFontSize(22);
+      pdf.text(team?.name || 'Team', 15, 30);
+
+      pdf.setFontSize(16);
+      pdf.setTextColor(200, 200, 200);
+      pdf.text(`Match Pack: ${matchday.title}`, 15, 40);
+
+      if (matchday.opponent) {
+        pdf.setFontSize(11);
+        pdf.setTextColor(150, 150, 150);
+        pdf.text(`vs ${matchday.opponent}`, 15, 48);
+      }
+      if (matchday.date) {
+        pdf.setFontSize(10);
+        pdf.setTextColor(130, 130, 130);
+        pdf.text(new Date(matchday.date).toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }), 15, 55);
+      }
+
+      let yOff = 65;
+
+      if (matchday.notes) {
+        pdf.setFontSize(9);
+        pdf.setTextColor(16, 185, 129);
+        pdf.text('COACHING NOTES', 15, yOff);
+        yOff += 6;
+        pdf.setTextColor(180, 180, 180);
+        pdf.setFontSize(9);
+        const noteLines = pdf.splitTextToSize(matchday.notes, 180);
+        pdf.text(noteLines, 15, yOff);
+        yOff += noteLines.length * 4.5 + 6;
+      }
+
+      const pieces = matchday.setPieces || [];
+      for (const sp of pieces) {
+        if (yOff > 250) {
+          pdf.addPage();
+          pdf.setFillColor(10, 14, 23);
+          pdf.rect(0, 0, pw, ph, 'F');
+          yOff = 20;
+        }
+
+        pdf.setDrawColor(30, 40, 50);
+        pdf.line(15, yOff, 195, yOff);
+        yOff += 6;
+
+        pdf.setTextColor(16, 185, 129);
+        pdf.setFontSize(13);
+        pdf.text(sp.title, 15, yOff);
+        pdf.setFontSize(9);
+        pdf.setTextColor(130, 130, 130);
+        pdf.text(sp.category.replace(/_/g, ' ').toUpperCase(), 15, yOff + 5);
+        yOff += 12;
+
+        pdf.setTextColor(180, 180, 180);
+        if (sp.description) {
+          const descLines = pdf.splitTextToSize(sp.description, 170);
+          pdf.text(descLines, 15, yOff);
+          yOff += descLines.length * 4 + 2;
+        }
+        if (sp.coachingNotes) {
+          pdf.setTextColor(16, 185, 129);
+          pdf.setFontSize(8);
+          pdf.text('NOTES:', 15, yOff);
+          pdf.setTextColor(160, 160, 160);
+          const noteLines = pdf.splitTextToSize(sp.coachingNotes, 160);
+          pdf.text(noteLines, 35, yOff);
+          yOff += noteLines.length * 3.5 + 2;
+          pdf.setFontSize(9);
+        }
+        pdf.setTextColor(130, 130, 130);
+        pdf.text(`Status: ${sp.status} · Version: ${sp.versionNumber}`, 15, yOff);
+        yOff += 5;
+        yOff += 4;
+      }
+
+      const qrSize = 25;
+      const qrY = Math.min(yOff + 10, ph - qrSize - 20);
+      pdf.setTextColor(100, 100, 100);
+      pdf.setFontSize(8);
+      pdf.text('Scan to access player view', pw - 15 - qrSize, qrY - 3);
+
+      pdf.setFillColor(255, 255, 255);
+      pdf.rect(pw - 15 - qrSize, qrY, qrSize, qrSize, 'F');
+      pdf.setTextColor(80, 80, 80);
+      pdf.setFontSize(6);
+      pdf.text('SETPIECE QR', pw - 15 - qrSize + 3, qrY + qrSize / 2 + 2);
+
+      pdf.setTextColor(50, 50, 50);
+      pdf.setFontSize(7);
+      pdf.text(`Generated ${new Date().toLocaleString()} · SETPIECE by PerformIQ`, 15, ph - 8);
+
+      pdf.save(`${team?.name || 'team'}_${matchday.title}_matchpack.pdf`);
+    } catch (err) {
+      console.error('PDF export error:', err);
+    } finally {
+      setExportingPDF(false);
+    }
+  };
   const [shareLink, setShareLink] = useState('');
   const [copied, setCopied] = useState(false);
   const [shareScope, setShareScope] = useState<'all' | 'selected'>('all');
@@ -97,6 +217,10 @@ export default function MatchdayDetail() {
             {matchday?.date && ` · ${new Date(matchday.date).toLocaleDateString()}`}
           </p>
         </div>
+        <Button size="sm" variant="outline" onClick={handleExportMatchPack} disabled={exportingPDF} className="border-border text-muted-foreground">
+          {exportingPDF ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <FileDown className="h-4 w-4 mr-2" />}
+          {exportingPDF ? 'Exporting...' : 'Export PDF'}
+        </Button>
         <Button size="sm" variant="outline" onClick={() => { setShareLink(''); setShareScope('all'); setSelectedPlayers([]); setExpiryHours(''); setShareOpen(true); }} className="border-primary/30 text-primary">
           <QrCode className="h-4 w-4 mr-2" /> Share
         </Button>

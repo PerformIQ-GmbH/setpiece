@@ -37,6 +37,8 @@ export default function SetPieceEditor() {
   const [activeTool, setActiveTool] = useState<EditorTool>('select');
   const [editingTitle, setEditingTitle] = useState(false);
   const [titleDraft, setTitleDraft] = useState('');
+  const [roleNotes, setRoleNotes] = useState<Record<string, string>>({});
+  const [roleBackups, setRoleBackups] = useState<Record<string, string>>({});
 
   interface UndoEntry { roleId: string; prevPos: { x: number; y: number }; newPos: { x: number; y: number } }
   const [undoStack, setUndoStack] = useState<UndoEntry[]>([]);
@@ -436,7 +438,7 @@ export default function SetPieceEditor() {
                   </div>
 
                   <div className="space-y-1.5" onClick={e => e.stopPropagation()}>
-                    <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Player</label>
+                    <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Assigned Player</label>
                     <select
                       className="w-full bg-secondary border border-border rounded-lg px-2.5 py-1.5 text-xs text-foreground focus:outline-none focus:border-primary"
                       value={assignment?.playerId || ''}
@@ -447,6 +449,14 @@ export default function SetPieceEditor() {
                         <option key={p.id} value={p.id}>{p.firstName} {p.lastName} {p.shirtNumber ? `(#${p.shirtNumber})` : ''}</option>
                       ))}
                     </select>
+
+                    {!assignment && (
+                      <div className="flex items-center gap-1.5 p-1.5 rounded bg-amber-500/10 border border-amber-500/20">
+                        <div className="w-1.5 h-1.5 rounded-full bg-amber-400" />
+                        <span className="text-[9px] text-amber-300 font-medium">No player assigned to this role</span>
+                      </div>
+                    )}
+
                     {assignedPlayer && (
                       <div className="flex flex-wrap gap-1 mt-1">
                         {assignedPlayer.dominantFoot && (
@@ -455,11 +465,38 @@ export default function SetPieceEditor() {
                         {assignedPlayer.height && (
                           <span className="text-[9px] px-1.5 py-0.5 rounded bg-secondary text-muted-foreground border border-border">{assignedPlayer.height}cm</span>
                         )}
+                        {assignedPlayer.status === 'injured' && (
+                          <span className="text-[9px] px-1.5 py-0.5 rounded bg-red-500/10 text-red-400 border border-red-500/20">Injured</span>
+                        )}
+                        {assignedPlayer.status === 'inactive' && (
+                          <span className="text-[9px] px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/20">Unavailable</span>
+                        )}
                         {assignedPlayer.tags?.slice(0, 2).map(t => (
                           <span key={t} className="text-[9px] px-1.5 py-0.5 rounded bg-primary/10 text-primary border border-primary/20">{t.replace(/_/g, ' ')}</span>
                         ))}
                       </div>
                     )}
+
+                    <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mt-2 block">Backup Player</label>
+                    <select
+                      className="w-full bg-secondary border border-border rounded-lg px-2.5 py-1.5 text-xs text-foreground focus:outline-none focus:border-primary"
+                      value={roleBackups[role.id] || ''}
+                      onChange={(e) => setRoleBackups(prev => ({ ...prev, [role.id]: e.target.value }))}
+                    >
+                      <option value="">No backup</option>
+                      {players?.filter(p => p.id !== assignment?.playerId).map(p => (
+                        <option key={p.id} value={p.id}>{p.firstName} {p.lastName} {p.shirtNumber ? `(#${p.shirtNumber})` : ''}</option>
+                      ))}
+                    </select>
+
+                    <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mt-2 block">Notes</label>
+                    <textarea
+                      className="w-full bg-secondary border border-border rounded-lg px-2.5 py-1.5 text-xs text-foreground focus:outline-none focus:border-primary resize-none"
+                      rows={2}
+                      placeholder="Coaching notes for this role..."
+                      value={roleNotes[role.id] || ''}
+                      onChange={(e) => setRoleNotes(prev => ({ ...prev, [role.id]: e.target.value }))}
+                    />
                   </div>
 
                   {role.startPosition && (

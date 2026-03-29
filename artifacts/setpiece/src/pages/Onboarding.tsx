@@ -61,6 +61,8 @@ export default function Onboarding() {
   const [shareLink, setShareLink] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  const selectedTemplate = templates?.find(t => t.id === selectedTemplateId);
+
   const canProceed = () => {
     if (step === 0) return teamName.trim().length >= 2;
     if (step === 1) return playerDrafts.some(p => p.firstName.trim() && p.lastName.trim());
@@ -300,6 +302,24 @@ export default function Onboarding() {
                           {setPieceId && <> and your first set piece</>}.
                         </p>
                       </div>
+
+                      {setPieceId && selectedTemplate && (
+                        <div className="bg-secondary/50 border border-border rounded-xl p-4 text-left">
+                          <div className="flex items-start gap-3">
+                            <div className="w-10 h-10 rounded-lg bg-primary/20 flex items-center justify-center shrink-0">
+                              <LayoutTemplate className="w-5 h-5 text-primary" />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-bold text-white">{selectedTemplate.title}</p>
+                              <p className="text-[10px] text-muted-foreground capitalize">{selectedTemplate.category.replace(/_/g, ' ')}</p>
+                              <div className="flex items-center gap-2 mt-1.5">
+                                <span className="text-[9px] px-1.5 py-0.5 rounded bg-primary/10 text-primary border border-primary/20">{createdRoles.length} roles</span>
+                                <span className="text-[9px] px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-400 border border-blue-500/20">{createdPlayers.filter(p => createdRoles.some(() => true)).length} assigned</span>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      )}
 
                       {shareLink && (
                         <div className="flex flex-col items-center">
