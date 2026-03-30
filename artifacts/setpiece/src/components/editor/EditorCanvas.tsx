@@ -52,9 +52,9 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
   width, height, roles, assignments, players,
   activeRoleId, category = '', onRoleClick, onRoleDragEnd, onPitchClick, onLabelPrompt, onMovementPathSync,
 }, ref) {
-  const isOffensiveCorner = category.startsWith('offensive_corner');
-  const halfPitch = !isOffensiveCorner && (category.includes('corner') || category.includes('free_kick'));
-  const lightPitch = isOffensiveCorner;
+  const isCornerKick = category.includes('corner');
+  const halfPitch = !isCornerKick && category.includes('free_kick');
+  const lightPitch = isCornerKick;
   const stageRef = useRef<Konva.Stage>(null);
   const [hoveredRoleId, setHoveredRoleId] = useState<string | null>(null);
 
@@ -352,7 +352,7 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
       style={{ cursor: isDrawingTool ? 'crosshair' : isEntityTool ? 'cell' : 'default' }}
     >
       <Layer>
-        {isOffensiveCorner ? (
+        {isCornerKick ? (
           <OffensiveCornerPitch width={width} height={height} pad={PAD} />
         ) : (
           <PremiumPitch width={width} height={height} halfPitch={halfPitch} pad={PAD} />

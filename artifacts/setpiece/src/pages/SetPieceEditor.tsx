@@ -81,7 +81,7 @@ export default function SetPieceEditor() {
   useEffect(() => {
     const el = canvasRef.current;
     if (!el) return;
-    const isCorner = setPiece?.category?.startsWith('offensive_corner');
+    const isCorner = setPiece?.category?.includes('corner');
     const CORNER_RATIO = 654 / 608;
     const observer = new ResizeObserver((entries) => {
       for (const entry of entries) {
