@@ -19,6 +19,7 @@ interface EditorState {
   addAnnotation: (annotation: Annotation) => void;
   updateAnnotation: (id: string, updates: Partial<Annotation>) => void;
   deleteAnnotation: (id: string) => void;
+  moveAnnotation: (id: string, dxPct: number, dyPct: number) => void;
   clearAnnotations: () => void;
 
   entities: EntityMarker[];
@@ -66,6 +67,18 @@ export const useEditorStore = create<EditorState>((set) => ({
   deleteAnnotation: (id) => set((s) => ({
     annotations: s.annotations.filter((a) => a.id !== id),
     selectedAnnotationId: s.selectedAnnotationId === id ? null : s.selectedAnnotationId,
+  })),
+  moveAnnotation: (id, dxPct, dyPct) => set((s) => ({
+    annotations: s.annotations.map((a) => {
+      if (a.id !== id) return a;
+      return {
+        ...a,
+        points: a.points.map((p) => ({
+          x: Math.max(0, Math.min(100, p.x + dxPct)),
+          y: Math.max(0, Math.min(100, p.y + dyPct)),
+        })),
+      };
+    }),
   })),
   clearAnnotations: () => set({ annotations: [], selectedAnnotationId: null }),
 

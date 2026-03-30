@@ -1,4 +1,4 @@
-import { useRef, useCallback, useState, useEffect } from 'react';
+import { useRef, useCallback, useState, useEffect, useImperativeHandle, forwardRef } from 'react';
 import { Stage, Layer, Group } from 'react-konva';
 import type Konva from 'konva';
 import { PremiumPitch } from './PremiumPitch';
@@ -39,14 +39,25 @@ interface EditorCanvasProps {
   onLabelPrompt: (pos: Point) => void;
 }
 
+export interface EditorCanvasHandle {
+  toDataURL: (config?: { pixelRatio?: number; mimeType?: string }) => string;
+}
+
 const PAD = 24;
 
-export function EditorCanvas({
+export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(function EditorCanvas({
   width, height, roles, assignments, players,
   activeRoleId, halfPitch, onRoleClick, onRoleDragEnd, onPitchClick, onLabelPrompt,
-}: EditorCanvasProps) {
+}, ref) {
   const stageRef = useRef<Konva.Stage>(null);
   const [hoveredRoleId, setHoveredRoleId] = useState<string | null>(null);
+
+  useImperativeHandle(ref, () => ({
+    toDataURL: (config) => {
+      if (!stageRef.current) return '';
+      return stageRef.current.toDataURL({ pixelRatio: config?.pixelRatio ?? 2, mimeType: config?.mimeType ?? 'image/png' });
+    },
+  }), []);
 
   const pitchW = width - PAD * 2;
   const pitchH = height - PAD * 2;
@@ -79,6 +90,7 @@ export function EditorCanvas({
   const selectedEntityId = useEditorStore((s) => s.selectedEntityId);
   const setSelectedEntityId = useEditorStore((s) => s.setSelectedEntityId);
   const deleteAnnotation = useEditorStore((s) => s.deleteAnnotation);
+  const moveAnnotation = useEditorStore((s) => s.moveAnnotation);
   const deleteEntity = useEditorStore((s) => s.deleteEntity);
 
   const animation = useEditorStore((s) => s.animation);
@@ -242,29 +254,50 @@ export function EditorCanvas({
     return () => window.removeEventListener('keydown', handler);
   }, [isDrawingTool, drawingPoints.length, finishDrawing, clearDrawingPoints, setSelectedAnnotationId, setSelectedEntityId, deleteAnnotation, deleteEntity]);
 
+  const interpolatePath = (path: Point[], t: number): Point => {
+    if (path.length === 0) return { x: 50, y: 50 };
+    if (path.length === 1 || t <= 0) return path[0];
+    if (t >= 1) return path[path.length - 1];
+    const totalSegments = path.length - 1;
+    const segIdx = Math.min(Math.floor(t * totalSegments), totalSegments - 1);
+    const segT = (t * totalSegments) - segIdx;
+    return {
+      x: path[segIdx].x + (path[segIdx + 1].x - path[segIdx].x) * segT,
+      y: path[segIdx].y + (path[segIdx + 1].y - path[segIdx].y) * segT,
+    };
+  };
+
   const getAnimatedPosition = (roleId: string, role: RoleData): Point => {
-    if (!animation.playing && animation.progress === 0) {
-      return { x: role.startPosition?.x ?? 50, y: role.startPosition?.y ?? 50 };
-    }
-    const runAnnotations = annotations.filter(
-      a => (a.type === 'run_path' || a.type === 'curved_run') && a.points.length >= 2
+    const basePos = { x: role.startPosition?.x ?? 50, y: role.startPosition?.y ?? 50 };
+    if (!animation.playing && animation.progress === 0) return basePos;
+
+    const linkedRun = annotations.find(
+      a => a.linkedRoleId === roleId && (a.type === 'run_path' || a.type === 'curved_run') && a.points.length >= 2
+    );
+    if (linkedRun) return interpolatePath(linkedRun.points, animation.progress);
+
+    const unlinkedRuns = annotations.filter(
+      a => !a.linkedRoleId && (a.type === 'run_path' || a.type === 'curved_run') && a.points.length >= 2
     );
     const roleIdx = roles.findIndex(r => r.id === roleId);
-    if (roleIdx >= 0 && roleIdx < runAnnotations.length) {
-      const path = runAnnotations[roleIdx].points;
-      const t = animation.progress;
-      const totalSegments = path.length - 1;
-      const segIdx = Math.min(Math.floor(t * totalSegments), totalSegments - 1);
-      const segT = (t * totalSegments) - segIdx;
-      if (segIdx < totalSegments) {
-        return {
-          x: path[segIdx].x + (path[segIdx + 1].x - path[segIdx].x) * segT,
-          y: path[segIdx].y + (path[segIdx + 1].y - path[segIdx].y) * segT,
-        };
-      }
-      return path[path.length - 1];
+    const usedLinkedCount = annotations.filter(
+      a => a.linkedRoleId && (a.type === 'run_path' || a.type === 'curved_run') && a.points.length >= 2
+    ).length;
+    const unlinkedIdx = roleIdx - usedLinkedCount;
+    if (unlinkedIdx >= 0 && unlinkedIdx < unlinkedRuns.length) {
+      return interpolatePath(unlinkedRuns[unlinkedIdx].points, animation.progress);
     }
-    return { x: role.startPosition?.x ?? 50, y: role.startPosition?.y ?? 50 };
+
+    return basePos;
+  };
+
+  const getAnimatedBallPosition = (): Point | null => {
+    if (!animation.playing && animation.progress === 0) return null;
+    const passAnns = annotations.filter(
+      a => (a.type === 'pass_line' || a.type === 'curved_cross') && a.points.length >= 2
+    );
+    if (passAnns.length === 0) return null;
+    return interpolatePath(passAnns[0].points, animation.progress);
   };
 
   return (
@@ -285,7 +318,9 @@ export function EditorCanvas({
           annotations={annotations}
           selectedId={selectedAnnotationId}
           onSelect={setSelectedAnnotationId}
+          onMove={moveAnnotation}
           toPixel={toPixel}
+          toPct={toPct}
           pitchW={pitchW}
           pitchH={pitchH}
           pad={PAD}
@@ -342,10 +377,12 @@ export function EditorCanvas({
           }
 
           if (ent.type === 'ball') {
+            const animBallPos = getAnimatedBallPosition();
+            const ballPx = animBallPos ? toPixel(animBallPos) : px;
             return (
               <BallMarker
                 key={ent.id}
-                x={px.x} y={px.y}
+                x={ballPx.x} y={ballPx.y}
                 isSelected={isSelected}
                 draggable
                 onDragEnd={(pos) => updateEntity(ent.id, { position: toPct(pos) })}
@@ -385,4 +422,4 @@ export function EditorCanvas({
       </Layer>
     </Stage>
   );
-}
+});

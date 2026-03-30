@@ -3,7 +3,7 @@ import { useRoute } from 'wouter';
 import { useGetTeam, useGetSetPiece, useCreateRole, useUpdateRole, useDeleteRole, useUpsertAssignment, useListPlayers, useUpdateSetPieceStatus, useUpdateSetPiece } from '@workspace/api-client-react';
 import type { SetPieceRole, RoleAssignment } from '@workspace/api-client-react';
 import { EditorCanvas, EditorToolbar, BottomBar, InspectorPanel, useEditorStore } from '@/components/editor';
-import type { Point, Annotation } from '@/components/editor';
+import type { Point, Annotation, BoardData, EditorCanvasHandle } from '@/components/editor';
 import { StatusBadge } from '@/components/StatusBadge';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -45,6 +45,7 @@ export default function SetPieceEditor() {
   const [redoStack, setRedoStack] = useState<UndoEntry[]>([]);
 
   const canvasRef = useRef<HTMLDivElement>(null);
+  const canvasHandleRef = useRef<EditorCanvasHandle>(null);
   const [canvasSize, setCanvasSize] = useState({ width: 600, height: 500 });
 
   const activeTool = useEditorStore((s) => s.activeTool);
@@ -65,8 +66,8 @@ export default function SetPieceEditor() {
     if (!setPiece?.id) return;
     if (boardDataLoadedRef.current === setPiece.id) return;
     resetStore();
-    if (setPiece.boardData) {
-      const bd = setPiece.boardData as { annotations?: Annotation[]; entities?: any[] };
+    if (setPiece.boardData && typeof setPiece.boardData === 'object') {
+      const bd = setPiece.boardData as Partial<BoardData>;
       if (Array.isArray(bd.annotations)) setAnnotations(bd.annotations);
       if (Array.isArray(bd.entities)) setEntities(bd.entities);
     }
@@ -255,8 +256,7 @@ export default function SetPieceEditor() {
   };
 
   const handleExportPDF = async () => {
-    const stageEl = canvasRef.current?.querySelector('canvas');
-    if (!stageEl) return;
+    if (!canvasHandleRef.current) return;
     const jsPDF = (await import('jspdf')).default;
     const pdf = new jsPDF('p', 'mm', 'a4');
     pdf.setFillColor(10, 14, 23);
@@ -267,9 +267,9 @@ export default function SetPieceEditor() {
     pdf.setFontSize(10);
     pdf.setTextColor(150, 150, 150);
     pdf.text(setPiece?.category?.replace(/_/g, ' ').toUpperCase() || '', 105, 28, { align: 'center' });
-    const imgData = stageEl.toDataURL('image/png');
+    const imgData = canvasHandleRef.current.toDataURL({ pixelRatio: 2 });
     const imgWidth = 170;
-    const imgHeight = (stageEl.height / stageEl.width) * imgWidth;
+    const imgHeight = (canvasSize.height / canvasSize.width) * imgWidth;
     pdf.addImage(imgData, 'PNG', 20, 35, imgWidth, imgHeight);
     let yOff = 40 + imgHeight + 10;
     pdf.setTextColor(255, 255, 255);
@@ -411,6 +411,7 @@ export default function SetPieceEditor() {
           <main className="flex-1 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-background via-card to-background relative overflow-hidden flex items-center justify-center">
             <div ref={canvasRef} className="w-full h-full p-3 flex items-center justify-center" data-pitch-container>
               <EditorCanvas
+                ref={canvasHandleRef}
                 width={canvasSize.width}
                 height={canvasSize.height}
                 roles={setPiece.roles}

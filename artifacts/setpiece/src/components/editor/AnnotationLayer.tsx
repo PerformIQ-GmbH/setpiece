@@ -1,11 +1,14 @@
 import { Group, Line, Circle, Rect, Text, Arrow } from 'react-konva';
+import type Konva from 'konva';
 import type { Annotation, Point } from './types';
 
 interface AnnotationLayerProps {
   annotations: Annotation[];
   selectedId: string | null;
   onSelect: (id: string | null) => void;
+  onMove: (id: string, dx: number, dy: number) => void;
   toPixel: (pct: Point) => Point;
+  toPct: (px: Point) => Point;
   pitchW: number;
   pitchH: number;
   pad: number;
@@ -20,22 +23,32 @@ function pctToAbsPoints(points: Point[], toPixel: (p: Point) => Point): number[]
   return flat;
 }
 
-function getCurvePoints(points: Point[], toPixel: (p: Point) => Point): number[] {
-  if (points.length < 2) return pctToAbsPoints(points, toPixel);
-  const pxPts = points.map(toPixel);
-  const result: number[] = [];
-  for (let i = 0; i < pxPts.length; i++) {
-    result.push(pxPts[i].x, pxPts[i].y);
-  }
-  return result;
-}
+export function AnnotationLayer({ annotations, selectedId, onSelect, onMove, toPixel, toPct, pitchW, pitchH, pad }: AnnotationLayerProps) {
+  const makeDragHandlers = (ann: Annotation) => {
+    let startPos = { x: 0, y: 0 };
+    return {
+      draggable: true,
+      onDragStart: (e: Konva.KonvaEventObject<DragEvent>) => {
+        startPos = { x: e.target.x(), y: e.target.y() };
+      },
+      onDragEnd: (e: Konva.KonvaEventObject<DragEvent>) => {
+        const endPos = { x: e.target.x(), y: e.target.y() };
+        const dxPx = endPos.x - startPos.x;
+        const dyPx = endPos.y - startPos.y;
+        const dxPct = (dxPx / pitchW) * 100;
+        const dyPct = (dyPx / pitchH) * 100;
+        e.target.x(startPos.x);
+        e.target.y(startPos.y);
+        onMove(ann.id, dxPct, dyPct);
+      },
+    };
+  };
 
-export function AnnotationLayer({ annotations, selectedId, onSelect, toPixel, pitchW, pitchH, pad }: AnnotationLayerProps) {
   return (
     <Group>
       {annotations.map((ann) => {
         const isSelected = ann.id === selectedId;
-        const selStroke = isSelected ? 2 : 0;
+        const drag = makeDragHandlers(ann);
 
         switch (ann.type) {
           case 'run_path':
@@ -44,7 +57,7 @@ export function AnnotationLayer({ annotations, selectedId, onSelect, toPixel, pi
             const flatPts = pctToAbsPoints(ann.points, toPixel);
             const Component = ann.arrowhead ? Arrow : Line;
             return (
-              <Group key={ann.id}>
+              <Group key={ann.id} {...drag}>
                 {isSelected && (
                   <Line
                     points={flatPts}
@@ -77,10 +90,10 @@ export function AnnotationLayer({ annotations, selectedId, onSelect, toPixel, pi
           case 'curved_run':
           case 'curved_cross': {
             if (ann.points.length < 2) return null;
-            const curvePts = getCurvePoints(ann.points, toPixel);
+            const curvePts = pctToAbsPoints(ann.points, toPixel);
             const Component = ann.arrowhead ? Arrow : Line;
             return (
-              <Group key={ann.id}>
+              <Group key={ann.id} {...drag}>
                 {isSelected && (
                   <Line
                     points={curvePts}
@@ -128,8 +141,17 @@ export function AnnotationLayer({ annotations, selectedId, onSelect, toPixel, pi
                   strokeWidth={isSelected ? ann.strokeWidth + 1 : ann.strokeWidth}
                   dash={[6, 4]}
                   hitStrokeWidth={12}
+                  draggable
                   onClick={(e) => { e.cancelBubble = true; onSelect(ann.id); }}
                   onTap={(e) => { e.cancelBubble = true; onSelect(ann.id); }}
+                  onDragEnd={(e) => {
+                    const newPct = toPct({ x: e.target.x(), y: e.target.y() });
+                    const dx = newPct.x - ann.points[0].x;
+                    const dy = newPct.y - ann.points[0].y;
+                    e.target.x(center.x);
+                    e.target.y(center.y);
+                    onMove(ann.id, dx, dy);
+                  }}
                 />
               </Group>
             );
@@ -157,8 +179,18 @@ export function AnnotationLayer({ annotations, selectedId, onSelect, toPixel, pi
                   dash={[6, 4]}
                   cornerRadius={3}
                   hitStrokeWidth={12}
+                  draggable
                   onClick={(e) => { e.cancelBubble = true; onSelect(ann.id); }}
                   onTap={(e) => { e.cancelBubble = true; onSelect(ann.id); }}
+                  onDragEnd={(e) => {
+                    const newPct = toPct({ x: e.target.x(), y: e.target.y() });
+                    const origPct = toPct({ x: rx, y: ry });
+                    const dx = newPct.x - origPct.x;
+                    const dy = newPct.y - origPct.y;
+                    e.target.x(rx);
+                    e.target.y(ry);
+                    onMove(ann.id, dx, dy);
+                  }}
                 />
               </Group>
             );
@@ -168,7 +200,16 @@ export function AnnotationLayer({ annotations, selectedId, onSelect, toPixel, pi
             if (ann.points.length < 1) return null;
             const pos = toPixel(ann.points[0]);
             return (
-              <Group key={ann.id}>
+              <Group key={ann.id} draggable
+                onDragEnd={(e) => {
+                  const newPct = toPct({ x: e.target.x() + pos.x, y: e.target.y() + pos.y });
+                  const dx = newPct.x - ann.points[0].x;
+                  const dy = newPct.y - ann.points[0].y;
+                  e.target.x(0);
+                  e.target.y(0);
+                  onMove(ann.id, dx, dy);
+                }}
+              >
                 {isSelected && (
                   <Rect
                     x={pos.x - 4}

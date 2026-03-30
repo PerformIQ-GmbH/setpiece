@@ -40,6 +40,12 @@ export interface Annotation {
   radius?: number;
   width?: number;
   height?: number;
+  linkedRoleId?: string;
+}
+
+export interface BoardData {
+  annotations: Annotation[];
+  entities: EntityMarker[];
 }
 
 export interface EntityMarker {
