@@ -11,6 +11,7 @@ interface RoleData {
   id: string;
   name: string;
   startPosition?: { x?: number | null; y?: number | null } | null;
+  movementPath?: Array<{ x?: number; y?: number }> | null;
 }
 
 interface AssignmentData {
@@ -37,6 +38,7 @@ interface EditorCanvasProps {
   onRoleDragEnd: (roleId: string, pos: { x: number; y: number }) => void;
   onPitchClick: (pos: { x: number; y: number }) => void;
   onLabelPrompt: (pos: Point) => void;
+  onMovementPathSync: (roleId: string, path: Array<{ x: number; y: number }>) => void;
 }
 
 export interface EditorCanvasHandle {
@@ -47,7 +49,7 @@ const PAD = 24;
 
 export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(function EditorCanvas({
   width, height, roles, assignments, players,
-  activeRoleId, halfPitch, onRoleClick, onRoleDragEnd, onPitchClick, onLabelPrompt,
+  activeRoleId, halfPitch, onRoleClick, onRoleDragEnd, onPitchClick, onLabelPrompt, onMovementPathSync,
 }, ref) {
   const stageRef = useRef<Konva.Stage>(null);
   const [hoveredRoleId, setHoveredRoleId] = useState<string | null>(null);
@@ -120,6 +122,14 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
     return () => cancelAnimationFrame(animFrame);
   }, [animation.playing]);
 
+  useEffect(() => {
+    annotations.forEach(ann => {
+      if (ann.linkedRoleId && (ann.type === 'run_path' || ann.type === 'curved_run') && ann.points.length >= 2) {
+        onMovementPathSync(ann.linkedRoleId, ann.points);
+      }
+    });
+  }, [annotations, onMovementPathSync]);
+
   const isDrawingTool = ['run_path', 'curved_run', 'pass_line', 'curved_cross'].includes(activeTool);
   const isDashed = ['run_path', 'curved_run'].includes(activeTool);
   const isCurved = ['curved_run', 'curved_cross'].includes(activeTool);
@@ -161,6 +171,26 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
     }
 
     if (activeTool === 'erase') {
+      const hitThreshold = 3;
+      let closestAnnId: string | null = null;
+      let closestAnnDist = Infinity;
+      for (const ann of annotations) {
+        for (const pt of ann.points) {
+          const d = Math.hypot(pt.x - pct.x, pt.y - pct.y);
+          if (d < closestAnnDist) { closestAnnDist = d; closestAnnId = ann.id; }
+        }
+      }
+      let closestEntId: string | null = null;
+      let closestEntDist = Infinity;
+      for (const ent of entities) {
+        const d = Math.hypot(ent.position.x - pct.x, ent.position.y - pct.y);
+        if (d < closestEntDist) { closestEntDist = d; closestEntId = ent.id; }
+      }
+      if (closestAnnDist <= hitThreshold && closestAnnDist <= closestEntDist && closestAnnId) {
+        deleteAnnotation(closestAnnId);
+      } else if (closestEntDist <= hitThreshold && closestEntId) {
+        deleteEntity(closestEntId);
+      }
       return;
     }
 
@@ -223,9 +253,10 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
       }
       return;
     }
-  }, [activeTool, toPct, onPitchClick, strokeColor, strokeWidth, showArrowhead, annotations.length,
+  }, [activeTool, toPct, onPitchClick, strokeColor, strokeWidth, showArrowhead, annotations, entities,
     drawingPoints, addDrawingPoint, clearDrawingPoints, addAnnotation, addEntity,
-    setSelectedAnnotationId, setSelectedEntityId, isDrawingTool, isEntityTool, onLabelPrompt]);
+    setSelectedAnnotationId, setSelectedEntityId, isDrawingTool, isEntityTool, onLabelPrompt,
+    deleteAnnotation, deleteEntity]);
 
   const handleDblClick = useCallback(() => {
     if (isDrawingTool && drawingPoints.length >= 2) {
@@ -275,6 +306,12 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
       a => a.linkedRoleId === roleId && (a.type === 'run_path' || a.type === 'curved_run') && a.points.length >= 2
     );
     if (linkedRun) return interpolatePath(linkedRun.points, animation.progress);
+
+    if (role.movementPath && role.movementPath.length >= 2) {
+      const validPath = role.movementPath
+        .filter((p): p is { x: number; y: number } => typeof p.x === 'number' && typeof p.y === 'number');
+      if (validPath.length >= 2) return interpolatePath(validPath, animation.progress);
+    }
 
     const unlinkedRuns = annotations.filter(
       a => !a.linkedRoleId && (a.type === 'run_path' || a.type === 'curved_run') && a.points.length >= 2
