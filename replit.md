@@ -139,14 +139,24 @@ React + Vite frontend (Coach Dashboard + Player PWA).
 
 - Preview path: `/setpiece/`
 - Pages: Landing, Onboarding (5-step wizard), Dashboard, TeamDashboard, Players, Templates, SetPieceEditor (save states, PDF export, inline title editing, ghost mode link), Matchdays, MatchdayDetail (QR share with player scope + expiry), Readiness (search + set piece filter), GhostMode, Pricing, Settings, PlayerPWA, PlayerQuiz
-- Components: Pitch (SVG tactical board), Layout (CoachLayout with sidebar + mobile drawer), StatusBadge, InstallPrompt
+- Components: Layout (CoachLayout with sidebar + mobile drawer), StatusBadge, InstallPrompt
+- Editor Components (`src/components/editor/`): Zustand-based tactical editor with:
+  - `editorStore.ts` — Zustand store for tool selection, annotations, entities, drawing state, animation
+  - `types.ts` — TypeScript types for EditorTool, Annotation, EntityMarker, Point
+  - `markers.tsx` — Konva markers: TeamPlayerMarker (emerald), OpponentMarker (red), GoalkeeperMarker (amber), BallMarker
+  - `PremiumPitch.tsx` — Green gradient pitch with mowing stripes, corner arcs, penalty spots
+  - `AnnotationLayer.tsx` — Renders run paths, pass lines, curved runs, zone circles/rects, labels
+  - `EditorCanvas.tsx` — Main canvas integrating pitch, markers, annotations, drawing, and animation loop
+  - `EditorToolbar.tsx` — Left sidebar with grouped tools (Entity, Action, Note, Play)
+  - `BottomBar.tsx` — Bottom bar with color/width/arrowhead controls, animation slider
+  - `InspectorPanel.tsx` — Context-aware right panel (annotation inspector, entity inspector, or roles list)
 - Uses generated React Query hooks from `@workspace/api-client-react`
 - API base URL: empty string (API server is at root `/api/...` path)
 - Auth: login redirects to `/api/login`, logout to `/api/logout`
 - Player view: `/p/:shareToken` — mobile-first PWA, no auth needed
 - PWA: manifest.json, service worker (sw.js), offline-first caching
 - Design: Dark navy theme, emerald primary (#10b981), Outfit display font, Inter body font
-- Dependencies: framer-motion, lucide-react, qrcode.react, date-fns, wouter, zustand, html2canvas, jspdf
+- Dependencies: framer-motion, lucide-react, qrcode.react, date-fns, wouter, zustand, html2canvas, jspdf, react-konva, konva
 
 ### `lib/db` (`@workspace/db`)
 
