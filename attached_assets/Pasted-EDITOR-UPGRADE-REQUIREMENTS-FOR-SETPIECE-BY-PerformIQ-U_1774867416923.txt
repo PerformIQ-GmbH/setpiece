@@ -1,0 +1,223 @@
+EDITOR UPGRADE REQUIREMENTS FOR SETPIECE BY PerformIQ
+
+Upgrade the tactical editor from a simple role placement board into a premium visual tactics editor.
+
+This is a major product differentiator.
+The editor must look beautiful, premium, and football-specific.
+
+==================================================
+1. VISUAL UPGRADE OF PLAYER MARKERS
+==================================================
+
+Replace simple dot-like player markers with premium football markers.
+
+Implement custom Konva-based marker components:
+- Team player marker
+- Opponent marker
+- Goalkeeper variant
+- Ball marker
+
+Team player markers should include:
+- premium circular or jersey-style body
+- strong border
+- subtle inner highlight / depth
+- shirt number in the center
+- optional short label below
+- selected state with glow ring
+- hover state
+- active animation state
+
+Opponent markers should look clearly different from team markers.
+
+Goalkeeper marker should have a unique style.
+
+Do NOT use plain dots.
+
+==================================================
+2. BALL ICONS
+==================================================
+
+Add beautiful football ball icons as vector-based assets.
+
+Need:
+- static ball icon
+- moving/active ball state
+- optional ball trail during animation
+
+Prefer SVG/vector or Konva shape composition.
+Do not use emoji.
+Do not use cheap raster images.
+
+==================================================
+3. DRAWING / ANNOTATION SYSTEM
+==================================================
+
+Add rich drawing tools to the editor.
+
+Required annotation types:
+- straight run path
+- curved run path
+- straight pass line
+- curved pass/cross line
+- circle zone
+- rectangle zone
+- text label
+
+Important style rule:
+- dashed lines = player runs
+- solid lines = passes
+- curved solid lines = crosses / bent deliveries
+- ghost mode uses blue translucent styling
+
+Each annotation must be a first-class editable object.
+
+Store:
+- id
+- type
+- points
+- color
+- stroke width
+- dashed/solid
+- arrowhead
+- label text if needed
+- layer order
+
+==================================================
+4. TOOLBAR UPGRADE
+==================================================
+
+Redesign the left toolbar into grouped tool sections.
+
+Groups:
+1. Entities
+   - select
+   - team player
+   - opponent
+   - ball
+
+2. Actions
+   - run path (dashed)
+   - curved run
+   - pass line (solid)
+   - curved cross
+
+3. Notes
+   - zone
+   - label
+   - erase
+
+4. Playback
+   - play
+   - pause
+   - reset
+
+Keep the toolbar elegant and compact.
+
+==================================================
+5. ANIMATION SYSTEM
+==================================================
+
+Add a lightweight but premium animation system.
+
+Requirements:
+- animate player movement along run paths
+- animate ball movement along pass/cross lines
+- support step-by-step preview
+- support play / pause / reset
+- support simple speed control
+- support timeline progress slider
+
+Animation modes:
+- Step Preview
+- Full Play Animation
+
+The animation should feel smooth and useful for coaches and players.
+
+==================================================
+6. BOTTOM CONTROL BAR
+==================================================
+
+Replace the simple bottom hint area with a compact editor control bar.
+
+Include:
+- selected tool
+- selected object summary
+- line style controls
+- color selector
+- stroke thickness
+- play/pause/reset
+- animation speed
+- clear annotations
+
+Must feel premium and uncluttered.
+
+==================================================
+7. PITCH QUALITY
+==================================================
+
+Upgrade the pitch visual quality.
+
+Need:
+- refined grass styling
+- subtle mowing stripes
+- clean line markings
+- premium half-pitch / full-pitch support
+- slightly elevated visual quality without being photorealistic
+
+The board must look export-ready and presentation-ready.
+
+==================================================
+8. INSPECTOR PANEL
+==================================================
+
+Expand the right inspector so it works for both:
+- roles / player assignments
+- annotation objects
+
+If a run path is selected:
+- show line type
+- dashed/solid
+- color
+- thickness
+- arrow options
+
+If a player marker is selected:
+- show marker type
+- team/opponent/GK
+- jersey number
+- label
+- linked role/player
+
+==================================================
+9. PDF / EXPORT VISUAL QUALITY
+==================================================
+
+Ensure the upgraded markers, lines, labels, and pitch render beautifully in PDF export.
+
+The canvas export must look polished enough for coaches to send or print.
+
+==================================================
+10. IMPLEMENTATION APPROACH
+==================================================
+
+Do not use generated raster images as the foundation.
+Build the editor visuals primarily with:
+- Konva shapes
+- SVG-based vector assets where needed
+- reusable marker components
+
+Only use image assets if absolutely necessary for specific icons.
+
+==================================================
+11. DESIGN GOAL
+==================================================
+
+The editor should feel like:
+- premium football tactics software
+- clear
+- elegant
+- visual
+- professional
+- impressive in demos
+
+Do not make it feel childish or overloaded.
