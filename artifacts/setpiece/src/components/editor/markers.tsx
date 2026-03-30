@@ -8,6 +8,7 @@ interface MarkerProps {
   label?: string;
   shirtNumber?: number | string;
   draggable?: boolean;
+  lightPitch?: boolean;
   onDragEnd?: (pos: { x: number; y: number }) => void;
   onClick?: () => void;
   onTap?: () => void;
@@ -18,9 +19,16 @@ interface MarkerProps {
 const R = 16;
 
 export function TeamPlayerMarker({
-  x, y, isSelected, isHovered, label, shirtNumber,
+  x, y, isSelected, isHovered, label, shirtNumber, lightPitch,
   draggable, onDragEnd, onClick, onTap, onMouseEnter, onMouseLeave,
 }: MarkerProps) {
+  const fill = lightPitch ? '#059669' : '#0d3320';
+  const borderDefault = lightPitch ? '#047857' : '#166534';
+  const borderHover = lightPitch ? '#10b981' : '#34d399';
+  const borderSelected = '#10b981';
+  const labelColor = lightPitch ? '#065f46' : '#ffffff';
+  const shadowColor = lightPitch ? 'rgba(0,0,0,0.25)' : '#000';
+
   return (
     <Group
       x={x} y={y} draggable={draggable}
@@ -31,25 +39,25 @@ export function TeamPlayerMarker({
       onMouseLeave={onMouseLeave}
     >
       {isSelected && (
-        <Ring innerRadius={R + 2} outerRadius={R + 6} fill="#10b981" opacity={0.5} />
+        <Ring innerRadius={R + 2} outerRadius={R + 6} fill={borderSelected} opacity={0.5} />
       )}
       {isSelected && (
-        <Circle radius={R + 8} stroke="#10b981" strokeWidth={1.5} opacity={0.4} dash={[4, 3]} />
+        <Circle radius={R + 8} stroke={borderSelected} strokeWidth={1.5} opacity={0.4} dash={[4, 3]} />
       )}
 
       <Circle
         radius={R}
-        fill="#0d3320"
-        stroke={isSelected ? '#10b981' : isHovered ? '#34d399' : '#166534'}
+        fill={fill}
+        stroke={isSelected ? borderSelected : isHovered ? borderHover : borderDefault}
         strokeWidth={isSelected ? 2.5 : 2}
-        shadowColor={isSelected ? '#10b981' : '#000'}
+        shadowColor={isSelected ? borderSelected : shadowColor}
         shadowBlur={isSelected ? 14 : 6}
         shadowOpacity={isSelected ? 0.6 : 0.3}
       />
 
-      <Circle radius={R - 3} fill="transparent" stroke="#10b981" strokeWidth={0.8} opacity={0.4} />
+      <Circle radius={R - 3} fill="transparent" stroke={borderSelected} strokeWidth={0.8} opacity={0.4} />
 
-      <Circle radius={4} y={-R + 5} fill="#10b981" opacity={0.6} />
+      <Circle radius={4} y={-R + 5} fill={borderSelected} opacity={0.6} />
 
       <Text
         text={String(shirtNumber ?? '')}
@@ -71,7 +79,7 @@ export function TeamPlayerMarker({
           fontSize={9}
           fontFamily="Inter, sans-serif"
           fontStyle="600"
-          fill="#ffffff"
+          fill={labelColor}
           opacity={0.85}
           align="center"
           width={70}
@@ -84,9 +92,16 @@ export function TeamPlayerMarker({
 }
 
 export function OpponentMarker({
-  x, y, isSelected, isHovered, label, shirtNumber,
+  x, y, isSelected, isHovered, label, shirtNumber, lightPitch,
   draggable, onDragEnd, onClick, onTap, onMouseEnter, onMouseLeave,
 }: MarkerProps) {
+  const fill = lightPitch ? '#dc2626' : '#3b1010';
+  const borderDefault = lightPitch ? '#b91c1c' : '#991b1b';
+  const borderHover = lightPitch ? '#ef4444' : '#f87171';
+  const borderSelected = '#ef4444';
+  const labelColor = lightPitch ? '#991b1b' : '#fca5a5';
+  const shadowColor = lightPitch ? 'rgba(0,0,0,0.25)' : '#000';
+
   return (
     <Group
       x={x} y={y} draggable={draggable}
@@ -97,20 +112,20 @@ export function OpponentMarker({
       onMouseLeave={onMouseLeave}
     >
       {isSelected && (
-        <Ring innerRadius={R + 2} outerRadius={R + 6} fill="#ef4444" opacity={0.5} />
+        <Ring innerRadius={R + 2} outerRadius={R + 6} fill={borderSelected} opacity={0.5} />
       )}
 
       <Circle
         radius={R}
-        fill="#3b1010"
-        stroke={isSelected ? '#ef4444' : isHovered ? '#f87171' : '#991b1b'}
+        fill={fill}
+        stroke={isSelected ? borderSelected : isHovered ? borderHover : borderDefault}
         strokeWidth={isSelected ? 2.5 : 2}
-        shadowColor={isSelected ? '#ef4444' : '#000'}
+        shadowColor={isSelected ? borderSelected : shadowColor}
         shadowBlur={isSelected ? 14 : 6}
         shadowOpacity={isSelected ? 0.6 : 0.3}
       />
 
-      <Circle radius={R - 3} fill="transparent" stroke="#ef4444" strokeWidth={0.8} opacity={0.4} />
+      <Circle radius={R - 3} fill="transparent" stroke={borderSelected} strokeWidth={0.8} opacity={0.4} />
 
       <Text
         text={String(shirtNumber ?? '')}
@@ -132,7 +147,7 @@ export function OpponentMarker({
           fontSize={9}
           fontFamily="Inter, sans-serif"
           fontStyle="600"
-          fill="#fca5a5"
+          fill={labelColor}
           opacity={0.85}
           align="center"
           width={70}
@@ -145,9 +160,17 @@ export function OpponentMarker({
 }
 
 export function GoalkeeperMarker({
-  x, y, isSelected, isHovered, label, shirtNumber,
+  x, y, isSelected, isHovered, label, shirtNumber, lightPitch,
   draggable, onDragEnd, onClick, onTap, onMouseEnter, onMouseLeave,
 }: MarkerProps) {
+  const fill = lightPitch ? '#d97706' : '#422006';
+  const borderDefault = lightPitch ? '#b45309' : '#92400e';
+  const borderHover = lightPitch ? '#f59e0b' : '#fbbf24';
+  const borderSelected = '#f59e0b';
+  const textColor = lightPitch ? '#ffffff' : '#fde68a';
+  const labelColor = lightPitch ? '#92400e' : '#fde68a';
+  const shadowColor = lightPitch ? 'rgba(0,0,0,0.25)' : '#000';
+
   return (
     <Group
       x={x} y={y} draggable={draggable}
@@ -158,16 +181,16 @@ export function GoalkeeperMarker({
       onMouseLeave={onMouseLeave}
     >
       {isSelected && (
-        <Ring innerRadius={R + 2} outerRadius={R + 6} fill="#f59e0b" opacity={0.5} />
+        <Ring innerRadius={R + 2} outerRadius={R + 6} fill={borderSelected} opacity={0.5} />
       )}
 
       <RegularPolygon
         sides={6}
         radius={R + 2}
-        fill="#422006"
-        stroke={isSelected ? '#f59e0b' : isHovered ? '#fbbf24' : '#92400e'}
+        fill={fill}
+        stroke={isSelected ? borderSelected : isHovered ? borderHover : borderDefault}
         strokeWidth={isSelected ? 2.5 : 2}
-        shadowColor={isSelected ? '#f59e0b' : '#000'}
+        shadowColor={isSelected ? borderSelected : shadowColor}
         shadowBlur={isSelected ? 14 : 6}
         shadowOpacity={isSelected ? 0.6 : 0.3}
         rotation={90}
@@ -178,7 +201,7 @@ export function GoalkeeperMarker({
         fontSize={13}
         fontFamily="Inter, sans-serif"
         fontStyle="bold"
-        fill="#fde68a"
+        fill={textColor}
         align="center"
         verticalAlign="middle"
         width={R * 2}
@@ -193,7 +216,7 @@ export function GoalkeeperMarker({
           fontSize={9}
           fontFamily="Inter, sans-serif"
           fontStyle="600"
-          fill="#fde68a"
+          fill={labelColor}
           opacity={0.85}
           align="center"
           width={70}
@@ -206,9 +229,10 @@ export function GoalkeeperMarker({
 }
 
 export function BallMarker({
-  x, y, isSelected, draggable, onDragEnd, onClick, onTap,
+  x, y, isSelected, lightPitch, draggable, onDragEnd, onClick, onTap,
 }: Omit<MarkerProps, 'shirtNumber' | 'label' | 'isHovered'> & { isSelected?: boolean }) {
   const br = 10;
+  const ringColor = lightPitch ? '#333' : '#ffffff';
   return (
     <Group
       x={x} y={y} draggable={draggable}
@@ -217,7 +241,7 @@ export function BallMarker({
       onTap={(e) => { e.cancelBubble = true; onTap?.(); }}
     >
       {isSelected && (
-        <Circle radius={br + 6} stroke="#ffffff" strokeWidth={1.5} opacity={0.5} dash={[3, 3]} />
+        <Circle radius={br + 6} stroke={ringColor} strokeWidth={1.5} opacity={0.5} dash={[3, 3]} />
       )}
 
       <Circle
@@ -230,11 +254,13 @@ export function BallMarker({
         shadowOpacity={0.4}
       />
 
-      <Line points={[-3, -br + 3, 0, -5, 3, -br + 3]} stroke="#333" strokeWidth={1} closed />
-      <Line points={[-br + 2, 2, -5, 0, -br + 3, -3]} stroke="#333" strokeWidth={1} closed />
-      <Line points={[br - 2, 2, 5, 0, br - 3, -3]} stroke="#333" strokeWidth={1} closed />
-      <Line points={[-4, br - 3, 0, 5, 4, br - 3]} stroke="#333" strokeWidth={1} closed />
-      <RegularPolygon sides={5} radius={4} fill="transparent" stroke="#333" strokeWidth={0.8} />
+      <RegularPolygon sides={5} radius={4.5} fill="#333" stroke="#333" strokeWidth={0.5} />
+
+      <Line points={[-3, -br + 3, 0, -5.5, 3, -br + 3]} stroke="#555" strokeWidth={0.8} closed fill="#444" />
+      <Line points={[-br + 2, 2, -5.5, 0, -br + 3, -3]} stroke="#555" strokeWidth={0.8} closed fill="#444" />
+      <Line points={[br - 2, 2, 5.5, 0, br - 3, -3]} stroke="#555" strokeWidth={0.8} closed fill="#444" />
+      <Line points={[-4, br - 3, 0, 5.5, 4, br - 3]} stroke="#555" strokeWidth={0.8} closed fill="#444" />
+      <Line points={[br - 2, -br + 4, 5.5, -3, br - 1, 0]} stroke="#555" strokeWidth={0.8} closed fill="#444" />
     </Group>
   );
 }

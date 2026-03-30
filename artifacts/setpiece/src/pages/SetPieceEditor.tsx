@@ -81,10 +81,22 @@ export default function SetPieceEditor() {
   useEffect(() => {
     const el = canvasRef.current;
     if (!el) return;
+    const isCorner = setPiece?.category?.startsWith('offensive_corner');
+    const CORNER_RATIO = 654 / 608;
     const observer = new ResizeObserver((entries) => {
       for (const entry of entries) {
-        const { width, height } = entry.contentRect;
-        setCanvasSize({ width: Math.floor(width), height: Math.floor(height) });
+        let { width, height } = entry.contentRect;
+        width = Math.floor(width);
+        height = Math.floor(height);
+        if (isCorner && width > 0 && height > 0) {
+          const fitByWidth = width / CORNER_RATIO;
+          if (fitByWidth <= height) {
+            height = Math.floor(fitByWidth);
+          } else {
+            width = Math.floor(height * CORNER_RATIO);
+          }
+        }
+        setCanvasSize({ width, height });
       }
     });
     observer.observe(el);
@@ -428,7 +440,7 @@ export default function SetPieceEditor() {
                 assignments={setPiece.assignments || []}
                 players={players}
                 activeRoleId={activeRoleId}
-                halfPitch={setPiece.category.includes('corner') || setPiece.category.includes('free_kick')}
+                category={setPiece.category}
                 onRoleClick={(id) => setActiveRoleId(id === activeRoleId ? null : id)}
                 onRoleDragEnd={handleRoleDragEnd}
                 onPitchClick={handlePitchClick}

@@ -2,6 +2,7 @@ import { useRef, useCallback, useState, useEffect, useImperativeHandle, forwardR
 import { Stage, Layer, Group } from 'react-konva';
 import type Konva from 'konva';
 import { PremiumPitch } from './PremiumPitch';
+import { OffensiveCornerPitch } from './OffensiveCornerPitch';
 import { TeamPlayerMarker, OpponentMarker, GoalkeeperMarker, BallMarker } from './markers';
 import { AnnotationLayer, DrawingPreview } from './AnnotationLayer';
 import { useEditorStore } from './editorStore';
@@ -33,7 +34,7 @@ interface EditorCanvasProps {
   assignments: AssignmentData[];
   players?: PlayerData[];
   activeRoleId: string | null;
-  halfPitch?: boolean;
+  category?: string;
   onRoleClick: (roleId: string) => void;
   onRoleDragEnd: (roleId: string, pos: { x: number; y: number }) => void;
   onPitchClick: (pos: { x: number; y: number }) => void;
@@ -49,8 +50,11 @@ const PAD = 24;
 
 export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(function EditorCanvas({
   width, height, roles, assignments, players,
-  activeRoleId, halfPitch, onRoleClick, onRoleDragEnd, onPitchClick, onLabelPrompt, onMovementPathSync,
+  activeRoleId, category = '', onRoleClick, onRoleDragEnd, onPitchClick, onLabelPrompt, onMovementPathSync,
 }, ref) {
+  const isOffensiveCorner = category.startsWith('offensive_corner');
+  const halfPitch = !isOffensiveCorner && (category.includes('corner') || category.includes('free_kick'));
+  const lightPitch = isOffensiveCorner;
   const stageRef = useRef<Konva.Stage>(null);
   const [hoveredRoleId, setHoveredRoleId] = useState<string | null>(null);
 
@@ -348,7 +352,11 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
       style={{ cursor: isDrawingTool ? 'crosshair' : isEntityTool ? 'cell' : 'default' }}
     >
       <Layer>
-        <PremiumPitch width={width} height={height} halfPitch={halfPitch} pad={PAD} />
+        {isOffensiveCorner ? (
+          <OffensiveCornerPitch width={width} height={height} pad={PAD} />
+        ) : (
+          <PremiumPitch width={width} height={height} halfPitch={halfPitch} pad={PAD} />
+        )}
       </Layer>
 
       <Layer>
@@ -390,6 +398,7 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
                 isSelected={isSelected}
                 shirtNumber={ent.shirtNumber}
                 label={ent.label}
+                lightPitch={lightPitch}
                 draggable
                 onDragEnd={(pos) => updateEntity(ent.id, { position: toPct(pos) })}
                 onClick={() => setSelectedEntityId(ent.id)}
@@ -406,6 +415,7 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
                 isSelected={isSelected}
                 shirtNumber={ent.shirtNumber}
                 label={ent.label}
+                lightPitch={lightPitch}
                 draggable
                 onDragEnd={(pos) => updateEntity(ent.id, { position: toPct(pos) })}
                 onClick={() => setSelectedEntityId(ent.id)}
@@ -422,6 +432,7 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
                 key={ent.id}
                 x={ballPx.x} y={ballPx.y}
                 isSelected={isSelected}
+                lightPitch={lightPitch}
                 draggable
                 onDragEnd={(pos) => updateEntity(ent.id, { position: toPct(pos) })}
                 onClick={() => setSelectedEntityId(ent.id)}
@@ -448,6 +459,7 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
               isHovered={role.id === hoveredRoleId}
               shirtNumber={player?.shirtNumber ?? undefined}
               label={role.name}
+              lightPitch={lightPitch}
               draggable
               onDragEnd={(pos) => onRoleDragEnd(role.id, toPct(pos))}
               onClick={() => onRoleClick(role.id)}

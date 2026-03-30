@@ -143,8 +143,9 @@ React + Vite frontend (Coach Dashboard + Player PWA).
 - Editor Components (`src/components/editor/`): Zustand-based tactical editor with:
   - `editorStore.ts` — Zustand store for tool selection, annotations, entities, drawing state, animation
   - `types.ts` — TypeScript types for EditorTool, Annotation, EntityMarker, Point
-  - `markers.tsx` — Konva markers: TeamPlayerMarker (emerald), OpponentMarker (red), GoalkeeperMarker (amber), BallMarker
-  - `PremiumPitch.tsx` — Green gradient pitch with mowing stripes, corner arcs, penalty spots
+  - `markers.tsx` — Konva markers: TeamPlayerMarker (emerald), OpponentMarker (red), GoalkeeperMarker (amber), BallMarker — all support `lightPitch` prop for background-adaptive styling
+  - `PremiumPitch.tsx` — Dark green gradient pitch with mowing stripes, corner arcs, penalty spots (used for non-corner categories)
+  - `OffensiveCornerPitch.tsx` — Light background pitch matching reference image proportions (654x608 ref coords); includes penalty area, goal area, penalty arc, midfield, center circle bottom half, corner arcs, and subtle guide grid lines
   - `AnnotationLayer.tsx` — Renders run paths, pass lines, curved runs, zone circles/rects, labels
   - `EditorCanvas.tsx` — Main canvas integrating pitch, markers, annotations, drawing, and animation loop
   - `EditorToolbar.tsx` — Left sidebar with grouped tools (Entity, Action, Note, Play)

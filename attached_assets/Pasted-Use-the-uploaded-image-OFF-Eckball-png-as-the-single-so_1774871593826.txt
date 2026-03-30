@@ -1,0 +1,124 @@
+Use the uploaded image `OFF Eckball.png` as the single source of truth for the offensive-corner pitch layout.
+
+IMPORTANT:
+Do not approximate the pitch proportions.
+Do not use a generic football pitch preset.
+Rebuild the visible pitch view to match the uploaded reference image exactly.
+
+==================================================
+REFERENCE / SOURCE OF TRUTH
+==================================================
+
+The uploaded image defines the exact visible pitch geometry for this editor view.
+
+Recreate the same offensive-corner board using these proportions:
+- overall reference image size: 722 x 608 px
+- actual visible pitch area: approx. x = 0 to 654
+- visible pitch height: approx. y = 0 to 608
+- ignore the light grey overlay area on the far right; that is not part of the pitch drawing area
+- the pitch itself should use the visible black-lined field only
+
+Use the uploaded image to trace the pitch exactly.
+
+==================================================
+EXACT FIELD ANCHORS TO MATCH
+==================================================
+
+Recreate these main anchors from the reference:
+
+1. Outer pitch bounds
+- left boundary at approx. x = 0
+- right boundary at approx. x = 654
+- top boundary at approx. y = 0
+- bottom of visible view at approx. y = 608
+
+2. Penalty area
+- left edge approx. x = 124
+- right edge approx. x = 530
+- top line approx. y = 54
+- bottom line approx. y = 165
+
+3. Goal area / six-yard box
+- left edge approx. x = 239
+- right edge approx. x = 416
+- top at y = 0
+- bottom line approx. y = 54
+
+4. Penalty spot
+- centered horizontally at approx. x = 327
+- y approx. 78
+
+5. Penalty arc
+- centered on the same middle axis
+- arc sits below the penalty area line
+- visually match the exact arc shown in the image
+
+6. Midfield line
+- horizontal line at approx. y = 510
+
+7. Center circle
+- centered horizontally at approx. x = 327
+- center y approx. 510
+- visible lower-half circle must match the screenshot proportions exactly
+
+8. Top corner arcs
+- both top corners have the exact same quarter-circle arc style as in the image
+
+9. Guide grid
+- keep the same light dashed guide lines visible in the reference
+- vertical guides at approx. x = 124, x = 327, x = 529
+- horizontal guide around the middle area at approx. y = 357
+- make these guides subtle and light grey, not dominant
+
+==================================================
+IMPLEMENTATION RULES
+==================================================
+
+1. Build the pitch using a fixed reference coordinate system based on the uploaded image.
+2. Internally use normalized coordinates derived from the reference image so the board scales responsively without changing proportions.
+3. Preserve the exact visual geometry from the uploaded image at all screen sizes.
+4. The pitch component must not fall back to a generic full-pitch layout.
+5. This editor view is specifically the offensive-corner / attacking-half view from the reference.
+6. Keep all field lines crisp and black, with the same visual weight as the reference.
+7. Keep the pitch background clean and light, matching the screenshot structure.
+8. Do not crop or stretch the pitch differently from the reference.
+9. If needed, create a dedicated `OffensiveCornerPitch` component instead of reusing a generic pitch.
+
+==================================================
+EDITOR REQUIREMENTS ON TOP OF THIS PITCH
+==================================================
+
+After matching the pitch dimensions exactly, upgrade the editor:
+
+- dashed lines = player runs
+- solid lines = passes
+- curved solid lines = crosses / bent deliveries
+- add beautiful ball icons
+- upgrade player markers so they are not plain dots
+- support drawing and animation
+- preserve premium UI quality
+
+==================================================
+PLAYER MARKER STYLE
+==================================================
+
+Replace dot markers with premium football markers:
+- team markers
+- opponent markers
+- goalkeeper marker
+- selected state
+- subtle depth / highlight
+- jersey number support
+- optional short label
+
+Do not use plain circles without styling.
+
+==================================================
+FINAL GOAL
+==================================================
+
+The result must visually match the uploaded `OFF Eckball.png` pitch proportions as closely as possible.
+
+This exact pitch geometry is mandatory.
+Do not reinterpret it.
+Do not simplify it into a standard football pitch.
