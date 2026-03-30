@@ -16,7 +16,7 @@ export default function Landing() {
   }, [auth, setLocation]);
 
   const handleLogin = () => {
-    window.location.href = '/api/login';
+    window.location.href = '/api/login?returnTo=/setpiece/';
   };
 
   return (

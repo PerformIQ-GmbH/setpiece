@@ -44,7 +44,7 @@ export function CoachLayout({ children, teamId, teamName }: CoachLayoutProps) {
   }
 
   if (!auth?.user) {
-    window.location.href = '/api/login';
+    window.location.href = '/api/login?returnTo=/setpiece/';
     return null;
   }
 
