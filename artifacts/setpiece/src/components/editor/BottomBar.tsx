@@ -1,9 +1,25 @@
 import { useEditorStore } from './editorStore';
 import { ANNOTATION_COLORS } from './types';
 import { cn } from '@/lib/utils';
-import { Play, Pause, RotateCcw, Trash2, ArrowRight } from 'lucide-react';
+import { Play, Pause, RotateCcw, Trash2, ArrowRight, Minus } from 'lucide-react';
 
 const WIDTHS = [1.5, 2.5, 4, 6];
+
+const ANNOTATION_TYPE_LABELS: Record<string, string> = {
+  run_path: 'Run Path',
+  curved_run: 'Curved Run',
+  pass_line: 'Pass Line',
+  curved_cross: 'Curved Cross',
+  zone_circle: 'Circle Zone',
+  zone_rect: 'Rect Zone',
+  label: 'Label',
+};
+
+const ENTITY_TYPE_LABELS: Record<string, string> = {
+  opponent: 'Opponent',
+  goalkeeper: 'Goalkeeper',
+  ball: 'Ball',
+};
 
 export function BottomBar() {
   const activeTool = useEditorStore((s) => s.activeTool);
@@ -13,6 +29,8 @@ export function BottomBar() {
   const setStrokeWidth = useEditorStore((s) => s.setStrokeWidth);
   const showArrowhead = useEditorStore((s) => s.showArrowhead);
   const setShowArrowhead = useEditorStore((s) => s.setShowArrowhead);
+  const forceDashed = useEditorStore((s) => s.forceDashed);
+  const setForceDashed = useEditorStore((s) => s.setForceDashed);
   const clearAnnotations = useEditorStore((s) => s.clearAnnotations);
   const animation = useEditorStore((s) => s.animation);
   const setPlaying = useEditorStore((s) => s.setAnimationPlaying);
@@ -23,9 +41,11 @@ export function BottomBar() {
   const deleteAnnotation = useEditorStore((s) => s.deleteAnnotation);
   const deleteEntity = useEditorStore((s) => s.deleteEntity);
   const annotations = useEditorStore((s) => s.annotations);
+  const entities = useEditorStore((s) => s.entities);
 
   const isDrawTool = ['run_path', 'curved_run', 'pass_line', 'curved_cross', 'zone_circle', 'zone_rect', 'label'].includes(activeTool);
   const selectedAnn = selectedAnnotationId ? annotations.find(a => a.id === selectedAnnotationId) : null;
+  const selectedEnt = selectedEntityId ? entities.find(e => e.id === selectedEntityId) : null;
 
   const toolLabel: Record<string, string> = {
     select: 'Select',
@@ -43,12 +63,25 @@ export function BottomBar() {
     erase: 'Delete Mode',
   };
 
+  const selectionSummary = selectedAnn
+    ? `${ANNOTATION_TYPE_LABELS[selectedAnn.type] || selectedAnn.type}${selectedAnn.linkedRoleId ? ' (linked)' : ''}`
+    : selectedEnt
+    ? `${ENTITY_TYPE_LABELS[selectedEnt.type] || selectedEnt.type}${selectedEnt.shirtNumber ? ` #${selectedEnt.shirtNumber}` : ''}`
+    : null;
+
   return (
     <div className="h-10 border-t border-border bg-card/80 backdrop-blur-md flex items-center px-3 gap-3 shrink-0 overflow-x-auto">
       <div className="flex items-center gap-2 text-xs text-muted-foreground shrink-0">
         <div className="w-2 h-2 rounded-full bg-primary" />
         <span className="font-semibold text-white">{toolLabel[activeTool] || activeTool}</span>
       </div>
+
+      {selectionSummary && (
+        <>
+          <div className="w-px h-5 bg-border shrink-0" />
+          <span className="text-[10px] text-primary/80 font-medium shrink-0 truncate max-w-[120px]">{selectionSummary}</span>
+        </>
+      )}
 
       <div className="w-px h-5 bg-border shrink-0" />
 
@@ -96,6 +129,17 @@ export function BottomBar() {
             )}
           >
             <ArrowRight className="w-3.5 h-3.5" />
+          </button>
+
+          <button
+            onClick={() => setForceDashed(!forceDashed)}
+            title="Toggle dashed/solid"
+            className={cn(
+              "w-7 h-7 rounded flex items-center justify-center transition-all",
+              forceDashed ? "bg-primary/20 text-primary" : "text-muted-foreground hover:bg-secondary"
+            )}
+          >
+            <Minus className="w-3.5 h-3.5" strokeDasharray={forceDashed ? "3 3" : undefined} />
           </button>
         </>
       )}

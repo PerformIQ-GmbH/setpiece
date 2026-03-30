@@ -42,6 +42,8 @@ interface EditorState {
   setStrokeWidth: (width: number) => void;
   showArrowhead: boolean;
   setShowArrowhead: (show: boolean) => void;
+  forceDashed: boolean;
+  setForceDashed: (dashed: boolean) => void;
 
   animation: AnimationState;
   setAnimationPlaying: (playing: boolean) => void;
@@ -107,6 +109,8 @@ export const useEditorStore = create<EditorState>((set) => ({
   setStrokeWidth: (width) => set({ strokeWidth: width }),
   showArrowhead: true,
   setShowArrowhead: (show) => set({ showArrowhead: show }),
+  forceDashed: false,
+  setForceDashed: (dashed) => set({ forceDashed: dashed }),
 
   animation: { playing: false, progress: 0, speed: 1 },
   setAnimationPlaying: (playing) => set((s) => ({ animation: { ...s.animation, playing } })),

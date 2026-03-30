@@ -131,7 +131,8 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
   }, [annotations, onMovementPathSync]);
 
   const isDrawingTool = ['run_path', 'curved_run', 'pass_line', 'curved_cross'].includes(activeTool);
-  const isDashed = ['run_path', 'curved_run'].includes(activeTool);
+  const forceDashed = useEditorStore((s) => s.forceDashed);
+  const isDashed = forceDashed || ['run_path', 'curved_run'].includes(activeTool);
   const isCurved = ['curved_run', 'curved_cross'].includes(activeTool);
   const isZoneTool = ['zone_circle', 'zone_rect'].includes(activeTool);
   const isEntityTool = ['team_player', 'opponent', 'goalkeeper', 'ball'].includes(activeTool);
