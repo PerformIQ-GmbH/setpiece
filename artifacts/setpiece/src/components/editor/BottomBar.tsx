@@ -367,7 +367,7 @@ export function BottomBar() {
         <div className="flex items-center gap-2 shrink-0">
           <button
             onClick={() => setPlaying(!animation.playing)}
-            title={animation.playing ? 'Pause' : 'Play'}
+            title={animation.playing ? 'Pause' : animation.playMode === 'all' ? 'Play All Steps' : `Play Step ${animation.activeStepIndex + 1}`}
             className={cn("w-8 h-8 rounded-lg flex items-center justify-center transition-all",
               animation.playing ? "bg-amber-500/20 text-amber-400" : "text-muted-foreground hover:bg-secondary hover:text-white")}
           >
