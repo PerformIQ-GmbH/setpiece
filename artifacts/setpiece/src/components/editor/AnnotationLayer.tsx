@@ -74,6 +74,8 @@ export function AnnotationLayer({ annotations, selectedId, focusedRoleId, hasFoc
         const effectiveDashed = isRun ? true : isPass ? false : ann.dashed;
         const effectiveArrowhead = (isRun || isPass) ? true : ann.arrowhead;
 
+        const locked = isTypeLocked(ann);
+
         switch (ann.type) {
           case 'run_path':
           case 'pass_line': {
@@ -104,8 +106,8 @@ export function AnnotationLayer({ annotations, selectedId, focusedRoleId, hasFoc
                   fill={effectiveArrowhead ? ghostColor : undefined}
                   opacity={Math.min(1, 0.85 * annOpacityScale * ghostOpacity)}
                   hitStrokeWidth={16}
-                  onClick={(e) => { e.cancelBubble = true; onSelect(ann.id); }}
-                  onTap={(e) => { e.cancelBubble = true; onSelect(ann.id); }}
+                  onClick={(e) => { e.cancelBubble = true; if (!locked) onSelect(ann.id); }}
+                  onTap={(e) => { e.cancelBubble = true; if (!locked) onSelect(ann.id); }}
                 />
               </Group>
             );
@@ -142,8 +144,8 @@ export function AnnotationLayer({ annotations, selectedId, focusedRoleId, hasFoc
                   fill={effectiveArrowhead ? ghostColor : undefined}
                   opacity={Math.min(1, 0.85 * annOpacityScale * ghostOpacity)}
                   hitStrokeWidth={16}
-                  onClick={(e) => { e.cancelBubble = true; onSelect(ann.id); }}
-                  onTap={(e) => { e.cancelBubble = true; onSelect(ann.id); }}
+                  onClick={(e) => { e.cancelBubble = true; if (!locked) onSelect(ann.id); }}
+                  onTap={(e) => { e.cancelBubble = true; if (!locked) onSelect(ann.id); }}
                 />
               </Group>
             );

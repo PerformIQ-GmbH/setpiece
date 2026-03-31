@@ -1,4 +1,5 @@
 import { useEditorStore } from './editorStore';
+import { QuickLegend } from './QuickLegend';
 import { cn } from '@/lib/utils';
 import { X, Play, Pause, RotateCcw, ChevronLeft, ChevronRight, Info } from 'lucide-react';
 
@@ -60,8 +61,13 @@ export function PresentationMode({ title, category, children }: PresentationMode
         </button>
       </div>
 
-      <div className="flex-1 flex items-center justify-center p-4 overflow-hidden">
+      <div className="flex-1 flex items-center justify-center p-4 overflow-hidden relative">
         {children}
+        {showLegend && (
+          <div className="absolute bottom-4 left-4 z-10">
+            <QuickLegend />
+          </div>
+        )}
       </div>
 
       <div className="h-16 border-t border-border/30 bg-card/40 backdrop-blur-md flex items-center justify-center gap-4 px-6 shrink-0">
