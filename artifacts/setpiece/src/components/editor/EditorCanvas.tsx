@@ -111,7 +111,7 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
     ...entities.map(e => e.position),
   ];
 
-  const snapPos = useCallback((pos: Point) => snapPosition(pos, markerPositions, snapEnabled), [markerPositions, snapEnabled]);
+  const snapPos = useCallback((pos: Point, excludePosition?: Point) => snapPosition(pos, markerPositions, snapEnabled, excludePosition), [markerPositions, snapEnabled]);
 
   const animation = useEditorStore((s) => s.animation);
   const setAnimationProgress = useEditorStore((s) => s.setAnimationProgress);
@@ -199,7 +199,8 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
       if (isBackground) {
         setSelectedAnnotationId(null);
         setSelectedEntityId(null);
-        if (!useEditorStore.getState().layerLocked.team) {
+        const ts = useEditorStore.getState();
+        if (!ts.layerLocked.team && ts.layerVisibility.team) {
           onPitchClick(pct);
         }
       }
@@ -568,7 +569,7 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
                 label={ent.label}
                 lightPitch={lightPitch}
                 draggable={canInteract}
-                onDragEnd={canInteract ? (pos) => updateEntity(ent.id, { position: snapPos(toPct(pos)) }) : undefined}
+                onDragEnd={canInteract ? (pos) => updateEntity(ent.id, { position: snapPos(toPct(pos), ent.position) }) : undefined}
                 onClick={() => canInteract && setSelectedEntityId(ent.id)}
                 onTap={() => canInteract && setSelectedEntityId(ent.id)}
               />
@@ -586,7 +587,7 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
                 label={ent.label}
                 lightPitch={lightPitch}
                 draggable={canInteract}
-                onDragEnd={canInteract ? (pos) => updateEntity(ent.id, { position: snapPos(toPct(pos)) }) : undefined}
+                onDragEnd={canInteract ? (pos) => updateEntity(ent.id, { position: snapPos(toPct(pos), ent.position) }) : undefined}
                 onClick={() => canInteract && setSelectedEntityId(ent.id)}
                 onTap={() => canInteract && setSelectedEntityId(ent.id)}
               />
@@ -604,7 +605,7 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
                 isDimmed={isDimmed}
                 lightPitch={lightPitch}
                 draggable={canInteract}
-                onDragEnd={canInteract ? (pos) => updateEntity(ent.id, { position: snapPos(toPct(pos)) }) : undefined}
+                onDragEnd={canInteract ? (pos) => updateEntity(ent.id, { position: snapPos(toPct(pos), ent.position) }) : undefined}
                 onClick={() => canInteract && setSelectedEntityId(ent.id)}
                 onTap={() => canInteract && setSelectedEntityId(ent.id)}
               />
@@ -638,7 +639,7 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
               label={role.name}
               lightPitch={lightPitch}
               draggable={roleInteractive}
-              onDragEnd={roleInteractive ? (pos) => onRoleDragEnd(role.id, snapPos(toPct(pos))) : undefined}
+              onDragEnd={roleInteractive ? (pos) => onRoleDragEnd(role.id, snapPos(toPct(pos), { x: role.startPosition?.x ?? 50, y: role.startPosition?.y ?? 50 })) : undefined}
               onClick={() => roleInteractive && onRoleClick(role.id)}
               onTap={() => roleInteractive && onRoleClick(role.id)}
               onMouseEnter={() => setHoveredRoleId(role.id)}

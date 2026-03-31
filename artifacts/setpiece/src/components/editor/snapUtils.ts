@@ -30,6 +30,7 @@ export function snapPosition(
   pos: Point,
   markerPositions: Point[],
   enabled: boolean,
+  excludePosition?: Point,
 ): Point {
   if (!enabled) return pos;
 
@@ -45,6 +46,7 @@ export function snapPosition(
   }
 
   for (const mp of markerPositions) {
+    if (excludePosition && Math.abs(mp.x - excludePosition.x) < 0.01 && Math.abs(mp.y - excludePosition.y) < 0.01) continue;
     const d = Math.hypot(pos.x - mp.x, pos.y - mp.y);
     if (d < bestDist) {
       bestDist = d;
