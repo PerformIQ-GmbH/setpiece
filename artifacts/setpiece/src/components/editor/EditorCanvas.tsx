@@ -540,6 +540,8 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
           const isSelected = ent.id === selectedEntityId;
           const isDimmed = hasFocusedElement && !isSelected;
 
+          const canInteract = !readOnly && !isLocked;
+
           if (ent.type === 'opponent') {
             return (
               <OpponentMarker
@@ -550,10 +552,10 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
                 shirtNumber={ent.shirtNumber}
                 label={ent.label}
                 lightPitch={lightPitch}
-                draggable={!isLocked}
-                onDragEnd={(pos) => updateEntity(ent.id, { position: snapPos(toPct(pos)) })}
-                onClick={() => !isLocked && setSelectedEntityId(ent.id)}
-                onTap={() => !isLocked && setSelectedEntityId(ent.id)}
+                draggable={canInteract}
+                onDragEnd={canInteract ? (pos) => updateEntity(ent.id, { position: snapPos(toPct(pos)) }) : undefined}
+                onClick={() => canInteract && setSelectedEntityId(ent.id)}
+                onTap={() => canInteract && setSelectedEntityId(ent.id)}
               />
             );
           }
@@ -568,10 +570,10 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
                 shirtNumber={ent.shirtNumber}
                 label={ent.label}
                 lightPitch={lightPitch}
-                draggable={!isLocked}
-                onDragEnd={(pos) => updateEntity(ent.id, { position: snapPos(toPct(pos)) })}
-                onClick={() => !isLocked && setSelectedEntityId(ent.id)}
-                onTap={() => !isLocked && setSelectedEntityId(ent.id)}
+                draggable={canInteract}
+                onDragEnd={canInteract ? (pos) => updateEntity(ent.id, { position: snapPos(toPct(pos)) }) : undefined}
+                onClick={() => canInteract && setSelectedEntityId(ent.id)}
+                onTap={() => canInteract && setSelectedEntityId(ent.id)}
               />
             );
           }
@@ -586,10 +588,10 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
                 isSelected={isSelected}
                 isDimmed={isDimmed}
                 lightPitch={lightPitch}
-                draggable={!isLocked}
-                onDragEnd={(pos) => updateEntity(ent.id, { position: snapPos(toPct(pos)) })}
-                onClick={() => !isLocked && setSelectedEntityId(ent.id)}
-                onTap={() => !isLocked && setSelectedEntityId(ent.id)}
+                draggable={canInteract}
+                onDragEnd={canInteract ? (pos) => updateEntity(ent.id, { position: snapPos(toPct(pos)) }) : undefined}
+                onClick={() => canInteract && setSelectedEntityId(ent.id)}
+                onTap={() => canInteract && setSelectedEntityId(ent.id)}
               />
             );
           }
@@ -605,6 +607,7 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
           const isUnassigned = !assignment;
           const isDimmed = hasFocusedElement && !isActive;
           const isLocked = layerLocked.team;
+          const roleInteractive = !readOnly && !isLocked;
 
           return (
             <TeamPlayerMarker
@@ -619,10 +622,10 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
               lastName={player?.lastName}
               label={role.name}
               lightPitch={lightPitch}
-              draggable={!isLocked}
-              onDragEnd={(pos) => onRoleDragEnd(role.id, snapPos(toPct(pos)))}
-              onClick={() => !isLocked && onRoleClick(role.id)}
-              onTap={() => !isLocked && onRoleClick(role.id)}
+              draggable={roleInteractive}
+              onDragEnd={roleInteractive ? (pos) => onRoleDragEnd(role.id, snapPos(toPct(pos))) : undefined}
+              onClick={() => roleInteractive && onRoleClick(role.id)}
+              onTap={() => roleInteractive && onRoleClick(role.id)}
               onMouseEnter={() => setHoveredRoleId(role.id)}
               onMouseLeave={() => setHoveredRoleId(null)}
             />
