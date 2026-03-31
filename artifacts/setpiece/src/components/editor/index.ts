@@ -1,3 +1,4 @@
+export { BoardHealth } from './BoardHealth';
 export { EditorCanvas } from './EditorCanvas';
 export type { EditorCanvasHandle } from './EditorCanvas';
 export { EditorToolbar } from './EditorToolbar';

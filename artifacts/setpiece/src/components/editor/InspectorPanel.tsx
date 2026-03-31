@@ -1,10 +1,11 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect, useMemo } from 'react';
 import { useEditorStore } from './editorStore';
 import { ANNOTATION_COLORS } from './types';
 import type { Annotation, EntityMarker } from './types';
 import { cn } from '@/lib/utils';
-import { Users, Layers, Trash2, Plus, ChevronDown, ChevronRight, ArrowLeft, UserRound, Info } from 'lucide-react';
+import { Users, Layers, Trash2, Plus, ChevronDown, ChevronRight, ArrowLeft, UserRound, Info, Search, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { BoardHealth } from './BoardHealth';
 
 interface RoleData {
   id: string;
@@ -61,6 +62,137 @@ function CollapsibleSection({ title, icon: Icon, defaultOpen = true, children }:
   );
 }
 
+function PlayerCombobox({ players, assignments, currentRoleId, value, onChange }: {
+  players?: PlayerData[];
+  assignments: AssignmentData[];
+  currentRoleId: string;
+  value: string;
+  onChange: (playerId: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [search, setSearch] = useState('');
+  const containerRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
+  const selectedPlayer = value ? players?.find(p => p.id === value) : null;
+
+  const filteredPlayers = useMemo(() => {
+    if (!players) return [];
+    const q = search.toLowerCase();
+    return players.filter(p => {
+      const fullName = `${p.firstName} ${p.lastName}`.toLowerCase();
+      const num = String(p.shirtNumber ?? '');
+      return fullName.includes(q) || num.includes(q);
+    });
+  }, [players, search]);
+
+  const getAssignedRole = (playerId: string): string | null => {
+    const a = assignments.find(a => a.playerId === playerId && a.roleId !== currentRoleId);
+    return a ? a.roleId : null;
+  };
+
+  return (
+    <div ref={containerRef} className="relative">
+      <div
+        onClick={() => { setOpen(!open); setSearch(''); setTimeout(() => inputRef.current?.focus(), 50); }}
+        className={cn(
+          "w-full bg-secondary border rounded-lg px-2 py-1.5 text-[11px] cursor-pointer flex items-center gap-1.5 transition-colors",
+          open ? "border-primary" : "border-border hover:border-muted-foreground",
+          !selectedPlayer && "text-muted-foreground",
+        )}
+      >
+        {selectedPlayer ? (
+          <span className="text-foreground flex-1 truncate">
+            {selectedPlayer.shirtNumber ? `#${selectedPlayer.shirtNumber} ` : ''}{selectedPlayer.firstName} {selectedPlayer.lastName}
+          </span>
+        ) : (
+          <span className="flex-1">Unassigned</span>
+        )}
+        {selectedPlayer && (
+          <button
+            onClick={(e) => { e.stopPropagation(); onChange(''); setOpen(false); }}
+            className="text-muted-foreground hover:text-red-400 transition-colors"
+          >
+            <X className="w-3 h-3" />
+          </button>
+        )}
+        <ChevronDown className="w-3 h-3 text-muted-foreground shrink-0" />
+      </div>
+
+      {open && (
+        <div className="absolute z-50 top-full left-0 right-0 mt-1 bg-card border border-border rounded-lg shadow-xl max-h-56 flex flex-col">
+          <div className="flex items-center gap-1.5 px-2 py-1.5 border-b border-border">
+            <Search className="w-3 h-3 text-muted-foreground shrink-0" />
+            <input
+              ref={inputRef}
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              placeholder="Search name or #..."
+              className="flex-1 bg-transparent text-[11px] text-foreground outline-none placeholder:text-muted-foreground"
+            />
+          </div>
+          <div className="overflow-y-auto flex-1">
+            <button
+              onClick={() => { onChange(''); setOpen(false); }}
+              className={cn(
+                "w-full text-left px-2 py-1.5 text-[11px] hover:bg-secondary transition-colors",
+                !value ? "text-primary font-medium" : "text-muted-foreground",
+              )}
+            >
+              Unassigned
+            </button>
+            {filteredPlayers.map(p => {
+              const takenByRole = getAssignedRole(p.id);
+              const isCurrent = p.id === value;
+              const isTaken = !!takenByRole;
+
+              return (
+                <button
+                  key={p.id}
+                  onClick={() => { if (!isTaken || isCurrent) { onChange(p.id); setOpen(false); } }}
+                  disabled={isTaken && !isCurrent}
+                  className={cn(
+                    "w-full text-left px-2 py-1.5 text-[11px] flex items-center gap-1.5 transition-colors",
+                    isCurrent && "bg-primary/10 text-primary font-medium",
+                    isTaken && !isCurrent && "opacity-40 cursor-not-allowed",
+                    !isTaken && !isCurrent && "hover:bg-secondary text-foreground",
+                  )}
+                >
+                  {p.shirtNumber && (
+                    <span className={cn("font-mono text-[10px] w-5 text-right shrink-0", isCurrent ? "text-primary" : "text-muted-foreground")}>
+                      #{p.shirtNumber}
+                    </span>
+                  )}
+                  <span className="truncate flex-1">{p.firstName} {p.lastName}</span>
+                  {p.status === 'injured' && (
+                    <span className="text-[8px] px-1 py-0.5 rounded bg-red-500/10 text-red-400 border border-red-500/20 shrink-0">Injured</span>
+                  )}
+                  {isTaken && !isCurrent && (
+                    <span className="text-[8px] text-muted-foreground shrink-0">In use</span>
+                  )}
+                </button>
+              );
+            })}
+            {filteredPlayers.length === 0 && (
+              <div className="px-2 py-3 text-[11px] text-muted-foreground text-center">No players found</div>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function InspectorPanel({
   roles, assignments, players, activeRoleId,
   onRoleClick, onAssignPlayer, onDeleteRole, onAddRole,
@@ -103,6 +235,8 @@ export function InspectorPanel({
           player={(() => { const a = assignments.find(a => a.roleId === activeRoleId); return a ? players?.find(p => p.id === a.playerId) : undefined; })()}
           linkedAnnotations={annotations.filter(a => a.linkedRoleId === activeRoleId)}
           players={players}
+          assignments={assignments}
+          activeRoleId={activeRoleId}
           onAssignPlayer={(playerId) => onAssignPlayer(activeRoleId, playerId)}
           onDeleteRole={() => onDeleteRole(activeRoleId)}
           onBack={() => onRoleClick(activeRoleId)}
@@ -259,12 +393,14 @@ function AnnotationInspector({ annotation, onUpdate, onDelete, roles }: {
   );
 }
 
-function RoleMarkerInspector({ role, assignment, player, linkedAnnotations, players, onAssignPlayer, onDeleteRole, onBack }: {
+function RoleMarkerInspector({ role, assignment, player, linkedAnnotations, players, assignments, activeRoleId, onAssignPlayer, onDeleteRole, onBack }: {
   role: RoleData;
   assignment?: AssignmentData;
   player?: PlayerData;
   linkedAnnotations: Annotation[];
   players?: PlayerData[];
+  assignments: AssignmentData[];
+  activeRoleId: string;
   onAssignPlayer: (playerId: string) => void;
   onDeleteRole: () => void;
   onBack: () => void;
@@ -276,12 +412,19 @@ function RoleMarkerInspector({ role, assignment, player, linkedAnnotations, play
           <button onClick={onBack} className="text-muted-foreground hover:text-white transition-colors">
             <ArrowLeft className="w-4 h-4" />
           </button>
-          <div className="w-7 h-7 rounded-full bg-emerald-700 border-2 border-emerald-500 flex items-center justify-center">
-            <UserRound className="w-3.5 h-3.5 text-white" />
+          <div className={cn(
+            "w-7 h-7 rounded-full border-2 flex items-center justify-center",
+            assignment ? "bg-emerald-700 border-emerald-500" : "bg-gray-700 border-gray-500 border-dashed",
+          )}>
+            {assignment ? (
+              <UserRound className="w-3.5 h-3.5 text-white" />
+            ) : (
+              <span className="text-gray-400 text-xs font-bold">?</span>
+            )}
           </div>
           <div>
             <h2 className="font-display font-bold text-sm text-white">{role.name}</h2>
-            <p className="text-[9px] text-muted-foreground">Team Player</p>
+            <p className="text-[9px] text-muted-foreground">{assignment ? 'Assigned' : 'Unassigned'}</p>
           </div>
         </div>
         <Button size="sm" variant="ghost" onClick={onDeleteRole} className="h-7 text-red-400 hover:text-red-300 hover:bg-red-500/10">
@@ -290,16 +433,13 @@ function RoleMarkerInspector({ role, assignment, player, linkedAnnotations, play
       </div>
       <div className="flex-1 overflow-y-auto">
         <CollapsibleSection title="Assignment">
-          <select
+          <PlayerCombobox
+            players={players}
+            assignments={assignments}
+            currentRoleId={activeRoleId}
             value={assignment?.playerId || ''}
-            onChange={(e) => onAssignPlayer(e.target.value)}
-            className="w-full bg-secondary border border-border rounded-lg px-2 py-1.5 text-[11px] text-foreground focus:outline-none focus:border-primary"
-          >
-            <option value="">Unassigned</option>
-            {players?.map(p => (
-              <option key={p.id} value={p.id}>{p.firstName} {p.lastName} {p.shirtNumber ? `(#${p.shirtNumber})` : ''}</option>
-            ))}
-          </select>
+            onChange={onAssignPlayer}
+          />
           {!assignment && (
             <p className="text-[9px] text-amber-300 mt-1.5">Assign a squad player to this role</p>
           )}
@@ -439,6 +579,9 @@ function RolesPanel({ roles, assignments, players, activeRoleId, onRoleClick, on
           <Plus className="w-3.5 h-3.5 mr-1" /> Add
         </Button>
       </div>
+
+      <BoardHealth roles={roles} assignments={assignments} />
+
       <div className="flex-1 overflow-y-auto p-3 space-y-2">
         {roles.length === 0 && (
           <div className="flex flex-col items-center py-8 text-center">
@@ -467,7 +610,10 @@ function RolesPanel({ roles, assignments, players, activeRoleId, onRoleClick, on
             >
               <div className="flex justify-between items-start mb-1.5">
                 <h3 className="font-bold text-xs text-white flex items-center gap-1.5">
-                  <div className={cn("w-2 h-2 rounded-full", isActive ? "bg-primary animate-pulse" : "bg-muted-foreground")} />
+                  <div className={cn(
+                    "w-2 h-2 rounded-full",
+                    assignment ? (isActive ? "bg-primary animate-pulse" : "bg-primary") : "bg-amber-400 animate-pulse",
+                  )} />
                   {role.name}
                 </h3>
                 <button
@@ -478,16 +624,13 @@ function RolesPanel({ roles, assignments, players, activeRoleId, onRoleClick, on
                 </button>
               </div>
               <div onClick={e => e.stopPropagation()}>
-                <select
-                  className="w-full bg-secondary border border-border rounded-lg px-2 py-1 text-[11px] text-foreground focus:outline-none focus:border-primary"
+                <PlayerCombobox
+                  players={players}
+                  assignments={assignments}
+                  currentRoleId={role.id}
                   value={assignment?.playerId || ''}
-                  onChange={(e) => onAssignPlayer(role.id, e.target.value)}
-                >
-                  <option value="">Unassigned</option>
-                  {players?.map(p => (
-                    <option key={p.id} value={p.id}>{p.firstName} {p.lastName} {p.shirtNumber ? `(#${p.shirtNumber})` : ''}</option>
-                  ))}
-                </select>
+                  onChange={(playerId) => onAssignPlayer(role.id, playerId)}
+                />
                 {!assignment && (
                   <div className="flex items-center gap-1 mt-1 px-1 py-0.5 rounded bg-amber-500/10 border border-amber-500/20">
                     <span className="text-[8px] text-amber-300 font-medium">Unassigned</span>

@@ -104,6 +104,8 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
   const setAnimationProgress = useEditorStore((s) => s.setAnimationProgress);
   const setAnimationPlaying = useEditorStore((s) => s.setAnimationPlaying);
 
+  const hasFocusedElement = activeRoleId !== null || selectedEntityId !== null;
+
   useEffect(() => {
     if (!animation.playing) return;
     let animFrame: number;
@@ -390,6 +392,7 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
         {entities.map((ent) => {
           const px = toPixel(ent.position);
           const isSelected = ent.id === selectedEntityId;
+          const isDimmed = hasFocusedElement && !isSelected;
 
           if (ent.type === 'opponent') {
             return (
@@ -397,6 +400,7 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
                 key={ent.id}
                 x={px.x} y={px.y}
                 isSelected={isSelected}
+                isDimmed={isDimmed}
                 shirtNumber={ent.shirtNumber}
                 label={ent.label}
                 lightPitch={lightPitch}
@@ -414,6 +418,7 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
                 key={ent.id}
                 x={px.x} y={px.y}
                 isSelected={isSelected}
+                isDimmed={isDimmed}
                 shirtNumber={ent.shirtNumber}
                 label={ent.label}
                 lightPitch={lightPitch}
@@ -433,6 +438,7 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
                 key={ent.id}
                 x={ballPx.x} y={ballPx.y}
                 isSelected={isSelected}
+                isDimmed={isDimmed}
                 lightPitch={lightPitch}
                 draggable
                 onDragEnd={(pos) => updateEntity(ent.id, { position: toPct(pos) })}
@@ -450,6 +456,8 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
           const isActive = role.id === activeRoleId;
           const assignment = assignments.find(a => a.roleId === role.id);
           const player = assignment ? players?.find(p => p.id === assignment.playerId) : null;
+          const isUnassigned = !assignment;
+          const isDimmed = hasFocusedElement && !isActive;
 
           return (
             <TeamPlayerMarker
@@ -458,7 +466,10 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
               y={px.y}
               isSelected={isActive}
               isHovered={role.id === hoveredRoleId}
+              isDimmed={isDimmed}
+              isUnassigned={isUnassigned}
               shirtNumber={player?.shirtNumber ?? undefined}
+              lastName={player?.lastName}
               label={role.name}
               lightPitch={lightPitch}
               draggable

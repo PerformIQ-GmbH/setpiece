@@ -143,14 +143,15 @@ React + Vite frontend (Coach Dashboard + Player PWA).
 - Editor Components (`src/components/editor/`): Zustand-based tactical editor with:
   - `editorStore.ts` — Zustand store for tool selection, annotations, entities, drawing state, animation, editor mode (basic/advanced), pitch theme, tutorial/tips/legend/inspector state. Persists editor mode, pitch theme, and tip preferences to localStorage.
   - `types.ts` — TypeScript types for EditorTool, Annotation, EntityMarker, Point, EditorMode, PitchTheme. Defines BASIC_TOOLS/ADVANCED_TOOLS arrays, PITCH_THEMES/CORNER_PITCH_THEMES color configs.
-  - `markers.tsx` — Konva markers: TeamPlayerMarker (emerald), OpponentMarker (red), GoalkeeperMarker (amber), BallMarker — all support `lightPitch` prop for background-adaptive styling
+  - `markers.tsx` — Konva markers: TeamPlayerMarker (emerald), OpponentMarker (red), GoalkeeperMarker (amber), BallMarker — all support `lightPitch`, `isDimmed`, `isUnassigned` props. TeamPlayerMarker shows lastName below marker; unassigned roles get dashed outline, question mark, reduced opacity.
   - `PremiumPitch.tsx` — Themed pitch with mowing stripes, corner arcs, penalty spots; accepts `theme` prop (dark/green/light)
   - `OffensiveCornerPitch.tsx` — Corner kick pitch (654x608 ref coords); accepts `theme` prop (dark/green/light)
   - `AnnotationLayer.tsx` — Renders run paths, pass lines, curved runs, zone circles/rects, labels
-  - `EditorCanvas.tsx` — Main canvas integrating pitch, markers, annotations, drawing, and animation loop; reads pitchTheme from store
+  - `EditorCanvas.tsx` — Main canvas integrating pitch, markers, annotations, drawing, and animation loop; reads pitchTheme from store; passes player lastName, unassigned state, and dimming (non-focused elements dim when a marker is selected)
   - `EditorToolbar.tsx` — Left sidebar with grouped tools (Select, Place, Draw), Basic/Advanced mode toggle, undo/redo, animation controls; ARIA labels on all buttons
   - `BottomBar.tsx` — Bottom bar with contextual tool label, selection info, color picker, style controls (advanced mode), animation slider/speed
-  - `InspectorPanel.tsx` — Context-aware right panel: annotation inspector (with semantic hints), entity inspector, role marker inspector (with linked paths), or roles list (with empty state). Collapsible sections via CollapsibleSection component.
+  - `InspectorPanel.tsx` — Context-aware right panel: annotation inspector (with semantic hints), entity inspector, role marker inspector (with linked paths), or roles list (with empty state). Collapsible sections via CollapsibleSection component. Uses searchable PlayerCombobox with unique assignment enforcement (taken players shown as disabled). Includes BoardHealth validation panel.
+  - `BoardHealth.tsx` — Compact validation panel showing green/amber/red status: checks for unassigned roles and missing movement paths. Collapsible, renders in the roles list view.
   - `TutorialOverlay.tsx` — 6-step modal walkthrough with progress bar, localStorage persistence (key: setpiece-tutorial-completed). Auto-shows for first-time users.
   - `ContextualTip.tsx` — Tool-reactive dismissable tip cards (per-tool localStorage persistence). Shows hint text for the active tool.
   - `QuickLegend.tsx` — Toggleable visual legend showing line types (run/pass/curved) and marker types (player/opponent/goalkeeper/ball)
