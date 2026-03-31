@@ -69,9 +69,9 @@ export function TutorialOverlay({ open, onClose }: TutorialOverlayProps) {
 
   const measureTarget = useCallback((stepIdx: number) => {
     const selector = STEPS[stepIdx]?.selector;
-    if (!selector) return;
+    if (!selector) { setTargetRect(null); return; }
     const el = document.querySelector(selector);
-    if (el) {
+    if (el && el.getBoundingClientRect().width > 0) {
       const r = el.getBoundingClientRect();
       setTargetRect({ x: r.x, y: r.y, width: r.width, height: r.height });
     } else {
