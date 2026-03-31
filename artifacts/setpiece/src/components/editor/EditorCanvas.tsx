@@ -199,7 +199,9 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
       if (isBackground) {
         setSelectedAnnotationId(null);
         setSelectedEntityId(null);
-        onPitchClick(pct);
+        if (!useEditorStore.getState().layerLocked.team) {
+          onPitchClick(pct);
+        }
       }
       return;
     }
