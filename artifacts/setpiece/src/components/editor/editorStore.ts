@@ -304,12 +304,50 @@ export const useEditorStore = create<EditorState>((set, get) => ({
 
   layerVisibility: { team: true, opponents: true, actions: true, labels: true, zones: true, ball: true },
   layerLocked: { team: false, opponents: false, actions: false, labels: false, zones: false, ball: false },
-  setLayerVisibility: (layer, visible) => set((s) => ({
-    layerVisibility: { ...s.layerVisibility, [layer]: visible },
-  })),
-  setLayerLocked: (layer, locked) => set((s) => ({
-    layerLocked: { ...s.layerLocked, [layer]: locked },
-  })),
+  setLayerVisibility: (layer, visible) => set((s) => {
+    const updates: Record<string, unknown> = { layerVisibility: { ...s.layerVisibility, [layer]: visible } };
+    if (!visible) {
+      if (s.selectedAnnotationId) {
+        const ann = s.annotations.find(a => a.id === s.selectedAnnotationId);
+        if (ann) {
+          const annLayer = ['run_path','curved_run','pass_line','curved_cross'].includes(ann.type) ? 'actions'
+            : ['zone_circle','zone_rect'].includes(ann.type) ? 'zones'
+            : ann.type === 'label' ? 'labels' : null;
+          if (annLayer === layer) updates.selectedAnnotationId = null;
+        }
+      }
+      if (s.selectedEntityId) {
+        const ent = s.entities.find(e => e.id === s.selectedEntityId);
+        if (ent) {
+          const entLayer = ent.type === 'opponent' ? 'opponents' : ent.type === 'ball' ? 'ball' : 'team';
+          if (entLayer === layer) updates.selectedEntityId = null;
+        }
+      }
+    }
+    return updates;
+  }),
+  setLayerLocked: (layer, locked) => set((s) => {
+    const updates: Record<string, unknown> = { layerLocked: { ...s.layerLocked, [layer]: locked } };
+    if (locked) {
+      if (s.selectedAnnotationId) {
+        const ann = s.annotations.find(a => a.id === s.selectedAnnotationId);
+        if (ann) {
+          const annLayer = ['run_path','curved_run','pass_line','curved_cross'].includes(ann.type) ? 'actions'
+            : ['zone_circle','zone_rect'].includes(ann.type) ? 'zones'
+            : ann.type === 'label' ? 'labels' : null;
+          if (annLayer === layer) updates.selectedAnnotationId = null;
+        }
+      }
+      if (s.selectedEntityId) {
+        const ent = s.entities.find(e => e.id === s.selectedEntityId);
+        if (ent) {
+          const entLayer = ent.type === 'opponent' ? 'opponents' : ent.type === 'ball' ? 'ball' : 'team';
+          if (entLayer === layer) updates.selectedEntityId = null;
+        }
+      }
+    }
+    return updates;
+  }),
 
   presentationMode: false,
   setPresentationMode: (on) => set({ presentationMode: on }),
