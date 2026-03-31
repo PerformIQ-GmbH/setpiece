@@ -54,7 +54,8 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
 }, ref) {
   const isCornerKick = category.includes('corner');
   const halfPitch = !isCornerKick && category.includes('free_kick');
-  const lightPitch = isCornerKick;
+  const pitchTheme = useEditorStore((s) => s.pitchTheme);
+  const lightPitch = pitchTheme === 'light';
   const stageRef = useRef<Konva.Stage>(null);
   const [hoveredRoleId, setHoveredRoleId] = useState<string | null>(null);
 
@@ -353,9 +354,9 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
     >
       <Layer>
         {isCornerKick ? (
-          <OffensiveCornerPitch width={width} height={height} pad={PAD} />
+          <OffensiveCornerPitch width={width} height={height} pad={PAD} theme={pitchTheme} />
         ) : (
-          <PremiumPitch width={width} height={height} halfPitch={halfPitch} pad={PAD} />
+          <PremiumPitch width={width} height={height} halfPitch={halfPitch} pad={PAD} theme={pitchTheme} />
         )}
       </Layer>
 

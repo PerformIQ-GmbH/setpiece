@@ -1,5 +1,6 @@
 import { create } from 'zustand';
-import type { EditorTool, Annotation, EntityMarker, Point } from './types';
+import type { EditorTool, EditorMode, PitchTheme, Annotation, EntityMarker, Point } from './types';
+import { BASIC_TOOLS } from './types';
 
 interface AnimationState {
   playing: boolean;
@@ -8,6 +9,24 @@ interface AnimationState {
 }
 
 interface EditorState {
+  editorMode: EditorMode;
+  setEditorMode: (mode: EditorMode) => void;
+
+  pitchTheme: PitchTheme;
+  setPitchTheme: (theme: PitchTheme) => void;
+
+  showTutorial: boolean;
+  setShowTutorial: (show: boolean) => void;
+
+  showLegend: boolean;
+  setShowLegend: (show: boolean) => void;
+
+  showTips: boolean;
+  setShowTips: (show: boolean) => void;
+
+  inspectorCollapsed: boolean;
+  setInspectorCollapsed: (collapsed: boolean) => void;
+
   activeTool: EditorTool;
   setActiveTool: (tool: EditorTool) => void;
 
@@ -53,7 +72,63 @@ interface EditorState {
   resetStore: () => void;
 }
 
+function getStoredPitchTheme(): PitchTheme {
+  try {
+    const v = localStorage.getItem('setpiece-pitch-theme');
+    if (v === 'dark' || v === 'green' || v === 'light') return v;
+  } catch {}
+  return 'dark';
+}
+
+function getStoredEditorMode(): EditorMode {
+  try {
+    const v = localStorage.getItem('setpiece-editor-mode');
+    if (v === 'basic' || v === 'advanced') return v;
+  } catch {}
+  return 'basic';
+}
+
+function getStoredTips(): boolean {
+  try {
+    return localStorage.getItem('setpiece-tips-dismissed') !== 'true';
+  } catch {}
+  return true;
+}
+
 export const useEditorStore = create<EditorState>((set) => ({
+  editorMode: getStoredEditorMode(),
+  setEditorMode: (mode) => {
+    try { localStorage.setItem('setpiece-editor-mode', mode); } catch {}
+    set((s) => {
+      const updates: Partial<EditorState> = { editorMode: mode };
+      if (mode === 'basic' && !BASIC_TOOLS.includes(s.activeTool)) {
+        updates.activeTool = 'select';
+      }
+      return updates;
+    });
+  },
+
+  pitchTheme: getStoredPitchTheme(),
+  setPitchTheme: (theme) => {
+    try { localStorage.setItem('setpiece-pitch-theme', theme); } catch {}
+    set({ pitchTheme: theme });
+  },
+
+  showTutorial: false,
+  setShowTutorial: (show) => set({ showTutorial: show }),
+
+  showLegend: false,
+  setShowLegend: (show) => set({ showLegend: show }),
+
+  showTips: getStoredTips(),
+  setShowTips: (show) => {
+    try { localStorage.setItem('setpiece-tips-dismissed', show ? 'false' : 'true'); } catch {}
+    set({ showTips: show });
+  },
+
+  inspectorCollapsed: false,
+  setInspectorCollapsed: (collapsed) => set({ inspectorCollapsed: collapsed }),
+
   activeTool: 'select',
   setActiveTool: (tool) => set({ activeTool: tool, selectedAnnotationId: null, selectedEntityId: null }),
 

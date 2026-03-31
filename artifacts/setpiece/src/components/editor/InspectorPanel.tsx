@@ -1,8 +1,9 @@
+import { useState } from 'react';
 import { useEditorStore } from './editorStore';
 import { ANNOTATION_COLORS } from './types';
 import type { Annotation, EntityMarker } from './types';
 import { cn } from '@/lib/utils';
-import { Users, Layers, Trash2, Plus } from 'lucide-react';
+import { Users, Layers, Trash2, Plus, ChevronDown, ChevronRight, ArrowLeft, UserRound, Info } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 interface RoleData {
@@ -38,6 +39,28 @@ interface InspectorPanelProps {
   onAddRole: () => void;
 }
 
+function CollapsibleSection({ title, icon: Icon, defaultOpen = true, children }: {
+  title: string;
+  icon?: React.ElementType;
+  defaultOpen?: boolean;
+  children: React.ReactNode;
+}) {
+  const [open, setOpen] = useState(defaultOpen);
+  return (
+    <div className="border-b border-border/50 last:border-b-0">
+      <button
+        onClick={() => setOpen(!open)}
+        className="w-full flex items-center gap-2 px-3 py-2.5 text-[10px] font-bold text-muted-foreground uppercase tracking-wider hover:text-white transition-colors"
+      >
+        {open ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
+        {Icon && <Icon className="w-3.5 h-3.5 text-primary" />}
+        {title}
+      </button>
+      {open && <div className="px-3 pb-3">{children}</div>}
+    </div>
+  );
+}
+
 export function InspectorPanel({
   roles, assignments, players, activeRoleId,
   onRoleClick, onAssignPlayer, onDeleteRole, onAddRole,
@@ -46,6 +69,7 @@ export function InspectorPanel({
   const annotations = useEditorStore((s) => s.annotations);
   const updateAnnotation = useEditorStore((s) => s.updateAnnotation);
   const deleteAnnotation = useEditorStore((s) => s.deleteAnnotation);
+  const inspectorCollapsed = useEditorStore((s) => s.inspectorCollapsed);
 
   const selectedEntityId = useEditorStore((s) => s.selectedEntityId);
   const entities = useEditorStore((s) => s.entities);
@@ -55,25 +79,24 @@ export function InspectorPanel({
   const selectedAnn = selectedAnnotationId ? annotations.find(a => a.id === selectedAnnotationId) : null;
   const selectedEnt = selectedEntityId ? entities.find(e => e.id === selectedEntityId) : null;
 
-  const showAnnotationInspector = selectedAnn != null;
-  const showEntityInspector = selectedEnt != null;
+  if (inspectorCollapsed) return null;
 
   return (
     <aside className="w-72 md:w-80 border-l border-border bg-card/60 backdrop-blur-md flex flex-col h-full shrink-0">
-      {showAnnotationInspector && selectedAnn ? (
+      {selectedAnn ? (
         <AnnotationInspector
           annotation={selectedAnn}
           onUpdate={(updates) => updateAnnotation(selectedAnn.id, updates)}
           onDelete={() => deleteAnnotation(selectedAnn.id)}
           roles={roles}
         />
-      ) : showEntityInspector && selectedEnt ? (
+      ) : selectedEnt ? (
         <EntityInspector
           entity={selectedEnt}
           onUpdate={(updates) => updateEntity(selectedEnt.id, updates)}
           onDelete={() => deleteEntity(selectedEnt.id)}
         />
-      ) : activeRoleId ? (
+      ) : activeRoleId && roles.find(r => r.id === activeRoleId) ? (
         <RoleMarkerInspector
           role={roles.find(r => r.id === activeRoleId)!}
           assignment={assignments.find(a => a.roleId === activeRoleId)}
@@ -116,6 +139,13 @@ function AnnotationInspector({ annotation, onUpdate, onDelete, roles }: {
     label: 'Text Label',
   };
 
+  const semanticHint: Record<string, string> = {
+    run_path: 'Dashed line showing player movement',
+    curved_run: 'Curved dashed line for arcing runs',
+    pass_line: 'Solid line representing a pass',
+    curved_cross: 'Curved solid line for crosses',
+  };
+
   return (
     <div className="flex flex-col h-full">
       <div className="p-3 border-b border-border flex justify-between items-center">
@@ -126,20 +156,25 @@ function AnnotationInspector({ annotation, onUpdate, onDelete, roles }: {
           <Trash2 className="w-3.5 h-3.5" />
         </Button>
       </div>
-      <div className="flex-1 overflow-y-auto p-3 space-y-4">
+      <div className="flex-1 overflow-y-auto">
+        {semanticHint[annotation.type] && (
+          <div className="mx-3 mt-3 flex items-start gap-2 p-2 rounded-lg bg-primary/5 border border-primary/10">
+            <Info className="w-3 h-3 text-primary mt-0.5 shrink-0" />
+            <span className="text-[10px] text-primary/80 leading-snug">{semanticHint[annotation.type]}</span>
+          </div>
+        )}
+
         {annotation.type === 'label' && (
-          <div className="space-y-1">
-            <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Text</label>
+          <CollapsibleSection title="Text">
             <input
               value={annotation.label || ''}
               onChange={(e) => onUpdate({ label: e.target.value })}
               className="w-full bg-secondary border border-border rounded-lg px-2.5 py-1.5 text-xs text-foreground focus:outline-none focus:border-primary"
             />
-          </div>
+          </CollapsibleSection>
         )}
 
-        <div className="space-y-1">
-          <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Color</label>
+        <CollapsibleSection title="Color">
           <div className="flex flex-wrap gap-1.5">
             {ANNOTATION_COLORS.map((c) => (
               <button
@@ -153,71 +188,71 @@ function AnnotationInspector({ annotation, onUpdate, onDelete, roles }: {
               />
             ))}
           </div>
-        </div>
+        </CollapsibleSection>
 
         {!['label', 'zone_circle', 'zone_rect'].includes(annotation.type) && (
-          <>
-            <div className="space-y-1">
-              <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Line Style</label>
-              <div className="flex gap-2">
+          <CollapsibleSection title="Style">
+            <div className="space-y-3">
+              <div className="space-y-1">
+                <label className="text-[10px] text-muted-foreground">Line Style</label>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => onUpdate({ dashed: false })}
+                    className={cn("flex-1 py-1.5 rounded border text-xs font-semibold transition-all",
+                      !annotation.dashed ? "bg-primary/20 border-primary text-primary" : "border-border text-muted-foreground hover:border-muted-foreground")}
+                  >
+                    Solid
+                  </button>
+                  <button
+                    onClick={() => onUpdate({ dashed: true })}
+                    className={cn("flex-1 py-1.5 rounded border text-xs font-semibold transition-all",
+                      annotation.dashed ? "bg-primary/20 border-primary text-primary" : "border-border text-muted-foreground hover:border-muted-foreground")}
+                  >
+                    Dashed
+                  </button>
+                </div>
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-[10px] text-muted-foreground">Arrowhead</label>
                 <button
-                  onClick={() => onUpdate({ dashed: false })}
-                  className={cn("flex-1 py-1.5 rounded border text-xs font-semibold transition-all",
-                    !annotation.dashed ? "bg-primary/20 border-primary text-primary" : "border-border text-muted-foreground hover:border-muted-foreground")}
+                  onClick={() => onUpdate({ arrowhead: !annotation.arrowhead })}
+                  className={cn("px-3 py-1.5 rounded border text-xs font-semibold transition-all",
+                    annotation.arrowhead ? "bg-primary/20 border-primary text-primary" : "border-border text-muted-foreground hover:border-muted-foreground")}
                 >
-                  Solid
-                </button>
-                <button
-                  onClick={() => onUpdate({ dashed: true })}
-                  className={cn("flex-1 py-1.5 rounded border text-xs font-semibold transition-all",
-                    annotation.dashed ? "bg-primary/20 border-primary text-primary" : "border-border text-muted-foreground hover:border-muted-foreground")}
-                >
-                  Dashed
+                  {annotation.arrowhead ? 'On' : 'Off'}
                 </button>
               </div>
-            </div>
 
-            <div className="space-y-1">
-              <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Arrowhead</label>
-              <button
-                onClick={() => onUpdate({ arrowhead: !annotation.arrowhead })}
-                className={cn("px-3 py-1.5 rounded border text-xs font-semibold transition-all",
-                  annotation.arrowhead ? "bg-primary/20 border-primary text-primary" : "border-border text-muted-foreground hover:border-muted-foreground")}
-              >
-                {annotation.arrowhead ? 'On' : 'Off'}
-              </button>
+              <div className="space-y-1">
+                <label className="text-[10px] text-muted-foreground">Thickness</label>
+                <input
+                  type="range" min={1} max={8} step={0.5}
+                  value={annotation.strokeWidth}
+                  onChange={(e) => onUpdate({ strokeWidth: Number(e.target.value) })}
+                  className="w-full accent-primary"
+                />
+              </div>
             </div>
-          </>
+          </CollapsibleSection>
         )}
 
-        <div className="space-y-1">
-          <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Thickness</label>
-          <input
-            type="range"
-            min={1}
-            max={8}
-            step={0.5}
-            value={annotation.strokeWidth}
-            onChange={(e) => onUpdate({ strokeWidth: Number(e.target.value) })}
-            className="w-full accent-primary"
-          />
-        </div>
-
         {roles && roles.length > 0 && (annotation.type === 'run_path' || annotation.type === 'curved_run') && (
-          <div className="space-y-1">
-            <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Linked Role</label>
-            <select
-              value={annotation.linkedRoleId || ''}
-              onChange={(e) => onUpdate({ linkedRoleId: e.target.value || undefined })}
-              className="w-full bg-secondary border border-border rounded-lg px-2 py-1.5 text-[11px] text-foreground focus:outline-none focus:border-primary"
-            >
-              <option value="">None (auto-assign)</option>
-              {roles.map(r => (
-                <option key={r.id} value={r.id}>{r.name}</option>
-              ))}
-            </select>
-            <p className="text-[9px] text-muted-foreground">Player animates along this path</p>
-          </div>
+          <CollapsibleSection title="Link to Role">
+            <div className="space-y-1">
+              <select
+                value={annotation.linkedRoleId || ''}
+                onChange={(e) => onUpdate({ linkedRoleId: e.target.value || undefined })}
+                className="w-full bg-secondary border border-border rounded-lg px-2 py-1.5 text-[11px] text-foreground focus:outline-none focus:border-primary"
+              >
+                <option value="">None (auto-assign)</option>
+                {roles.map(r => (
+                  <option key={r.id} value={r.id}>{r.name}</option>
+                ))}
+              </select>
+              <p className="text-[9px] text-muted-foreground">Player animates along this path</p>
+            </div>
+          </CollapsibleSection>
         )}
       </div>
     </div>
@@ -238,21 +273,23 @@ function RoleMarkerInspector({ role, assignment, player, linkedAnnotations, play
     <div className="flex flex-col h-full">
       <div className="p-3 border-b border-border flex justify-between items-center">
         <div className="flex items-center gap-2">
-          <button onClick={onBack} className="text-muted-foreground hover:text-white">
-            <Layers className="w-4 h-4" />
+          <button onClick={onBack} className="text-muted-foreground hover:text-white transition-colors">
+            <ArrowLeft className="w-4 h-4" />
           </button>
+          <div className="w-7 h-7 rounded-full bg-emerald-700 border-2 border-emerald-500 flex items-center justify-center">
+            <UserRound className="w-3.5 h-3.5 text-white" />
+          </div>
           <div>
             <h2 className="font-display font-bold text-sm text-white">{role.name}</h2>
-            <p className="text-[9px] text-muted-foreground">Team Player Marker</p>
+            <p className="text-[9px] text-muted-foreground">Team Player</p>
           </div>
         </div>
         <Button size="sm" variant="ghost" onClick={onDeleteRole} className="h-7 text-red-400 hover:text-red-300 hover:bg-red-500/10">
           <Trash2 className="w-3.5 h-3.5" />
         </Button>
       </div>
-      <div className="flex-1 overflow-y-auto p-3 space-y-4">
-        <div className="space-y-1">
-          <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Assigned Player</label>
+      <div className="flex-1 overflow-y-auto">
+        <CollapsibleSection title="Assignment">
           <select
             value={assignment?.playerId || ''}
             onChange={(e) => onAssignPlayer(e.target.value)}
@@ -263,65 +300,67 @@ function RoleMarkerInspector({ role, assignment, player, linkedAnnotations, play
               <option key={p.id} value={p.id}>{p.firstName} {p.lastName} {p.shirtNumber ? `(#${p.shirtNumber})` : ''}</option>
             ))}
           </select>
-        </div>
+          {!assignment && (
+            <p className="text-[9px] text-amber-300 mt-1.5">Assign a squad player to this role</p>
+          )}
+        </CollapsibleSection>
 
         {player && (
-          <div className="space-y-2 p-2.5 rounded-xl bg-background border border-border">
-            <h3 className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Player Details</h3>
-            <div className="grid grid-cols-2 gap-2 text-[11px]">
-              <div>
-                <span className="text-muted-foreground">Name</span>
-                <p className="text-white font-medium">{player.firstName} {player.lastName}</p>
+          <CollapsibleSection title="Player Details">
+            <div className="space-y-2 p-2.5 rounded-xl bg-background border border-border">
+              <div className="grid grid-cols-2 gap-2 text-[11px]">
+                <div>
+                  <span className="text-muted-foreground">Name</span>
+                  <p className="text-white font-medium">{player.firstName} {player.lastName}</p>
+                </div>
+                {player.shirtNumber && (
+                  <div>
+                    <span className="text-muted-foreground">Shirt</span>
+                    <p className="text-primary font-bold">#{player.shirtNumber}</p>
+                  </div>
+                )}
+                {player.dominantFoot && (
+                  <div>
+                    <span className="text-muted-foreground">Foot</span>
+                    <p className="text-white">{player.dominantFoot}</p>
+                  </div>
+                )}
+                {player.height && (
+                  <div>
+                    <span className="text-muted-foreground">Height</span>
+                    <p className="text-white">{player.height}cm</p>
+                  </div>
+                )}
               </div>
-              {player.shirtNumber && (
-                <div>
-                  <span className="text-muted-foreground">Shirt</span>
-                  <p className="text-primary font-bold">#{player.shirtNumber}</p>
+              {player.status === 'injured' && (
+                <div className="flex items-center gap-1 px-2 py-1 rounded bg-red-500/10 border border-red-500/20">
+                  <span className="text-[9px] text-red-400 font-medium">Injured</span>
                 </div>
               )}
-              {player.dominantFoot && (
-                <div>
-                  <span className="text-muted-foreground">Foot</span>
-                  <p className="text-white">{player.dominantFoot}</p>
-                </div>
-              )}
-              {player.height && (
-                <div>
-                  <span className="text-muted-foreground">Height</span>
-                  <p className="text-white">{player.height}cm</p>
+              {player.tags && player.tags.length > 0 && (
+                <div className="flex flex-wrap gap-1">
+                  {player.tags.map(tag => (
+                    <span key={tag} className="text-[8px] px-1.5 py-0.5 rounded bg-primary/10 text-primary border border-primary/20">{tag}</span>
+                  ))}
                 </div>
               )}
             </div>
-            {player.status === 'injured' && (
-              <div className="flex items-center gap-1 px-2 py-1 rounded bg-red-500/10 border border-red-500/20">
-                <span className="text-[9px] text-red-400 font-medium">Injured</span>
-              </div>
-            )}
-            {player.tags && player.tags.length > 0 && (
-              <div className="flex flex-wrap gap-1">
-                {player.tags.map(tag => (
-                  <span key={tag} className="text-[8px] px-1.5 py-0.5 rounded bg-primary/10 text-primary border border-primary/20">{tag}</span>
-                ))}
-              </div>
-            )}
-          </div>
+          </CollapsibleSection>
         )}
 
-        <div className="space-y-1">
-          <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Position</label>
+        <CollapsibleSection title="Position" defaultOpen={false}>
           <p className="text-[11px] text-white">x: {(role.startPosition?.x ?? 50).toFixed(1)}% &nbsp; y: {(role.startPosition?.y ?? 50).toFixed(1)}%</p>
-        </div>
+        </CollapsibleSection>
 
         {linkedAnnotations.length > 0 && (
-          <div className="space-y-1">
-            <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Linked Paths ({linkedAnnotations.length})</label>
+          <CollapsibleSection title={`Linked Paths (${linkedAnnotations.length})`} defaultOpen={false}>
             {linkedAnnotations.map(a => (
               <div key={a.id} className="text-[10px] text-muted-foreground flex items-center gap-1.5 py-0.5">
                 <div className="w-2 h-2 rounded-full" style={{ backgroundColor: a.color }} />
                 {a.type === 'run_path' ? 'Run Path' : 'Curved Run'} ({a.points.length} pts)
               </div>
             ))}
-          </div>
+          </CollapsibleSection>
         )}
       </div>
     </div>
@@ -345,29 +384,35 @@ function EntityInspector({ entity, onUpdate, onDelete }: {
           <Trash2 className="w-3.5 h-3.5" />
         </Button>
       </div>
-      <div className="flex-1 overflow-y-auto p-3 space-y-4">
-        {entity.type !== 'ball' && (
+      <div className="flex-1 overflow-y-auto">
+        {entity.type !== 'ball' ? (
           <>
-            <div className="space-y-1">
-              <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Shirt Number</label>
-              <input
-                type="number"
-                min={1}
-                max={99}
-                value={entity.shirtNumber ?? ''}
-                onChange={(e) => onUpdate({ shirtNumber: e.target.value ? Number(e.target.value) : undefined })}
-                className="w-full bg-secondary border border-border rounded-lg px-2.5 py-1.5 text-xs text-foreground focus:outline-none focus:border-primary"
-              />
-            </div>
-            <div className="space-y-1">
-              <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Label</label>
-              <input
-                value={entity.label || ''}
-                onChange={(e) => onUpdate({ label: e.target.value })}
-                className="w-full bg-secondary border border-border rounded-lg px-2.5 py-1.5 text-xs text-foreground focus:outline-none focus:border-primary"
-              />
-            </div>
+            <CollapsibleSection title="Details">
+              <div className="space-y-3">
+                <div className="space-y-1">
+                  <label className="text-[10px] text-muted-foreground">Shirt Number</label>
+                  <input
+                    type="number" min={1} max={99}
+                    value={entity.shirtNumber ?? ''}
+                    onChange={(e) => onUpdate({ shirtNumber: e.target.value ? Number(e.target.value) : undefined })}
+                    className="w-full bg-secondary border border-border rounded-lg px-2.5 py-1.5 text-xs text-foreground focus:outline-none focus:border-primary"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] text-muted-foreground">Label</label>
+                  <input
+                    value={entity.label || ''}
+                    onChange={(e) => onUpdate({ label: e.target.value })}
+                    className="w-full bg-secondary border border-border rounded-lg px-2.5 py-1.5 text-xs text-foreground focus:outline-none focus:border-primary"
+                  />
+                </div>
+              </div>
+            </CollapsibleSection>
           </>
+        ) : (
+          <div className="p-4 text-center">
+            <p className="text-[11px] text-muted-foreground">Drag the ball to reposition it on the pitch.</p>
+          </div>
         )}
       </div>
     </div>
@@ -395,6 +440,17 @@ function RolesPanel({ roles, assignments, players, activeRoleId, onRoleClick, on
         </Button>
       </div>
       <div className="flex-1 overflow-y-auto p-3 space-y-2">
+        {roles.length === 0 && (
+          <div className="flex flex-col items-center py-8 text-center">
+            <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center mb-3">
+              <UserRound className="w-5 h-5 text-primary" />
+            </div>
+            <p className="text-sm text-white font-medium mb-1">No roles yet</p>
+            <p className="text-[11px] text-muted-foreground max-w-[200px] leading-relaxed">
+              Click "Add" or use the Team Player tool to place your first role on the pitch.
+            </p>
+          </div>
+        )}
         {roles.map((role) => {
           const assignment = assignments.find(a => a.roleId === role.id);
           const isActive = role.id === activeRoleId;

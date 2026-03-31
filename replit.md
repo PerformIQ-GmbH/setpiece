@@ -141,16 +141,19 @@ React + Vite frontend (Coach Dashboard + Player PWA).
 - Pages: Landing, Onboarding (5-step wizard), Dashboard, TeamDashboard, Players, Templates, SetPieceEditor (save states, PDF export, inline title editing, ghost mode link), Matchdays, MatchdayDetail (QR share with player scope + expiry), Readiness (search + set piece filter), GhostMode, Pricing, Settings, PlayerPWA, PlayerQuiz
 - Components: Layout (CoachLayout with sidebar + mobile drawer), StatusBadge, InstallPrompt
 - Editor Components (`src/components/editor/`): Zustand-based tactical editor with:
-  - `editorStore.ts` — Zustand store for tool selection, annotations, entities, drawing state, animation
-  - `types.ts` — TypeScript types for EditorTool, Annotation, EntityMarker, Point
+  - `editorStore.ts` — Zustand store for tool selection, annotations, entities, drawing state, animation, editor mode (basic/advanced), pitch theme, tutorial/tips/legend/inspector state. Persists editor mode, pitch theme, and tip preferences to localStorage.
+  - `types.ts` — TypeScript types for EditorTool, Annotation, EntityMarker, Point, EditorMode, PitchTheme. Defines BASIC_TOOLS/ADVANCED_TOOLS arrays, PITCH_THEMES/CORNER_PITCH_THEMES color configs.
   - `markers.tsx` — Konva markers: TeamPlayerMarker (emerald), OpponentMarker (red), GoalkeeperMarker (amber), BallMarker — all support `lightPitch` prop for background-adaptive styling
-  - `PremiumPitch.tsx` — Dark green gradient pitch with mowing stripes, corner arcs, penalty spots (used for non-corner categories)
-  - `OffensiveCornerPitch.tsx` — Light background pitch matching reference image proportions (654x608 ref coords); includes penalty area, goal area, penalty arc, midfield, center circle bottom half, corner arcs, and subtle guide grid lines
+  - `PremiumPitch.tsx` — Themed pitch with mowing stripes, corner arcs, penalty spots; accepts `theme` prop (dark/green/light)
+  - `OffensiveCornerPitch.tsx` — Corner kick pitch (654x608 ref coords); accepts `theme` prop (dark/green/light)
   - `AnnotationLayer.tsx` — Renders run paths, pass lines, curved runs, zone circles/rects, labels
-  - `EditorCanvas.tsx` — Main canvas integrating pitch, markers, annotations, drawing, and animation loop
-  - `EditorToolbar.tsx` — Left sidebar with grouped tools (Entity, Action, Note, Play)
-  - `BottomBar.tsx` — Bottom bar with color/width/arrowhead controls, animation slider
-  - `InspectorPanel.tsx` — Context-aware right panel (annotation inspector, entity inspector, or roles list)
+  - `EditorCanvas.tsx` — Main canvas integrating pitch, markers, annotations, drawing, and animation loop; reads pitchTheme from store
+  - `EditorToolbar.tsx` — Left sidebar with grouped tools (Select, Place, Draw), Basic/Advanced mode toggle, undo/redo, animation controls; ARIA labels on all buttons
+  - `BottomBar.tsx` — Bottom bar with contextual tool label, selection info, color picker, style controls (advanced mode), animation slider/speed
+  - `InspectorPanel.tsx` — Context-aware right panel: annotation inspector (with semantic hints), entity inspector, role marker inspector (with linked paths), or roles list (with empty state). Collapsible sections via CollapsibleSection component.
+  - `TutorialOverlay.tsx` — 6-step modal walkthrough with progress bar, localStorage persistence (key: setpiece-tutorial-completed). Auto-shows for first-time users.
+  - `ContextualTip.tsx` — Tool-reactive dismissable tip cards (per-tool localStorage persistence). Shows hint text for the active tool.
+  - `QuickLegend.tsx` — Toggleable visual legend showing line types (run/pass/curved) and marker types (player/opponent/goalkeeper/ball)
 - Uses generated React Query hooks from `@workspace/api-client-react`
 - API base URL: empty string (API server is at root `/api/...` path)
 - Auth: login redirects to `/api/login`, logout to `/api/logout`

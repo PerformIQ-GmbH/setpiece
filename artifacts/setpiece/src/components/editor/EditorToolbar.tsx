@@ -5,8 +5,11 @@ import {
   MousePointer2, UserRound, UserX, Shield, Circle,
   Minus, Spline, MoveRight, CornerDownRight,
   Square, Type, Eraser,
-  Play, Pause, RotateCcw
+  Play, Pause, RotateCcw,
+  ChevronDown, ChevronRight,
+  Undo2, Redo2,
 } from 'lucide-react';
+import { BASIC_TOOLS } from './types';
 
 interface ToolDef {
   tool: EditorTool;
@@ -14,79 +17,138 @@ interface ToolDef {
   label: string;
 }
 
-const ENTITY_TOOLS: ToolDef[] = [
+const SELECT_TOOLS: ToolDef[] = [
   { tool: 'select', icon: MousePointer2, label: 'Select & Move' },
+];
+
+const ENTITY_TOOLS: ToolDef[] = [
   { tool: 'team_player', icon: UserRound, label: 'Team Player' },
   { tool: 'opponent', icon: UserX, label: 'Opponent' },
-  { tool: 'goalkeeper', icon: Shield, label: 'Goalkeeper' },
   { tool: 'ball', icon: Circle, label: 'Ball' },
 ];
 
 const ACTION_TOOLS: ToolDef[] = [
   { tool: 'run_path', icon: Minus, label: 'Run Path (dashed)' },
-  { tool: 'curved_run', icon: Spline, label: 'Curved Run' },
   { tool: 'pass_line', icon: MoveRight, label: 'Pass Line (solid)' },
-  { tool: 'curved_cross', icon: CornerDownRight, label: 'Curved Cross' },
 ];
 
-const NOTE_TOOLS: ToolDef[] = [
+const ADVANCED_ENTITY_TOOLS: ToolDef[] = [
+  { tool: 'goalkeeper', icon: Shield, label: 'Goalkeeper' },
+];
+
+const ADVANCED_ACTION_TOOLS: ToolDef[] = [
+  { tool: 'curved_run', icon: Spline, label: 'Curved Run' },
+  { tool: 'curved_cross', icon: CornerDownRight, label: 'Curved Cross' },
   { tool: 'zone_circle', icon: Circle, label: 'Circle Zone' },
   { tool: 'zone_rect', icon: Square, label: 'Rectangle Zone' },
   { tool: 'label', icon: Type, label: 'Text Label' },
   { tool: 'erase', icon: Eraser, label: 'Delete Selected' },
 ];
 
-function ToolGroup({ tools, label }: { tools: ToolDef[]; label: string }) {
+function ToolButton({ tool, icon: Icon, label, compact }: ToolDef & { compact?: boolean }) {
   const activeTool = useEditorStore((s) => s.activeTool);
   const setActiveTool = useEditorStore((s) => s.setActiveTool);
+  const isActive = activeTool === tool;
 
   return (
-    <div className="flex flex-col items-center gap-0.5">
-      <span className="text-[8px] text-muted-foreground/50 uppercase tracking-wider font-bold mb-0.5">{label}</span>
-      {tools.map((t) => (
-        <button
-          key={t.tool}
-          onClick={() => setActiveTool(t.tool)}
-          title={t.label}
-          className={cn(
-            "w-9 h-9 rounded-lg flex items-center justify-center transition-all relative group",
-            activeTool === t.tool
-              ? "bg-primary text-primary-foreground shadow-md shadow-primary/30"
-              : "text-muted-foreground hover:bg-secondary hover:text-white"
-          )}
-        >
-          <t.icon className="w-4 h-4" />
-          <div className="absolute left-full ml-2 px-2 py-1 bg-card border border-border rounded text-[10px] text-white whitespace-nowrap opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity z-50 shadow-lg">
-            {t.label}
-          </div>
-        </button>
-      ))}
-    </div>
+    <button
+      onClick={() => setActiveTool(tool)}
+      title={label}
+      aria-label={label}
+      aria-pressed={isActive}
+      className={cn(
+        "w-10 h-10 rounded-lg flex items-center justify-center transition-all relative group",
+        compact && "w-9 h-9",
+        isActive
+          ? "bg-primary text-primary-foreground shadow-md shadow-primary/30"
+          : "text-muted-foreground hover:bg-secondary hover:text-white"
+      )}
+    >
+      <Icon className={cn("w-4 h-4", compact && "w-3.5 h-3.5")} />
+      <div className="absolute left-full ml-2.5 px-2.5 py-1.5 bg-card border border-border rounded-lg text-[11px] text-white whitespace-nowrap opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity z-50 shadow-xl">
+        {label}
+      </div>
+    </button>
   );
 }
 
-export function EditorToolbar() {
+function ToolGroupLabel({ text }: { text: string }) {
+  return (
+    <span className="text-[8px] text-muted-foreground/60 uppercase tracking-[0.12em] font-bold mb-0.5 select-none">
+      {text}
+    </span>
+  );
+}
+
+function Divider() {
+  return <div className="w-7 border-t border-border/40 my-0.5" />;
+}
+
+interface EditorToolbarProps {
+  onUndo?: () => void;
+  onRedo?: () => void;
+  canUndo?: boolean;
+  canRedo?: boolean;
+}
+
+export function EditorToolbar({ onUndo, onRedo, canUndo, canRedo }: EditorToolbarProps) {
+  const editorMode = useEditorStore((s) => s.editorMode);
+  const setEditorMode = useEditorStore((s) => s.setEditorMode);
   const animation = useEditorStore((s) => s.animation);
   const setPlaying = useEditorStore((s) => s.setAnimationPlaying);
   const setProgress = useEditorStore((s) => s.setAnimationProgress);
+  const isAdvanced = editorMode === 'advanced';
 
   return (
-    <div className="w-12 border-r border-border bg-card/60 backdrop-blur-md flex flex-col items-center py-3 gap-2 shrink-0">
-      <ToolGroup tools={ENTITY_TOOLS} label="ENT" />
-      <div className="w-6 border-t border-border/50" />
-      <ToolGroup tools={ACTION_TOOLS} label="ACT" />
-      <div className="w-6 border-t border-border/50" />
-      <ToolGroup tools={NOTE_TOOLS} label="NOTE" />
-      <div className="w-6 border-t border-border/50" />
+    <div className="w-14 border-r border-border bg-card/60 backdrop-blur-md flex flex-col items-center py-3 gap-1 shrink-0">
       <div className="flex flex-col items-center gap-0.5">
-        <span className="text-[8px] text-muted-foreground/50 uppercase tracking-wider font-bold mb-0.5">PLAY</span>
+        <ToolGroupLabel text="Select" />
+        {SELECT_TOOLS.map((t) => <ToolButton key={t.tool} {...t} />)}
+      </div>
+
+      <Divider />
+
+      <div className="flex flex-col items-center gap-0.5">
+        <ToolGroupLabel text="Place" />
+        {ENTITY_TOOLS.map((t) => <ToolButton key={t.tool} {...t} />)}
+        {isAdvanced && ADVANCED_ENTITY_TOOLS.map((t) => <ToolButton key={t.tool} {...t} compact />)}
+      </div>
+
+      <Divider />
+
+      <div className="flex flex-col items-center gap-0.5">
+        <ToolGroupLabel text="Draw" />
+        {ACTION_TOOLS.map((t) => <ToolButton key={t.tool} {...t} />)}
+        {isAdvanced && ADVANCED_ACTION_TOOLS.map((t) => <ToolButton key={t.tool} {...t} compact />)}
+      </div>
+
+      <Divider />
+
+      <button
+        onClick={() => setEditorMode(isAdvanced ? 'basic' : 'advanced')}
+        title={isAdvanced ? 'Switch to Basic' : 'Show Advanced Tools'}
+        className={cn(
+          "w-10 h-7 rounded-md flex items-center justify-center gap-0.5 text-[8px] font-bold uppercase tracking-wide transition-all",
+          isAdvanced
+            ? "bg-primary/15 text-primary border border-primary/30"
+            : "text-muted-foreground/70 hover:bg-secondary hover:text-white border border-transparent"
+        )}
+      >
+        {isAdvanced ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
+        <span>{isAdvanced ? 'Less' : 'More'}</span>
+      </button>
+
+      <div className="flex-1" />
+
+      <div className="flex flex-col items-center gap-0.5">
+        <ToolGroupLabel text="Play" />
         <button
           onClick={() => setPlaying(!animation.playing)}
-          title={animation.playing ? 'Pause' : 'Play'}
+          title={animation.playing ? 'Pause Animation' : 'Play Animation'}
           className={cn(
-            "w-9 h-9 rounded-lg flex items-center justify-center transition-all",
+            "w-10 h-10 rounded-lg flex items-center justify-center transition-all",
             animation.playing
-              ? "bg-amber-500/20 text-amber-400"
+              ? "bg-amber-500/20 text-amber-400 shadow-sm shadow-amber-500/20"
               : "text-muted-foreground hover:bg-secondary hover:text-white"
           )}
         >
@@ -94,10 +156,32 @@ export function EditorToolbar() {
         </button>
         <button
           onClick={() => { setPlaying(false); setProgress(0); }}
-          title="Reset"
-          className="w-9 h-9 rounded-lg flex items-center justify-center text-muted-foreground hover:bg-secondary hover:text-white transition-all"
+          title="Reset Animation"
+          className="w-10 h-10 rounded-lg flex items-center justify-center text-muted-foreground hover:bg-secondary hover:text-white transition-all"
         >
           <RotateCcw className="w-4 h-4" />
+        </button>
+      </div>
+
+      <Divider />
+
+      <div className="flex flex-col items-center gap-0.5">
+        <ToolGroupLabel text="History" />
+        <button
+          onClick={onUndo}
+          disabled={!canUndo}
+          title="Undo (Ctrl+Z)"
+          className="w-10 h-9 rounded-lg flex items-center justify-center text-muted-foreground hover:bg-secondary hover:text-white disabled:opacity-25 transition-all"
+        >
+          <Undo2 className="w-4 h-4" />
+        </button>
+        <button
+          onClick={onRedo}
+          disabled={!canRedo}
+          title="Redo (Ctrl+Y)"
+          className="w-10 h-9 rounded-lg flex items-center justify-center text-muted-foreground hover:bg-secondary hover:text-white disabled:opacity-25 transition-all"
+        >
+          <Redo2 className="w-4 h-4" />
         </button>
       </div>
     </div>

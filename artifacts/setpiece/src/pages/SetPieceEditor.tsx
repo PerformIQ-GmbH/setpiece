@@ -2,16 +2,24 @@ import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useRoute } from 'wouter';
 import { useGetTeam, useGetSetPiece, useCreateRole, useUpdateRole, useDeleteRole, useUpsertAssignment, useListPlayers, useUpdateSetPieceStatus, useUpdateSetPiece } from '@workspace/api-client-react';
 import type { SetPieceRole, RoleAssignment } from '@workspace/api-client-react';
-import { EditorCanvas, EditorToolbar, BottomBar, InspectorPanel, useEditorStore } from '@/components/editor';
-import type { Point, Annotation, BoardData, EditorCanvasHandle } from '@/components/editor';
+import { EditorCanvas, EditorToolbar, BottomBar, InspectorPanel, TutorialOverlay, ContextualTip, QuickLegend, useEditorStore } from '@/components/editor';
+import type { Point, Annotation, BoardData, EditorCanvasHandle, PitchTheme } from '@/components/editor';
+import { shouldShowTutorial, resetTutorial } from '@/components/editor/TutorialOverlay';
+import { resetAllTips } from '@/components/editor/ContextualTip';
 import { StatusBadge } from '@/components/StatusBadge';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { ArrowLeft, ShieldCheck, Ghost, FileDown, Loader2, Cloud, CloudOff, Undo2, Redo2 } from 'lucide-react';
+import { ArrowLeft, ShieldCheck, Ghost, FileDown, Loader2, Cloud, CloudOff, HelpCircle, Info, PanelRightClose, PanelRight, Sun, Trees, Moon } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Link } from 'wouter';
 
 type SaveState = 'saved' | 'saving' | 'unsaved' | 'error';
+
+const THEME_OPTIONS: { value: PitchTheme; label: string; icon: React.ElementType }[] = [
+  { value: 'dark', label: 'Dark', icon: Moon },
+  { value: 'green', label: 'Green', icon: Trees },
+  { value: 'light', label: 'Light', icon: Sun },
+];
 
 export default function SetPieceEditor() {
   const [, params] = useRoute('/teams/:teamId/set-pieces/:setPieceId/editor');
@@ -39,6 +47,18 @@ export default function SetPieceEditor() {
   const [pendingPos, setPendingPos] = useState<{ x: number; y: number } | null>(null);
   const [editingTitle, setEditingTitle] = useState(false);
   const [titleDraft, setTitleDraft] = useState('');
+  const [helpOpen, setHelpOpen] = useState(false);
+
+  const showTutorial = useEditorStore((s) => s.showTutorial);
+  const setShowTutorial = useEditorStore((s) => s.setShowTutorial);
+  const pitchTheme = useEditorStore((s) => s.pitchTheme);
+  const setPitchTheme = useEditorStore((s) => s.setPitchTheme);
+  const showLegend = useEditorStore((s) => s.showLegend);
+  const setShowLegend = useEditorStore((s) => s.setShowLegend);
+  const showTips = useEditorStore((s) => s.showTips);
+  const setShowTips = useEditorStore((s) => s.setShowTips);
+  const inspectorCollapsed = useEditorStore((s) => s.inspectorCollapsed);
+  const setInspectorCollapsed = useEditorStore((s) => s.setInspectorCollapsed);
 
   interface UndoEntry { roleId: string; prevPos: { x: number; y: number }; newPos: { x: number; y: number } }
   const [undoStack, setUndoStack] = useState<UndoEntry[]>([]);
@@ -61,6 +81,12 @@ export default function SetPieceEditor() {
   const resetStore = useEditorStore((s) => s.resetStore);
 
   const boardDataLoadedRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (shouldShowTutorial()) {
+      setShowTutorial(true);
+    }
+  }, []);
 
   useEffect(() => {
     if (!setPiece?.id) return;
@@ -138,7 +164,7 @@ export default function SetPieceEditor() {
     movementPathCacheRef.current[roleId] = key;
     try {
       await updateRole.mutateAsync({ teamId, setPieceId, roleId, data: { movementPath: path } });
-    } catch { /* silent — non-critical sync */ }
+    } catch { /* silent */ }
   }, [teamId, setPieceId, updateRole]);
 
   const handleRoleDragEnd = useCallback(async (roleId: string, pos: { x: number; y: number }) => {
@@ -351,15 +377,15 @@ export default function SetPieceEditor() {
 
   return (
     <div className="min-h-screen bg-background text-foreground flex flex-col h-screen overflow-hidden">
-      <header className="h-12 border-b border-border bg-card/80 backdrop-blur-md flex items-center justify-between px-3 md:px-5 shrink-0 z-10">
-        <div className="flex items-center gap-2">
+      <header className="h-12 border-b border-border bg-card/80 backdrop-blur-md flex items-center justify-between px-3 md:px-4 shrink-0 z-10">
+        <div className="flex items-center gap-2 min-w-0">
           <Link href={`/teams/${teamId}/templates`}>
-            <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-white rounded-full h-7 w-7">
+            <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-white rounded-full h-7 w-7 shrink-0">
               <ArrowLeft className="h-4 w-4" />
             </Button>
           </Link>
-          <div className="h-5 w-px bg-border" />
-          <div>
+          <div className="h-5 w-px bg-border shrink-0" />
+          <div className="min-w-0">
             {editingTitle ? (
               <input
                 autoFocus
@@ -367,11 +393,11 @@ export default function SetPieceEditor() {
                 onChange={e => setTitleDraft(e.target.value)}
                 onBlur={handleTitleSave}
                 onKeyDown={e => { if (e.key === 'Enter') handleTitleSave(); if (e.key === 'Escape') setEditingTitle(false); }}
-                className="bg-transparent border-b border-primary text-white font-display font-bold text-sm outline-none px-0"
+                className="bg-transparent border-b border-primary text-white font-display font-bold text-sm outline-none px-0 max-w-[200px]"
               />
             ) : (
               <h1
-                className="font-display font-bold text-sm leading-none text-white cursor-pointer hover:text-primary transition-colors"
+                className="font-display font-bold text-sm leading-none text-white cursor-pointer hover:text-primary transition-colors truncate max-w-[200px]"
                 onClick={() => { setTitleDraft(setPiece.title); setEditingTitle(true); }}
                 title="Click to rename"
               >
@@ -381,13 +407,84 @@ export default function SetPieceEditor() {
             <p className="text-[9px] text-muted-foreground uppercase tracking-wider font-semibold">{setPiece.category.replace(/_/g, ' ')}</p>
           </div>
         </div>
+
         <div className="flex items-center gap-1.5">
-          <button onClick={handleUndo} disabled={undoStack.length === 0} title="Undo" className="w-7 h-7 rounded flex items-center justify-center text-muted-foreground hover:text-white disabled:opacity-30 transition-colors">
-            <Undo2 className="w-3.5 h-3.5" />
+          <div className="flex items-center bg-secondary/50 rounded-lg border border-border p-0.5 gap-0.5">
+            {THEME_OPTIONS.map(opt => (
+              <button
+                key={opt.value}
+                onClick={() => setPitchTheme(opt.value)}
+                title={`${opt.label} Pitch`}
+                className={cn(
+                  "w-7 h-6 rounded-md flex items-center justify-center transition-all",
+                  pitchTheme === opt.value
+                    ? "bg-primary/20 text-primary shadow-sm"
+                    : "text-muted-foreground hover:text-white"
+                )}
+              >
+                <opt.icon className="w-3.5 h-3.5" />
+              </button>
+            ))}
+          </div>
+
+          <div className="w-px h-5 bg-border" />
+
+          <button
+            onClick={() => setShowLegend(!showLegend)}
+            title="Toggle Legend"
+            aria-label="Toggle Legend"
+            aria-pressed={showLegend}
+            className={cn(
+              "w-7 h-7 rounded flex items-center justify-center transition-colors",
+              showLegend ? "text-primary" : "text-muted-foreground hover:text-white"
+            )}
+          >
+            <Info className="w-3.5 h-3.5" />
           </button>
-          <button onClick={handleRedo} disabled={redoStack.length === 0} title="Redo" className="w-7 h-7 rounded flex items-center justify-center text-muted-foreground hover:text-white disabled:opacity-30 transition-colors">
-            <Redo2 className="w-3.5 h-3.5" />
-          </button>
+
+          <div className="relative">
+            <button
+              onClick={() => setHelpOpen(!helpOpen)}
+              title="Help"
+              aria-label="Help Menu"
+              className="w-7 h-7 rounded flex items-center justify-center text-muted-foreground hover:text-white transition-colors"
+            >
+              <HelpCircle className="w-3.5 h-3.5" />
+            </button>
+            {helpOpen && (
+              <>
+                <div className="fixed inset-0 z-40" onClick={() => setHelpOpen(false)} />
+                <div className="absolute right-0 top-full mt-1 w-48 bg-card border border-border rounded-xl shadow-xl z-50 py-1.5">
+                  <button
+                    onClick={() => {
+                      resetTutorial();
+                      setShowTutorial(true);
+                      setHelpOpen(false);
+                    }}
+                    className="w-full text-left px-3 py-2 text-[11px] text-muted-foreground hover:text-white hover:bg-secondary transition-colors"
+                  >
+                    Show Tutorial Again
+                  </button>
+                  <button
+                    onClick={() => {
+                      setShowTips(!showTips);
+                      if (!showTips) resetAllTips();
+                      setHelpOpen(false);
+                    }}
+                    className="w-full text-left px-3 py-2 text-[11px] text-muted-foreground hover:text-white hover:bg-secondary transition-colors"
+                  >
+                    {showTips ? 'Hide Tool Tips' : 'Show Tool Tips'}
+                  </button>
+                  <button
+                    onClick={() => { setShowLegend(!showLegend); setHelpOpen(false); }}
+                    className="w-full text-left px-3 py-2 text-[11px] text-muted-foreground hover:text-white hover:bg-secondary transition-colors"
+                  >
+                    {showLegend ? 'Hide Legend' : 'Show Legend'}
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
 
           <div className="w-px h-5 bg-border" />
 
@@ -423,14 +520,28 @@ export default function SetPieceEditor() {
               <ShieldCheck className="w-3 h-3 mr-1" /> Ready
             </Button>
           )}
+
+          <button
+            onClick={() => setInspectorCollapsed(!inspectorCollapsed)}
+            title={inspectorCollapsed ? 'Show Panel' : 'Hide Panel'}
+            aria-label={inspectorCollapsed ? 'Show Inspector Panel' : 'Hide Inspector Panel'}
+            className="w-7 h-7 rounded flex items-center justify-center text-muted-foreground hover:text-white transition-colors"
+          >
+            {inspectorCollapsed ? <PanelRight className="w-3.5 h-3.5" /> : <PanelRightClose className="w-3.5 h-3.5" />}
+          </button>
         </div>
       </header>
 
       <div className="flex-1 flex overflow-hidden">
-        <EditorToolbar />
+        <EditorToolbar
+          onUndo={handleUndo}
+          onRedo={handleRedo}
+          canUndo={undoStack.length > 0}
+          canRedo={redoStack.length > 0}
+        />
 
         <div className="flex-1 flex flex-col overflow-hidden">
-          <main className="flex-1 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-background via-card to-background relative overflow-hidden flex items-center justify-center">
+          <main className="flex-1 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-background via-card to-background relative overflow-hidden flex items-center justify-center" data-editor-pitch>
             <div ref={canvasRef} className="w-full h-full p-3 flex items-center justify-center" data-pitch-container>
               <EditorCanvas
                 ref={canvasHandleRef}
@@ -448,6 +559,9 @@ export default function SetPieceEditor() {
                 onMovementPathSync={handleMovementPathSync}
               />
             </div>
+
+            <QuickLegend />
+            <ContextualTip />
           </main>
 
           <BottomBar />
@@ -464,6 +578,11 @@ export default function SetPieceEditor() {
           onAddRole={() => { setPendingPos(null); setNewRoleName(''); setRoleFormOpen(true); }}
         />
       </div>
+
+      <TutorialOverlay
+        open={showTutorial}
+        onClose={() => setShowTutorial(false)}
+      />
 
       <Dialog open={roleFormOpen} onOpenChange={setRoleFormOpen}>
         <DialogContent className="bg-card border-border sm:max-w-sm">
