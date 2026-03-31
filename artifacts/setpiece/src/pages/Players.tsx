@@ -96,8 +96,8 @@ export default function Players() {
         </Button>
       </div>
 
-      <div className="flex gap-3 mb-6">
-        <div className="relative flex-1 max-w-sm">
+      <div className="flex flex-col sm:flex-row gap-3 mb-6">
+        <div className="relative flex-1 sm:max-w-sm">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <input
             value={search} onChange={e => setSearch(e.target.value)}
@@ -107,7 +107,7 @@ export default function Players() {
         </div>
         <select
           value={filterTag} onChange={e => setFilterTag(e.target.value)}
-          className="bg-card border border-border rounded-lg px-3 py-2 text-sm focus:border-primary outline-none text-muted-foreground"
+          className="bg-card border border-border rounded-lg px-3 py-2 text-sm focus:border-primary outline-none text-muted-foreground w-full sm:w-auto"
         >
           <option value="">All Tags</option>
           {TAG_OPTIONS.map(t => <option key={t} value={t}>{t.replace(/_/g, ' ')}</option>)}

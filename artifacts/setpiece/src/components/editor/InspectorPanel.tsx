@@ -40,6 +40,7 @@ interface InspectorPanelProps {
   onAssignBackup: (roleId: string, backupPlayerId: string) => void;
   onDeleteRole: (roleId: string) => void;
   onAddRole: () => void;
+  forceVisible?: boolean;
 }
 
 function CollapsibleSection({ title, icon: Icon, defaultOpen = true, children }: {
@@ -203,6 +204,7 @@ function PlayerCombobox({ players, assignments, roles, currentRoleId, value, onC
 export function InspectorPanel({
   roles, assignments, players, activeRoleId,
   onRoleClick, onAssignPlayer, onAssignBackup, onDeleteRole, onAddRole,
+  forceVisible,
 }: InspectorPanelProps) {
   const selectedAnnotationId = useEditorStore((s) => s.selectedAnnotationId);
   const annotations = useEditorStore((s) => s.annotations);
@@ -218,10 +220,10 @@ export function InspectorPanel({
   const selectedAnn = selectedAnnotationId ? annotations.find(a => a.id === selectedAnnotationId) : null;
   const selectedEnt = selectedEntityId ? entities.find(e => e.id === selectedEntityId) : null;
 
-  if (inspectorCollapsed) return null;
+  if (inspectorCollapsed && !forceVisible) return null;
 
   return (
-    <aside data-tutorial="inspector" className="w-72 md:w-80 border-l border-border bg-card/60 backdrop-blur-md flex flex-col h-full shrink-0">
+    <aside data-tutorial="inspector" className="w-full md:w-72 lg:w-80 border-l border-border bg-card/60 backdrop-blur-md flex flex-col h-full shrink-0">
       {selectedAnn ? (
         <AnnotationInspector
           annotation={selectedAnn}

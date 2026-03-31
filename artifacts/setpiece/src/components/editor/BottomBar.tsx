@@ -40,7 +40,7 @@ const ENTITY_TYPE_LABELS: Record<string, string> = {
 
 const SEMANTIC_TOOLS = new Set(['run_path', 'curved_run', 'pass_line', 'curved_cross']);
 
-export function BottomBar() {
+export function BottomBar({ mobile = false }: { mobile?: boolean }) {
   const activeTool = useEditorStore((s) => s.activeTool);
   const editorMode = useEditorStore((s) => s.editorMode);
   const strokeColor = useEditorStore((s) => s.strokeColor);
@@ -104,6 +104,85 @@ export function BottomBar() {
     setProgress(0);
     setActiveStepIndex(0);
   };
+
+  if (mobile) {
+    return (
+      <div className="border-t border-border bg-card/80 backdrop-blur-md shrink-0 pb-[env(safe-area-inset-bottom)]">
+        <div className="h-10 flex items-center px-2 gap-1 overflow-x-auto">
+          <button
+            onClick={goToPrevStep}
+            disabled={animation.activeStepIndex === 0}
+            className="w-8 h-8 rounded flex items-center justify-center text-muted-foreground hover:text-white disabled:opacity-30 transition-colors shrink-0"
+          >
+            <ChevronLeft className="w-4 h-4" />
+          </button>
+
+          <div className="flex items-center gap-1 overflow-x-auto flex-1">
+            {steps.map((step, idx) => (
+              <button
+                key={step.id}
+                onClick={() => setActiveStepIndex(idx)}
+                className={cn(
+                  "px-2 py-1.5 rounded-lg text-[11px] font-semibold transition-all flex items-center gap-1 shrink-0",
+                  idx === animation.activeStepIndex
+                    ? "bg-primary/20 text-primary border border-primary/30"
+                    : "text-muted-foreground"
+                )}
+              >
+                <span className={cn(
+                  "w-5 h-5 rounded-full text-[9px] flex items-center justify-center font-bold",
+                  idx === animation.activeStepIndex ? "bg-primary text-primary-foreground" : "bg-secondary text-muted-foreground"
+                )}>
+                  {idx + 1}
+                </span>
+                {step.label}
+              </button>
+            ))}
+          </div>
+
+          <button
+            onClick={goToNextStep}
+            disabled={animation.activeStepIndex >= steps.length - 1}
+            className="w-8 h-8 rounded flex items-center justify-center text-muted-foreground hover:text-white disabled:opacity-30 transition-colors shrink-0"
+          >
+            <ChevronRight className="w-4 h-4" />
+          </button>
+
+          <div className="w-px h-5 bg-border shrink-0" />
+
+          <button
+            onClick={addStep}
+            title="Add Step"
+            className="w-8 h-8 rounded flex items-center justify-center text-muted-foreground hover:text-primary shrink-0"
+          >
+            <Plus className="w-4 h-4" />
+          </button>
+        </div>
+
+        {showStyleControls && (
+          <div className="h-10 flex items-center px-2 gap-2 border-t border-border/40 overflow-x-auto">
+            <div className="flex items-center gap-1 shrink-0">
+              {ANNOTATION_COLORS.map((c) => (
+                <button
+                  key={c}
+                  onClick={() => setStrokeColor(c)}
+                  className={cn(
+                    "w-7 h-7 rounded-full border-2 transition-all",
+                    strokeColor === c ? "border-white scale-110" : "border-transparent hover:border-white/40"
+                  )}
+                  style={{ backgroundColor: c }}
+                />
+              ))}
+            </div>
+
+            {semanticLocked && (
+              <span className="text-[9px] text-muted-foreground/60 italic shrink-0">Style locked</span>
+            )}
+          </div>
+        )}
+      </div>
+    );
+  }
 
   return (
     <div className="border-t border-border bg-card/80 backdrop-blur-md shrink-0">

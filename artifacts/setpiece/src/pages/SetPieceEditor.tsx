@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useRoute } from 'wouter';
 import { useGetTeam, useGetSetPiece, useCreateRole, useUpdateRole, useDeleteRole, useUpsertAssignment, useListPlayers, useUpdateSetPieceStatus, useUpdateSetPiece } from '@workspace/api-client-react';
 import type { SetPieceRole, RoleAssignment } from '@workspace/api-client-react';
-import { EditorCanvas, EditorToolbar, BottomBar, InspectorPanel, TutorialOverlay, ContextualTip, QuickLegend, PresentationMode, EditorContextMenu, useEditorStore } from '@/components/editor';
+import { EditorCanvas, EditorToolbar, MobileToolDrawer, BottomBar, InspectorPanel, TutorialOverlay, ContextualTip, QuickLegend, PresentationMode, EditorContextMenu, useEditorStore } from '@/components/editor';
 import type { Point, Annotation, BoardData, EditorCanvasHandle, PitchTheme } from '@/components/editor';
 import { migrateLegacyBoardData } from '@/components/editor/types';
 import { shouldShowTutorial, resetTutorial } from '@/components/editor/TutorialOverlay';
@@ -10,9 +10,11 @@ import { resetAllTips } from '@/components/editor/ContextualTip';
 import { StatusBadge } from '@/components/StatusBadge';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { ArrowLeft, ShieldCheck, Ghost, FileDown, Loader2, Cloud, CloudOff, HelpCircle, Info, PanelRightClose, PanelRight, Sun, Trees, Moon } from 'lucide-react';
+import { Sheet, SheetContent, SheetTrigger, SheetTitle } from '@/components/ui/sheet';
+import { ArrowLeft, ShieldCheck, Ghost, FileDown, Loader2, Cloud, CloudOff, HelpCircle, Info, PanelRightClose, PanelRight, Sun, Trees, Moon, MoreVertical, Settings2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Link } from 'wouter';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 type SaveState = 'saved' | 'saving' | 'unsaved' | 'error';
 
@@ -62,6 +64,9 @@ export default function SetPieceEditor() {
   const setInspectorCollapsed = useEditorStore((s) => s.setInspectorCollapsed);
   const mirrorBoard = useEditorStore((s) => s.mirrorBoard);
   const presentationMode = useEditorStore((s) => s.presentationMode);
+  const isMobile = useIsMobile();
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [mobileInspectorOpen, setMobileInspectorOpen] = useState(false);
 
   const handleMirror = useCallback(async () => {
     mirrorBoard();
@@ -413,7 +418,7 @@ export default function SetPieceEditor() {
       <header data-tutorial="header" className="h-12 border-b border-border bg-card/80 backdrop-blur-md flex items-center justify-between px-3 md:px-4 shrink-0 z-10">
         <div className="flex items-center gap-2 min-w-0">
           <Link href={`/teams/${teamId}/templates`}>
-            <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-white rounded-full h-7 w-7 shrink-0">
+            <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-white rounded-full h-8 w-8 md:h-7 md:w-7 shrink-0">
               <ArrowLeft className="h-4 w-4" />
             </Button>
           </Link>
@@ -426,11 +431,11 @@ export default function SetPieceEditor() {
                 onChange={e => setTitleDraft(e.target.value)}
                 onBlur={handleTitleSave}
                 onKeyDown={e => { if (e.key === 'Enter') handleTitleSave(); if (e.key === 'Escape') setEditingTitle(false); }}
-                className="bg-transparent border-b border-primary text-white font-display font-bold text-sm outline-none px-0 max-w-[200px]"
+                className="bg-transparent border-b border-primary text-white font-display font-bold text-sm outline-none px-0 max-w-[140px] md:max-w-[200px]"
               />
             ) : (
               <h1
-                className="font-display font-bold text-sm leading-none text-white cursor-pointer hover:text-primary transition-colors truncate max-w-[200px]"
+                className="font-display font-bold text-sm leading-none text-white cursor-pointer hover:text-primary transition-colors truncate max-w-[140px] md:max-w-[200px]"
                 onClick={() => { setTitleDraft(setPiece.title); setEditingTitle(true); }}
                 title="Click to rename"
               >
@@ -442,141 +447,250 @@ export default function SetPieceEditor() {
         </div>
 
         <div className="flex items-center gap-1.5">
-          <div className="flex items-center bg-secondary/50 rounded-lg border border-border p-0.5 gap-0.5">
-            {THEME_OPTIONS.map(opt => (
-              <button
-                key={opt.value}
-                onClick={() => setPitchTheme(opt.value)}
-                title={`${opt.label} Pitch`}
-                className={cn(
-                  "w-7 h-6 rounded-md flex items-center justify-center transition-all",
-                  pitchTheme === opt.value
-                    ? "bg-primary/20 text-primary shadow-sm"
-                    : "text-muted-foreground hover:text-white"
-                )}
-              >
-                <opt.icon className="w-3.5 h-3.5" />
-              </button>
-            ))}
-          </div>
-
-          <div className="w-px h-5 bg-border" />
-
-          <button
-            onClick={() => setShowLegend(!showLegend)}
-            title="Toggle Legend"
-            aria-label="Toggle Legend"
-            aria-pressed={showLegend}
-            className={cn(
-              "w-7 h-7 rounded flex items-center justify-center transition-colors",
-              showLegend ? "text-primary" : "text-muted-foreground hover:text-white"
-            )}
-          >
-            <Info className="w-3.5 h-3.5" />
-          </button>
-
-          <div className="relative">
-            <button
-              onClick={() => setHelpOpen(!helpOpen)}
-              title="Help"
-              aria-label="Help Menu"
-              className="w-7 h-7 rounded flex items-center justify-center text-muted-foreground hover:text-white transition-colors"
-            >
-              <HelpCircle className="w-3.5 h-3.5" />
-            </button>
-            {helpOpen && (
-              <>
-                <div className="fixed inset-0 z-40" onClick={() => setHelpOpen(false)} />
-                <div className="absolute right-0 top-full mt-1 w-48 bg-card border border-border rounded-xl shadow-xl z-50 py-1.5">
-                  <button
-                    onClick={() => {
-                      resetTutorial();
-                      setShowTutorial(true);
-                      setHelpOpen(false);
-                    }}
-                    className="w-full text-left px-3 py-2 text-[11px] text-muted-foreground hover:text-white hover:bg-secondary transition-colors"
-                  >
-                    Show Tutorial Again
-                  </button>
-                  <button
-                    onClick={() => {
-                      setShowTips(!showTips);
-                      if (!showTips) resetAllTips();
-                      setHelpOpen(false);
-                    }}
-                    className="w-full text-left px-3 py-2 text-[11px] text-muted-foreground hover:text-white hover:bg-secondary transition-colors"
-                  >
-                    {showTips ? 'Hide Tool Tips' : 'Show Tool Tips'}
-                  </button>
-                  <button
-                    onClick={() => { setShowLegend(!showLegend); setHelpOpen(false); }}
-                    className="w-full text-left px-3 py-2 text-[11px] text-muted-foreground hover:text-white hover:bg-secondary transition-colors"
-                  >
-                    {showLegend ? 'Hide Legend' : 'Show Legend'}
-                  </button>
-                </div>
-              </>
-            )}
-          </div>
-
-          <div className="w-px h-5 bg-border" />
-
           <div className={cn(
             "flex items-center gap-1 px-2 py-0.5 rounded text-[9px] font-bold uppercase tracking-wide transition-colors border",
             saveState === 'saved' && "bg-emerald-500/10 text-emerald-400 border-emerald-500/20",
             saveState === 'saving' && "bg-blue-500/10 text-blue-400 border-blue-500/20",
             saveState === 'error' && "bg-red-500/10 text-red-400 border-red-500/20",
           )}>
-            {saveState === 'saved' && <><Cloud className="h-3 w-3" /> Saved</>}
-            {saveState === 'saving' && <><Loader2 className="h-3 w-3 animate-spin" /> Saving</>}
-            {saveState === 'unsaved' && <><CloudOff className="h-3 w-3" /> Unsaved</>}
-            {saveState === 'error' && <><CloudOff className="h-3 w-3" /> Error</>}
+            {saveState === 'saved' && <><Cloud className="h-3 w-3" /> <span className="hidden sm:inline">Saved</span></>}
+            {saveState === 'saving' && <><Loader2 className="h-3 w-3 animate-spin" /> <span className="hidden sm:inline">Saving</span></>}
+            {saveState === 'unsaved' && <><CloudOff className="h-3 w-3" /> <span className="hidden sm:inline">Unsaved</span></>}
+            {saveState === 'error' && <><CloudOff className="h-3 w-3" /> <span className="hidden sm:inline">Error</span></>}
           </div>
 
-          <StatusBadge status={setPiece.status} />
+          {!isMobile && (
+            <>
+              <div className="flex items-center bg-secondary/50 rounded-lg border border-border p-0.5 gap-0.5">
+                {THEME_OPTIONS.map(opt => (
+                  <button
+                    key={opt.value}
+                    onClick={() => setPitchTheme(opt.value)}
+                    title={`${opt.label} Pitch`}
+                    className={cn(
+                      "w-7 h-6 rounded-md flex items-center justify-center transition-all",
+                      pitchTheme === opt.value
+                        ? "bg-primary/20 text-primary shadow-sm"
+                        : "text-muted-foreground hover:text-white"
+                    )}
+                  >
+                    <opt.icon className="w-3.5 h-3.5" />
+                  </button>
+                ))}
+              </div>
 
-          <Button size="sm" variant="outline" className="text-[10px] h-6 border-border px-2" onClick={handleExportPDF}>
-            <FileDown className="w-3 h-3 mr-1" /> PDF
-          </Button>
+              <div className="w-px h-5 bg-border" />
 
-          <Link href={`/teams/${teamId}/ghost/${setPieceId}`}>
-            <Button size="sm" variant="outline" className="text-[10px] h-6 border-border px-2">
-              <Ghost className="w-3 h-3 mr-1" /> Ghost
-            </Button>
-          </Link>
+              <button
+                onClick={() => setShowLegend(!showLegend)}
+                title="Toggle Legend"
+                aria-label="Toggle Legend"
+                aria-pressed={showLegend}
+                className={cn(
+                  "w-7 h-7 rounded flex items-center justify-center transition-colors",
+                  showLegend ? "text-primary" : "text-muted-foreground hover:text-white"
+                )}
+              >
+                <Info className="w-3.5 h-3.5" />
+              </button>
 
-          {setPiece.status === 'draft' && (
-            <Button size="sm" className="text-[10px] h-6 px-2" onClick={async () => {
-              await updateStatus.mutateAsync({ teamId, setPieceId, data: { status: 'ready' } });
-              refetch();
-            }}>
-              <ShieldCheck className="w-3 h-3 mr-1" /> Ready
-            </Button>
+              <div className="relative">
+                <button
+                  onClick={() => setHelpOpen(!helpOpen)}
+                  title="Help"
+                  aria-label="Help Menu"
+                  className="w-7 h-7 rounded flex items-center justify-center text-muted-foreground hover:text-white transition-colors"
+                >
+                  <HelpCircle className="w-3.5 h-3.5" />
+                </button>
+                {helpOpen && (
+                  <>
+                    <div className="fixed inset-0 z-40" onClick={() => setHelpOpen(false)} />
+                    <div className="absolute right-0 top-full mt-1 w-48 bg-card border border-border rounded-xl shadow-xl z-50 py-1.5">
+                      <button
+                        onClick={() => {
+                          resetTutorial();
+                          setShowTutorial(true);
+                          setHelpOpen(false);
+                        }}
+                        className="w-full text-left px-3 py-2 text-[11px] text-muted-foreground hover:text-white hover:bg-secondary transition-colors"
+                      >
+                        Show Tutorial Again
+                      </button>
+                      <button
+                        onClick={() => {
+                          setShowTips(!showTips);
+                          if (!showTips) resetAllTips();
+                          setHelpOpen(false);
+                        }}
+                        className="w-full text-left px-3 py-2 text-[11px] text-muted-foreground hover:text-white hover:bg-secondary transition-colors"
+                      >
+                        {showTips ? 'Hide Tool Tips' : 'Show Tool Tips'}
+                      </button>
+                      <button
+                        onClick={() => { setShowLegend(!showLegend); setHelpOpen(false); }}
+                        className="w-full text-left px-3 py-2 text-[11px] text-muted-foreground hover:text-white hover:bg-secondary transition-colors"
+                      >
+                        {showLegend ? 'Hide Legend' : 'Show Legend'}
+                      </button>
+                    </div>
+                  </>
+                )}
+              </div>
+
+              <div className="w-px h-5 bg-border" />
+
+              <StatusBadge status={setPiece.status} />
+
+              <Button size="sm" variant="outline" className="text-[10px] h-6 border-border px-2" onClick={handleExportPDF}>
+                <FileDown className="w-3 h-3 mr-1" /> PDF
+              </Button>
+
+              <Link href={`/teams/${teamId}/ghost/${setPieceId}`}>
+                <Button size="sm" variant="outline" className="text-[10px] h-6 border-border px-2">
+                  <Ghost className="w-3 h-3 mr-1" /> Ghost
+                </Button>
+              </Link>
+
+              {setPiece.status === 'draft' && (
+                <Button size="sm" className="text-[10px] h-6 px-2" onClick={async () => {
+                  await updateStatus.mutateAsync({ teamId, setPieceId, data: { status: 'ready' } });
+                  refetch();
+                }}>
+                  <ShieldCheck className="w-3 h-3 mr-1" /> Ready
+                </Button>
+              )}
+
+              <button
+                onClick={() => setInspectorCollapsed(!inspectorCollapsed)}
+                title={inspectorCollapsed ? 'Show Panel' : 'Hide Panel'}
+                aria-label={inspectorCollapsed ? 'Show Inspector Panel' : 'Hide Inspector Panel'}
+                className="w-7 h-7 rounded flex items-center justify-center text-muted-foreground hover:text-white transition-colors"
+              >
+                {inspectorCollapsed ? <PanelRight className="w-3.5 h-3.5" /> : <PanelRightClose className="w-3.5 h-3.5" />}
+              </button>
+            </>
           )}
 
-          <button
-            onClick={() => setInspectorCollapsed(!inspectorCollapsed)}
-            title={inspectorCollapsed ? 'Show Panel' : 'Hide Panel'}
-            aria-label={inspectorCollapsed ? 'Show Inspector Panel' : 'Hide Inspector Panel'}
-            className="w-7 h-7 rounded flex items-center justify-center text-muted-foreground hover:text-white transition-colors"
-          >
-            {inspectorCollapsed ? <PanelRight className="w-3.5 h-3.5" /> : <PanelRightClose className="w-3.5 h-3.5" />}
-          </button>
+          {isMobile && (
+            <>
+              <button
+                onClick={() => setMobileInspectorOpen(true)}
+                className="w-8 h-8 rounded-lg flex items-center justify-center text-muted-foreground hover:text-white transition-colors"
+              >
+                <Settings2 className="w-4 h-4" />
+              </button>
+
+              <div className="relative">
+                <button
+                  onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+                  className="w-8 h-8 rounded-lg flex items-center justify-center text-muted-foreground hover:text-white transition-colors"
+                >
+                  <MoreVertical className="w-4 h-4" />
+                </button>
+                {mobileMenuOpen && (
+                  <>
+                    <div className="fixed inset-0 z-40" onClick={() => setMobileMenuOpen(false)} />
+                    <div className="absolute right-0 top-full mt-1 w-52 bg-card border border-border rounded-xl shadow-xl z-50 py-1.5">
+                      <div className="px-3 py-2 border-b border-border/50">
+                        <StatusBadge status={setPiece.status} />
+                      </div>
+
+                      <div className="px-3 py-2 border-b border-border/50">
+                        <p className="text-[9px] text-muted-foreground uppercase tracking-wider mb-1.5">Pitch Theme</p>
+                        <div className="flex gap-1">
+                          {THEME_OPTIONS.map(opt => (
+                            <button
+                              key={opt.value}
+                              onClick={() => setPitchTheme(opt.value)}
+                              className={cn(
+                                "flex-1 py-1.5 rounded-lg flex items-center justify-center gap-1 text-[10px] font-medium transition-all",
+                                pitchTheme === opt.value ? "bg-primary/20 text-primary" : "text-muted-foreground hover:text-white"
+                              )}
+                            >
+                              <opt.icon className="w-3 h-3" />
+                              {opt.label}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      <button
+                        onClick={() => { setShowLegend(!showLegend); setMobileMenuOpen(false); }}
+                        className="w-full text-left px-3 py-2.5 text-[11px] text-muted-foreground hover:text-white hover:bg-secondary transition-colors flex items-center gap-2"
+                      >
+                        <Info className="w-3.5 h-3.5" />
+                        {showLegend ? 'Hide Legend' : 'Show Legend'}
+                      </button>
+
+                      <button
+                        onClick={() => { handleExportPDF(); setMobileMenuOpen(false); }}
+                        className="w-full text-left px-3 py-2.5 text-[11px] text-muted-foreground hover:text-white hover:bg-secondary transition-colors flex items-center gap-2"
+                      >
+                        <FileDown className="w-3.5 h-3.5" />
+                        Export PDF
+                      </button>
+
+                      <Link href={`/teams/${teamId}/ghost/${setPieceId}`}>
+                        <button
+                          onClick={() => setMobileMenuOpen(false)}
+                          className="w-full text-left px-3 py-2.5 text-[11px] text-muted-foreground hover:text-white hover:bg-secondary transition-colors flex items-center gap-2"
+                        >
+                          <Ghost className="w-3.5 h-3.5" />
+                          Ghost View
+                        </button>
+                      </Link>
+
+                      {setPiece.status === 'draft' && (
+                        <button
+                          onClick={async () => {
+                            await updateStatus.mutateAsync({ teamId, setPieceId, data: { status: 'ready' } });
+                            refetch();
+                            setMobileMenuOpen(false);
+                          }}
+                          className="w-full text-left px-3 py-2.5 text-[11px] text-primary hover:bg-primary/10 transition-colors flex items-center gap-2"
+                        >
+                          <ShieldCheck className="w-3.5 h-3.5" />
+                          Mark Ready
+                        </button>
+                      )}
+
+                      <div className="h-px bg-border my-1" />
+
+                      <button
+                        onClick={() => {
+                          resetTutorial();
+                          setShowTutorial(true);
+                          setMobileMenuOpen(false);
+                        }}
+                        className="w-full text-left px-3 py-2.5 text-[11px] text-muted-foreground hover:text-white hover:bg-secondary transition-colors flex items-center gap-2"
+                      >
+                        <HelpCircle className="w-3.5 h-3.5" />
+                        Tutorial
+                      </button>
+                    </div>
+                  </>
+                )}
+              </div>
+            </>
+          )}
         </div>
       </header>
 
       <div className="flex-1 flex overflow-hidden">
-        <EditorToolbar
-          onUndo={handleUndo}
-          onRedo={handleRedo}
-          canUndo={undoStack.length > 0}
-          canRedo={redoStack.length > 0}
-          onMirror={handleMirror}
-        />
+        {!isMobile && (
+          <EditorToolbar
+            onUndo={handleUndo}
+            onRedo={handleRedo}
+            canUndo={undoStack.length > 0}
+            canRedo={redoStack.length > 0}
+            onMirror={handleMirror}
+          />
+        )}
 
         <div className="flex-1 flex flex-col overflow-hidden">
           <main data-tutorial="pitch" className="flex-1 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-background via-card to-background relative overflow-hidden flex items-center justify-center">
-            <div ref={canvasRef} className="w-full h-full p-3 flex items-center justify-center relative" data-pitch-container>
+            <div ref={canvasRef} className="w-full h-full p-1 md:p-3 flex items-center justify-center relative" data-pitch-container>
               {!presentationMode && (
                 <EditorCanvas
                   ref={canvasHandleRef}
@@ -595,10 +709,13 @@ export default function SetPieceEditor() {
               )}
               {setPiece.roles.length === 0 && entities.length === 0 && annotations.length === 0 && (
                 <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-10">
-                  <div className="bg-card/80 backdrop-blur-sm border border-border/50 rounded-2xl px-6 py-4 text-center max-w-[260px]">
+                  <div className="bg-card/80 backdrop-blur-sm border border-border/50 rounded-2xl px-4 md:px-6 py-3 md:py-4 text-center max-w-[220px] md:max-w-[260px]">
                     <p className="text-sm font-display font-bold text-white mb-1">Empty Board</p>
                     <p className="text-[11px] text-muted-foreground leading-relaxed">
-                      Use the toolbar to place players and draw movements. Start with the Team Player tool to add your first role.
+                      {isMobile
+                        ? 'Tap the tool button to place players and draw movements.'
+                        : 'Use the toolbar to place players and draw movements. Start with the Team Player tool to add your first role.'
+                      }
                     </p>
                   </div>
                 </div>
@@ -606,24 +723,56 @@ export default function SetPieceEditor() {
             </div>
 
             <QuickLegend />
-            <ContextualTip />
+            {!isMobile && <ContextualTip />}
           </main>
 
-          <BottomBar />
+          <BottomBar mobile={isMobile} />
         </div>
 
-        <InspectorPanel
-          roles={setPiece.roles}
-          assignments={setPiece.assignments || []}
-          players={players}
-          activeRoleId={activeRoleId}
-          onRoleClick={(id) => setActiveRoleId(id === activeRoleId ? null : id)}
-          onAssignPlayer={assignPlayer}
-          onAssignBackup={assignBackupPlayer}
-          onDeleteRole={handleDeleteRole}
-          onAddRole={() => { setPendingPos(null); setNewRoleName(''); setRoleFormOpen(true); }}
-        />
+        {!isMobile && (
+          <InspectorPanel
+            roles={setPiece.roles}
+            assignments={setPiece.assignments || []}
+            players={players}
+            activeRoleId={activeRoleId}
+            onRoleClick={(id) => setActiveRoleId(id === activeRoleId ? null : id)}
+            onAssignPlayer={assignPlayer}
+            onAssignBackup={assignBackupPlayer}
+            onDeleteRole={handleDeleteRole}
+            onAddRole={() => { setPendingPos(null); setNewRoleName(''); setRoleFormOpen(true); }}
+          />
+        )}
       </div>
+
+      {isMobile && (
+        <>
+          <MobileToolDrawer
+            onUndo={handleUndo}
+            onRedo={handleRedo}
+            canUndo={undoStack.length > 0}
+            canRedo={redoStack.length > 0}
+            onMirror={handleMirror}
+          />
+
+          <Sheet open={mobileInspectorOpen} onOpenChange={setMobileInspectorOpen}>
+            <SheetContent side="right" className="bg-card border-border w-[300px] p-0">
+              <SheetTitle className="sr-only">Inspector</SheetTitle>
+              <InspectorPanel
+                roles={setPiece.roles}
+                assignments={setPiece.assignments || []}
+                players={players}
+                activeRoleId={activeRoleId}
+                onRoleClick={(id) => setActiveRoleId(id === activeRoleId ? null : id)}
+                onAssignPlayer={assignPlayer}
+                onAssignBackup={assignBackupPlayer}
+                onDeleteRole={handleDeleteRole}
+                onAddRole={() => { setPendingPos(null); setNewRoleName(''); setRoleFormOpen(true); setMobileInspectorOpen(false); }}
+                forceVisible
+              />
+            </SheetContent>
+          </Sheet>
+        </>
+      )}
 
       <TutorialOverlay
         open={showTutorial}

@@ -85,7 +85,7 @@ export default function TeamDashboard() {
                   <Button variant="ghost" size="sm" className="text-primary text-xs">View All <ArrowRight className="h-3 w-3 ml-1" /></Button>
                 </Link>
               </div>
-              <div className="grid grid-cols-4 gap-4">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
                 {[
                   { label: 'Not Opened', value: readiness.summary.notOpened, icon: EyeOff, color: 'text-zinc-400' },
                   { label: 'Opened', value: readiness.summary.opened, icon: Eye, color: 'text-blue-400' },

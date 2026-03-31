@@ -9,36 +9,38 @@ import {
   ChevronDown, ChevronRight,
   Undo2, Redo2,
   Magnet, Grid3x3, FlipHorizontal2, Presentation, Layers,
+  Wrench,
 } from 'lucide-react';
 import { BASIC_TOOLS } from './types';
 import { LayerPanel } from './LayerPanel';
+import { Drawer, DrawerContent, DrawerTrigger, DrawerTitle } from '@/components/ui/drawer';
 
-interface ToolDef {
+export interface ToolDef {
   tool: EditorTool;
   icon: React.ElementType;
   label: string;
 }
 
-const SELECT_TOOLS: ToolDef[] = [
+export const SELECT_TOOLS: ToolDef[] = [
   { tool: 'select', icon: MousePointer2, label: 'Select & Move' },
 ];
 
-const ENTITY_TOOLS: ToolDef[] = [
+export const ENTITY_TOOLS: ToolDef[] = [
   { tool: 'team_player', icon: UserRound, label: 'Team Player' },
   { tool: 'opponent', icon: UserX, label: 'Opponent' },
   { tool: 'ball', icon: Circle, label: 'Ball' },
 ];
 
-const ACTION_TOOLS: ToolDef[] = [
+export const ACTION_TOOLS: ToolDef[] = [
   { tool: 'run_path', icon: Minus, label: 'Run Path (dashed)' },
   { tool: 'pass_line', icon: MoveRight, label: 'Pass Line (solid)' },
 ];
 
-const ADVANCED_ENTITY_TOOLS: ToolDef[] = [
+export const ADVANCED_ENTITY_TOOLS: ToolDef[] = [
   { tool: 'goalkeeper', icon: Shield, label: 'Goalkeeper' },
 ];
 
-const ADVANCED_ACTION_TOOLS: ToolDef[] = [
+export const ADVANCED_ACTION_TOOLS: ToolDef[] = [
   { tool: 'curved_run', icon: Spline, label: 'Curved Run' },
   { tool: 'curved_cross', icon: CornerDownRight, label: 'Curved Cross' },
   { tool: 'zone_circle', icon: Circle, label: 'Circle Zone' },
@@ -264,5 +266,184 @@ export function EditorToolbar({ onUndo, onRedo, canUndo, canRedo, onMirror }: Ed
         </button>
       </div>
     </div>
+  );
+}
+
+interface MobileToolDrawerProps {
+  onUndo?: () => void;
+  onRedo?: () => void;
+  canUndo?: boolean;
+  canRedo?: boolean;
+  onMirror?: () => void;
+}
+
+export function MobileToolDrawer({ onUndo, onRedo, canUndo, canRedo, onMirror }: MobileToolDrawerProps) {
+  const activeTool = useEditorStore((s) => s.activeTool);
+  const setActiveTool = useEditorStore((s) => s.setActiveTool);
+  const editorMode = useEditorStore((s) => s.editorMode);
+  const setEditorMode = useEditorStore((s) => s.setEditorMode);
+  const snapEnabled = useEditorStore((s) => s.snapEnabled);
+  const setSnapEnabled = useEditorStore((s) => s.setSnapEnabled);
+  const showGrid = useEditorStore((s) => s.showGrid);
+  const setShowGrid = useEditorStore((s) => s.setShowGrid);
+  const setPresentationMode = useEditorStore((s) => s.setPresentationMode);
+  const animation = useEditorStore((s) => s.animation);
+  const setPlaying = useEditorStore((s) => s.setAnimationPlaying);
+  const setProgress = useEditorStore((s) => s.setAnimationProgress);
+  const isAdvanced = editorMode === 'advanced';
+  const [open, setOpen] = useState(false);
+  const [showLayers, setShowLayers] = useState(false);
+
+  const activeIcon = [...SELECT_TOOLS, ...ENTITY_TOOLS, ...ACTION_TOOLS, ...ADVANCED_ENTITY_TOOLS, ...ADVANCED_ACTION_TOOLS]
+    .find(t => t.tool === activeTool);
+
+  const MobileToolBtn = ({ tool, icon: Icon, label }: ToolDef) => {
+    const isActive = activeTool === tool;
+    return (
+      <button
+        onClick={() => { setActiveTool(tool); setOpen(false); }}
+        className={cn(
+          "flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all w-full text-left",
+          isActive
+            ? "bg-primary text-primary-foreground font-semibold"
+            : "text-muted-foreground hover:bg-secondary hover:text-white"
+        )}
+      >
+        <Icon className="w-5 h-5 shrink-0" />
+        <span className="text-sm">{label}</span>
+      </button>
+    );
+  };
+
+  return (
+    <>
+      <div className="fixed bottom-[calc(theme(spacing.20)+env(safe-area-inset-bottom))] left-3 z-30 flex flex-col gap-2">
+        <Drawer open={open} onOpenChange={setOpen}>
+          <DrawerTrigger asChild>
+            <button
+              className={cn(
+                "w-12 h-12 rounded-2xl shadow-xl flex items-center justify-center transition-all border",
+                "bg-card/90 backdrop-blur-md border-border text-white active:scale-95"
+              )}
+            >
+              {activeIcon ? <activeIcon.icon className="w-5 h-5" /> : <Wrench className="w-5 h-5" />}
+            </button>
+          </DrawerTrigger>
+          <DrawerContent className="bg-card border-border max-h-[70vh]">
+            <DrawerTitle className="sr-only">Tools</DrawerTitle>
+            <div className="p-4 pb-6 overflow-y-auto">
+              <div className="grid grid-cols-1 gap-1">
+                <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider px-3 mb-1">Select</p>
+                {SELECT_TOOLS.map(t => <MobileToolBtn key={t.tool} {...t} />)}
+
+                <div className="h-px bg-border my-2" />
+                <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider px-3 mb-1">Place</p>
+                {ENTITY_TOOLS.map(t => <MobileToolBtn key={t.tool} {...t} />)}
+                {isAdvanced && ADVANCED_ENTITY_TOOLS.map(t => <MobileToolBtn key={t.tool} {...t} />)}
+
+                <div className="h-px bg-border my-2" />
+                <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider px-3 mb-1">Draw</p>
+                {ACTION_TOOLS.map(t => <MobileToolBtn key={t.tool} {...t} />)}
+                {isAdvanced && ADVANCED_ACTION_TOOLS.map(t => <MobileToolBtn key={t.tool} {...t} />)}
+
+                <div className="h-px bg-border my-2" />
+
+                <div className="flex flex-wrap gap-2 px-1">
+                  <button
+                    onClick={() => setEditorMode(isAdvanced ? 'basic' : 'advanced')}
+                    className={cn(
+                      "flex-1 min-w-[100px] py-2 rounded-xl text-xs font-semibold transition-all border",
+                      isAdvanced
+                        ? "bg-primary/15 text-primary border-primary/30"
+                        : "border-border text-muted-foreground hover:bg-secondary"
+                    )}
+                  >
+                    {isAdvanced ? 'Basic Mode' : 'Advanced Mode'}
+                  </button>
+                  <button
+                    onClick={() => { setSnapEnabled(!snapEnabled); }}
+                    className={cn(
+                      "py-2 px-4 rounded-xl text-xs font-semibold transition-all border flex items-center gap-2",
+                      snapEnabled ? "bg-primary/15 text-primary border-primary/30" : "border-border text-muted-foreground"
+                    )}
+                  >
+                    <Magnet className="w-4 h-4" /> Snap
+                  </button>
+                  <button
+                    onClick={() => { setShowGrid(!showGrid); }}
+                    className={cn(
+                      "py-2 px-4 rounded-xl text-xs font-semibold transition-all border flex items-center gap-2",
+                      showGrid ? "bg-primary/15 text-primary border-primary/30" : "border-border text-muted-foreground"
+                    )}
+                  >
+                    <Grid3x3 className="w-4 h-4" /> Grid
+                  </button>
+                  <button
+                    onClick={() => { onMirror?.(); setOpen(false); }}
+                    className="py-2 px-4 rounded-xl text-xs font-semibold transition-all border border-border text-muted-foreground flex items-center gap-2"
+                  >
+                    <FlipHorizontal2 className="w-4 h-4" /> Mirror
+                  </button>
+                  <button
+                    onClick={() => { setShowLayers(!showLayers); }}
+                    className={cn(
+                      "py-2 px-4 rounded-xl text-xs font-semibold transition-all border flex items-center gap-2",
+                      showLayers ? "bg-primary/15 text-primary border-primary/30" : "border-border text-muted-foreground"
+                    )}
+                  >
+                    <Layers className="w-4 h-4" /> Layers
+                  </button>
+                </div>
+
+                {showLayers && (
+                  <div className="mt-2 p-3 bg-background rounded-xl border border-border">
+                    <LayerPanel />
+                  </div>
+                )}
+
+                <div className="h-px bg-border my-2" />
+
+                <div className="flex gap-2 px-1">
+                  <button
+                    onClick={onUndo}
+                    disabled={!canUndo}
+                    className="flex-1 py-2.5 rounded-xl text-xs font-semibold border border-border text-muted-foreground disabled:opacity-25 flex items-center justify-center gap-2"
+                  >
+                    <Undo2 className="w-4 h-4" /> Undo
+                  </button>
+                  <button
+                    onClick={onRedo}
+                    disabled={!canRedo}
+                    className="flex-1 py-2.5 rounded-xl text-xs font-semibold border border-border text-muted-foreground disabled:opacity-25 flex items-center justify-center gap-2"
+                  >
+                    <Redo2 className="w-4 h-4" /> Redo
+                  </button>
+                </div>
+              </div>
+            </div>
+          </DrawerContent>
+        </Drawer>
+      </div>
+
+      <div className="fixed bottom-[calc(theme(spacing.20)+env(safe-area-inset-bottom))] right-3 z-30 flex flex-col gap-2">
+        <button
+          onClick={() => setPresentationMode(true)}
+          className="w-12 h-12 rounded-2xl shadow-xl bg-card/90 backdrop-blur-md border border-border text-muted-foreground flex items-center justify-center active:scale-95"
+        >
+          <Presentation className="w-5 h-5" />
+        </button>
+        <button
+          onClick={() => setPlaying(!animation.playing)}
+          className={cn(
+            "w-12 h-12 rounded-2xl shadow-xl backdrop-blur-md border flex items-center justify-center active:scale-95",
+            animation.playing
+              ? "bg-amber-500/20 border-amber-500/30 text-amber-400"
+              : "bg-card/90 border-border text-muted-foreground"
+          )}
+        >
+          {animation.playing ? <Pause className="w-5 h-5" /> : <Play className="w-5 h-5" />}
+        </button>
+      </div>
+    </>
   );
 }
