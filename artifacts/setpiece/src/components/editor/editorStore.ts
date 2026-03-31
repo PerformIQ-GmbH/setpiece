@@ -82,6 +82,24 @@ interface EditorState {
   goToNextStep: () => void;
   goToPrevStep: () => void;
 
+  snapEnabled: boolean;
+  setSnapEnabled: (on: boolean) => void;
+  showGrid: boolean;
+  setShowGrid: (on: boolean) => void;
+
+  layerVisibility: Record<string, boolean>;
+  layerLocked: Record<string, boolean>;
+  setLayerVisibility: (layer: string, visible: boolean) => void;
+  setLayerLocked: (layer: string, locked: boolean) => void;
+
+  presentationMode: boolean;
+  setPresentationMode: (on: boolean) => void;
+
+  mirrorBoard: () => void;
+
+  contextMenu: { x: number; y: number; targetType: 'annotation' | 'entity' | 'role'; targetId: string } | null;
+  setContextMenu: (menu: { x: number; y: number; targetType: 'annotation' | 'entity' | 'role'; targetId: string } | null) => void;
+
   resetStore: () => void;
 }
 
@@ -279,6 +297,37 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     }
   },
 
+  snapEnabled: true,
+  setSnapEnabled: (on) => set({ snapEnabled: on }),
+  showGrid: false,
+  setShowGrid: (on) => set({ showGrid: on }),
+
+  layerVisibility: { team: true, opponents: true, actions: true, labels: true, zones: true, ball: true },
+  layerLocked: { team: false, opponents: false, actions: false, labels: false, zones: false, ball: false },
+  setLayerVisibility: (layer, visible) => set((s) => ({
+    layerVisibility: { ...s.layerVisibility, [layer]: visible },
+  })),
+  setLayerLocked: (layer, locked) => set((s) => ({
+    layerLocked: { ...s.layerLocked, [layer]: locked },
+  })),
+
+  presentationMode: false,
+  setPresentationMode: (on) => set({ presentationMode: on }),
+
+  mirrorBoard: () => set((s) => ({
+    annotations: s.annotations.map(a => ({
+      ...a,
+      points: a.points.map(p => ({ x: 100 - p.x, y: p.y })),
+    })),
+    entities: s.entities.map(e => ({
+      ...e,
+      position: { x: 100 - e.position.x, y: e.position.y },
+    })),
+  })),
+
+  contextMenu: null,
+  setContextMenu: (menu) => set({ contextMenu: menu }),
+
   resetStore: () => {
     const fresh = createDefaultStep();
     set({
@@ -290,6 +339,8 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       drawingPoints: [],
       steps: [fresh],
       animation: { playing: false, progress: 0, speed: 1, activeStepIndex: 0, playMode: 'step' },
+      contextMenu: null,
+      presentationMode: false,
     });
   },
 }));

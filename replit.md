@@ -147,10 +147,14 @@ React + Vite frontend (Coach Dashboard + Player PWA).
   - `PremiumPitch.tsx` — Themed pitch with mowing stripes, corner arcs, penalty spots; accepts `theme` prop (dark/green/light)
   - `OffensiveCornerPitch.tsx` — Corner kick pitch (654x608 ref coords); accepts `theme` prop (dark/green/light)
   - `AnnotationLayer.tsx` — Renders run paths, pass lines, curved runs, zone circles/rects, labels
-  - `EditorCanvas.tsx` — Main canvas integrating pitch, markers, annotations, drawing, and step-aware animation loop (filters annotations by active step, auto-advances in 'all' mode); reads pitchTheme from store; passes player lastName, unassigned state, and dimming (non-focused elements dim when a marker is selected)
-  - `EditorToolbar.tsx` — Left sidebar with grouped tools (Select, Place, Draw), Basic/Advanced mode toggle, undo/redo, animation controls; ARIA labels on all buttons
+  - `EditorCanvas.tsx` — Main canvas integrating pitch, markers, annotations, drawing, and step-aware animation loop (filters annotations by active step, auto-advances in 'all' mode); reads pitchTheme from store; passes player lastName, unassigned state, and dimming. Supports snap-to-pitch-anchors, grid overlay, layer visibility/locking, context menu, and readOnly mode (for presentation).
+  - `EditorToolbar.tsx` — Left sidebar with grouped tools (Select, Place, Draw), Basic/Advanced mode toggle, snap/grid/mirror/layers/presentation controls, undo/redo, animation controls; ARIA labels on all buttons
   - `BottomBar.tsx` — Bottom bar with step tabs (add/rename/delete/navigate steps, annotation count badges), play mode toggle (step/all), contextual tool label, selection info, color picker, style controls (advanced mode), animation slider/speed
   - `InspectorPanel.tsx` — Context-aware right panel: annotation inspector (with semantic hints), entity inspector, role marker inspector (with linked paths), or roles list (with empty state). Collapsible sections via CollapsibleSection component. Uses searchable PlayerCombobox with unique assignment enforcement (taken players shown as disabled). Includes BoardHealth validation panel.
+  - `snapUtils.ts` — Snap-to-pitch-anchors (center, penalty spots, corners, goal posts, box edges) and snap-to-marker positions. Threshold-based (2.5% distance).
+  - `PresentationMode.tsx` — Fullscreen overlay for presenting set pieces with step playback, prev/next/play/pause controls, step number badges, legend toggle, and exit button. Read-only canvas prevents accidental edits.
+  - `EditorContextMenu.tsx` — Right-click context menu for selected annotations/entities with duplicate, convert type (run ↔ pass), move to step, and delete actions.
+  - `LayerPanel.tsx` — Layer visibility and lock controls for team players, opponents, ball, actions/paths, zones, and labels. Hidden layers are not rendered; locked layers are rendered but not interactive.
   - `BoardHealth.tsx` — Compact validation panel showing green/amber/red status: checks for unassigned roles and missing movement paths. Collapsible, renders in the roles list view.
   - `TutorialOverlay.tsx` — 6-step modal walkthrough with progress bar, localStorage persistence (key: setpiece-tutorial-completed). Auto-shows for first-time users.
   - `ContextualTip.tsx` — Tool-reactive dismissable tip cards (per-tool localStorage persistence). Shows hint text for the active tool.

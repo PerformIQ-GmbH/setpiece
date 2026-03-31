@@ -7,5 +7,7 @@ export { InspectorPanel } from './InspectorPanel';
 export { TutorialOverlay } from './TutorialOverlay';
 export { ContextualTip } from './ContextualTip';
 export { QuickLegend } from './QuickLegend';
+export { PresentationMode } from './PresentationMode';
+export { EditorContextMenu } from './EditorContextMenu';
 export { useEditorStore } from './editorStore';
 export type { EditorTool, EditorMode, PitchTheme, Annotation, AnimationStep, EntityMarker, Point, BoardData } from './types';

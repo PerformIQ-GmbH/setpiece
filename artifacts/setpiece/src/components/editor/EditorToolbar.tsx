@@ -8,8 +8,10 @@ import {
   Play, Pause, RotateCcw,
   ChevronDown, ChevronRight,
   Undo2, Redo2,
+  Magnet, Grid3x3, FlipHorizontal2, Presentation, Layers,
 } from 'lucide-react';
 import { BASIC_TOOLS } from './types';
+import { LayerPanel } from './LayerPanel';
 
 interface ToolDef {
   tool: EditorTool;
@@ -84,14 +86,17 @@ function Divider() {
   return <div className="w-7 border-t border-border/40 my-0.5" />;
 }
 
+import { useState } from 'react';
+
 interface EditorToolbarProps {
   onUndo?: () => void;
   onRedo?: () => void;
   canUndo?: boolean;
   canRedo?: boolean;
+  onMirror?: () => void;
 }
 
-export function EditorToolbar({ onUndo, onRedo, canUndo, canRedo }: EditorToolbarProps) {
+export function EditorToolbar({ onUndo, onRedo, canUndo, canRedo, onMirror }: EditorToolbarProps) {
   const editorMode = useEditorStore((s) => s.editorMode);
   const setEditorMode = useEditorStore((s) => s.setEditorMode);
   const animation = useEditorStore((s) => s.animation);
@@ -99,8 +104,16 @@ export function EditorToolbar({ onUndo, onRedo, canUndo, canRedo }: EditorToolba
   const setProgress = useEditorStore((s) => s.setAnimationProgress);
   const isAdvanced = editorMode === 'advanced';
 
+  const snapEnabled = useEditorStore((s) => s.snapEnabled);
+  const setSnapEnabled = useEditorStore((s) => s.setSnapEnabled);
+  const showGrid = useEditorStore((s) => s.showGrid);
+  const setShowGrid = useEditorStore((s) => s.setShowGrid);
+  const setPresentationMode = useEditorStore((s) => s.setPresentationMode);
+
+  const [showLayerPanel, setShowLayerPanel] = useState(false);
+
   return (
-    <div data-tutorial="toolbar" className="w-14 border-r border-border bg-card/60 backdrop-blur-md flex flex-col items-center py-3 gap-1 shrink-0">
+    <div data-tutorial="toolbar" className="w-14 border-r border-border bg-card/60 backdrop-blur-md flex flex-col items-center py-3 gap-1 shrink-0 relative">
       <div className="flex flex-col items-center gap-0.5">
         <ToolGroupLabel text="Select" />
         {SELECT_TOOLS.map((t) => <ToolButton key={t.tool} {...t} />)}
@@ -138,7 +151,73 @@ export function EditorToolbar({ onUndo, onRedo, canUndo, canRedo }: EditorToolba
         <span>{isAdvanced ? 'Less' : 'More'}</span>
       </button>
 
+      <Divider />
+
+      <div className="flex flex-col items-center gap-0.5">
+        <ToolGroupLabel text="Tools" />
+        <button
+          onClick={() => setSnapEnabled(!snapEnabled)}
+          title={snapEnabled ? 'Disable Snap' : 'Enable Snap'}
+          className={cn(
+            "w-9 h-9 rounded-lg flex items-center justify-center transition-all",
+            snapEnabled ? "bg-primary/20 text-primary" : "text-muted-foreground hover:bg-secondary hover:text-white"
+          )}
+        >
+          <Magnet className="w-3.5 h-3.5" />
+        </button>
+        <button
+          onClick={() => setShowGrid(!showGrid)}
+          title={showGrid ? 'Hide Grid' : 'Show Grid'}
+          className={cn(
+            "w-9 h-9 rounded-lg flex items-center justify-center transition-all",
+            showGrid ? "bg-primary/20 text-primary" : "text-muted-foreground hover:bg-secondary hover:text-white"
+          )}
+        >
+          <Grid3x3 className="w-3.5 h-3.5" />
+        </button>
+        <button
+          onClick={onMirror}
+          title="Mirror Board (flip horizontal)"
+          className="w-9 h-9 rounded-lg flex items-center justify-center text-muted-foreground hover:bg-secondary hover:text-white transition-all"
+        >
+          <FlipHorizontal2 className="w-3.5 h-3.5" />
+        </button>
+        <div className="relative">
+          <button
+            onClick={() => setShowLayerPanel(!showLayerPanel)}
+            title="Layer Controls"
+            className={cn(
+              "w-9 h-9 rounded-lg flex items-center justify-center transition-all",
+              showLayerPanel ? "bg-primary/20 text-primary" : "text-muted-foreground hover:bg-secondary hover:text-white"
+            )}
+          >
+            <Layers className="w-3.5 h-3.5" />
+          </button>
+          {showLayerPanel && (
+            <>
+              <div className="fixed inset-0 z-40" onClick={() => setShowLayerPanel(false)} />
+              <div className="absolute left-full top-0 ml-2 w-52 bg-card border border-border rounded-xl shadow-2xl z-50 p-2">
+                <div className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider px-2 py-1 mb-1">Layers</div>
+                <LayerPanel />
+              </div>
+            </>
+          )}
+        </div>
+      </div>
+
       <div className="flex-1" />
+
+      <div className="flex flex-col items-center gap-0.5">
+        <button
+          onClick={() => setPresentationMode(true)}
+          title="Presentation Mode"
+          className="w-10 h-10 rounded-lg flex items-center justify-center text-muted-foreground hover:bg-secondary hover:text-white transition-all"
+        >
+          <Presentation className="w-4 h-4" />
+        </button>
+      </div>
+
+      <Divider />
 
       <div className="flex flex-col items-center gap-0.5">
         <ToolGroupLabel text="Play" />

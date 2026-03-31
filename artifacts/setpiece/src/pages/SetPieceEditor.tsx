@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useRoute } from 'wouter';
 import { useGetTeam, useGetSetPiece, useCreateRole, useUpdateRole, useDeleteRole, useUpsertAssignment, useListPlayers, useUpdateSetPieceStatus, useUpdateSetPiece } from '@workspace/api-client-react';
 import type { SetPieceRole, RoleAssignment } from '@workspace/api-client-react';
-import { EditorCanvas, EditorToolbar, BottomBar, InspectorPanel, TutorialOverlay, ContextualTip, QuickLegend, useEditorStore } from '@/components/editor';
+import { EditorCanvas, EditorToolbar, BottomBar, InspectorPanel, TutorialOverlay, ContextualTip, QuickLegend, PresentationMode, EditorContextMenu, useEditorStore } from '@/components/editor';
 import type { Point, Annotation, BoardData, EditorCanvasHandle, PitchTheme } from '@/components/editor';
 import { migrateLegacyBoardData } from '@/components/editor/types';
 import { shouldShowTutorial, resetTutorial } from '@/components/editor/TutorialOverlay';
@@ -60,6 +60,27 @@ export default function SetPieceEditor() {
   const setShowTips = useEditorStore((s) => s.setShowTips);
   const inspectorCollapsed = useEditorStore((s) => s.inspectorCollapsed);
   const setInspectorCollapsed = useEditorStore((s) => s.setInspectorCollapsed);
+  const mirrorBoard = useEditorStore((s) => s.mirrorBoard);
+  const presentationMode = useEditorStore((s) => s.presentationMode);
+
+  const handleMirror = useCallback(async () => {
+    mirrorBoard();
+    setSaveState('saving');
+    try {
+      for (const role of (setPiece?.roles || [])) {
+        const curX = role.startPosition?.x ?? 50;
+        const curY = role.startPosition?.y ?? 50;
+        await updateRole.mutateAsync({
+          teamId, setPieceId, roleId: role.id,
+          data: { startPosition: { x: 100 - curX, y: curY } },
+        });
+      }
+      await refetch();
+      setSaveState('saved');
+    } catch {
+      setSaveState('error');
+    }
+  }, [mirrorBoard, setPiece?.roles, teamId, setPieceId, updateRole, refetch]);
 
   interface UndoEntry { roleId: string; prevPos: { x: number; y: number }; newPos: { x: number; y: number } }
   const [undoStack, setUndoStack] = useState<UndoEntry[]>([]);
@@ -550,11 +571,12 @@ export default function SetPieceEditor() {
           onRedo={handleRedo}
           canUndo={undoStack.length > 0}
           canRedo={redoStack.length > 0}
+          onMirror={handleMirror}
         />
 
         <div className="flex-1 flex flex-col overflow-hidden">
           <main data-tutorial="pitch" className="flex-1 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-background via-card to-background relative overflow-hidden flex items-center justify-center">
-            <div ref={canvasRef} className="w-full h-full p-3 flex items-center justify-center" data-pitch-container>
+            <div ref={canvasRef} className="w-full h-full p-3 flex items-center justify-center relative" data-pitch-container>
               <EditorCanvas
                 ref={canvasHandleRef}
                 width={canvasSize.width}
@@ -569,6 +591,16 @@ export default function SetPieceEditor() {
                 onPitchClick={handlePitchClick}
                 onLabelPrompt={handleLabelPrompt}
               />
+              {setPiece.roles.length === 0 && entities.length === 0 && annotations.length === 0 && (
+                <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-10">
+                  <div className="bg-card/80 backdrop-blur-sm border border-border/50 rounded-2xl px-6 py-4 text-center max-w-[260px]">
+                    <p className="text-sm font-display font-bold text-white mb-1">Empty Board</p>
+                    <p className="text-[11px] text-muted-foreground leading-relaxed">
+                      Use the toolbar to place players and draw movements. Start with the Team Player tool to add your first role.
+                    </p>
+                  </div>
+                </div>
+              )}
             </div>
 
             <QuickLegend />
@@ -629,6 +661,30 @@ export default function SetPieceEditor() {
           </form>
         </DialogContent>
       </Dialog>
+
+      <EditorContextMenu />
+
+      <PresentationMode
+        title={setPiece.title}
+        category={setPiece.category}
+      >
+        <div className="w-full h-full flex items-center justify-center">
+          <EditorCanvas
+            width={canvasSize.width}
+            height={canvasSize.height}
+            roles={setPiece.roles}
+            assignments={setPiece.assignments || []}
+            players={players}
+            activeRoleId={null}
+            category={setPiece.category}
+            readOnly
+            onRoleClick={() => {}}
+            onRoleDragEnd={() => {}}
+            onPitchClick={() => {}}
+            onLabelPrompt={() => {}}
+          />
+        </div>
+      </PresentationMode>
     </div>
   );
 }

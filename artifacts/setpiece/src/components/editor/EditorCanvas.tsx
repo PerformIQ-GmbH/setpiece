@@ -1,5 +1,5 @@
 import { useRef, useCallback, useState, useEffect, useImperativeHandle, forwardRef } from 'react';
-import { Stage, Layer, Group } from 'react-konva';
+import { Stage, Layer, Group, Line, Circle as KonvaCircle } from 'react-konva';
 import type Konva from 'konva';
 import { PremiumPitch } from './PremiumPitch';
 import { OffensiveCornerPitch } from './OffensiveCornerPitch';
@@ -7,6 +7,7 @@ import { TeamPlayerMarker, OpponentMarker, GoalkeeperMarker, BallMarker } from '
 import { AnnotationLayer, DrawingPreview } from './AnnotationLayer';
 import { useEditorStore } from './editorStore';
 import type { Point, Annotation, AnnotationType } from './types';
+import { snapPosition, PITCH_ANCHORS } from './snapUtils';
 
 interface RoleData {
   id: string;
@@ -34,6 +35,7 @@ interface EditorCanvasProps {
   players?: PlayerData[];
   activeRoleId: string | null;
   category?: string;
+  readOnly?: boolean;
   onRoleClick: (roleId: string) => void;
   onRoleDragEnd: (roleId: string, pos: { x: number; y: number }) => void;
   onPitchClick: (pos: { x: number; y: number }) => void;
@@ -48,7 +50,7 @@ const PAD = 24;
 
 export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(function EditorCanvas({
   width, height, roles, assignments, players,
-  activeRoleId, category = '', onRoleClick, onRoleDragEnd, onPitchClick, onLabelPrompt,
+  activeRoleId, category = '', readOnly = false, onRoleClick, onRoleDragEnd, onPitchClick, onLabelPrompt,
 }, ref) {
   const isCornerKick = category.includes('corner');
   const halfPitch = !isCornerKick && category.includes('free_kick');
@@ -97,6 +99,19 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
   const deleteAnnotation = useEditorStore((s) => s.deleteAnnotation);
   const moveAnnotation = useEditorStore((s) => s.moveAnnotation);
   const deleteEntity = useEditorStore((s) => s.deleteEntity);
+
+  const snapEnabled = useEditorStore((s) => s.snapEnabled);
+  const showGrid = useEditorStore((s) => s.showGrid);
+  const layerVisibility = useEditorStore((s) => s.layerVisibility);
+  const layerLocked = useEditorStore((s) => s.layerLocked);
+  const setContextMenu = useEditorStore((s) => s.setContextMenu);
+
+  const markerPositions: Point[] = [
+    ...roles.map(r => ({ x: r.startPosition?.x ?? 50, y: r.startPosition?.y ?? 50 })),
+    ...entities.map(e => e.position),
+  ];
+
+  const snapPos = useCallback((pos: Point) => snapPosition(pos, markerPositions, snapEnabled), [markerPositions, snapEnabled]);
 
   const animation = useEditorStore((s) => s.animation);
   const setAnimationProgress = useEditorStore((s) => s.setAnimationProgress);
@@ -170,6 +185,7 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
   }, [drawingPoints, activeTool, strokeColor, strokeWidth, isDashed, showArrowhead, annotations.length, addAnnotation, clearDrawingPoints]);
 
   const handleStageClick = useCallback((e: Konva.KonvaEventObject<MouseEvent>) => {
+    if (readOnly) return;
     const isBackground = e.target === stageRef.current || e.target.name() === 'pitch-bg';
     const pos = stageRef.current?.getPointerPosition();
     if (!pos) return;
@@ -408,6 +424,36 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
     return interpolatePath(passAnns[0].points, animation.progress);
   };
 
+  const handleContextMenu = useCallback((e: Konva.KonvaEventObject<PointerEvent>) => {
+    e.evt.preventDefault();
+    if (readOnly) return;
+    const state = useEditorStore.getState();
+    if (state.selectedAnnotationId) {
+      setContextMenu({
+        x: e.evt.clientX,
+        y: e.evt.clientY,
+        targetType: 'annotation',
+        targetId: state.selectedAnnotationId,
+      });
+      return;
+    }
+    if (state.selectedEntityId) {
+      setContextMenu({
+        x: e.evt.clientX,
+        y: e.evt.clientY,
+        targetType: 'entity',
+        targetId: state.selectedEntityId,
+      });
+    }
+  }, [setContextMenu, readOnly]);
+
+  const filteredAnnotations = playbackAnnotations.filter(a => {
+    if (['run_path', 'curved_run', 'pass_line', 'curved_cross'].includes(a.type) && !layerVisibility.actions) return false;
+    if (['zone_circle', 'zone_rect'].includes(a.type) && !layerVisibility.zones) return false;
+    if (a.type === 'label' && !layerVisibility.labels) return false;
+    return true;
+  });
+
   return (
     <Stage
       ref={stageRef}
@@ -415,6 +461,7 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
       height={height}
       onClick={handleStageClick}
       onDblClick={handleDblClick}
+      onContextMenu={handleContextMenu}
       style={{ cursor: isDrawingTool ? 'crosshair' : isEntityTool ? 'cell' : 'default' }}
     >
       <Layer>
@@ -425,19 +472,37 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
         )}
       </Layer>
 
+      {showGrid && (
+        <Layer listening={false} opacity={0.15}>
+          {Array.from({ length: 11 }, (_, i) => {
+            const x = PAD + (i * 10 / 100) * pitchW;
+            return <Line key={`gv${i}`} points={[x, PAD, x, PAD + pitchH]} stroke="#fff" strokeWidth={0.5} />;
+          })}
+          {Array.from({ length: 11 }, (_, i) => {
+            const y = PAD + (i * 10 / 100) * pitchH;
+            return <Line key={`gh${i}`} points={[PAD, y, PAD + pitchW, y]} stroke="#fff" strokeWidth={0.5} />;
+          })}
+          {PITCH_ANCHORS.map((a, i) => {
+            const px = toPixel(a.pos);
+            return <KonvaCircle key={`sa${i}`} x={px.x} y={px.y} radius={3} fill="#10b981" opacity={0.6} />;
+          })}
+        </Layer>
+      )}
+
       <Layer>
         <AnnotationLayer
-          annotations={playbackAnnotations}
+          annotations={filteredAnnotations}
           selectedId={selectedAnnotationId}
           focusedRoleId={activeRoleId}
           hasFocusedElement={hasFocusedElement}
-          onSelect={setSelectedAnnotationId}
+          onSelect={readOnly ? () => {} : setSelectedAnnotationId}
           onMove={moveAnnotation}
           toPixel={toPixel}
           toPct={toPct}
           pitchW={pitchW}
           pitchH={pitchH}
           pad={PAD}
+          readOnly={readOnly || layerLocked.actions}
         />
 
         {isDrawingTool && drawingPoints.length >= 2 && (
@@ -455,6 +520,10 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
 
       <Layer>
         {entities.map((ent) => {
+          const layerKey = ent.type === 'opponent' ? 'opponents' : ent.type === 'ball' ? 'ball' : 'team';
+          if (!layerVisibility[layerKey]) return null;
+          const isLocked = layerLocked[layerKey];
+
           const px = toPixel(ent.position);
           const isSelected = ent.id === selectedEntityId;
           const isDimmed = hasFocusedElement && !isSelected;
@@ -469,10 +538,10 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
                 shirtNumber={ent.shirtNumber}
                 label={ent.label}
                 lightPitch={lightPitch}
-                draggable
-                onDragEnd={(pos) => updateEntity(ent.id, { position: toPct(pos) })}
-                onClick={() => setSelectedEntityId(ent.id)}
-                onTap={() => setSelectedEntityId(ent.id)}
+                draggable={!isLocked}
+                onDragEnd={(pos) => updateEntity(ent.id, { position: snapPos(toPct(pos)) })}
+                onClick={() => !isLocked && setSelectedEntityId(ent.id)}
+                onTap={() => !isLocked && setSelectedEntityId(ent.id)}
               />
             );
           }
@@ -487,10 +556,10 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
                 shirtNumber={ent.shirtNumber}
                 label={ent.label}
                 lightPitch={lightPitch}
-                draggable
-                onDragEnd={(pos) => updateEntity(ent.id, { position: toPct(pos) })}
-                onClick={() => setSelectedEntityId(ent.id)}
-                onTap={() => setSelectedEntityId(ent.id)}
+                draggable={!isLocked}
+                onDragEnd={(pos) => updateEntity(ent.id, { position: snapPos(toPct(pos)) })}
+                onClick={() => !isLocked && setSelectedEntityId(ent.id)}
+                onTap={() => !isLocked && setSelectedEntityId(ent.id)}
               />
             );
           }
@@ -505,17 +574,17 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
                 isSelected={isSelected}
                 isDimmed={isDimmed}
                 lightPitch={lightPitch}
-                draggable
-                onDragEnd={(pos) => updateEntity(ent.id, { position: toPct(pos) })}
-                onClick={() => setSelectedEntityId(ent.id)}
-                onTap={() => setSelectedEntityId(ent.id)}
+                draggable={!isLocked}
+                onDragEnd={(pos) => updateEntity(ent.id, { position: snapPos(toPct(pos)) })}
+                onClick={() => !isLocked && setSelectedEntityId(ent.id)}
+                onTap={() => !isLocked && setSelectedEntityId(ent.id)}
               />
             );
           }
           return null;
         })}
 
-        {roles.map((role) => {
+        {layerVisibility.team && roles.map((role) => {
           const pct = getAnimatedPosition(role.id, role);
           const px = toPixel(pct);
           const isActive = role.id === activeRoleId;
@@ -523,6 +592,7 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
           const player = assignment ? players?.find(p => p.id === assignment.playerId) : null;
           const isUnassigned = !assignment;
           const isDimmed = hasFocusedElement && !isActive;
+          const isLocked = layerLocked.team;
 
           return (
             <TeamPlayerMarker
@@ -537,10 +607,10 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
               lastName={player?.lastName}
               label={role.name}
               lightPitch={lightPitch}
-              draggable
-              onDragEnd={(pos) => onRoleDragEnd(role.id, toPct(pos))}
-              onClick={() => onRoleClick(role.id)}
-              onTap={() => onRoleClick(role.id)}
+              draggable={!isLocked}
+              onDragEnd={(pos) => onRoleDragEnd(role.id, snapPos(toPct(pos)))}
+              onClick={() => !isLocked && onRoleClick(role.id)}
+              onTap={() => !isLocked && onRoleClick(role.id)}
               onMouseEnter={() => setHoveredRoleId(role.id)}
               onMouseLeave={() => setHoveredRoleId(null)}
             />

@@ -14,6 +14,7 @@ interface AnnotationLayerProps {
   pitchW: number;
   pitchH: number;
   pad: number;
+  readOnly?: boolean;
 }
 
 function pctToAbsPoints(points: Point[], toPixel: (p: Point) => Point): number[] {
@@ -25,8 +26,9 @@ function pctToAbsPoints(points: Point[], toPixel: (p: Point) => Point): number[]
   return flat;
 }
 
-export function AnnotationLayer({ annotations, selectedId, focusedRoleId, hasFocusedElement, onSelect, onMove, toPixel, toPct, pitchW, pitchH, pad }: AnnotationLayerProps) {
+export function AnnotationLayer({ annotations, selectedId, focusedRoleId, hasFocusedElement, onSelect, onMove, toPixel, toPct, pitchW, pitchH, pad, readOnly }: AnnotationLayerProps) {
   const makeDragHandlers = (ann: Annotation) => {
+    if (readOnly) return { draggable: false };
     let startPos = { x: 0, y: 0 };
     return {
       draggable: true,
