@@ -165,6 +165,10 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
       clearDrawingPoints();
       return;
     }
+    if (useEditorStore.getState().layerLocked.actions) {
+      clearDrawingPoints();
+      return;
+    }
     const toolType = activeTool as AnnotationType;
     const isRunType = toolType === 'run_path' || toolType === 'curved_run';
     const isPassType = toolType === 'pass_line' || toolType === 'curved_cross';
@@ -239,18 +243,24 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
     }
 
     if (activeTool === 'label') {
+      if (useEditorStore.getState().layerLocked.labels) return;
       onLabelPrompt(pct);
       return;
     }
 
     if (isEntityTool && isBackground) {
+      const ll = useEditorStore.getState().layerLocked;
       if (activeTool === 'team_player') {
+        if (ll.team) return;
         onPitchClick(pct);
         return;
       }
+      const entType = activeTool === 'ball' ? 'ball' : activeTool === 'goalkeeper' ? 'goalkeeper' : 'opponent';
+      const entLayerKey = entType === 'opponent' ? 'opponents' : entType === 'ball' ? 'ball' : 'team';
+      if (ll[entLayerKey as keyof typeof ll]) return;
       addEntity({
         id: crypto.randomUUID(),
-        type: activeTool === 'ball' ? 'ball' : activeTool === 'goalkeeper' ? 'goalkeeper' : 'opponent',
+        type: entType,
         position: pct,
         shirtNumber: activeTool === 'goalkeeper' ? 1 : undefined,
       });
@@ -258,11 +268,13 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
     }
 
     if (isDrawingTool) {
+      if (useEditorStore.getState().layerLocked.actions) return;
       addDrawingPoint(pct);
       return;
     }
 
     if (activeTool === 'zone_circle' && isBackground) {
+      if (useEditorStore.getState().layerLocked.zones) return;
       const ann: Annotation = {
         id: crypto.randomUUID(),
         type: 'zone_circle',
@@ -279,6 +291,7 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
     }
 
     if (activeTool === 'zone_rect') {
+      if (useEditorStore.getState().layerLocked.zones) return;
       if (drawingPoints.length === 0) {
         addDrawingPoint(pct);
       } else {
