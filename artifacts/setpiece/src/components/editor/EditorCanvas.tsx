@@ -207,7 +207,13 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
       const state = useEditorStore.getState();
       const currentStep = state.steps[state.animation.activeStepIndex];
       const currentStepId = currentStep?.id;
-      const visibleAnns = currentStepId ? annotations.filter(a => a.stepId === currentStepId) : annotations;
+      const visibleAnns = (currentStepId ? annotations.filter(a => a.stepId === currentStepId) : annotations)
+        .filter(a => {
+          if (['run_path', 'curved_run', 'pass_line', 'curved_cross'].includes(a.type)) return layerVisibility.actions && !layerLocked.actions;
+          if (['zone_circle', 'zone_rect'].includes(a.type)) return layerVisibility.zones && !layerLocked.zones;
+          if (a.type === 'label') return layerVisibility.labels && !layerLocked.labels;
+          return true;
+        });
       for (const ann of visibleAnns) {
         for (const pt of ann.points) {
           const d = Math.hypot(pt.x - pct.x, pt.y - pct.y);
@@ -217,6 +223,8 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
       let closestEntId: string | null = null;
       let closestEntDist = Infinity;
       for (const ent of entities) {
+        const layerKey = ent.type === 'opponent' ? 'opponents' as const : ent.type === 'ball' ? 'ball' as const : 'team' as const;
+        if (!layerVisibility[layerKey] || layerLocked[layerKey]) continue;
         const d = Math.hypot(ent.position.x - pct.x, ent.position.y - pct.y);
         if (d < closestEntDist) { closestEntDist = d; closestEntId = ent.id; }
       }
@@ -300,6 +308,7 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
+      if (readOnly) return;
       if (e.key === 'Enter' && isDrawingTool && drawingPoints.length >= 2) {
         finishDrawing();
       }
@@ -317,7 +326,7 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [isDrawingTool, drawingPoints.length, finishDrawing, clearDrawingPoints, setSelectedAnnotationId, setSelectedEntityId, deleteAnnotation, deleteEntity]);
+  }, [readOnly, isDrawingTool, drawingPoints.length, finishDrawing, clearDrawingPoints, setSelectedAnnotationId, setSelectedEntityId, deleteAnnotation, deleteEntity]);
 
   const interpolatePath = (path: Point[], t: number): Point => {
     if (path.length === 0) return { x: 50, y: 50 };
