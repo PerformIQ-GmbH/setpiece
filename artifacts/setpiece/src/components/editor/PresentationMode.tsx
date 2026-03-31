@@ -1,3 +1,4 @@
+import { useRef, useState, useEffect, useCallback } from 'react';
 import { useEditorStore } from './editorStore';
 import { QuickLegend } from './QuickLegend';
 import { cn } from '@/lib/utils';
@@ -6,7 +7,7 @@ import { X, Play, Pause, RotateCcw, ChevronLeft, ChevronRight, Info } from 'luci
 interface PresentationModeProps {
   title: string;
   category: string;
-  children: React.ReactNode;
+  children: (size: { width: number; height: number }) => React.ReactNode;
 }
 
 export function PresentationMode({ title, category, children }: PresentationModeProps) {
@@ -21,6 +22,26 @@ export function PresentationMode({ title, category, children }: PresentationMode
   const goToPrevStep = useEditorStore((s) => s.goToPrevStep);
   const showLegend = useEditorStore((s) => s.showLegend);
   const setShowLegend = useEditorStore((s) => s.setShowLegend);
+
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [containerSize, setContainerSize] = useState({ width: 800, height: 500 });
+
+  useEffect(() => {
+    if (!presentationMode || !containerRef.current) return;
+    const el = containerRef.current;
+    const ro = new ResizeObserver((entries) => {
+      const entry = entries[0];
+      if (entry) {
+        const pad = 32;
+        setContainerSize({
+          width: Math.max(100, entry.contentRect.width - pad),
+          height: Math.max(100, entry.contentRect.height - pad),
+        });
+      }
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [presentationMode]);
 
   if (!presentationMode) return null;
 
@@ -61,8 +82,8 @@ export function PresentationMode({ title, category, children }: PresentationMode
         </button>
       </div>
 
-      <div className="flex-1 flex items-center justify-center p-4 overflow-hidden relative">
-        {children}
+      <div ref={containerRef} className="flex-1 flex items-center justify-center p-4 overflow-hidden relative">
+        {children(containerSize)}
         {showLegend && (
           <div className="absolute bottom-4 left-4 z-10">
             <QuickLegend />
