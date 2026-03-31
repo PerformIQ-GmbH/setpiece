@@ -310,7 +310,7 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      if (readOnly) return;
+      if (readOnly || useEditorStore.getState().presentationMode) return;
       if (e.key === 'Enter' && isDrawingTool && drawingPoints.length >= 2) {
         finishDrawing();
       }
