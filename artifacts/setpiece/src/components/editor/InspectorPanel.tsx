@@ -272,6 +272,8 @@ function AnnotationInspector({ annotation, onUpdate, onDelete, roles }: {
   onDelete: () => void;
   roles?: RoleData[];
 }) {
+  const steps = useEditorStore((s) => s.steps);
+
   const typeLabels: Record<string, string> = {
     run_path: 'Run Path',
     curved_run: 'Curved Run',
@@ -394,6 +396,23 @@ function AnnotationInspector({ annotation, onUpdate, onDelete, roles }: {
                 ))}
               </select>
               <p className="text-[9px] text-muted-foreground">Player animates along this path</p>
+            </div>
+          </CollapsibleSection>
+        )}
+
+        {steps.length > 1 && (
+          <CollapsibleSection title="Animation Step">
+            <div className="space-y-1">
+              <select
+                value={annotation.stepId || ''}
+                onChange={(e) => onUpdate({ stepId: e.target.value || undefined })}
+                className="w-full bg-secondary border border-border rounded-lg px-2 py-1.5 text-[11px] text-foreground focus:outline-none focus:border-primary"
+              >
+                {steps.map((st, idx) => (
+                  <option key={st.id} value={st.id}>{idx + 1}. {st.label}</option>
+                ))}
+              </select>
+              <p className="text-[9px] text-muted-foreground">Which step this annotation plays in</p>
             </div>
           </CollapsibleSection>
         )}

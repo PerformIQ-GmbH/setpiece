@@ -1,11 +1,13 @@
 import { create } from 'zustand';
-import type { EditorTool, EditorMode, PitchTheme, Annotation, EntityMarker, Point } from './types';
-import { BASIC_TOOLS } from './types';
+import type { EditorTool, EditorMode, PitchTheme, Annotation, EntityMarker, Point, AnimationStep } from './types';
+import { BASIC_TOOLS, createDefaultStep } from './types';
 
 interface AnimationState {
   playing: boolean;
   progress: number;
   speed: number;
+  activeStepIndex: number;
+  playMode: 'step' | 'all';
 }
 
 interface EditorState {
@@ -64,10 +66,21 @@ interface EditorState {
   forceDashed: boolean;
   setForceDashed: (dashed: boolean) => void;
 
+  steps: AnimationStep[];
+  setSteps: (steps: AnimationStep[]) => void;
+  addStep: () => void;
+  updateStep: (id: string, updates: Partial<AnimationStep>) => void;
+  deleteStep: (id: string) => void;
+  reorderStep: (id: string, direction: 'up' | 'down') => void;
+
   animation: AnimationState;
   setAnimationPlaying: (playing: boolean) => void;
   setAnimationProgress: (progress: number) => void;
   setAnimationSpeed: (speed: number) => void;
+  setActiveStepIndex: (index: number) => void;
+  setPlayMode: (mode: 'step' | 'all') => void;
+  goToNextStep: () => void;
+  goToPrevStep: () => void;
 
   resetStore: () => void;
 }
@@ -95,7 +108,9 @@ function getStoredTips(): boolean {
   return true;
 }
 
-export const useEditorStore = create<EditorState>((set) => ({
+const defaultStep = createDefaultStep();
+
+export const useEditorStore = create<EditorState>((set, get) => ({
   editorMode: getStoredEditorMode(),
   setEditorMode: (mode) => {
     try { localStorage.setItem('setpiece-editor-mode', mode); } catch {}
@@ -137,7 +152,13 @@ export const useEditorStore = create<EditorState>((set) => ({
 
   annotations: [],
   setAnnotations: (annotations) => set({ annotations }),
-  addAnnotation: (annotation) => set((s) => ({ annotations: [...s.annotations, annotation] })),
+  addAnnotation: (annotation) => set((s) => {
+    const activeStep = s.steps[s.animation.activeStepIndex];
+    const ann = activeStep && !annotation.stepId
+      ? { ...annotation, stepId: activeStep.id }
+      : annotation;
+    return { annotations: [...s.annotations, ann] };
+  }),
   updateAnnotation: (id, updates) => set((s) => ({
     annotations: s.annotations.map((a) => (a.id === id ? { ...a, ...updates } : a)),
   })),
@@ -187,18 +208,84 @@ export const useEditorStore = create<EditorState>((set) => ({
   forceDashed: false,
   setForceDashed: (dashed) => set({ forceDashed: dashed }),
 
-  animation: { playing: false, progress: 0, speed: 1 },
+  steps: [defaultStep],
+  setSteps: (steps) => set({ steps }),
+  addStep: () => set((s) => {
+    const maxOrder = s.steps.reduce((max, st) => Math.max(max, st.sortOrder), -1);
+    const newStep: AnimationStep = {
+      id: crypto.randomUUID(),
+      label: `Step ${s.steps.length + 1}`,
+      sortOrder: maxOrder + 1,
+    };
+    return { steps: [...s.steps, newStep] };
+  }),
+  updateStep: (id, updates) => set((s) => ({
+    steps: s.steps.map((st) => (st.id === id ? { ...st, ...updates } : st)),
+  })),
+  deleteStep: (id) => set((s) => {
+    if (s.steps.length <= 1) return s;
+    const filtered = s.steps.filter((st) => st.id !== id);
+    const fallbackId = filtered[0]?.id;
+    return {
+      steps: filtered,
+      annotations: s.annotations.map((a) =>
+        a.stepId === id ? { ...a, stepId: fallbackId } : a
+      ),
+      animation: {
+        ...s.animation,
+        activeStepIndex: Math.min(s.animation.activeStepIndex, filtered.length - 1),
+      },
+    };
+  }),
+  reorderStep: (id, direction) => set((s) => {
+    const idx = s.steps.findIndex((st) => st.id === id);
+    if (idx < 0) return s;
+    const swapIdx = direction === 'up' ? idx - 1 : idx + 1;
+    if (swapIdx < 0 || swapIdx >= s.steps.length) return s;
+    const newSteps = [...s.steps];
+    const tempOrder = newSteps[idx].sortOrder;
+    newSteps[idx] = { ...newSteps[idx], sortOrder: newSteps[swapIdx].sortOrder };
+    newSteps[swapIdx] = { ...newSteps[swapIdx], sortOrder: tempOrder };
+    newSteps.sort((a, b) => a.sortOrder - b.sortOrder);
+    return { steps: newSteps };
+  }),
+
+  animation: { playing: false, progress: 0, speed: 1, activeStepIndex: 0, playMode: 'step' },
   setAnimationPlaying: (playing) => set((s) => ({ animation: { ...s.animation, playing } })),
   setAnimationProgress: (progress) => set((s) => ({ animation: { ...s.animation, progress } })),
   setAnimationSpeed: (speed) => set((s) => ({ animation: { ...s.animation, speed } })),
+  setActiveStepIndex: (index) => set((s) => ({
+    animation: { ...s.animation, activeStepIndex: index, progress: 0, playing: false },
+  })),
+  setPlayMode: (mode) => set((s) => ({
+    animation: { ...s.animation, playMode: mode },
+  })),
+  goToNextStep: () => {
+    const s = get();
+    const nextIdx = s.animation.activeStepIndex + 1;
+    if (nextIdx < s.steps.length) {
+      set({ animation: { ...s.animation, activeStepIndex: nextIdx, progress: 0 } });
+    }
+  },
+  goToPrevStep: () => {
+    const s = get();
+    const prevIdx = s.animation.activeStepIndex - 1;
+    if (prevIdx >= 0) {
+      set({ animation: { ...s.animation, activeStepIndex: prevIdx, progress: 0 } });
+    }
+  },
 
-  resetStore: () => set({
-    activeTool: 'select',
-    selectedAnnotationId: null,
-    selectedEntityId: null,
-    annotations: [],
-    entities: [],
-    drawingPoints: [],
-    animation: { playing: false, progress: 0, speed: 1 },
-  }),
+  resetStore: () => {
+    const fresh = createDefaultStep();
+    set({
+      activeTool: 'select',
+      selectedAnnotationId: null,
+      selectedEntityId: null,
+      annotations: [],
+      entities: [],
+      drawingPoints: [],
+      steps: [fresh],
+      animation: { playing: false, progress: 0, speed: 1, activeStepIndex: 0, playMode: 'step' },
+    });
+  },
 }));

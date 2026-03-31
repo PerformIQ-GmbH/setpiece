@@ -103,6 +103,8 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
   const animation = useEditorStore((s) => s.animation);
   const setAnimationProgress = useEditorStore((s) => s.setAnimationProgress);
   const setAnimationPlaying = useEditorStore((s) => s.setAnimationPlaying);
+  const steps = useEditorStore((s) => s.steps);
+  const goToNextStep = useEditorStore((s) => s.goToNextStep);
 
   const hasFocusedElement = activeRoleId !== null || selectedEntityId !== null;
 
@@ -114,10 +116,18 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
     const tick = (now: number) => {
       const dt = (now - lastTime) / 1000;
       lastTime = now;
-      const speed = useEditorStore.getState().animation.speed;
+      const state = useEditorStore.getState();
+      const speed = state.animation.speed;
       const newProgress = progressRef.current + dt * 0.2 * speed;
       if (newProgress >= 1) {
         setAnimationProgress(1);
+        if (state.animation.playMode === 'all' && state.animation.activeStepIndex < state.steps.length - 1) {
+          goToNextStep();
+          progressRef.current = 0;
+          lastTime = now;
+          animFrame = requestAnimationFrame(tick);
+          return;
+        }
         setAnimationPlaying(false);
         return;
       }
@@ -182,7 +192,11 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
       const hitThreshold = 3;
       let closestAnnId: string | null = null;
       let closestAnnDist = Infinity;
-      for (const ann of annotations) {
+      const state = useEditorStore.getState();
+      const currentStep = state.steps[state.animation.activeStepIndex];
+      const currentStepId = currentStep?.id;
+      const visibleAnns = currentStepId ? annotations.filter(a => a.stepId === currentStepId) : annotations;
+      for (const ann of visibleAnns) {
         for (const pt of ann.points) {
           const d = Math.hypot(pt.x - pct.x, pt.y - pct.y);
           if (d < closestAnnDist) { closestAnnDist = d; closestAnnId = ann.id; }
@@ -306,11 +320,18 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
     };
   };
 
+  const activeStep = steps[animation.activeStepIndex];
+  const activeStepId = activeStep?.id;
+
+  const stepAnnotations = activeStepId
+    ? annotations.filter(a => a.stepId === activeStepId)
+    : annotations;
+
   const getAnimatedPosition = (roleId: string, role: RoleData): Point => {
     const basePos = { x: role.startPosition?.x ?? 50, y: role.startPosition?.y ?? 50 };
     if (!animation.playing && animation.progress === 0) return basePos;
 
-    const linkedRun = annotations.find(
+    const linkedRun = stepAnnotations.find(
       a => a.linkedRoleId === roleId && (a.type === 'run_path' || a.type === 'curved_run') && a.points.length >= 2
     );
     if (linkedRun) return interpolatePath(linkedRun.points, animation.progress);
@@ -321,11 +342,11 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
       if (validPath.length >= 2) return interpolatePath(validPath, animation.progress);
     }
 
-    const unlinkedRuns = annotations.filter(
+    const unlinkedRuns = stepAnnotations.filter(
       a => !a.linkedRoleId && (a.type === 'run_path' || a.type === 'curved_run') && a.points.length >= 2
     );
     const roleIdx = roles.findIndex(r => r.id === roleId);
-    const usedLinkedCount = annotations.filter(
+    const usedLinkedCount = stepAnnotations.filter(
       a => a.linkedRoleId && (a.type === 'run_path' || a.type === 'curved_run') && a.points.length >= 2
     ).length;
     const unlinkedIdx = roleIdx - usedLinkedCount;
@@ -338,7 +359,7 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
 
   const getAnimatedBallPosition = (): Point | null => {
     if (!animation.playing && animation.progress === 0) return null;
-    const passAnns = annotations.filter(
+    const passAnns = stepAnnotations.filter(
       a => (a.type === 'pass_line' || a.type === 'curved_cross') && a.points.length >= 2
     );
     if (passAnns.length === 0) return null;
@@ -364,7 +385,7 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
 
       <Layer>
         <AnnotationLayer
-          annotations={annotations}
+          annotations={stepAnnotations}
           selectedId={selectedAnnotationId}
           focusedRoleId={activeRoleId}
           hasFocusedElement={hasFocusedElement}

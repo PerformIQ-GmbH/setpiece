@@ -8,4 +8,4 @@ export { TutorialOverlay } from './TutorialOverlay';
 export { ContextualTip } from './ContextualTip';
 export { QuickLegend } from './QuickLegend';
 export { useEditorStore } from './editorStore';
-export type { EditorTool, EditorMode, PitchTheme, Annotation, EntityMarker, Point, BoardData } from './types';
+export type { EditorTool, EditorMode, PitchTheme, Annotation, AnimationStep, EntityMarker, Point, BoardData } from './types';

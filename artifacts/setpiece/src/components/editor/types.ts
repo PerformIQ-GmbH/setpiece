@@ -31,6 +31,12 @@ export interface Point {
   y: number;
 }
 
+export interface AnimationStep {
+  id: string;
+  label: string;
+  sortOrder: number;
+}
+
 export interface Annotation {
   id: string;
   type: AnnotationType;
@@ -45,11 +51,13 @@ export interface Annotation {
   width?: number;
   height?: number;
   linkedRoleId?: string;
+  stepId?: string;
 }
 
 export interface BoardData {
   annotations: Annotation[];
   entities: EntityMarker[];
+  steps?: AnimationStep[];
 }
 
 export interface EntityMarker {
@@ -82,6 +90,41 @@ export const ADVANCED_TOOLS: EditorTool[] = [
   'goalkeeper', 'curved_run', 'curved_cross',
   'zone_circle', 'zone_rect', 'label', 'erase',
 ];
+
+export const ACTION_SEMANTICS: Record<string, { label: string; description: string; style: string }> = {
+  run_path: { label: 'Player Run', description: 'Dashed line showing player movement', style: 'dashed' },
+  curved_run: { label: 'Curved Run', description: 'Curved dashed line for arcing runs', style: 'dashed' },
+  pass_line: { label: 'Pass', description: 'Solid line representing a pass', style: 'solid' },
+  curved_cross: { label: 'Cross / Delivery', description: 'Curved solid line for crosses', style: 'solid' },
+};
+
+export function createDefaultStep(): AnimationStep {
+  return { id: crypto.randomUUID(), label: 'Step 1', sortOrder: 0 };
+}
+
+export function migrateLegacyBoardData(bd: Partial<BoardData>): BoardData {
+  const annotations = Array.isArray(bd.annotations) ? [...bd.annotations] : [];
+  const entities = Array.isArray(bd.entities) ? bd.entities : [];
+  let steps = Array.isArray(bd.steps) && bd.steps.length > 0 ? [...bd.steps] : [];
+
+  if (steps.length === 0) {
+    const defaultStep = createDefaultStep();
+    steps = [defaultStep];
+  }
+
+  steps.sort((a, b) => a.sortOrder - b.sortOrder);
+
+  const validStepIds = new Set(steps.map(s => s.id));
+  const fallbackStepId = steps[0].id;
+
+  for (const ann of annotations) {
+    if (!ann.stepId || !validStepIds.has(ann.stepId)) {
+      ann.stepId = fallbackStepId;
+    }
+  }
+
+  return { annotations, entities, steps };
+}
 
 export interface PitchThemeColors {
   background: string;

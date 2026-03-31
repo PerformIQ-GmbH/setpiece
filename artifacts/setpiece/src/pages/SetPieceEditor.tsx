@@ -4,6 +4,7 @@ import { useGetTeam, useGetSetPiece, useCreateRole, useUpdateRole, useDeleteRole
 import type { SetPieceRole, RoleAssignment } from '@workspace/api-client-react';
 import { EditorCanvas, EditorToolbar, BottomBar, InspectorPanel, TutorialOverlay, ContextualTip, QuickLegend, useEditorStore } from '@/components/editor';
 import type { Point, Annotation, BoardData, EditorCanvasHandle, PitchTheme } from '@/components/editor';
+import { migrateLegacyBoardData } from '@/components/editor/types';
 import { shouldShowTutorial, resetTutorial } from '@/components/editor/TutorialOverlay';
 import { resetAllTips } from '@/components/editor/ContextualTip';
 import { StatusBadge } from '@/components/StatusBadge';
@@ -79,6 +80,7 @@ export default function SetPieceEditor() {
   const strokeWidth = useEditorStore((s) => s.strokeWidth);
   const showArrowhead = useEditorStore((s) => s.showArrowhead);
   const resetStore = useEditorStore((s) => s.resetStore);
+  const steps = useEditorStore((s) => s.steps);
 
   const boardDataLoadedRef = useRef<string | null>(null);
 
@@ -88,14 +90,19 @@ export default function SetPieceEditor() {
     }
   }, []);
 
+  const setSteps = useEditorStore((s) => s.setSteps);
+
   useEffect(() => {
     if (!setPiece?.id) return;
     if (boardDataLoadedRef.current === setPiece.id) return;
     resetStore();
     if (setPiece.boardData && typeof setPiece.boardData === 'object') {
-      const bd = setPiece.boardData as Partial<BoardData>;
-      if (Array.isArray(bd.annotations)) setAnnotations(bd.annotations);
-      if (Array.isArray(bd.entities)) setEntities(bd.entities);
+      const bd = migrateLegacyBoardData(setPiece.boardData as Partial<BoardData>);
+      setAnnotations(bd.annotations);
+      setEntities(bd.entities);
+      if (bd.steps && bd.steps.length > 0) {
+        setSteps(bd.steps);
+      }
     }
     boardDataLoadedRef.current = setPiece.id;
   }, [setPiece?.id]);
@@ -130,13 +137,12 @@ export default function SetPieceEditor() {
   }, []);
 
   const saveBoardData = useCallback(async () => {
-    const currentAnnotations = useEditorStore.getState().annotations;
-    const currentEntities = useEditorStore.getState().entities;
+    const state = useEditorStore.getState();
     setSaveState('saving');
     try {
       await updateSetPiece.mutateAsync({
         teamId, setPieceId,
-        data: { boardData: { annotations: currentAnnotations, entities: currentEntities } }
+        data: { boardData: { annotations: state.annotations, entities: state.entities, steps: state.steps } }
       });
       setSaveState('saved');
     } catch {
@@ -155,7 +161,7 @@ export default function SetPieceEditor() {
       saveBoardData();
     }, 2000);
     return () => clearTimeout(timer);
-  }, [annotations, entities]);
+  }, [annotations, entities, steps]);
 
   const movementPathCacheRef = useRef<Record<string, string>>({});
   const handleMovementPathSync = useCallback(async (roleId: string, path: Array<{ x: number; y: number }>) => {

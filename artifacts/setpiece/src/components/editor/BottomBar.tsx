@@ -1,7 +1,8 @@
+import { useState } from 'react';
 import { useEditorStore } from './editorStore';
 import { ANNOTATION_COLORS } from './types';
 import { cn } from '@/lib/utils';
-import { Play, Pause, RotateCcw, Trash2, ArrowRight, Minus } from 'lucide-react';
+import { Play, Pause, RotateCcw, Trash2, ArrowRight, Minus, ChevronLeft, ChevronRight, Plus, GripVertical, Pencil, Check, X } from 'lucide-react';
 
 const WIDTHS = [1.5, 2.5, 4, 6];
 
@@ -59,6 +60,17 @@ export function BottomBar() {
   const deleteEntity = useEditorStore((s) => s.deleteEntity);
   const annotations = useEditorStore((s) => s.annotations);
   const entities = useEditorStore((s) => s.entities);
+  const steps = useEditorStore((s) => s.steps);
+  const setActiveStepIndex = useEditorStore((s) => s.setActiveStepIndex);
+  const goToNextStep = useEditorStore((s) => s.goToNextStep);
+  const goToPrevStep = useEditorStore((s) => s.goToPrevStep);
+  const addStep = useEditorStore((s) => s.addStep);
+  const updateStep = useEditorStore((s) => s.updateStep);
+  const deleteStep = useEditorStore((s) => s.deleteStep);
+  const setPlayMode = useEditorStore((s) => s.setPlayMode);
+
+  const [editingStepId, setEditingStepId] = useState<string | null>(null);
+  const [editLabel, setEditLabel] = useState('');
 
   const isDrawTool = ['run_path', 'curved_run', 'pass_line', 'curved_cross', 'zone_circle', 'zone_rect', 'label'].includes(activeTool);
   const selectedAnn = selectedAnnotationId ? annotations.find(a => a.id === selectedAnnotationId) : null;
@@ -71,149 +83,272 @@ export function BottomBar() {
     : null;
 
   const showStyleControls = (isDrawTool || selectedAnn) && (editorMode === 'advanced' || isDrawTool);
+  const activeStep = steps[animation.activeStepIndex];
+  const activeStepAnns = activeStep ? annotations.filter(a => a.stepId === activeStep.id) : [];
 
   return (
-    <div data-tutorial="bottombar" className="h-11 border-t border-border bg-card/80 backdrop-blur-md flex items-center px-3 gap-3 shrink-0 overflow-x-auto">
-      <div className="flex items-center gap-2 text-xs text-muted-foreground shrink-0">
-        <div className={cn(
-          "w-2 h-2 rounded-full",
-          activeTool === 'erase' ? "bg-red-400" : "bg-primary"
-        )} />
-        <span className="font-semibold text-white text-[11px]">{TOOL_LABELS[activeTool] || activeTool}</span>
-      </div>
+    <div className="border-t border-border bg-card/80 backdrop-blur-md shrink-0">
+      <div className="h-9 flex items-center px-2 gap-1 border-b border-border/40 overflow-x-auto">
+        <button
+          onClick={goToPrevStep}
+          disabled={animation.activeStepIndex === 0}
+          className="w-6 h-6 rounded flex items-center justify-center text-muted-foreground hover:text-white disabled:opacity-30 transition-colors shrink-0"
+        >
+          <ChevronLeft className="w-3.5 h-3.5" />
+        </button>
 
-      {selectionSummary && (
-        <>
-          <div className="w-px h-5 bg-border shrink-0" />
-          <span className="text-[10px] text-primary/80 font-medium shrink-0 truncate max-w-[120px]">{selectionSummary}</span>
-        </>
-      )}
-
-      {showStyleControls && (
-        <>
-          <div className="w-px h-5 bg-border shrink-0" />
-
-          <div className="flex items-center gap-1 shrink-0">
-            {ANNOTATION_COLORS.map((c) => (
-              <button
-                key={c}
-                onClick={() => setStrokeColor(c)}
-                className={cn(
-                  "w-5 h-5 rounded-full border-2 transition-all",
-                  strokeColor === c ? "border-white scale-110" : "border-transparent hover:border-white/40"
-                )}
-                style={{ backgroundColor: c }}
-              />
-            ))}
-          </div>
-
-          {editorMode === 'advanced' && (
-            <>
-              <div className="w-px h-5 bg-border shrink-0" />
-              <div className="flex items-center gap-1 shrink-0">
-                {WIDTHS.map((w) => (
+        <div className="flex items-center gap-0.5 overflow-x-auto">
+          {steps.map((step, idx) => (
+            <div key={step.id} className="shrink-0">
+              {editingStepId === step.id ? (
+                <div className="flex items-center gap-0.5">
+                  <input
+                    autoFocus
+                    value={editLabel}
+                    onChange={(e) => setEditLabel(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        updateStep(step.id, { label: editLabel.trim() || step.label });
+                        setEditingStepId(null);
+                      }
+                      if (e.key === 'Escape') setEditingStepId(null);
+                    }}
+                    className="w-16 bg-secondary border border-primary rounded px-1 py-0.5 text-[10px] text-foreground outline-none"
+                  />
                   <button
-                    key={w}
-                    onClick={() => setStrokeWidth(w)}
-                    className={cn(
-                      "w-7 h-7 rounded flex items-center justify-center transition-all",
-                      strokeWidth === w ? "bg-primary/20 text-primary" : "text-muted-foreground hover:bg-secondary"
-                    )}
+                    onClick={() => {
+                      updateStep(step.id, { label: editLabel.trim() || step.label });
+                      setEditingStepId(null);
+                    }}
+                    className="w-4 h-4 text-primary"
                   >
-                    <div className="rounded-full bg-current" style={{ width: w * 2, height: w * 2 }} />
+                    <Check className="w-3 h-3" />
                   </button>
-                ))}
-              </div>
+                </div>
+              ) : (
+                <button
+                  onClick={() => setActiveStepIndex(idx)}
+                  onDoubleClick={() => {
+                    setEditLabel(step.label);
+                    setEditingStepId(step.id);
+                  }}
+                  className={cn(
+                    "px-2.5 py-1 rounded text-[10px] font-semibold transition-all flex items-center gap-1",
+                    idx === animation.activeStepIndex
+                      ? "bg-primary/20 text-primary border border-primary/30"
+                      : "text-muted-foreground hover:text-white hover:bg-secondary border border-transparent"
+                  )}
+                >
+                  <span className={cn(
+                    "w-4 h-4 rounded-full text-[8px] flex items-center justify-center font-bold",
+                    idx === animation.activeStepIndex ? "bg-primary text-primary-foreground" : "bg-secondary text-muted-foreground"
+                  )}>
+                    {idx + 1}
+                  </span>
+                  {step.label}
+                  <span className="text-[8px] text-muted-foreground/60">
+                    ({annotations.filter(a => a.stepId === step.id).length})
+                  </span>
+                </button>
+              )}
+            </div>
+          ))}
+        </div>
 
-              <div className="w-px h-5 bg-border shrink-0" />
-
-              <button
-                onClick={() => setShowArrowhead(!showArrowhead)}
-                title="Toggle arrowhead"
-                className={cn(
-                  "w-7 h-7 rounded flex items-center justify-center transition-all",
-                  showArrowhead ? "bg-primary/20 text-primary" : "text-muted-foreground hover:bg-secondary"
-                )}
-              >
-                <ArrowRight className="w-3.5 h-3.5" />
-              </button>
-
-              <button
-                onClick={() => setForceDashed(!forceDashed)}
-                title="Toggle dashed/solid"
-                className={cn(
-                  "w-7 h-7 rounded flex items-center justify-center transition-all",
-                  forceDashed ? "bg-primary/20 text-primary" : "text-muted-foreground hover:bg-secondary"
-                )}
-              >
-                <Minus className="w-3.5 h-3.5" strokeDasharray={forceDashed ? "3 3" : undefined} />
-              </button>
-            </>
-          )}
-        </>
-      )}
-
-      <div className="flex-1" />
-
-      {(selectedAnnotationId || selectedEntityId) && (
         <button
-          onClick={() => {
-            if (selectedAnnotationId) deleteAnnotation(selectedAnnotationId);
-            if (selectedEntityId) deleteEntity(selectedEntityId);
-          }}
-          className="flex items-center gap-1 px-2 py-1 rounded text-xs text-red-400 hover:bg-red-500/10 transition-colors shrink-0"
+          onClick={goToNextStep}
+          disabled={animation.activeStepIndex >= steps.length - 1}
+          className="w-6 h-6 rounded flex items-center justify-center text-muted-foreground hover:text-white disabled:opacity-30 transition-colors shrink-0"
         >
-          <Trash2 className="w-3 h-3" /> Delete
+          <ChevronRight className="w-3.5 h-3.5" />
         </button>
-      )}
 
-      <div className="w-px h-5 bg-border shrink-0" />
+        <div className="w-px h-4 bg-border shrink-0 mx-0.5" />
 
-      <div className="flex items-center gap-2 shrink-0">
         <button
-          onClick={() => setPlaying(!animation.playing)}
-          title={animation.playing ? 'Pause' : 'Play'}
-          className={cn("w-8 h-8 rounded-lg flex items-center justify-center transition-all",
-            animation.playing ? "bg-amber-500/20 text-amber-400" : "text-muted-foreground hover:bg-secondary hover:text-white")}
+          onClick={addStep}
+          title="Add Step"
+          className="w-6 h-6 rounded flex items-center justify-center text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors shrink-0"
         >
-          {animation.playing ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
+          <Plus className="w-3 h-3" />
         </button>
-        <button
-          onClick={() => { setPlaying(false); setProgress(0); }}
-          title="Reset"
-          className="w-8 h-8 rounded-lg flex items-center justify-center text-muted-foreground hover:bg-secondary hover:text-white transition-all"
-        >
-          <RotateCcw className="w-4 h-4" />
-        </button>
-        <input
-          type="range"
-          min={0}
-          max={1}
-          step={0.01}
-          value={animation.progress}
-          onChange={(e) => { setPlaying(false); setProgress(Number(e.target.value)); }}
-          className="w-24 h-1.5 accent-primary"
-        />
-        <select
-          value={animation.speed}
-          onChange={(e) => setSpeed(Number(e.target.value))}
-          className="bg-secondary border border-border rounded-md px-1.5 py-1 text-[10px] text-muted-foreground"
-        >
-          <option value={0.5}>0.5x</option>
-          <option value={1}>1x</option>
-          <option value={1.5}>1.5x</option>
-          <option value={2}>2x</option>
-        </select>
+
+        {steps.length > 1 && activeStep && (
+          <button
+            onClick={() => deleteStep(activeStep.id)}
+            title="Delete Step"
+            className="w-6 h-6 rounded flex items-center justify-center text-muted-foreground hover:text-red-400 hover:bg-red-500/10 transition-colors shrink-0"
+          >
+            <X className="w-3 h-3" />
+          </button>
+        )}
+
+        <div className="flex-1" />
+
+        <div className="flex items-center gap-1 shrink-0">
+          <button
+            onClick={() => setPlayMode('step')}
+            className={cn(
+              "px-2 py-0.5 rounded text-[9px] font-semibold transition-all",
+              animation.playMode === 'step' ? "bg-primary/20 text-primary" : "text-muted-foreground hover:text-white"
+            )}
+          >
+            Step
+          </button>
+          <button
+            onClick={() => setPlayMode('all')}
+            className={cn(
+              "px-2 py-0.5 rounded text-[9px] font-semibold transition-all",
+              animation.playMode === 'all' ? "bg-primary/20 text-primary" : "text-muted-foreground hover:text-white"
+            )}
+          >
+            All
+          </button>
+        </div>
       </div>
 
-      <div className="w-px h-5 bg-border shrink-0" />
+      <div className="h-10 flex items-center px-3 gap-3 overflow-x-auto">
+        <div className="flex items-center gap-2 text-xs text-muted-foreground shrink-0">
+          <div className={cn(
+            "w-2 h-2 rounded-full",
+            activeTool === 'erase' ? "bg-red-400" : "bg-primary"
+          )} />
+          <span className="font-semibold text-white text-[11px]">{TOOL_LABELS[activeTool] || activeTool}</span>
+        </div>
 
-      <button
-        onClick={() => { if (confirm('Clear all annotations?')) clearAnnotations(); }}
-        className="text-[10px] text-muted-foreground hover:text-red-400 transition-colors shrink-0 px-1"
-      >
-        Clear All
-      </button>
+        {selectionSummary && (
+          <>
+            <div className="w-px h-5 bg-border shrink-0" />
+            <span className="text-[10px] text-primary/80 font-medium shrink-0 truncate max-w-[120px]">{selectionSummary}</span>
+          </>
+        )}
+
+        {showStyleControls && (
+          <>
+            <div className="w-px h-5 bg-border shrink-0" />
+
+            <div className="flex items-center gap-1 shrink-0">
+              {ANNOTATION_COLORS.map((c) => (
+                <button
+                  key={c}
+                  onClick={() => setStrokeColor(c)}
+                  className={cn(
+                    "w-5 h-5 rounded-full border-2 transition-all",
+                    strokeColor === c ? "border-white scale-110" : "border-transparent hover:border-white/40"
+                  )}
+                  style={{ backgroundColor: c }}
+                />
+              ))}
+            </div>
+
+            {editorMode === 'advanced' && (
+              <>
+                <div className="w-px h-5 bg-border shrink-0" />
+                <div className="flex items-center gap-1 shrink-0">
+                  {WIDTHS.map((w) => (
+                    <button
+                      key={w}
+                      onClick={() => setStrokeWidth(w)}
+                      className={cn(
+                        "w-7 h-7 rounded flex items-center justify-center transition-all",
+                        strokeWidth === w ? "bg-primary/20 text-primary" : "text-muted-foreground hover:bg-secondary"
+                      )}
+                    >
+                      <div className="rounded-full bg-current" style={{ width: w * 2, height: w * 2 }} />
+                    </button>
+                  ))}
+                </div>
+
+                <div className="w-px h-5 bg-border shrink-0" />
+
+                <button
+                  onClick={() => setShowArrowhead(!showArrowhead)}
+                  title="Toggle arrowhead"
+                  className={cn(
+                    "w-7 h-7 rounded flex items-center justify-center transition-all",
+                    showArrowhead ? "bg-primary/20 text-primary" : "text-muted-foreground hover:bg-secondary"
+                  )}
+                >
+                  <ArrowRight className="w-3.5 h-3.5" />
+                </button>
+
+                <button
+                  onClick={() => setForceDashed(!forceDashed)}
+                  title="Toggle dashed/solid"
+                  className={cn(
+                    "w-7 h-7 rounded flex items-center justify-center transition-all",
+                    forceDashed ? "bg-primary/20 text-primary" : "text-muted-foreground hover:bg-secondary"
+                  )}
+                >
+                  <Minus className="w-3.5 h-3.5" strokeDasharray={forceDashed ? "3 3" : undefined} />
+                </button>
+              </>
+            )}
+          </>
+        )}
+
+        <div className="flex-1" />
+
+        {(selectedAnnotationId || selectedEntityId) && (
+          <button
+            onClick={() => {
+              if (selectedAnnotationId) deleteAnnotation(selectedAnnotationId);
+              if (selectedEntityId) deleteEntity(selectedEntityId);
+            }}
+            className="flex items-center gap-1 px-2 py-1 rounded text-xs text-red-400 hover:bg-red-500/10 transition-colors shrink-0"
+          >
+            <Trash2 className="w-3 h-3" /> Delete
+          </button>
+        )}
+
+        <div className="w-px h-5 bg-border shrink-0" />
+
+        <div className="flex items-center gap-2 shrink-0">
+          <button
+            onClick={() => setPlaying(!animation.playing)}
+            title={animation.playing ? 'Pause' : 'Play'}
+            className={cn("w-8 h-8 rounded-lg flex items-center justify-center transition-all",
+              animation.playing ? "bg-amber-500/20 text-amber-400" : "text-muted-foreground hover:bg-secondary hover:text-white")}
+          >
+            {animation.playing ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
+          </button>
+          <button
+            onClick={() => { setPlaying(false); setProgress(0); }}
+            title="Reset"
+            className="w-8 h-8 rounded-lg flex items-center justify-center text-muted-foreground hover:bg-secondary hover:text-white transition-all"
+          >
+            <RotateCcw className="w-4 h-4" />
+          </button>
+          <input
+            type="range"
+            min={0}
+            max={1}
+            step={0.01}
+            value={animation.progress}
+            onChange={(e) => { setPlaying(false); setProgress(Number(e.target.value)); }}
+            className="w-24 h-1.5 accent-primary"
+          />
+          <select
+            value={animation.speed}
+            onChange={(e) => setSpeed(Number(e.target.value))}
+            className="bg-secondary border border-border rounded-md px-1.5 py-1 text-[10px] text-muted-foreground"
+          >
+            <option value={0.5}>0.5x</option>
+            <option value={1}>1x</option>
+            <option value={1.5}>1.5x</option>
+            <option value={2}>2x</option>
+          </select>
+        </div>
+
+        <div className="w-px h-5 bg-border shrink-0" />
+
+        <button
+          onClick={() => { if (confirm('Clear all annotations?')) clearAnnotations(); }}
+          className="text-[10px] text-muted-foreground hover:text-red-400 transition-colors shrink-0 px-1"
+        >
+          Clear All
+        </button>
+      </div>
     </div>
   );
 }
