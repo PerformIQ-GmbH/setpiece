@@ -1,0 +1,429 @@
+You are improving the SETPIECE by PerformIQ tactical editor.
+
+IMPORTANT:
+This is not just a feature pass.
+This is a usability + UI/UX simplification pass.
+
+The current editor works as a foundation, but it still feels too technical and not intuitive enough for coaches.
+I want the editor to feel:
+- easier
+- clearer
+- more premium
+- more guided
+- more coach-friendly
+- more demo-ready
+
+Do not rebuild the entire product from scratch.
+Do not break existing functionality.
+Refactor and improve the current editor carefully.
+
+==================================================
+1. PRIMARY GOAL
+==================================================
+
+Transform the editor into a premium but easy-to-understand tactical editor.
+
+The editor must:
+- feel simpler on first use
+- teach itself better
+- look more polished
+- support drawing and animation
+- support role assignment clearly
+- support different pitch appearances
+- reduce cognitive overload
+
+A coach should feel:
+“I understand this immediately.”
+not:
+“This looks powerful but confusing.”
+
+==================================================
+2. CURRENT PROBLEM TO SOLVE
+==================================================
+
+The editor currently feels too technical and too role-management-heavy.
+
+Problems to solve:
+- not enough guidance for first-time users
+- too little onboarding/tutorial support
+- tool usage is not self-explanatory enough
+- the editor does not yet feel easy enough for coaches
+- the pitch styling should be selectable
+- the UI needs a more refined, premium, and intuitive flow
+
+==================================================
+3. CORE UX STRATEGY
+==================================================
+
+Implement the editor with two levels of complexity:
+
+A. BASIC MODE
+For fast, simple use
+- select
+- place player
+- place opponent
+- place ball
+- run line
+- pass line
+- play animation
+- assign role
+
+B. ADVANCED MODE
+For deeper tactical editing
+- curved run
+- curved cross
+- zone
+- label
+- advanced object styling
+- more detailed animation controls
+
+Default should be BASIC MODE.
+
+Advanced tools should be hidden behind:
+- a toggle
+- or an “Advanced” expandable section
+
+This is critical.
+Do not overwhelm users on first open.
+
+==================================================
+4. TUTORIAL / GUIDED HELP
+==================================================
+
+Add a first-use guided tutorial for the editor.
+
+Requirements:
+- first-time coach sees a lightweight guided walkthrough
+- tutorial can be skipped
+- tutorial can be reopened later via Help button
+- tutorial uses spotlight/highlight overlays for major editor areas
+- tutorial should explain:
+  1. toolbar
+  2. board
+  3. role assignment panel
+  4. drawing semantics
+  5. animation preview
+  6. share/export flow
+
+Tutorial style:
+- calm
+- minimal
+- premium
+- no long text walls
+- one message at a time
+- strong “Next” and “Skip” controls
+
+Also add:
+- “Help” button in the editor header
+- “How it works” entry
+- “Show tutorial again”
+
+==================================================
+5. CONTEXTUAL INFO BOXES
+==================================================
+
+Add contextual info boxes / tip cards inside the editor.
+
+Need:
+- small inline guidance when a tool is active
+- smart tip box near the bottom or inspector
+- examples:
+  - “Dashed lines are used for player runs”
+  - “Solid lines are used for passes”
+  - “Click on the pitch to place a role”
+  - “Select a player marker to edit number and label”
+  - “Use Play to preview the movement”
+
+Rules:
+- tips must be helpful, not annoying
+- tips should react to the active tool
+- allow dismissing tips
+- dismissed tips should stay hidden unless reopened
+- use subtle premium styling
+
+==================================================
+6. PITCH THEME SWITCHER
+==================================================
+
+Add a pitch appearance switcher.
+
+Required pitch themes:
+1. Light / white tactical board
+2. Green pitch board
+
+The user should be able to switch between them in the editor UI.
+
+Requirements:
+- preserve exact pitch geometry and dimensions
+- only change visual styling, not the geometry
+- remember the selected theme per user or locally
+- make both themes look premium
+- the white board should feel presentation-ready / tactical
+- the green board should feel realistic and elegant
+
+Optional if fast:
+3. dark tactical board variant
+
+But only if it remains clean.
+
+==================================================
+7. DRAWING SEMANTICS
+==================================================
+
+Keep and clearly communicate these rules:
+
+- dashed lines = player runs
+- solid lines = passes
+- curved solid lines = crosses / bent deliveries
+- blue translucent style = ghost/substitution visualization
+
+These rules must be visible in the UI:
+- via tutorial
+- via small legend
+- via contextual tip boxes
+- via inspector labels
+
+==================================================
+8. TOOLBAR REDESIGN
+==================================================
+
+Redesign the left toolbar to be easier to understand.
+
+Group tools clearly:
+
+Group 1: Selection
+- Select / Move
+
+Group 2: Entities
+- Team Player
+- Opponent
+- Ball
+
+Group 3: Actions
+- Run Line
+- Pass Line
+- Animation Preview
+
+Group 4: Advanced
+- Curved Run
+- Curved Cross
+- Zone
+- Label
+- Erase
+
+Group 5: History
+- Undo
+- Redo
+
+Requirements:
+- better spacing
+- better active state
+- labels or tooltips
+- grouped visually
+- Basic mode shows only essential tools
+- Advanced mode expands the rest
+
+==================================================
+9. PLAYER MARKERS / VISUAL QUALITY
+==================================================
+
+Upgrade player markers so they are not plain dots.
+
+Implement premium football marker components:
+- team markers
+- opponent markers
+- goalkeeper variant
+- selected state
+- number inside
+- optional short label
+- subtle depth / highlight
+- smooth drag interaction
+
+Keep them elegant and clean.
+Do not make them cartoonish.
+
+Also add beautiful ball icons.
+
+==================================================
+10. ANIMATION UX
+==================================================
+
+Make animation easier to use.
+
+Need:
+- clear Play / Pause / Reset controls
+- simple speed choice
+- step preview
+- visible active animation state
+- animation should feel smooth and not technical
+
+If helpful, add a compact bottom animation bar.
+
+The user should understand animation without explanation.
+
+==================================================
+11. RIGHT PANEL / INSPECTOR IMPROVEMENT
+==================================================
+
+The right panel must feel less like raw form management and more like a clean coach tool.
+
+Improve:
+- hierarchy
+- spacing
+- grouping
+- assignment clarity
+
+Panel sections:
+1. Selected object / role
+2. Assignment
+3. Backup
+4. Coaching note
+5. Style / movement settings (only when relevant)
+
+Requirements:
+- do not show too much at once
+- collapse sections when not needed
+- only show advanced controls when relevant
+- reduce visual density
+
+==================================================
+12. QUICK LEGEND
+==================================================
+
+Add a small visual legend somewhere elegant.
+
+Show:
+- dashed = run
+- solid = pass
+- blue = ghost/substitution
+- ball icon = ball movement
+- marker styles = team / opponent / GK
+
+This should help first-time users quickly understand the board.
+
+==================================================
+13. EMPTY STATES / MICROCOPY
+==================================================
+
+Improve all editor empty states and helper copy.
+
+Examples:
+- “Start with a role or use a template”
+- “Click on the pitch to place your first role”
+- “Use the Run tool to draw player movement”
+- “Switch to Advanced mode for zones and curved actions”
+
+Copy should be:
+- short
+- clear
+- calm
+- confident
+
+==================================================
+14. HEADER / TOPBAR IMPROVEMENT
+==================================================
+
+Refine the editor header.
+
+Need:
+- better hierarchy for title
+- save state clarity
+- Help button
+- pitch theme switcher
+- view controls
+- export/share still cleanly visible
+
+Do not make the header crowded.
+
+==================================================
+15. LAYOUT REFINEMENT
+==================================================
+
+Refine the overall editor layout so it feels more premium and less cramped.
+
+Need:
+- better spacing
+- better balance between canvas and side panel
+- less visual noise
+- stronger focus on the pitch
+- cleaner bottom helper area
+- premium shadows/borders/surfaces
+
+==================================================
+16. RESPONSIVE BEHAVIOR
+==================================================
+
+The editor must remain usable on laptop and tablet.
+
+Requirements:
+- right panel collapsible if needed
+- help/tutorial still usable
+- pitch remains the visual priority
+- controls stay touch-friendly
+
+==================================================
+17. IMPLEMENTATION NOTES
+==================================================
+
+Use the existing editor as the base.
+Do not remove current features unnecessarily.
+
+Improve:
+- SetPieceEditor
+- KonvaPitch
+- toolbar
+- inspector
+- helper layers
+- tutorial layer
+- legend
+- pitch theme switcher
+
+Preserve:
+- role creation
+- role dragging
+- undo/redo
+- save status
+- PDF export
+- ghost mode access
+- set piece status logic
+
+==================================================
+18. DESIGN GOAL
+==================================================
+
+The final result should feel like:
+- premium football tactics software
+- easier for first-time users
+- visually elegant
+- clearly guided
+- polished enough to sell
+
+Not:
+- developer-heavy
+- form-heavy
+- confusing
+- overcrowded
+
+==================================================
+19. FINAL DELIVERABLE
+==================================================
+
+Implement a full editor simplification and UI polish pass including:
+- Basic vs Advanced mode
+- first-use tutorial
+- help / info boxes
+- pitch color/theme switcher
+- refined toolbar
+- improved inspector
+- stronger visual hierarchy
+- better markers and ball icons
+- clearer animation controls
+- premium UX polish
+
+Start by:
+1. analyzing the current editor structure
+2. proposing the updated UI architecture
+3. implementing the simplification pass
+4. implementing tutorial/help
+5. implementing pitch theme switcher
+6. polishing all editor surfaces
