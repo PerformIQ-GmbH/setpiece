@@ -57,12 +57,17 @@ export function AnnotationLayer({ annotations, selectedId, focusedRoleId, hasFoc
         const ghostColor = ann.ghost ? '#3b82f6' : ann.color;
         const ghostOpacity = ann.ghost ? 0.4 : 1;
 
+        const isRun = ann.type === 'run_path' || ann.type === 'curved_run';
+        const isPass = ann.type === 'pass_line' || ann.type === 'curved_cross';
+        const effectiveDashed = isRun ? true : isPass ? false : ann.dashed;
+        const effectiveArrowhead = (isRun || isPass) ? true : ann.arrowhead;
+
         switch (ann.type) {
           case 'run_path':
           case 'pass_line': {
             if (ann.points.length < 2) return null;
             const flatPts = pctToAbsPoints(ann.points, toPixel);
-            const Component = ann.arrowhead ? Arrow : Line;
+            const Component = effectiveArrowhead ? Arrow : Line;
             return (
               <Group key={ann.id} {...drag}>
                 {isSelected && (
@@ -79,12 +84,12 @@ export function AnnotationLayer({ annotations, selectedId, focusedRoleId, hasFoc
                   points={flatPts}
                   stroke={ghostColor}
                   strokeWidth={isLinkedToFocused ? ann.strokeWidth + 1 : ann.strokeWidth}
-                  dash={ann.dashed ? [8, 5] : undefined}
+                  dash={effectiveDashed ? [8, 5] : undefined}
                   lineCap="round"
                   lineJoin="round"
-                  pointerLength={ann.arrowhead ? 10 : undefined}
-                  pointerWidth={ann.arrowhead ? 8 : undefined}
-                  fill={ann.arrowhead ? ghostColor : undefined}
+                  pointerLength={effectiveArrowhead ? 10 : undefined}
+                  pointerWidth={effectiveArrowhead ? 8 : undefined}
+                  fill={effectiveArrowhead ? ghostColor : undefined}
                   opacity={Math.min(1, 0.85 * annOpacityScale * ghostOpacity)}
                   hitStrokeWidth={16}
                   onClick={(e) => { e.cancelBubble = true; onSelect(ann.id); }}
@@ -98,7 +103,7 @@ export function AnnotationLayer({ annotations, selectedId, focusedRoleId, hasFoc
           case 'curved_cross': {
             if (ann.points.length < 2) return null;
             const curvePts = pctToAbsPoints(ann.points, toPixel);
-            const Component = ann.arrowhead ? Arrow : Line;
+            const Component = effectiveArrowhead ? Arrow : Line;
             return (
               <Group key={ann.id} {...drag}>
                 {isSelected && (
@@ -116,13 +121,13 @@ export function AnnotationLayer({ annotations, selectedId, focusedRoleId, hasFoc
                   points={curvePts}
                   stroke={ghostColor}
                   strokeWidth={isLinkedToFocused ? ann.strokeWidth + 1 : ann.strokeWidth}
-                  dash={ann.dashed ? [8, 5] : undefined}
+                  dash={effectiveDashed ? [8, 5] : undefined}
                   tension={0.4}
                   lineCap="round"
                   lineJoin="round"
-                  pointerLength={ann.arrowhead ? 10 : undefined}
-                  pointerWidth={ann.arrowhead ? 8 : undefined}
-                  fill={ann.arrowhead ? ghostColor : undefined}
+                  pointerLength={effectiveArrowhead ? 10 : undefined}
+                  pointerWidth={effectiveArrowhead ? 8 : undefined}
+                  fill={effectiveArrowhead ? ghostColor : undefined}
                   opacity={Math.min(1, 0.85 * annOpacityScale * ghostOpacity)}
                   hitStrokeWidth={16}
                   onClick={(e) => { e.cancelBubble = true; onSelect(ann.id); }}

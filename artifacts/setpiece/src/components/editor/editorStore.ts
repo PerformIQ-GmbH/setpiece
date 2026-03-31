@@ -247,7 +247,11 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     newSteps[idx] = { ...newSteps[idx], sortOrder: newSteps[swapIdx].sortOrder };
     newSteps[swapIdx] = { ...newSteps[swapIdx], sortOrder: tempOrder };
     newSteps.sort((a, b) => a.sortOrder - b.sortOrder);
-    return { steps: newSteps };
+    const newIdx = newSteps.findIndex((st) => st.id === id);
+    return {
+      steps: newSteps,
+      animation: { ...s.animation, activeStepIndex: newIdx >= 0 ? newIdx : s.animation.activeStepIndex },
+    };
   }),
 
   animation: { playing: false, progress: 0, speed: 1, activeStepIndex: 0, playMode: 'step' },
