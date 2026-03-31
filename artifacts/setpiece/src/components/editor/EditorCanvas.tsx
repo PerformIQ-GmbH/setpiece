@@ -366,6 +366,8 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
         <AnnotationLayer
           annotations={annotations}
           selectedId={selectedAnnotationId}
+          focusedRoleId={activeRoleId}
+          hasFocusedElement={hasFocusedElement}
           onSelect={setSelectedAnnotationId}
           onMove={moveAnnotation}
           toPixel={toPixel}

@@ -290,6 +290,22 @@ export default function SetPieceEditor() {
     }
   };
 
+  const assignBackupPlayer = async (roleId: string, backupPlayerId: string) => {
+    const assignment = setPiece?.assignments?.find((a: RoleAssignment) => a.roleId === roleId);
+    if (!assignment) return;
+    setSaveState('saving');
+    try {
+      await upsertAssignment.mutateAsync({
+        teamId, setPieceId,
+        data: { roleId, playerId: assignment.playerId, backupPlayerId: backupPlayerId || undefined },
+      });
+      await refetch();
+      setSaveState('saved');
+    } catch {
+      setSaveState('error');
+    }
+  };
+
   const handleDeleteRole = async (roleId: string) => {
     if (!confirm('Delete this role?')) return;
     setSaveState('saving');
@@ -574,6 +590,7 @@ export default function SetPieceEditor() {
           activeRoleId={activeRoleId}
           onRoleClick={(id) => setActiveRoleId(id === activeRoleId ? null : id)}
           onAssignPlayer={assignPlayer}
+          onAssignBackup={assignBackupPlayer}
           onDeleteRole={handleDeleteRole}
           onAddRole={() => { setPendingPos(null); setNewRoleName(''); setRoleFormOpen(true); }}
         />

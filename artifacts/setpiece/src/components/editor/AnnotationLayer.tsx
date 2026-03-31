@@ -5,6 +5,8 @@ import type { Annotation, Point } from './types';
 interface AnnotationLayerProps {
   annotations: Annotation[];
   selectedId: string | null;
+  focusedRoleId?: string | null;
+  hasFocusedElement?: boolean;
   onSelect: (id: string | null) => void;
   onMove: (id: string, dx: number, dy: number) => void;
   toPixel: (pct: Point) => Point;
@@ -23,7 +25,7 @@ function pctToAbsPoints(points: Point[], toPixel: (p: Point) => Point): number[]
   return flat;
 }
 
-export function AnnotationLayer({ annotations, selectedId, onSelect, onMove, toPixel, toPct, pitchW, pitchH, pad }: AnnotationLayerProps) {
+export function AnnotationLayer({ annotations, selectedId, focusedRoleId, hasFocusedElement, onSelect, onMove, toPixel, toPct, pitchW, pitchH, pad }: AnnotationLayerProps) {
   const makeDragHandlers = (ann: Annotation) => {
     let startPos = { x: 0, y: 0 };
     return {
@@ -48,6 +50,8 @@ export function AnnotationLayer({ annotations, selectedId, onSelect, onMove, toP
     <Group>
       {annotations.map((ann) => {
         const isSelected = ann.id === selectedId;
+        const isLinkedToFocused = focusedRoleId ? ann.linkedRoleId === focusedRoleId : false;
+        const annOpacityScale = hasFocusedElement && !isSelected && !isLinkedToFocused ? 0.3 : isLinkedToFocused ? 1.15 : 1;
         const drag = makeDragHandlers(ann);
 
         switch (ann.type) {
@@ -71,14 +75,14 @@ export function AnnotationLayer({ annotations, selectedId, onSelect, onMove, toP
                 <Component
                   points={flatPts}
                   stroke={ann.color}
-                  strokeWidth={ann.strokeWidth}
+                  strokeWidth={isLinkedToFocused ? ann.strokeWidth + 1 : ann.strokeWidth}
                   dash={ann.dashed ? [8, 5] : undefined}
                   lineCap="round"
                   lineJoin="round"
                   pointerLength={ann.arrowhead ? 10 : undefined}
                   pointerWidth={ann.arrowhead ? 8 : undefined}
                   fill={ann.arrowhead ? ann.color : undefined}
-                  opacity={0.85}
+                  opacity={Math.min(1, 0.85 * annOpacityScale)}
                   hitStrokeWidth={16}
                   onClick={(e) => { e.cancelBubble = true; onSelect(ann.id); }}
                   onTap={(e) => { e.cancelBubble = true; onSelect(ann.id); }}
@@ -108,7 +112,7 @@ export function AnnotationLayer({ annotations, selectedId, onSelect, onMove, toP
                 <Component
                   points={curvePts}
                   stroke={ann.color}
-                  strokeWidth={ann.strokeWidth}
+                  strokeWidth={isLinkedToFocused ? ann.strokeWidth + 1 : ann.strokeWidth}
                   dash={ann.dashed ? [8, 5] : undefined}
                   tension={0.4}
                   lineCap="round"
@@ -116,7 +120,7 @@ export function AnnotationLayer({ annotations, selectedId, onSelect, onMove, toP
                   pointerLength={ann.arrowhead ? 10 : undefined}
                   pointerWidth={ann.arrowhead ? 8 : undefined}
                   fill={ann.arrowhead ? ann.color : undefined}
-                  opacity={0.85}
+                  opacity={Math.min(1, 0.85 * annOpacityScale)}
                   hitStrokeWidth={16}
                   onClick={(e) => { e.cancelBubble = true; onSelect(ann.id); }}
                   onTap={(e) => { e.cancelBubble = true; onSelect(ann.id); }}
@@ -136,7 +140,7 @@ export function AnnotationLayer({ annotations, selectedId, onSelect, onMove, toP
                   y={center.y}
                   radius={r}
                   fill={ann.color}
-                  opacity={0.12}
+                  opacity={0.12 * annOpacityScale}
                   stroke={ann.color}
                   strokeWidth={isSelected ? ann.strokeWidth + 1 : ann.strokeWidth}
                   dash={[6, 4]}
@@ -173,7 +177,7 @@ export function AnnotationLayer({ annotations, selectedId, onSelect, onMove, toP
                   width={rw}
                   height={rh}
                   fill={ann.color}
-                  opacity={0.1}
+                  opacity={0.1 * annOpacityScale}
                   stroke={ann.color}
                   strokeWidth={isSelected ? ann.strokeWidth + 1 : ann.strokeWidth}
                   dash={[6, 4]}
@@ -231,7 +235,7 @@ export function AnnotationLayer({ annotations, selectedId, onSelect, onMove, toP
                   fontFamily="Inter, sans-serif"
                   fontStyle="bold"
                   fill={ann.color}
-                  opacity={0.9}
+                  opacity={Math.min(1, 0.9 * annOpacityScale)}
                   hitStrokeWidth={16}
                   onClick={(e) => { e.cancelBubble = true; onSelect(ann.id); }}
                   onTap={(e) => { e.cancelBubble = true; onSelect(ann.id); }}

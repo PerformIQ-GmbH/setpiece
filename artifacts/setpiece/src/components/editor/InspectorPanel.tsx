@@ -16,6 +16,7 @@ interface RoleData {
 interface AssignmentData {
   roleId: string;
   playerId: string;
+  backupPlayerId?: string | null;
 }
 
 interface PlayerData {
@@ -36,6 +37,7 @@ interface InspectorPanelProps {
   activeRoleId: string | null;
   onRoleClick: (id: string) => void;
   onAssignPlayer: (roleId: string, playerId: string) => void;
+  onAssignBackup: (roleId: string, backupPlayerId: string) => void;
   onDeleteRole: (roleId: string) => void;
   onAddRole: () => void;
 }
@@ -62,9 +64,10 @@ function CollapsibleSection({ title, icon: Icon, defaultOpen = true, children }:
   );
 }
 
-function PlayerCombobox({ players, assignments, currentRoleId, value, onChange }: {
+function PlayerCombobox({ players, assignments, roles, currentRoleId, value, onChange }: {
   players?: PlayerData[];
   assignments: AssignmentData[];
+  roles: RoleData[];
   currentRoleId: string;
   value: string;
   onChange: (playerId: string) => void;
@@ -96,9 +99,11 @@ function PlayerCombobox({ players, assignments, currentRoleId, value, onChange }
     });
   }, [players, search]);
 
-  const getAssignedRole = (playerId: string): string | null => {
+  const getAssignedRoleName = (playerId: string): string | null => {
     const a = assignments.find(a => a.playerId === playerId && a.roleId !== currentRoleId);
-    return a ? a.roleId : null;
+    if (!a) return null;
+    const role = roles.find(r => r.id === a.roleId);
+    return role?.name ?? 'another role';
   };
 
   return (
@@ -152,9 +157,9 @@ function PlayerCombobox({ players, assignments, currentRoleId, value, onChange }
               Unassigned
             </button>
             {filteredPlayers.map(p => {
-              const takenByRole = getAssignedRole(p.id);
+              const takenByRoleName = getAssignedRoleName(p.id);
               const isCurrent = p.id === value;
-              const isTaken = !!takenByRole;
+              const isTaken = !!takenByRoleName;
 
               return (
                 <button
@@ -178,7 +183,9 @@ function PlayerCombobox({ players, assignments, currentRoleId, value, onChange }
                     <span className="text-[8px] px-1 py-0.5 rounded bg-red-500/10 text-red-400 border border-red-500/20 shrink-0">Injured</span>
                   )}
                   {isTaken && !isCurrent && (
-                    <span className="text-[8px] text-muted-foreground shrink-0">In use</span>
+                    <span className="text-[8px] text-muted-foreground shrink-0 truncate max-w-[80px]" title={`Taken by: ${takenByRoleName}`}>
+                      {takenByRoleName}
+                    </span>
                   )}
                 </button>
               );
@@ -195,7 +202,7 @@ function PlayerCombobox({ players, assignments, currentRoleId, value, onChange }
 
 export function InspectorPanel({
   roles, assignments, players, activeRoleId,
-  onRoleClick, onAssignPlayer, onDeleteRole, onAddRole,
+  onRoleClick, onAssignPlayer, onAssignBackup, onDeleteRole, onAddRole,
 }: InspectorPanelProps) {
   const selectedAnnotationId = useEditorStore((s) => s.selectedAnnotationId);
   const annotations = useEditorStore((s) => s.annotations);
@@ -236,8 +243,10 @@ export function InspectorPanel({
           linkedAnnotations={annotations.filter(a => a.linkedRoleId === activeRoleId)}
           players={players}
           assignments={assignments}
+          roles={roles}
           activeRoleId={activeRoleId}
           onAssignPlayer={(playerId) => onAssignPlayer(activeRoleId, playerId)}
+          onAssignBackup={(backupId) => onAssignBackup(activeRoleId, backupId)}
           onDeleteRole={() => onDeleteRole(activeRoleId)}
           onBack={() => onRoleClick(activeRoleId)}
         />
@@ -393,15 +402,17 @@ function AnnotationInspector({ annotation, onUpdate, onDelete, roles }: {
   );
 }
 
-function RoleMarkerInspector({ role, assignment, player, linkedAnnotations, players, assignments, activeRoleId, onAssignPlayer, onDeleteRole, onBack }: {
+function RoleMarkerInspector({ role, assignment, player, linkedAnnotations, players, assignments, roles, activeRoleId, onAssignPlayer, onAssignBackup, onDeleteRole, onBack }: {
   role: RoleData;
   assignment?: AssignmentData;
   player?: PlayerData;
   linkedAnnotations: Annotation[];
   players?: PlayerData[];
   assignments: AssignmentData[];
+  roles: RoleData[];
   activeRoleId: string;
   onAssignPlayer: (playerId: string) => void;
+  onAssignBackup: (backupPlayerId: string) => void;
   onDeleteRole: () => void;
   onBack: () => void;
 }) {
@@ -436,6 +447,7 @@ function RoleMarkerInspector({ role, assignment, player, linkedAnnotations, play
           <PlayerCombobox
             players={players}
             assignments={assignments}
+            roles={roles}
             currentRoleId={activeRoleId}
             value={assignment?.playerId || ''}
             onChange={onAssignPlayer}
@@ -443,6 +455,18 @@ function RoleMarkerInspector({ role, assignment, player, linkedAnnotations, play
           {!assignment && (
             <p className="text-[9px] text-amber-300 mt-1.5">Assign a squad player to this role</p>
           )}
+        </CollapsibleSection>
+
+        <CollapsibleSection title="Backup Player" defaultOpen={!!assignment?.backupPlayerId}>
+          <PlayerCombobox
+            players={players}
+            assignments={assignments}
+            roles={roles}
+            currentRoleId={activeRoleId}
+            value={assignment?.backupPlayerId || ''}
+            onChange={onAssignBackup}
+          />
+          <p className="text-[9px] text-muted-foreground mt-1.5">Optional substitute if primary player is unavailable</p>
         </CollapsibleSection>
 
         {player && (
@@ -627,6 +651,7 @@ function RolesPanel({ roles, assignments, players, activeRoleId, onRoleClick, on
                 <PlayerCombobox
                   players={players}
                   assignments={assignments}
+                  roles={roles}
                   currentRoleId={role.id}
                   value={assignment?.playerId || ''}
                   onChange={(playerId) => onAssignPlayer(role.id, playerId)}

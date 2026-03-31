@@ -31,7 +31,8 @@ export function TeamPlayerMarker({
   const borderSelected = '#10b981';
   const labelColor = lightPitch ? '#065f46' : '#ffffff';
   const shadowColor = lightPitch ? 'rgba(0,0,0,0.25)' : '#000';
-  const dimOpacity = isDimmed ? 0.35 : 1;
+  const unassignedOpacity = isUnassigned ? 0.65 : 1;
+  const dimOpacity = isDimmed ? 0.35 : unassignedOpacity;
 
   const unassignedFill = lightPitch ? '#6b7280' : '#1f2937';
   const unassignedBorder = lightPitch ? '#9ca3af' : '#4b5563';
