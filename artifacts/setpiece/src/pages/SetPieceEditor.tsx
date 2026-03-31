@@ -163,16 +163,6 @@ export default function SetPieceEditor() {
     return () => clearTimeout(timer);
   }, [annotations, entities, steps]);
 
-  const movementPathCacheRef = useRef<Record<string, string>>({});
-  const handleMovementPathSync = useCallback(async (roleId: string, path: Array<{ x: number; y: number }>) => {
-    const key = JSON.stringify(path);
-    if (movementPathCacheRef.current[roleId] === key) return;
-    movementPathCacheRef.current[roleId] = key;
-    try {
-      await updateRole.mutateAsync({ teamId, setPieceId, roleId, data: { movementPath: path } });
-    } catch { /* silent */ }
-  }, [teamId, setPieceId, updateRole]);
-
   const handleRoleDragEnd = useCallback(async (roleId: string, pos: { x: number; y: number }) => {
     const role = setPiece?.roles.find(r => r.id === roleId);
     const prevPos = { x: role?.startPosition?.x ?? 50, y: role?.startPosition?.y ?? 50 };
@@ -578,7 +568,6 @@ export default function SetPieceEditor() {
                 onRoleDragEnd={handleRoleDragEnd}
                 onPitchClick={handlePitchClick}
                 onLabelPrompt={handleLabelPrompt}
-                onMovementPathSync={handleMovementPathSync}
               />
             </div>
 

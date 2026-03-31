@@ -12,7 +12,6 @@ interface RoleData {
   id: string;
   name: string;
   startPosition?: { x?: number | null; y?: number | null } | null;
-  movementPath?: Array<{ x?: number; y?: number }> | null;
 }
 
 interface AssignmentData {
@@ -39,7 +38,6 @@ interface EditorCanvasProps {
   onRoleDragEnd: (roleId: string, pos: { x: number; y: number }) => void;
   onPitchClick: (pos: { x: number; y: number }) => void;
   onLabelPrompt: (pos: Point) => void;
-  onMovementPathSync: (roleId: string, path: Array<{ x: number; y: number }>) => void;
 }
 
 export interface EditorCanvasHandle {
@@ -50,7 +48,7 @@ const PAD = 24;
 
 export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(function EditorCanvas({
   width, height, roles, assignments, players,
-  activeRoleId, category = '', onRoleClick, onRoleDragEnd, onPitchClick, onLabelPrompt, onMovementPathSync,
+  activeRoleId, category = '', onRoleClick, onRoleDragEnd, onPitchClick, onLabelPrompt,
 }, ref) {
   const isCornerKick = category.includes('corner');
   const halfPitch = !isCornerKick && category.includes('free_kick');
@@ -139,13 +137,6 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
     return () => cancelAnimationFrame(animFrame);
   }, [animation.playing]);
 
-  useEffect(() => {
-    annotations.forEach(ann => {
-      if (ann.linkedRoleId && (ann.type === 'run_path' || ann.type === 'curved_run') && ann.points.length >= 2) {
-        onMovementPathSync(ann.linkedRoleId, ann.points);
-      }
-    });
-  }, [annotations, onMovementPathSync]);
 
   const isDrawingTool = ['run_path', 'curved_run', 'pass_line', 'curved_cross'].includes(activeTool);
   const forceDashed = useEditorStore((s) => s.forceDashed);
@@ -377,12 +368,6 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
   const getAnimatedPosition = (roleId: string, role: RoleData): Point => {
     const basePos = { x: role.startPosition?.x ?? 50, y: role.startPosition?.y ?? 50 };
     if (!animation.playing && animation.progress === 0) return basePos;
-
-    if (role.movementPath && role.movementPath.length >= 2 && !isAllMode) {
-      const validPath = role.movementPath
-        .filter((p): p is { x: number; y: number } => typeof p.x === 'number' && typeof p.y === 'number');
-      if (validPath.length >= 2) return interpolatePath(validPath, animation.progress);
-    }
 
     let currentPos = basePos;
 
