@@ -15,6 +15,7 @@ interface AnnotationLayerProps {
   pitchH: number;
   pad: number;
   readOnly?: boolean;
+  lockedTypes?: { actions?: boolean; zones?: boolean; labels?: boolean };
 }
 
 function pctToAbsPoints(points: Point[], toPixel: (p: Point) => Point): number[] {
@@ -26,9 +27,18 @@ function pctToAbsPoints(points: Point[], toPixel: (p: Point) => Point): number[]
   return flat;
 }
 
-export function AnnotationLayer({ annotations, selectedId, focusedRoleId, hasFocusedElement, onSelect, onMove, toPixel, toPct, pitchW, pitchH, pad, readOnly }: AnnotationLayerProps) {
+export function AnnotationLayer({ annotations, selectedId, focusedRoleId, hasFocusedElement, onSelect, onMove, toPixel, toPct, pitchW, pitchH, pad, readOnly, lockedTypes }: AnnotationLayerProps) {
+  const isTypeLocked = (ann: Annotation): boolean => {
+    if (readOnly) return true;
+    if (!lockedTypes) return false;
+    if (['run_path', 'curved_run', 'pass_line', 'curved_cross'].includes(ann.type)) return !!lockedTypes.actions;
+    if (['zone_circle', 'zone_rect'].includes(ann.type)) return !!lockedTypes.zones;
+    if (ann.type === 'label') return !!lockedTypes.labels;
+    return false;
+  };
+
   const makeDragHandlers = (ann: Annotation) => {
-    if (readOnly) return { draggable: false };
+    if (isTypeLocked(ann)) return { draggable: false };
     let startPos = { x: 0, y: 0 };
     return {
       draggable: true,
@@ -143,6 +153,7 @@ export function AnnotationLayer({ annotations, selectedId, focusedRoleId, hasFoc
             if (ann.points.length < 1) return null;
             const center = toPixel(ann.points[0]);
             const r = (ann.radius ?? 10) / 100 * Math.min(pitchW, pitchH);
+            const zoneLocked = isTypeLocked(ann);
             return (
               <Group key={ann.id}>
                 <Circle
@@ -155,10 +166,10 @@ export function AnnotationLayer({ annotations, selectedId, focusedRoleId, hasFoc
                   strokeWidth={isSelected ? ann.strokeWidth + 1 : ann.strokeWidth}
                   dash={[6, 4]}
                   hitStrokeWidth={12}
-                  draggable
-                  onClick={(e) => { e.cancelBubble = true; onSelect(ann.id); }}
-                  onTap={(e) => { e.cancelBubble = true; onSelect(ann.id); }}
-                  onDragEnd={(e) => {
+                  draggable={!zoneLocked}
+                  onClick={(e) => { e.cancelBubble = true; if (!zoneLocked) onSelect(ann.id); }}
+                  onTap={(e) => { e.cancelBubble = true; if (!zoneLocked) onSelect(ann.id); }}
+                  onDragEnd={zoneLocked ? undefined : (e) => {
                     const newPct = toPct({ x: e.target.x(), y: e.target.y() });
                     const dx = newPct.x - ann.points[0].x;
                     const dy = newPct.y - ann.points[0].y;
@@ -179,6 +190,7 @@ export function AnnotationLayer({ annotations, selectedId, focusedRoleId, hasFoc
             const ry = Math.min(p1.y, p2.y);
             const rw = Math.abs(p2.x - p1.x);
             const rh = Math.abs(p2.y - p1.y);
+            const rectLocked = isTypeLocked(ann);
             return (
               <Group key={ann.id}>
                 <Rect
@@ -193,10 +205,10 @@ export function AnnotationLayer({ annotations, selectedId, focusedRoleId, hasFoc
                   dash={[6, 4]}
                   cornerRadius={3}
                   hitStrokeWidth={12}
-                  draggable
-                  onClick={(e) => { e.cancelBubble = true; onSelect(ann.id); }}
-                  onTap={(e) => { e.cancelBubble = true; onSelect(ann.id); }}
-                  onDragEnd={(e) => {
+                  draggable={!rectLocked}
+                  onClick={(e) => { e.cancelBubble = true; if (!rectLocked) onSelect(ann.id); }}
+                  onTap={(e) => { e.cancelBubble = true; if (!rectLocked) onSelect(ann.id); }}
+                  onDragEnd={rectLocked ? undefined : (e) => {
                     const newPct = toPct({ x: e.target.x(), y: e.target.y() });
                     const origPct = toPct({ x: rx, y: ry });
                     const dx = newPct.x - origPct.x;
@@ -213,9 +225,10 @@ export function AnnotationLayer({ annotations, selectedId, focusedRoleId, hasFoc
           case 'label': {
             if (ann.points.length < 1) return null;
             const pos = toPixel(ann.points[0]);
+            const labelLocked = isTypeLocked(ann);
             return (
-              <Group key={ann.id} draggable
-                onDragEnd={(e) => {
+              <Group key={ann.id} draggable={!labelLocked}
+                onDragEnd={labelLocked ? undefined : (e) => {
                   const newPct = toPct({ x: e.target.x() + pos.x, y: e.target.y() + pos.y });
                   const dx = newPct.x - ann.points[0].x;
                   const dy = newPct.y - ann.points[0].y;
@@ -247,8 +260,8 @@ export function AnnotationLayer({ annotations, selectedId, focusedRoleId, hasFoc
                   fill={ann.color}
                   opacity={Math.min(1, 0.9 * annOpacityScale)}
                   hitStrokeWidth={16}
-                  onClick={(e) => { e.cancelBubble = true; onSelect(ann.id); }}
-                  onTap={(e) => { e.cancelBubble = true; onSelect(ann.id); }}
+                  onClick={(e) => { e.cancelBubble = true; if (!labelLocked) onSelect(ann.id); }}
+                  onTap={(e) => { e.cancelBubble = true; if (!labelLocked) onSelect(ann.id); }}
                 />
               </Group>
             );

@@ -502,7 +502,8 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
           pitchW={pitchW}
           pitchH={pitchH}
           pad={PAD}
-          readOnly={readOnly || layerLocked.actions}
+          readOnly={readOnly}
+          lockedTypes={{ actions: layerLocked.actions, zones: layerLocked.zones, labels: layerLocked.labels }}
         />
 
         {isDrawingTool && drawingPoints.length >= 2 && (

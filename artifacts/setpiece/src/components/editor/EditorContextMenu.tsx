@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { useEditorStore } from './editorStore';
+import type { AnnotationType } from './types';
 import { Trash2, Copy, ArrowRightLeft, Layers } from 'lucide-react';
 
 export function EditorContextMenu() {
@@ -49,7 +50,7 @@ export function EditorContextMenu() {
 
   const handleConvertType = () => {
     if (!ann) return;
-    const conversions: Record<string, string> = {
+    const conversions: Record<string, AnnotationType> = {
       run_path: 'pass_line',
       pass_line: 'run_path',
       curved_run: 'curved_cross',
@@ -59,7 +60,7 @@ export function EditorContextMenu() {
     if (newType) {
       const isRun = newType === 'run_path' || newType === 'curved_run';
       updateAnnotation(ann.id, {
-        type: newType as any,
+        type: newType,
         dashed: isRun,
         arrowhead: true,
       });
