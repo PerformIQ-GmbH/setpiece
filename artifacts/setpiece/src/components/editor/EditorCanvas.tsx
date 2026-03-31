@@ -165,7 +165,8 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
       clearDrawingPoints();
       return;
     }
-    if (useEditorStore.getState().layerLocked.actions) {
+    const fds = useEditorStore.getState();
+    if (fds.layerLocked.actions || !fds.layerVisibility.actions) {
       clearDrawingPoints();
       return;
     }
@@ -246,21 +247,22 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
     }
 
     if (activeTool === 'label') {
-      if (useEditorStore.getState().layerLocked.labels) return;
+      const ls = useEditorStore.getState();
+      if (ls.layerLocked.labels || !ls.layerVisibility.labels) return;
       onLabelPrompt(pct);
       return;
     }
 
     if (isEntityTool && isBackground) {
-      const ll = useEditorStore.getState().layerLocked;
+      const ls = useEditorStore.getState();
       if (activeTool === 'team_player') {
-        if (ll.team) return;
+        if (ls.layerLocked.team || !ls.layerVisibility.team) return;
         onPitchClick(pct);
         return;
       }
       const entType = activeTool === 'ball' ? 'ball' : activeTool === 'goalkeeper' ? 'goalkeeper' : 'opponent';
       const entLayerKey = entType === 'opponent' ? 'opponents' : entType === 'ball' ? 'ball' : 'team';
-      if (ll[entLayerKey as keyof typeof ll]) return;
+      if (ls.layerLocked[entLayerKey as keyof typeof ls.layerLocked] || !ls.layerVisibility[entLayerKey as keyof typeof ls.layerVisibility]) return;
       addEntity({
         id: crypto.randomUUID(),
         type: entType,
@@ -271,13 +273,15 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
     }
 
     if (isDrawingTool) {
-      if (useEditorStore.getState().layerLocked.actions) return;
+      const ds = useEditorStore.getState();
+      if (ds.layerLocked.actions || !ds.layerVisibility.actions) return;
       addDrawingPoint(pct);
       return;
     }
 
     if (activeTool === 'zone_circle' && isBackground) {
-      if (useEditorStore.getState().layerLocked.zones) return;
+      const zs = useEditorStore.getState();
+      if (zs.layerLocked.zones || !zs.layerVisibility.zones) return;
       const ann: Annotation = {
         id: crypto.randomUUID(),
         type: 'zone_circle',
@@ -294,7 +298,8 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
     }
 
     if (activeTool === 'zone_rect') {
-      if (useEditorStore.getState().layerLocked.zones) return;
+      const zrs = useEditorStore.getState();
+      if (zrs.layerLocked.zones || !zrs.layerVisibility.zones) return;
       if (drawingPoints.length === 0) {
         addDrawingPoint(pct);
       } else {
