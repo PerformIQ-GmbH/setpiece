@@ -1,0 +1,291 @@
+You are a senior product engineer and UX-focused frontend architect.
+
+Refactor and improve the tactical editor of SETPIECE by PerformIQ.
+
+IMPORTANT:
+Do not do a superficial UI pass.
+This task requires a real editor UX + data model improvement.
+
+First analyze the current implementation, especially:
+- editorStore.ts
+- EditorCanvas.tsx
+- InspectorPanel.tsx
+- markers.tsx
+
+Then create a concise implementation plan and execute it carefully.
+
+Do NOT break existing features unless absolutely necessary.
+Preserve current functionality where possible:
+- role placement
+- dragging
+- drawing
+- save state
+- inspector workflow
+- existing pitch rendering
+- existing ghost mode logic if present
+
+==================================================
+PRIMARY GOAL
+==================================================
+
+Make the editor significantly more practical for daily football coaching use.
+
+Current problems to solve:
+1. animation is too unclear because everything interpolates at once
+2. the same player can be assigned to multiple roles
+3. markers are not visually clear enough
+4. coaches cannot instantly see what is missing or invalid
+5. the board lacks clear visual semantics and fast usability cues
+
+The result should feel:
+- clearer
+- easier
+- more coach-friendly
+- more structured
+- more practical in real life
+
+==================================================
+PART A — STEP-BASED / PHASE-BASED ANIMATION SYSTEM
+==================================================
+
+Refactor the animation model away from one global progress interpolation.
+
+Replace it with a step-based / phase-based sequence model.
+
+Requirements:
+- actions must be assignable to steps/phases
+- animation should play step-by-step, not all at once
+- each step contains one or more actions
+- steps should run sequentially
+- each step can have a label/title
+- support reordering steps
+- support assigning drawn actions to a step
+- playback controls:
+  - previous step
+  - play
+  - pause
+  - next step
+  - reset
+- support simple speed control
+- support playing one step only or full sequence
+
+Action model should be practical, not overengineered.
+
+Suggested action model:
+- id
+- type
+  - run
+  - pass
+  - cross
+  - move
+  - highlight
+- actorRoleId
+- targetRoleId optional
+- shapeId / pathId optional
+- stepIndex
+- duration
+- label optional
+
+UI requirements:
+- create a simple step/sequence UI in BottomBar or Inspector
+- user must be able to:
+  - create step
+  - rename step
+  - assign action to step
+  - reorder steps
+  - delete step
+- do NOT build a complex video-editing timeline
+- keep the UI simple and coach-friendly
+
+Important:
+This must improve real-world usability, not just add complexity.
+
+==================================================
+PART B — UNIQUE PLAYER ASSIGNMENT
+==================================================
+
+A player must not be assignable to multiple role markers.
+
+Update all relevant assignment dropdowns in:
+- RoleMarkerInspector
+- RolesPanel
+- any other assignment UI
+
+Requirements:
+- players already assigned to another role must either:
+  - be filtered out
+  OR
+  - appear disabled and clearly marked as unavailable
+- the currently assigned player for the current role must still remain selectable
+- the UI should clearly communicate if a player is already assigned elsewhere
+- ideally show which role they are already assigned to
+
+Behavior:
+- one player = one role on the pitch
+- no duplicate assignment states
+
+This must be enforced consistently in the editor UI.
+
+==================================================
+PART C — VISUAL CLARITY OF MARKERS
+==================================================
+
+Improve marker clarity significantly in:
+- EditorCanvas.tsx
+- markers.tsx
+
+Requirements for TeamPlayerMarker:
+- render shirt number clearly
+- render player last name near or under the marker
+- keep it readable at normal editor zoom
+- selected state must be visually strong
+- marker must feel premium and football-specific, not like a generic dot
+
+For unassigned roles:
+- markers must be visually distinct immediately
+- use one or more of:
+  - lower opacity
+  - dashed outline
+  - question mark
+  - warning indicator
+  - “Unassigned” mini label
+- coach must see instantly which roles are not assigned
+
+For selected markers:
+- add a stronger focus state:
+  - halo
+  - outline
+  - subtle glow
+  - linked emphasis for related action/path if possible
+
+==================================================
+PART D — BOARD HEALTH / VALIDATION
+==================================================
+
+Add a validation / board health layer.
+
+The editor should detect and surface important issues such as:
+- unassigned roles
+- duplicate player assignment attempts
+- actions with no step assigned
+- steps with no actions
+- roles without backup if relevant
+- broken references between roles and actions if any
+
+Requirements:
+- create a compact “Board Health” or “Validation” summary
+- place it in a useful location (Inspector, BottomBar, or a small panel)
+- show:
+  - Ready
+  - Needs Review
+  - specific issues
+- use clear severity states:
+  - green
+  - amber
+  - red
+
+This should help coaches immediately understand what still needs attention.
+
+==================================================
+PART E — STRONGER ACTION SEMANTICS
+==================================================
+
+Standardize and enforce visual semantics.
+
+Rules:
+- dashed straight line = run
+- dashed curved line = curved run
+- solid straight line = pass
+- solid curved line = cross / bent delivery
+- blue translucent style = ghost/substitution movement
+
+Requirements:
+- reflect these semantics in rendering
+- reflect them in inspector labels
+- reflect them in any tooltips/help text
+- make the distinctions visually clear and consistent
+
+==================================================
+PART F — MINI LEGEND
+==================================================
+
+Add a compact legend inside the editor.
+
+It should explain:
+- dashed = run
+- solid = pass
+- curved solid = cross
+- blue = ghost
+- question mark / warning state = unassigned
+
+Requirements:
+- small
+- elegant
+- non-intrusive
+- always available or easy to toggle
+
+==================================================
+PART G — FASTER ASSIGNMENT UX
+==================================================
+
+Improve the player assignment experience.
+
+Requirements:
+- clearer role cards / assignment cards
+- better dropdown usability
+- if possible, searchable assignment input
+- show assigned player clearly
+- show backup clearly
+- show unavailable/used players clearly
+
+Goal:
+Make player assignment feel fast and obvious.
+
+==================================================
+PART H — IMPLEMENTATION RULES
+==================================================
+
+Important implementation rules:
+- keep architecture clean
+- update store/types carefully
+- do not hack around state inconsistently
+- if the animation refactor needs store changes, do it properly
+- preserve compatibility with existing saved editor data if reasonably possible
+- if a migration is needed, implement a safe fallback or mapper
+- do not overcomplicate the sequence model
+- optimize for practical coach usage
+
+==================================================
+PART I — DELIVERABLE FORMAT
+==================================================
+
+Work in this order:
+1. analyze current code structure
+2. propose the refactor plan
+3. implement unique player assignment
+4. implement clearer markers and unassigned states
+5. implement board health / validation
+6. implement stronger semantics + legend
+7. refactor animation into step-based sequence system
+8. add sequence UI
+9. polish UX consistency
+
+At the end, summarize:
+- what changed
+- which files changed
+- any migration or follow-up considerations
+- any edge cases still open
+
+==================================================
+SUCCESS CRITERIA
+==================================================
+
+The result is acceptable only if:
+- a player cannot meaningfully be assigned to two different roles
+- markers clearly show shirt number and last name
+- unassigned roles are obvious at a glance
+- animation works in sequential steps/phases
+- the editor no longer feels like everything happens at once
+- coaches can understand what the board means faster
+- validation/board health exists
+- semantics for run/pass/cross/ghost are clear and consistent

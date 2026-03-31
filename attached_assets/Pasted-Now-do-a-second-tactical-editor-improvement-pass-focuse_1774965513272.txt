@@ -1,0 +1,182 @@
+Now do a second tactical-editor improvement pass focused on daily usability and premium workflow.
+
+Use the current improved implementation from step 1 as the base.
+Do not rebuild what already works.
+Refine and extend it carefully.
+
+Analyze the updated code first, then implement the following improvements.
+
+==================================================
+PRIMARY GOAL
+==================================================
+
+Make the editor feel truly practical for daily football coaching.
+
+Focus on:
+- speed
+- clarity
+- structure
+- presentation quality
+- lower friction in real use
+
+==================================================
+1. SNAP / ALIGNMENT / ANCHORS
+==================================================
+
+Add smart snapping behavior.
+
+Requirements:
+- markers can snap to useful pitch anchors
+- actions/paths can snap to marker centers
+- optional grid snapping
+- optional pitch-line snapping
+- keep dragging smooth
+- do not make snapping too aggressive
+
+Add simple toggle(s) if needed:
+- snap on/off
+- grid on/off
+
+==================================================
+2. QUICK DUPLICATE / MIRROR LEFT-RIGHT
+==================================================
+
+Add a fast mirror/duplicate workflow.
+
+Requirements:
+- allow duplicating a set piece or board structure
+- allow mirroring left-to-right or right-to-left
+- mirror markers, paths, and relevant geometry consistently
+- keep role/player links intact where sensible
+- coach should be able to reuse a corner quickly on the opposite side
+
+This is a high-value practical feature.
+
+==================================================
+3. LOCK / HIDE LAYERS
+==================================================
+
+Add lightweight layer controls.
+
+Minimum layers to support:
+- roles / players
+- opponents
+- actions / paths
+- labels / notes
+- zones
+
+Requirements:
+- hide/show per layer
+- lock/unlock per layer
+- make it easier to edit without visual clutter
+- do not overbuild a full graphics-editor layer system
+
+==================================================
+4. PRESENTATION MODE
+==================================================
+
+Add a simplified presentation mode for player/staff explanation.
+
+Requirements:
+- hide most editing chrome
+- focus on pitch + current step
+- support previous / next / play / pause
+- show current step title
+- show legend only if useful
+- make it suitable for tablet, iPad, or team presentation
+
+Goal:
+This should be a coach-friendly explanation mode, not an editing mode.
+
+==================================================
+5. SELECTED OBJECT FOCUS IMPROVEMENT
+==================================================
+
+Strengthen selected-object clarity further.
+
+Requirements:
+- selected marker stands out more clearly
+- connected paths/actions for that marker can be subtly emphasized
+- non-relevant objects can be slightly dimmed if useful
+- keep the board readable
+
+==================================================
+6. QUICK ACTION WORKFLOW
+==================================================
+
+Improve editor speed with quick actions.
+
+Examples:
+- assign player directly from selected marker
+- duplicate selected path
+- move action to previous/next step quickly
+- convert selected line type
+  - run -> pass
+  - pass -> cross
+- clear step
+- focus on role
+
+Goal:
+Reduce friction for repetitive coach tasks.
+
+==================================================
+7. EMPTY STATES / HELPFUL MICROCOPY
+==================================================
+
+Improve empty states and helper text.
+
+Requirements:
+- practical, short, calm copy
+- examples:
+  - “Start by placing a role”
+  - “Use dashed lines for player runs”
+  - “Mirror this pattern to the opposite side”
+  - “Presentation mode is ideal for team explanation”
+
+==================================================
+8. PERFORMANCE + STABILITY
+==================================================
+
+Review the updated editor for performance and code clarity.
+
+Requirements:
+- avoid unnecessary rerenders
+- keep Konva rendering efficient
+- avoid state duplication where possible
+- ensure snapping and sequencing do not make the editor laggy
+- keep logic maintainable
+
+==================================================
+9. FINAL POLISH
+==================================================
+
+Polish the editor so it feels premium and consistent.
+
+Focus on:
+- spacing
+- hierarchy
+- button consistency
+- panel organization
+- icon usage
+- states
+- subtle motion
+- calm visual clarity
+
+==================================================
+DELIVERY ORDER
+==================================================
+
+Work in this order:
+1. analyze the new state after step 1
+2. implement snapping
+3. implement mirror/duplicate
+4. implement lock/hide layers
+5. implement presentation mode
+6. improve quick actions
+7. polish focus states and empty states
+8. do final UX/performance cleanup
+
+At the end, summarize:
+- what was implemented
+- what is now easier in daily use
+- what future optional improvements remain
