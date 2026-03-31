@@ -89,11 +89,16 @@ export function EditorContextMenu() {
     curved_cross: 'Curved Run',
   };
 
+  const menuWidth = 180;
+  const menuHeight = 200;
+  const clampedX = Math.min(contextMenu.x, window.innerWidth - menuWidth);
+  const clampedY = Math.min(contextMenu.y, window.innerHeight - menuHeight);
+
   return (
     <div
       ref={menuRef}
       className="fixed z-50 bg-card border border-border rounded-xl shadow-2xl py-1.5 min-w-[160px]"
-      style={{ left: contextMenu.x, top: contextMenu.y }}
+      style={{ left: Math.max(0, clampedX), top: Math.max(0, clampedY) }}
     >
       {ann && (
         <>
