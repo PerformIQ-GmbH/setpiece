@@ -205,13 +205,15 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
       let closestAnnId: string | null = null;
       let closestAnnDist = Infinity;
       const state = useEditorStore.getState();
+      const lv = state.layerVisibility;
+      const ll = state.layerLocked;
       const currentStep = state.steps[state.animation.activeStepIndex];
       const currentStepId = currentStep?.id;
-      const visibleAnns = (currentStepId ? annotations.filter(a => a.stepId === currentStepId) : annotations)
+      const visibleAnns = (currentStepId ? state.annotations.filter(a => a.stepId === currentStepId) : state.annotations)
         .filter(a => {
-          if (['run_path', 'curved_run', 'pass_line', 'curved_cross'].includes(a.type)) return layerVisibility.actions && !layerLocked.actions;
-          if (['zone_circle', 'zone_rect'].includes(a.type)) return layerVisibility.zones && !layerLocked.zones;
-          if (a.type === 'label') return layerVisibility.labels && !layerLocked.labels;
+          if (['run_path', 'curved_run', 'pass_line', 'curved_cross'].includes(a.type)) return lv.actions && !ll.actions;
+          if (['zone_circle', 'zone_rect'].includes(a.type)) return lv.zones && !ll.zones;
+          if (a.type === 'label') return lv.labels && !ll.labels;
           return true;
         });
       for (const ann of visibleAnns) {
@@ -222,9 +224,9 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
       }
       let closestEntId: string | null = null;
       let closestEntDist = Infinity;
-      for (const ent of entities) {
+      for (const ent of state.entities) {
         const layerKey = ent.type === 'opponent' ? 'opponents' as const : ent.type === 'ball' ? 'ball' as const : 'team' as const;
-        if (!layerVisibility[layerKey] || layerLocked[layerKey]) continue;
+        if (!lv[layerKey] || ll[layerKey]) continue;
         const d = Math.hypot(ent.position.x - pct.x, ent.position.y - pct.y);
         if (d < closestEntDist) { closestEntDist = d; closestEntId = ent.id; }
       }
