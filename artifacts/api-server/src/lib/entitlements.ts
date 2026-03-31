@@ -11,10 +11,10 @@ export interface TierLimits {
 
 const TIER_LIMITS: Record<string, TierLimits> = {
   free: {
-    maxPlayers: 15,
-    maxSetPieces: 3,
-    maxMatchdays: 2,
-    maxShareLinks: 3,
+    maxPlayers: 25,
+    maxSetPieces: 5,
+    maxMatchdays: 3,
+    maxShareLinks: 5,
   },
   solo_coach: {
     maxPlayers: 30,
