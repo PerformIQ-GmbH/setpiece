@@ -159,14 +159,19 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
       clearDrawingPoints();
       return;
     }
+    const toolType = activeTool as AnnotationType;
+    const isRunType = toolType === 'run_path' || toolType === 'curved_run';
+    const isPassType = toolType === 'pass_line' || toolType === 'curved_cross';
+    const semanticDashed = isRunType ? true : isPassType ? false : isDashed;
+    const semanticArrowhead = isRunType || isPassType ? true : showArrowhead;
     const ann: Annotation = {
       id: crypto.randomUUID(),
-      type: activeTool as AnnotationType,
+      type: toolType,
       points: [...drawingPoints],
       color: strokeColor,
       strokeWidth,
-      dashed: isDashed,
-      arrowhead: showArrowhead,
+      dashed: semanticDashed,
+      arrowhead: semanticArrowhead,
       layerOrder: annotations.length,
     };
     addAnnotation(ann);

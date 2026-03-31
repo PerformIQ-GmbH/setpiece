@@ -54,6 +54,9 @@ export function AnnotationLayer({ annotations, selectedId, focusedRoleId, hasFoc
         const annOpacityScale = hasFocusedElement && !isSelected && !isLinkedToFocused ? 0.3 : isLinkedToFocused ? 1.15 : 1;
         const drag = makeDragHandlers(ann);
 
+        const ghostColor = ann.ghost ? '#3b82f6' : ann.color;
+        const ghostOpacity = ann.ghost ? 0.4 : 1;
+
         switch (ann.type) {
           case 'run_path':
           case 'pass_line': {
@@ -74,15 +77,15 @@ export function AnnotationLayer({ annotations, selectedId, focusedRoleId, hasFoc
                 )}
                 <Component
                   points={flatPts}
-                  stroke={ann.color}
+                  stroke={ghostColor}
                   strokeWidth={isLinkedToFocused ? ann.strokeWidth + 1 : ann.strokeWidth}
                   dash={ann.dashed ? [8, 5] : undefined}
                   lineCap="round"
                   lineJoin="round"
                   pointerLength={ann.arrowhead ? 10 : undefined}
                   pointerWidth={ann.arrowhead ? 8 : undefined}
-                  fill={ann.arrowhead ? ann.color : undefined}
-                  opacity={Math.min(1, 0.85 * annOpacityScale)}
+                  fill={ann.arrowhead ? ghostColor : undefined}
+                  opacity={Math.min(1, 0.85 * annOpacityScale * ghostOpacity)}
                   hitStrokeWidth={16}
                   onClick={(e) => { e.cancelBubble = true; onSelect(ann.id); }}
                   onTap={(e) => { e.cancelBubble = true; onSelect(ann.id); }}
@@ -111,7 +114,7 @@ export function AnnotationLayer({ annotations, selectedId, focusedRoleId, hasFoc
                 )}
                 <Component
                   points={curvePts}
-                  stroke={ann.color}
+                  stroke={ghostColor}
                   strokeWidth={isLinkedToFocused ? ann.strokeWidth + 1 : ann.strokeWidth}
                   dash={ann.dashed ? [8, 5] : undefined}
                   tension={0.4}
@@ -119,8 +122,8 @@ export function AnnotationLayer({ annotations, selectedId, focusedRoleId, hasFoc
                   lineJoin="round"
                   pointerLength={ann.arrowhead ? 10 : undefined}
                   pointerWidth={ann.arrowhead ? 8 : undefined}
-                  fill={ann.arrowhead ? ann.color : undefined}
-                  opacity={Math.min(1, 0.85 * annOpacityScale)}
+                  fill={ann.arrowhead ? ghostColor : undefined}
+                  opacity={Math.min(1, 0.85 * annOpacityScale * ghostOpacity)}
                   hitStrokeWidth={16}
                   onClick={(e) => { e.cancelBubble = true; onSelect(ann.id); }}
                   onTap={(e) => { e.cancelBubble = true; onSelect(ann.id); }}

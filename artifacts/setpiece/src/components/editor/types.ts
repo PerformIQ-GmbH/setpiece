@@ -52,6 +52,7 @@ export interface Annotation {
   height?: number;
   linkedRoleId?: string;
   stepId?: string;
+  ghost?: boolean;
 }
 
 export interface BoardData {

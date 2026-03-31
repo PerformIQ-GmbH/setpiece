@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { useEditorStore } from './editorStore';
-import { ANNOTATION_COLORS } from './types';
+import { ANNOTATION_COLORS, ACTION_SEMANTICS } from './types';
 import { cn } from '@/lib/utils';
-import { Play, Pause, RotateCcw, Trash2, ArrowRight, Minus, ChevronLeft, ChevronRight, Plus, GripVertical, Pencil, Check, X } from 'lucide-react';
+import { Play, Pause, RotateCcw, Trash2, ArrowRight, Minus, ChevronLeft, ChevronRight, ChevronUp, ChevronDown as ChevronDownIcon, Plus, Check, X } from 'lucide-react';
 
 const WIDTHS = [1.5, 2.5, 4, 6];
 
@@ -38,6 +38,8 @@ const ENTITY_TYPE_LABELS: Record<string, string> = {
   ball: 'Ball',
 };
 
+const SEMANTIC_TOOLS = new Set(['run_path', 'curved_run', 'pass_line', 'curved_cross']);
+
 export function BottomBar() {
   const activeTool = useEditorStore((s) => s.activeTool);
   const editorMode = useEditorStore((s) => s.editorMode);
@@ -54,6 +56,7 @@ export function BottomBar() {
   const setPlaying = useEditorStore((s) => s.setAnimationPlaying);
   const setProgress = useEditorStore((s) => s.setAnimationProgress);
   const setSpeed = useEditorStore((s) => s.setAnimationSpeed);
+  const setActiveStepIndex = useEditorStore((s) => s.setActiveStepIndex);
   const selectedAnnotationId = useEditorStore((s) => s.selectedAnnotationId);
   const selectedEntityId = useEditorStore((s) => s.selectedEntityId);
   const deleteAnnotation = useEditorStore((s) => s.deleteAnnotation);
@@ -61,12 +64,12 @@ export function BottomBar() {
   const annotations = useEditorStore((s) => s.annotations);
   const entities = useEditorStore((s) => s.entities);
   const steps = useEditorStore((s) => s.steps);
-  const setActiveStepIndex = useEditorStore((s) => s.setActiveStepIndex);
   const goToNextStep = useEditorStore((s) => s.goToNextStep);
   const goToPrevStep = useEditorStore((s) => s.goToPrevStep);
   const addStep = useEditorStore((s) => s.addStep);
   const updateStep = useEditorStore((s) => s.updateStep);
   const deleteStep = useEditorStore((s) => s.deleteStep);
+  const reorderStep = useEditorStore((s) => s.reorderStep);
   const setPlayMode = useEditorStore((s) => s.setPlayMode);
 
   const [editingStepId, setEditingStepId] = useState<string | null>(null);
@@ -75,6 +78,10 @@ export function BottomBar() {
   const isDrawTool = ['run_path', 'curved_run', 'pass_line', 'curved_cross', 'zone_circle', 'zone_rect', 'label'].includes(activeTool);
   const selectedAnn = selectedAnnotationId ? annotations.find(a => a.id === selectedAnnotationId) : null;
   const selectedEnt = selectedEntityId ? entities.find(e => e.id === selectedEntityId) : null;
+
+  const isSemanticTool = SEMANTIC_TOOLS.has(activeTool);
+  const isSemanticSelection = selectedAnn && SEMANTIC_TOOLS.has(selectedAnn.type);
+  const semanticLocked = isSemanticTool || isSemanticSelection;
 
   const selectionSummary = selectedAnn
     ? `${ANNOTATION_TYPE_LABELS[selectedAnn.type] || selectedAnn.type}${selectedAnn.linkedRoleId ? ' (linked)' : ''}`
@@ -85,6 +92,18 @@ export function BottomBar() {
   const showStyleControls = (isDrawTool || selectedAnn) && (editorMode === 'advanced' || isDrawTool);
   const activeStep = steps[animation.activeStepIndex];
   const activeStepAnns = activeStep ? annotations.filter(a => a.stepId === activeStep.id) : [];
+
+  const semanticHint = isSemanticTool
+    ? ACTION_SEMANTICS[activeTool]
+    : isSemanticSelection
+    ? ACTION_SEMANTICS[selectedAnn!.type]
+    : null;
+
+  const handleReset = () => {
+    setPlaying(false);
+    setProgress(0);
+    setActiveStepIndex(0);
+  };
 
   return (
     <div className="border-t border-border bg-card/80 backdrop-blur-md shrink-0">
@@ -98,61 +117,93 @@ export function BottomBar() {
         </button>
 
         <div className="flex items-center gap-0.5 overflow-x-auto">
-          {steps.map((step, idx) => (
-            <div key={step.id} className="shrink-0">
-              {editingStepId === step.id ? (
-                <div className="flex items-center gap-0.5">
-                  <input
-                    autoFocus
-                    value={editLabel}
-                    onChange={(e) => setEditLabel(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') {
+          {steps.map((step, idx) => {
+            const stepAnns = annotations.filter(a => a.stepId === step.id);
+            const actionSummary = stepAnns.reduce((acc, a) => {
+              const label = ANNOTATION_TYPE_LABELS[a.type] || a.type;
+              acc[label] = (acc[label] || 0) + 1;
+              return acc;
+            }, {} as Record<string, number>);
+            const actionList = Object.entries(actionSummary).map(([k, v]) => `${v} ${k}`).join(', ');
+
+            return (
+              <div key={step.id} className="shrink-0 group relative">
+                {editingStepId === step.id ? (
+                  <div className="flex items-center gap-0.5">
+                    <input
+                      autoFocus
+                      value={editLabel}
+                      onChange={(e) => setEditLabel(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          updateStep(step.id, { label: editLabel.trim() || step.label });
+                          setEditingStepId(null);
+                        }
+                        if (e.key === 'Escape') setEditingStepId(null);
+                      }}
+                      className="w-16 bg-secondary border border-primary rounded px-1 py-0.5 text-[10px] text-foreground outline-none"
+                    />
+                    <button
+                      onClick={() => {
                         updateStep(step.id, { label: editLabel.trim() || step.label });
                         setEditingStepId(null);
-                      }
-                      if (e.key === 'Escape') setEditingStepId(null);
-                    }}
-                    className="w-16 bg-secondary border border-primary rounded px-1 py-0.5 text-[10px] text-foreground outline-none"
-                  />
-                  <button
-                    onClick={() => {
-                      updateStep(step.id, { label: editLabel.trim() || step.label });
-                      setEditingStepId(null);
-                    }}
-                    className="w-4 h-4 text-primary"
-                  >
-                    <Check className="w-3 h-3" />
-                  </button>
-                </div>
-              ) : (
-                <button
-                  onClick={() => setActiveStepIndex(idx)}
-                  onDoubleClick={() => {
-                    setEditLabel(step.label);
-                    setEditingStepId(step.id);
-                  }}
-                  className={cn(
-                    "px-2.5 py-1 rounded text-[10px] font-semibold transition-all flex items-center gap-1",
-                    idx === animation.activeStepIndex
-                      ? "bg-primary/20 text-primary border border-primary/30"
-                      : "text-muted-foreground hover:text-white hover:bg-secondary border border-transparent"
-                  )}
-                >
-                  <span className={cn(
-                    "w-4 h-4 rounded-full text-[8px] flex items-center justify-center font-bold",
-                    idx === animation.activeStepIndex ? "bg-primary text-primary-foreground" : "bg-secondary text-muted-foreground"
-                  )}>
-                    {idx + 1}
-                  </span>
-                  {step.label}
-                  <span className="text-[8px] text-muted-foreground/60">
-                    ({annotations.filter(a => a.stepId === step.id).length})
-                  </span>
-                </button>
-              )}
-            </div>
-          ))}
+                      }}
+                      className="w-4 h-4 text-primary"
+                    >
+                      <Check className="w-3 h-3" />
+                    </button>
+                  </div>
+                ) : (
+                  <div className="flex items-center">
+                    <button
+                      onClick={() => setActiveStepIndex(idx)}
+                      onDoubleClick={() => {
+                        setEditLabel(step.label);
+                        setEditingStepId(step.id);
+                      }}
+                      title={actionList || 'No actions'}
+                      className={cn(
+                        "px-2.5 py-1 rounded-l text-[10px] font-semibold transition-all flex items-center gap-1",
+                        idx === animation.activeStepIndex
+                          ? "bg-primary/20 text-primary border border-primary/30 border-r-0"
+                          : "text-muted-foreground hover:text-white hover:bg-secondary border border-transparent"
+                      )}
+                    >
+                      <span className={cn(
+                        "w-4 h-4 rounded-full text-[8px] flex items-center justify-center font-bold",
+                        idx === animation.activeStepIndex ? "bg-primary text-primary-foreground" : "bg-secondary text-muted-foreground"
+                      )}>
+                        {idx + 1}
+                      </span>
+                      {step.label}
+                      <span className="text-[8px] text-muted-foreground/60">
+                        ({stepAnns.length})
+                      </span>
+                    </button>
+
+                    {idx === animation.activeStepIndex && steps.length > 1 && (
+                      <div className="flex flex-col border border-primary/30 border-l-0 rounded-r overflow-hidden">
+                        <button
+                          onClick={() => reorderStep(step.id, 'up')}
+                          disabled={idx === 0}
+                          className="h-[14px] w-4 flex items-center justify-center text-muted-foreground hover:text-primary disabled:opacity-30 transition-colors bg-primary/10"
+                        >
+                          <ChevronUp className="w-2.5 h-2.5" />
+                        </button>
+                        <button
+                          onClick={() => reorderStep(step.id, 'down')}
+                          disabled={idx === steps.length - 1}
+                          className="h-[14px] w-4 flex items-center justify-center text-muted-foreground hover:text-primary disabled:opacity-30 transition-colors bg-primary/10"
+                        >
+                          <ChevronDownIcon className="w-2.5 h-2.5" />
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </div>
 
         <button
@@ -214,6 +265,9 @@ export function BottomBar() {
             activeTool === 'erase' ? "bg-red-400" : "bg-primary"
           )} />
           <span className="font-semibold text-white text-[11px]">{TOOL_LABELS[activeTool] || activeTool}</span>
+          {semanticHint && (
+            <span className="text-[9px] text-primary/70 italic">{semanticHint.style}</span>
+          )}
         </div>
 
         {selectionSummary && (
@@ -241,7 +295,7 @@ export function BottomBar() {
               ))}
             </div>
 
-            {editorMode === 'advanced' && (
+            {editorMode === 'advanced' && !semanticLocked && (
               <>
                 <div className="w-px h-5 bg-border shrink-0" />
                 <div className="flex items-center gap-1 shrink-0">
@@ -284,6 +338,13 @@ export function BottomBar() {
                 </button>
               </>
             )}
+
+            {semanticLocked && (
+              <>
+                <div className="w-px h-5 bg-border shrink-0" />
+                <span className="text-[9px] text-muted-foreground/60 italic shrink-0">Style locked by action type</span>
+              </>
+            )}
           </>
         )}
 
@@ -313,8 +374,8 @@ export function BottomBar() {
             {animation.playing ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
           </button>
           <button
-            onClick={() => { setPlaying(false); setProgress(0); }}
-            title="Reset"
+            onClick={handleReset}
+            title="Reset to Step 1"
             className="w-8 h-8 rounded-lg flex items-center justify-center text-muted-foreground hover:bg-secondary hover:text-white transition-all"
           >
             <RotateCcw className="w-4 h-4" />

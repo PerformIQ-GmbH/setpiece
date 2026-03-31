@@ -335,49 +335,79 @@ function AnnotationInspector({ annotation, onUpdate, onDelete, roles }: {
           </div>
         </CollapsibleSection>
 
-        {!['label', 'zone_circle', 'zone_rect'].includes(annotation.type) && (
-          <CollapsibleSection title="Style">
-            <div className="space-y-3">
-              <div className="space-y-1">
-                <label className="text-[10px] text-muted-foreground">Line Style</label>
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => onUpdate({ dashed: false })}
-                    className={cn("flex-1 py-1.5 rounded border text-xs font-semibold transition-all",
-                      !annotation.dashed ? "bg-primary/20 border-primary text-primary" : "border-border text-muted-foreground hover:border-muted-foreground")}
-                  >
-                    Solid
-                  </button>
-                  <button
-                    onClick={() => onUpdate({ dashed: true })}
-                    className={cn("flex-1 py-1.5 rounded border text-xs font-semibold transition-all",
-                      annotation.dashed ? "bg-primary/20 border-primary text-primary" : "border-border text-muted-foreground hover:border-muted-foreground")}
-                  >
-                    Dashed
-                  </button>
+        {!['label', 'zone_circle', 'zone_rect'].includes(annotation.type) && (() => {
+          const isSemantic = ['run_path', 'curved_run', 'pass_line', 'curved_cross'].includes(annotation.type);
+          return (
+            <CollapsibleSection title="Style">
+              <div className="space-y-3">
+                {isSemantic ? (
+                  <div className="flex items-start gap-2 p-2 rounded-lg bg-primary/5 border border-primary/10">
+                    <Info className="w-3 h-3 text-primary mt-0.5 shrink-0" />
+                    <div className="text-[10px] text-primary/80 leading-snug">
+                      <p className="font-medium">{annotation.dashed ? 'Dashed' : 'Solid'} • Arrowhead {annotation.arrowhead ? 'on' : 'off'}</p>
+                      <p className="text-muted-foreground mt-0.5">Style locked by action type convention</p>
+                    </div>
+                  </div>
+                ) : (
+                  <>
+                    <div className="space-y-1">
+                      <label className="text-[10px] text-muted-foreground">Line Style</label>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => onUpdate({ dashed: false })}
+                          className={cn("flex-1 py-1.5 rounded border text-xs font-semibold transition-all",
+                            !annotation.dashed ? "bg-primary/20 border-primary text-primary" : "border-border text-muted-foreground hover:border-muted-foreground")}
+                        >
+                          Solid
+                        </button>
+                        <button
+                          onClick={() => onUpdate({ dashed: true })}
+                          className={cn("flex-1 py-1.5 rounded border text-xs font-semibold transition-all",
+                            annotation.dashed ? "bg-primary/20 border-primary text-primary" : "border-border text-muted-foreground hover:border-muted-foreground")}
+                        >
+                          Dashed
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="text-[10px] text-muted-foreground">Arrowhead</label>
+                      <button
+                        onClick={() => onUpdate({ arrowhead: !annotation.arrowhead })}
+                        className={cn("px-3 py-1.5 rounded border text-xs font-semibold transition-all",
+                          annotation.arrowhead ? "bg-primary/20 border-primary text-primary" : "border-border text-muted-foreground hover:border-muted-foreground")}
+                      >
+                        {annotation.arrowhead ? 'On' : 'Off'}
+                      </button>
+                    </div>
+                  </>
+                )}
+
+                <div className="space-y-1">
+                  <label className="text-[10px] text-muted-foreground">Thickness</label>
+                  <input
+                    type="range" min={1} max={8} step={0.5}
+                    value={annotation.strokeWidth}
+                    onChange={(e) => onUpdate({ strokeWidth: Number(e.target.value) })}
+                    className="w-full accent-primary"
+                  />
                 </div>
               </div>
+            </CollapsibleSection>
+          );
+        })()}
 
-              <div className="space-y-1">
-                <label className="text-[10px] text-muted-foreground">Arrowhead</label>
-                <button
-                  onClick={() => onUpdate({ arrowhead: !annotation.arrowhead })}
-                  className={cn("px-3 py-1.5 rounded border text-xs font-semibold transition-all",
-                    annotation.arrowhead ? "bg-primary/20 border-primary text-primary" : "border-border text-muted-foreground hover:border-muted-foreground")}
-                >
-                  {annotation.arrowhead ? 'On' : 'Off'}
-                </button>
-              </div>
-
-              <div className="space-y-1">
-                <label className="text-[10px] text-muted-foreground">Thickness</label>
-                <input
-                  type="range" min={1} max={8} step={0.5}
-                  value={annotation.strokeWidth}
-                  onChange={(e) => onUpdate({ strokeWidth: Number(e.target.value) })}
-                  className="w-full accent-primary"
-                />
-              </div>
+        {(annotation.type === 'run_path' || annotation.type === 'curved_run' || annotation.type === 'pass_line' || annotation.type === 'curved_cross') && (
+          <CollapsibleSection title="Ghost / Substitution">
+            <div className="space-y-1">
+              <button
+                onClick={() => onUpdate({ ghost: !annotation.ghost })}
+                className={cn("w-full py-1.5 rounded border text-xs font-semibold transition-all",
+                  annotation.ghost ? "bg-blue-500/20 border-blue-500/30 text-blue-400" : "border-border text-muted-foreground hover:border-muted-foreground")}
+              >
+                {annotation.ghost ? 'Ghost Style Active' : 'Enable Ghost Style'}
+              </button>
+              <p className="text-[9px] text-muted-foreground">Blue translucent style for substitution movements</p>
             </div>
           </CollapsibleSection>
         )}
