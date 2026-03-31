@@ -332,38 +332,90 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
     ? annotations.filter(a => a.stepId === activeStepId)
     : annotations;
 
+  const sortedStepIds = steps.map(s => s.id);
+  const isPlaying = animation.playing || animation.progress > 0;
+  const isAllMode = animation.playMode === 'all';
+
+  const priorStepAnnotations = (isPlaying && isAllMode)
+    ? annotations.filter(a => {
+        if (!a.stepId) return false;
+        const stepIdx = sortedStepIds.indexOf(a.stepId);
+        return stepIdx >= 0 && stepIdx < animation.activeStepIndex;
+      })
+    : [];
+
+  const playbackAnnotations = isPlaying && isAllMode
+    ? [...priorStepAnnotations, ...stepAnnotations]
+    : stepAnnotations;
+
+  const resolvePositionForStep = (
+    roleId: string,
+    stepAnns: Annotation[],
+    startPos: Point,
+    t: number
+  ): Point => {
+    const linkedRun = stepAnns.find(
+      a => a.linkedRoleId === roleId && (a.type === 'run_path' || a.type === 'curved_run') && a.points.length >= 2
+    );
+    if (linkedRun) return interpolatePath(linkedRun.points, t);
+
+    const unlinkedRuns = stepAnns.filter(
+      a => !a.linkedRoleId && (a.type === 'run_path' || a.type === 'curved_run') && a.points.length >= 2
+    );
+    const roleIdx = roles.findIndex(r => r.id === roleId);
+    const usedLinkedCount = stepAnns.filter(
+      a => a.linkedRoleId && (a.type === 'run_path' || a.type === 'curved_run') && a.points.length >= 2
+    ).length;
+    const unlinkedIdx = roleIdx - usedLinkedCount;
+    if (unlinkedIdx >= 0 && unlinkedIdx < unlinkedRuns.length) {
+      return interpolatePath(unlinkedRuns[unlinkedIdx].points, t);
+    }
+
+    return startPos;
+  };
+
   const getAnimatedPosition = (roleId: string, role: RoleData): Point => {
     const basePos = { x: role.startPosition?.x ?? 50, y: role.startPosition?.y ?? 50 };
     if (!animation.playing && animation.progress === 0) return basePos;
 
-    const linkedRun = stepAnnotations.find(
-      a => a.linkedRoleId === roleId && (a.type === 'run_path' || a.type === 'curved_run') && a.points.length >= 2
-    );
-    if (linkedRun) return interpolatePath(linkedRun.points, animation.progress);
-
-    if (role.movementPath && role.movementPath.length >= 2) {
+    if (role.movementPath && role.movementPath.length >= 2 && !isAllMode) {
       const validPath = role.movementPath
         .filter((p): p is { x: number; y: number } => typeof p.x === 'number' && typeof p.y === 'number');
       if (validPath.length >= 2) return interpolatePath(validPath, animation.progress);
     }
 
-    const unlinkedRuns = stepAnnotations.filter(
-      a => !a.linkedRoleId && (a.type === 'run_path' || a.type === 'curved_run') && a.points.length >= 2
-    );
-    const roleIdx = roles.findIndex(r => r.id === roleId);
-    const usedLinkedCount = stepAnnotations.filter(
-      a => a.linkedRoleId && (a.type === 'run_path' || a.type === 'curved_run') && a.points.length >= 2
-    ).length;
-    const unlinkedIdx = roleIdx - usedLinkedCount;
-    if (unlinkedIdx >= 0 && unlinkedIdx < unlinkedRuns.length) {
-      return interpolatePath(unlinkedRuns[unlinkedIdx].points, animation.progress);
+    let currentPos = basePos;
+
+    if (isAllMode && isPlaying) {
+      for (let i = 0; i < animation.activeStepIndex; i++) {
+        const sid = sortedStepIds[i];
+        const completedAnns = annotations.filter(a => a.stepId === sid);
+        currentPos = resolvePositionForStep(roleId, completedAnns, currentPos, 1);
+      }
     }
 
-    return basePos;
+    return resolvePositionForStep(roleId, stepAnnotations, currentPos, animation.progress);
   };
 
   const getAnimatedBallPosition = (): Point | null => {
     if (!animation.playing && animation.progress === 0) return null;
+
+    if (isAllMode && isPlaying) {
+      let lastBallPos: Point | null = null;
+      for (let i = 0; i <= animation.activeStepIndex; i++) {
+        const sid = sortedStepIds[i];
+        const anns = annotations.filter(a => a.stepId === sid);
+        const passAnns = anns.filter(
+          a => (a.type === 'pass_line' || a.type === 'curved_cross') && a.points.length >= 2
+        );
+        if (passAnns.length > 0) {
+          const t = i < animation.activeStepIndex ? 1 : animation.progress;
+          lastBallPos = interpolatePath(passAnns[0].points, t);
+        }
+      }
+      return lastBallPos;
+    }
+
     const passAnns = stepAnnotations.filter(
       a => (a.type === 'pass_line' || a.type === 'curved_cross') && a.points.length >= 2
     );
@@ -390,7 +442,7 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
 
       <Layer>
         <AnnotationLayer
-          annotations={stepAnnotations}
+          annotations={playbackAnnotations}
           selectedId={selectedAnnotationId}
           focusedRoleId={activeRoleId}
           hasFocusedElement={hasFocusedElement}
