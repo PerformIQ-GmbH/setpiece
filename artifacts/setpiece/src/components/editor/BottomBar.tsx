@@ -73,7 +73,7 @@ export function BottomBar() {
   const showStyleControls = (isDrawTool || selectedAnn) && (editorMode === 'advanced' || isDrawTool);
 
   return (
-    <div className="h-11 border-t border-border bg-card/80 backdrop-blur-md flex items-center px-3 gap-3 shrink-0 overflow-x-auto">
+    <div data-tutorial="bottombar" className="h-11 border-t border-border bg-card/80 backdrop-blur-md flex items-center px-3 gap-3 shrink-0 overflow-x-auto">
       <div className="flex items-center gap-2 text-xs text-muted-foreground shrink-0">
         <div className={cn(
           "w-2 h-2 rounded-full",

@@ -377,7 +377,7 @@ export default function SetPieceEditor() {
 
   return (
     <div className="min-h-screen bg-background text-foreground flex flex-col h-screen overflow-hidden">
-      <header className="h-12 border-b border-border bg-card/80 backdrop-blur-md flex items-center justify-between px-3 md:px-4 shrink-0 z-10">
+      <header data-tutorial="header" className="h-12 border-b border-border bg-card/80 backdrop-blur-md flex items-center justify-between px-3 md:px-4 shrink-0 z-10">
         <div className="flex items-center gap-2 min-w-0">
           <Link href={`/teams/${teamId}/templates`}>
             <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-white rounded-full h-7 w-7 shrink-0">
@@ -541,7 +541,7 @@ export default function SetPieceEditor() {
         />
 
         <div className="flex-1 flex flex-col overflow-hidden">
-          <main className="flex-1 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-background via-card to-background relative overflow-hidden flex items-center justify-center" data-editor-pitch>
+          <main data-tutorial="pitch" className="flex-1 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-background via-card to-background relative overflow-hidden flex items-center justify-center">
             <div ref={canvasRef} className="w-full h-full p-3 flex items-center justify-center" data-pitch-container>
               <EditorCanvas
                 ref={canvasHandleRef}

@@ -100,7 +100,7 @@ export function EditorToolbar({ onUndo, onRedo, canUndo, canRedo }: EditorToolba
   const isAdvanced = editorMode === 'advanced';
 
   return (
-    <div className="w-14 border-r border-border bg-card/60 backdrop-blur-md flex flex-col items-center py-3 gap-1 shrink-0">
+    <div data-tutorial="toolbar" className="w-14 border-r border-border bg-card/60 backdrop-blur-md flex flex-col items-center py-3 gap-1 shrink-0">
       <div className="flex flex-col items-center gap-0.5">
         <ToolGroupLabel text="Select" />
         {SELECT_TOOLS.map((t) => <ToolButton key={t.tool} {...t} />)}

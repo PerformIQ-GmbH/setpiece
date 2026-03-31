@@ -82,7 +82,7 @@ export function InspectorPanel({
   if (inspectorCollapsed) return null;
 
   return (
-    <aside className="w-72 md:w-80 border-l border-border bg-card/60 backdrop-blur-md flex flex-col h-full shrink-0">
+    <aside data-tutorial="inspector" className="w-72 md:w-80 border-l border-border bg-card/60 backdrop-blur-md flex flex-col h-full shrink-0">
       {selectedAnn ? (
         <AnnotationInspector
           annotation={selectedAnn}
