@@ -18,7 +18,12 @@ router.get("/pricing", async (_req, res): Promise<void> => {
       ORDER BY pr.unit_amount ASC
     `);
 
-    for (const row of result.rows as any[]) {
+    interface StripePriceRow {
+      price_id: string;
+      metadata: string | Record<string, string>;
+    }
+
+    for (const row of result.rows as StripePriceRow[]) {
       const metadata = typeof row.metadata === 'string' ? JSON.parse(row.metadata) : row.metadata;
       if (metadata?.tierId === 'solo_coach') soloPriceId = row.price_id;
       if (metadata?.tierId === 'team') teamPriceId = row.price_id;

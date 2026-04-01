@@ -65,17 +65,29 @@ export class WebhookHandlers {
       }
 
       case "invoice.paid": {
-        const teamId = obj.metadata?.teamId;
-        if (teamId) {
-          logger.info({ teamId }, "Invoice paid — subscription active");
+        const subId = obj.subscription;
+        if (subId) {
+          const [team] = await db
+            .select()
+            .from(teamsTable)
+            .where(eq(teamsTable.stripeSubscriptionId, subId));
+          if (team) {
+            logger.info({ teamId: team.id }, "Invoice paid — subscription confirmed active");
+          }
         }
         break;
       }
 
       case "invoice.payment_failed": {
-        const teamId = obj.metadata?.teamId;
-        if (teamId) {
-          logger.warn({ teamId }, "Invoice payment failed — subscription at risk");
+        const subId = obj.subscription;
+        if (subId) {
+          const [team] = await db
+            .select()
+            .from(teamsTable)
+            .where(eq(teamsTable.stripeSubscriptionId, subId));
+          if (team) {
+            logger.warn({ teamId: team.id }, "Invoice payment failed — subscription at risk");
+          }
         }
         break;
       }
@@ -95,8 +107,27 @@ export class WebhookHandlers {
 
       case "customer.subscription.updated": {
         const teamId = obj.metadata?.teamId;
-        if (teamId && obj.status === "past_due") {
-          logger.warn({ teamId }, "Subscription past due — payment retry pending");
+        const status = obj.status;
+
+        if (teamId && status) {
+          if (status === "canceled" || status === "unpaid") {
+            await db
+              .update(teamsTable)
+              .set({ tier: "free", stripeSubscriptionId: null })
+              .where(eq(teamsTable.id, teamId));
+            logger.info({ teamId, status }, "Team downgraded — subscription canceled/unpaid");
+          } else if (status === "past_due") {
+            logger.warn({ teamId }, "Subscription past due — payment retry pending");
+          } else if (status === "active") {
+            const tierId = obj.metadata?.tierId;
+            if (tierId) {
+              await db
+                .update(teamsTable)
+                .set({ tier: tierId })
+                .where(eq(teamsTable.id, teamId));
+              logger.info({ teamId, tierId }, "Subscription reactivated");
+            }
+          }
         }
         break;
       }

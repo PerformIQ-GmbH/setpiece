@@ -56,7 +56,7 @@ app.use(
 app.use(cookieParser());
 
 app.post(
-  '/api/stripe/webhook',
+  '/api/billing/webhook',
   express.raw({ type: 'application/json' }),
   async (req, res) => {
     const signature = req.headers['stripe-signature'];
@@ -77,8 +77,8 @@ app.post(
 
       await WebhookHandlers.processWebhook(req.body as Buffer, sig);
       res.status(200).json({ received: true });
-    } catch (error: any) {
-      logger.error({ err: error }, 'Webhook error');
+    } catch (error: unknown) {
+      logger.error({ err: error instanceof Error ? error.message : String(error) }, 'Webhook error');
       res.status(400).json({ error: 'Webhook processing error' });
     }
   }
