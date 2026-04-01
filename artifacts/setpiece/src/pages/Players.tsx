@@ -117,12 +117,13 @@ export default function Players() {
     return data;
   };
 
-  const handleOpenInvite = async () => {
-    if (!activeInvite) {
-      await createInvite.mutateAsync({ teamId, data: buildInviteData() });
-      await refetchInvites();
-    }
+  const handleOpenInvite = () => {
     setInviteDialogOpen(true);
+  };
+
+  const handleCreateFirstInvite = async () => {
+    await createInvite.mutateAsync({ teamId, data: buildInviteData() });
+    await refetchInvites();
   };
 
   const handleRegenerateInvite = async () => {
@@ -301,6 +302,21 @@ export default function Players() {
               Share this link or QR code with your players. They can register themselves directly into your squad.
             </p>
 
+            <div className="space-y-1">
+              <label className="text-xs text-muted-foreground uppercase font-bold tracking-wider">Link Expiry</label>
+              <select
+                value={inviteExpiryHours}
+                onChange={e => setInviteExpiryHours(e.target.value)}
+                className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm focus:border-primary outline-none text-muted-foreground"
+              >
+                <option value="">No expiry</option>
+                <option value="24">24 hours</option>
+                <option value="48">48 hours</option>
+                <option value="168">1 week</option>
+                <option value="720">30 days</option>
+              </select>
+            </div>
+
             {joinUrl ? (
               <>
                 <div className="flex justify-center">
@@ -328,21 +344,6 @@ export default function Players() {
                   </div>
                 )}
 
-                <div className="space-y-1">
-                  <label className="text-xs text-muted-foreground uppercase font-bold tracking-wider">Link Expiry</label>
-                  <select
-                    value={inviteExpiryHours}
-                    onChange={e => setInviteExpiryHours(e.target.value)}
-                    className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm focus:border-primary outline-none text-muted-foreground"
-                  >
-                    <option value="">No expiry</option>
-                    <option value="24">24 hours</option>
-                    <option value="48">48 hours</option>
-                    <option value="168">1 week</option>
-                    <option value="720">30 days</option>
-                  </select>
-                </div>
-
                 <Button
                   size="sm"
                   variant="ghost"
@@ -355,9 +356,14 @@ export default function Players() {
                 </Button>
               </>
             ) : (
-              <div className="text-center py-8">
-                <Loader2 className="w-6 h-6 text-primary animate-spin mx-auto" />
-              </div>
+              <Button
+                onClick={handleCreateFirstInvite}
+                disabled={createInvite.isPending}
+                className="w-full bg-emerald-600 hover:bg-emerald-700 text-white"
+              >
+                {createInvite.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Link2 className="w-4 h-4 mr-2" />}
+                Create Invite Link
+              </Button>
             )}
           </div>
         </DialogContent>
