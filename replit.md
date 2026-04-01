@@ -48,6 +48,7 @@ artifacts-monorepo/
 - **Role Assignments**: Maps roles to players with optional backup player
 - **Matchdays**: Group set pieces for a specific match
 - **Share Links**: Scoped, tokenized access (playerScope, matchdayScope, allowedSetPieceIds, expiry, revocation)
+- **Team Invites**: Invite links with QR codes for player self-registration (token-based, max uses, expiry, revocation)
 - **Player Readiness**: Tracks view count, opened/ready/quiz status per player per set piece
 - **Quiz Attempts**: Auto-generated quizzes based on role data (tap_zone, multiple_choice, yes_no)
 - **Ghost Mode**: Preview substitution impact with suitability hints and warnings

@@ -23,6 +23,7 @@ import Settings from "./pages/Settings";
 import PlayerPWA from "./pages/PlayerPWA";
 import PlayerQuiz from "./pages/PlayerQuiz";
 import Onboarding from "./pages/Onboarding";
+import JoinTeam from "./pages/JoinTeam";
 import NotFound from "./pages/not-found";
 import { InstallPrompt } from "./components/InstallPrompt";
 
@@ -69,6 +70,7 @@ function AppRouter() {
       <Route path="/teams/:teamId/ghost/:setPieceId" component={GhostMode} />
       <Route path="/pricing" component={Pricing} />
       <Route path="/settings" component={Settings} />
+      <Route path="/join/:token" component={JoinTeam} />
       <Route path="/p/:shareToken" component={PlayerPWA} />
       <Route path="/p/:shareToken/quiz" component={PlayerQuiz} />
 

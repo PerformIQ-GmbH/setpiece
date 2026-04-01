@@ -768,6 +768,69 @@ export interface CreatePortalBody {
   teamId: string;
 }
 
+export interface TeamInvite {
+  id: string;
+  teamId: string;
+  token: string;
+  /** @nullable */
+  maxUses?: number | null;
+  useCount: number;
+  /** @nullable */
+  expiresAt?: string | null;
+  /** @nullable */
+  revokedAt?: string | null;
+  createdAt: string;
+}
+
+export interface CreateInviteBody {
+  /**
+   * @minimum 1
+   * @maximum 720
+   */
+  expiresInHours?: number;
+  /**
+   * @minimum 1
+   * @maximum 500
+   */
+  maxUses?: number;
+}
+
+export interface JoinTeamInfo {
+  teamName: string;
+  /** @nullable */
+  clubName?: string | null;
+  /** @nullable */
+  logoUrl?: string | null;
+}
+
+export type JoinTeamBodyDominantFoot =
+  (typeof JoinTeamBodyDominantFoot)[keyof typeof JoinTeamBodyDominantFoot];
+
+export const JoinTeamBodyDominantFoot = {
+  left: "left",
+  right: "right",
+  both: "both",
+} as const;
+
+export interface JoinTeamBody {
+  /**
+   * @minLength 1
+   * @maxLength 100
+   */
+  firstName: string;
+  /**
+   * @minLength 1
+   * @maxLength 100
+   */
+  lastName: string;
+  /**
+   * @minimum 1
+   * @maximum 99
+   */
+  shirtNumber?: number;
+  dominantFoot?: JoinTeamBodyDominantFoot;
+}
+
 export type AuthorizationSessionHeaderParameter = string;
 
 export type BeginBrowserLoginParams = {

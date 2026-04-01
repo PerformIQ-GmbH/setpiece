@@ -379,6 +379,97 @@ export const DeletePlayerParams = zod.object({
 });
 
 /**
+ * @summary Create a team invite link
+ */
+export const CreateInviteParams = zod.object({
+  teamId: zod.coerce.string(),
+});
+
+export const createInviteBodyExpiresInHoursMax = 720;
+
+export const createInviteBodyMaxUsesMax = 500;
+
+export const CreateInviteBody = zod.object({
+  expiresInHours: zod
+    .number()
+    .min(1)
+    .max(createInviteBodyExpiresInHoursMax)
+    .optional(),
+  maxUses: zod.number().min(1).max(createInviteBodyMaxUsesMax).optional(),
+});
+
+/**
+ * @summary List active team invites
+ */
+export const ListInvitesParams = zod.object({
+  teamId: zod.coerce.string(),
+});
+
+export const ListInvitesResponseItem = zod.object({
+  id: zod.string(),
+  teamId: zod.string(),
+  token: zod.string(),
+  maxUses: zod.number().nullish(),
+  useCount: zod.number(),
+  expiresAt: zod.coerce.date().nullish(),
+  revokedAt: zod.coerce.date().nullish(),
+  createdAt: zod.coerce.date(),
+});
+export const ListInvitesResponse = zod.array(ListInvitesResponseItem);
+
+/**
+ * @summary Revoke a team invite
+ */
+export const RevokeInviteParams = zod.object({
+  teamId: zod.coerce.string(),
+  inviteId: zod.coerce.string(),
+});
+
+export const RevokeInviteResponse = zod.object({
+  id: zod.string(),
+  teamId: zod.string(),
+  token: zod.string(),
+  maxUses: zod.number().nullish(),
+  useCount: zod.number(),
+  expiresAt: zod.coerce.date().nullish(),
+  revokedAt: zod.coerce.date().nullish(),
+  createdAt: zod.coerce.date(),
+});
+
+/**
+ * @summary Get team info for a join token (public)
+ */
+export const GetJoinInfoParams = zod.object({
+  token: zod.coerce.string(),
+});
+
+export const GetJoinInfoResponse = zod.object({
+  teamName: zod.string(),
+  clubName: zod.string().nullish(),
+  logoUrl: zod.string().nullish(),
+});
+
+/**
+ * @summary Self-register as a player via invite token (public)
+ */
+export const JoinTeamParams = zod.object({
+  token: zod.coerce.string(),
+});
+
+export const joinTeamBodyFirstNameMax = 100;
+
+export const joinTeamBodyLastNameMax = 100;
+
+export const joinTeamBodyShirtNumberMax = 99;
+
+export const JoinTeamBody = zod.object({
+  firstName: zod.string().min(1).max(joinTeamBodyFirstNameMax),
+  lastName: zod.string().min(1).max(joinTeamBodyLastNameMax),
+  shirtNumber: zod.number().min(1).max(joinTeamBodyShirtNumberMax).optional(),
+  dominantFoot: zod.enum(["left", "right", "both"]).optional(),
+});
+
+/**
  * @summary List set piece templates
  */
 export const ListTemplatesQueryParams = zod.object({

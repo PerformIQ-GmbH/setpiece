@@ -34,6 +34,8 @@ tags:
     description: Audit trail
   - name: pricing
     description: Pricing and billing
+  - name: invites
+    description: Team invite links and player self-registration
 
 paths:
   /healthz:
@@ -405,6 +407,113 @@ paths:
       responses:
         "204":
           description: Player deleted
+
+  # ─── Team Invites ───
+  /teams/{teamId}/invites:
+    post:
+      operationId: createInvite
+      tags: [invites]
+      summary: Create a team invite link
+      parameters:
+        - $ref: "#/components/parameters/TeamId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateInviteBody"
+      responses:
+        "201":
+          description: Invite created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TeamInvite"
+    get:
+      operationId: listInvites
+      tags: [invites]
+      summary: List active team invites
+      parameters:
+        - $ref: "#/components/parameters/TeamId"
+      responses:
+        "200":
+          description: List of active invites
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/TeamInvite"
+  /teams/{teamId}/invites/{inviteId}:
+    delete:
+      operationId: revokeInvite
+      tags: [invites]
+      summary: Revoke a team invite
+      parameters:
+        - $ref: "#/components/parameters/TeamId"
+        - name: inviteId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Invite revoked
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TeamInvite"
+
+  # ─── Public Join ───
+  /join/{token}:
+    get:
+      operationId: getJoinInfo
+      tags: [invites]
+      summary: Get team info for a join token (public)
+      parameters:
+        - name: token
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Team info
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/JoinTeamInfo"
+        "404":
+          description: Invalid token
+        "410":
+          description: Token expired or revoked
+    post:
+      operationId: joinTeam
+      tags: [invites]
+      summary: Self-register as a player via invite token (public)
+      parameters:
+        - name: token
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/JoinTeamBody"
+      responses:
+        "201":
+          description: Player created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Player"
+        "404":
+          description: Invalid token
+        "410":
+          description: Token expired or revoked
 
   # ─── Templates ───
   /templates:
@@ -2322,3 +2431,70 @@ components:
       properties:
         teamId:
           type: string
+
+    TeamInvite:
+      type: object
+      required: [id, teamId, token, useCount, createdAt]
+      properties:
+        id:
+          type: string
+        teamId:
+          type: string
+        token:
+          type: string
+        maxUses:
+          type: [integer, 'null']
+        useCount:
+          type: integer
+        expiresAt:
+          type: [string, 'null']
+          format: date-time
+        revokedAt:
+          type: [string, 'null']
+          format: date-time
+        createdAt:
+          type: string
+          format: date-time
+
+    CreateInviteBody:
+      type: object
+      properties:
+        expiresInHours:
+          type: integer
+          minimum: 1
+          maximum: 720
+        maxUses:
+          type: integer
+          minimum: 1
+          maximum: 500
+
+    JoinTeamInfo:
+      type: object
+      required: [teamName]
+      properties:
+        teamName:
+          type: string
+        clubName:
+          type: [string, 'null']
+        logoUrl:
+          type: [string, 'null']
+
+    JoinTeamBody:
+      type: object
+      required: [firstName, lastName]
+      properties:
+        firstName:
+          type: string
+          minLength: 1
+          maxLength: 100
+        lastName:
+          type: string
+          minLength: 1
+          maxLength: 100
+        shirtNumber:
+          type: integer
+          minimum: 1
+          maximum: 99
+        dominantFoot:
+          type: string
+          enum: [left, right, both]

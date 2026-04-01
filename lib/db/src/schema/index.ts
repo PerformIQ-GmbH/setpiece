@@ -11,3 +11,4 @@ export * from "./quizAttempts";
 export * from "./shareLinks";
 export * from "./matchdays";
 export * from "./auditEvents";
+export * from "./teamInvites";

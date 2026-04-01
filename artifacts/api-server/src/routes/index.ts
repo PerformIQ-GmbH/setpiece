@@ -16,6 +16,7 @@ import pricingRouter from "./pricing";
 import membershipsRouter from "./memberships";
 import demoRouter from "./demo";
 import billingRouter from "./billing";
+import invitesRouter from "./invites";
 
 const router: IRouter = Router();
 
@@ -24,6 +25,7 @@ router.use(authRouter);
 router.use(teamsRouter);
 router.use(membershipsRouter);
 router.use(playersRouter);
+router.use(invitesRouter);
 router.use(templatesRouter);
 router.use(setPiecesRouter);
 router.use(rolesRouter);

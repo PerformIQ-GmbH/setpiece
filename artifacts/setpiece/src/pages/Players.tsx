@@ -1,16 +1,25 @@
 import { useState } from 'react';
 import { CoachLayout } from '@/components/Layout';
 import { useRoute } from 'wouter';
-import { useGetTeam, useListPlayers, useCreatePlayer, useDeletePlayer, useUpdatePlayer } from '@workspace/api-client-react';
-import { Card, CardContent } from '@/components/ui/card';
+import { useGetTeam, useListPlayers, useCreatePlayer, useDeletePlayer, useUpdatePlayer, useListInvites, useCreateInvite, useRevokeInvite } from '@workspace/api-client-react';
+import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { StatusBadge } from '@/components/StatusBadge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { UserPlus, Search, Trash2, Edit2, X } from 'lucide-react';
+import { UserPlus, Search, Trash2, Edit2, QrCode, Link2, Copy, Check, RefreshCw, Loader2 } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { QRCodeSVG } from 'qrcode.react';
 
 const FOOT_OPTIONS = ['right', 'left', 'both'];
 const TAG_OPTIONS = ['tall', 'fast', 'strong_header', 'set_piece_specialist', 'captain', 'penalty_taker', 'goalkeeper', 'defender', 'midfielder', 'forward'];
+
+function getAppBaseUrl() {
+  if (typeof window !== 'undefined') {
+    const base = (import.meta.env.BASE_URL || '/').replace(/\/$/, '');
+    return `${window.location.origin}${base}`;
+  }
+  return '';
+}
 
 export default function Players() {
   const [, params] = useRoute('/teams/:teamId/players');
@@ -21,10 +30,16 @@ export default function Players() {
   const updatePlayer = useUpdatePlayer();
   const deletePlayer = useDeletePlayer();
 
+  const { data: invites, refetch: refetchInvites } = useListInvites(teamId);
+  const createInvite = useCreateInvite();
+  const revokeInvite = useRevokeInvite();
+
   const [search, setSearch] = useState('');
   const [filterTag, setFilterTag] = useState('');
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [inviteDialogOpen, setInviteDialogOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
   const [form, setForm] = useState({
     firstName: '', lastName: '', shirtNumber: '', dominantFoot: 'right',
     height: '', status: 'active', tags: [] as string[],
@@ -36,6 +51,15 @@ export default function Players() {
     const matchesTag = !filterTag || p.tags?.includes(filterTag);
     return matchesSearch && matchesTag;
   }) || [];
+
+  const activeInvite = invites?.find(i => {
+    if (i.revokedAt) return false;
+    if (i.expiresAt && new Date(i.expiresAt) < new Date()) return false;
+    if (i.maxUses && i.useCount >= i.maxUses) return false;
+    return true;
+  });
+
+  const joinUrl = activeInvite ? `${getAppBaseUrl()}/join/${activeInvite.token}` : '';
 
   const openEdit = (p: typeof players extends (infer T)[] | undefined ? T : never) => {
     if (!p) return;
@@ -84,6 +108,31 @@ export default function Players() {
     }));
   };
 
+  const handleOpenInvite = async () => {
+    if (!activeInvite) {
+      await createInvite.mutateAsync({ teamId, data: {} });
+      await refetchInvites();
+    }
+    setInviteDialogOpen(true);
+  };
+
+  const handleRegenerateInvite = async () => {
+    if (activeInvite) {
+      await revokeInvite.mutateAsync({ teamId, inviteId: activeInvite.id });
+    }
+    await createInvite.mutateAsync({ teamId, data: {} });
+    await refetchInvites();
+    setCopied(false);
+  };
+
+  const handleCopy = async () => {
+    if (joinUrl) {
+      await navigator.clipboard.writeText(joinUrl);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }
+  };
+
   return (
     <CoachLayout teamId={teamId} teamName={team?.name}>
       <div className="flex flex-col md:flex-row items-start md:items-center justify-between mb-6 gap-4">
@@ -91,9 +140,14 @@ export default function Players() {
           <h1 className="text-2xl font-display font-bold text-white">Squad Roster</h1>
           <p className="text-muted-foreground text-sm mt-1">{filtered.length} player{filtered.length !== 1 ? 's' : ''}</p>
         </div>
-        <Button size="sm" onClick={openNew}>
-          <UserPlus className="h-4 w-4 mr-2" /> Add Player
-        </Button>
+        <div className="flex gap-2">
+          <Button size="sm" variant="outline" onClick={handleOpenInvite} className="border-primary/30 text-primary hover:bg-primary/10">
+            <QrCode className="h-4 w-4 mr-2" /> Invite Players
+          </Button>
+          <Button size="sm" onClick={openNew}>
+            <UserPlus className="h-4 w-4 mr-2" /> Add Player
+          </Button>
+        </div>
       </div>
 
       <div className="flex flex-col sm:flex-row gap-3 mb-6">
@@ -223,6 +277,65 @@ export default function Players() {
               {editingId ? 'Save Changes' : 'Add Player'}
             </Button>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={inviteDialogOpen} onOpenChange={setInviteDialogOpen}>
+        <DialogContent className="bg-card border-border sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <QrCode className="w-5 h-5 text-primary" /> Invite Players
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-5 pt-2">
+            <p className="text-sm text-muted-foreground">
+              Share this link or QR code with your players. They can register themselves directly into your squad.
+            </p>
+
+            {joinUrl ? (
+              <>
+                <div className="flex justify-center">
+                  <div className="bg-white p-4 rounded-xl">
+                    <QRCodeSVG value={joinUrl} size={180} level="M" />
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <div className="flex-1 bg-background border border-border rounded-lg px-3 py-2 text-xs text-muted-foreground truncate flex items-center gap-2">
+                    <Link2 className="w-3.5 h-3.5 shrink-0 text-primary" />
+                    <span className="truncate">{joinUrl}</span>
+                  </div>
+                  <Button size="sm" variant="outline" onClick={handleCopy} className="shrink-0 border-border">
+                    {copied ? <Check className="w-4 h-4 text-green-400" /> : <Copy className="w-4 h-4" />}
+                  </Button>
+                </div>
+
+                {activeInvite && (
+                  <div className="flex items-center justify-between text-xs text-muted-foreground bg-background rounded-lg px-3 py-2 border border-border">
+                    <span>Used {activeInvite.useCount} time{activeInvite.useCount !== 1 ? 's' : ''}</span>
+                    {activeInvite.expiresAt && (
+                      <span>Expires {new Date(activeInvite.expiresAt).toLocaleDateString()}</span>
+                    )}
+                  </div>
+                )}
+
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={handleRegenerateInvite}
+                  disabled={createInvite.isPending || revokeInvite.isPending}
+                  className="w-full text-muted-foreground hover:text-white"
+                >
+                  {createInvite.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <RefreshCw className="w-4 h-4 mr-2" />}
+                  Generate New Link
+                </Button>
+              </>
+            ) : (
+              <div className="text-center py-8">
+                <Loader2 className="w-6 h-6 text-primary animate-spin mx-auto" />
+              </div>
+            )}
+          </div>
         </DialogContent>
       </Dialog>
     </CoachLayout>
