@@ -40,6 +40,7 @@ export default function Players() {
   const [inviteDialogOpen, setInviteDialogOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const [inviteExpiryHours, setInviteExpiryHours] = useState<string>('');
   const [form, setForm] = useState({
     firstName: '', lastName: '', shirtNumber: '', dominantFoot: 'right',
     height: '', status: 'active', tags: [] as string[],
@@ -108,9 +109,17 @@ export default function Players() {
     }));
   };
 
+  const buildInviteData = () => {
+    const data: { expiresInHours?: number } = {};
+    if (inviteExpiryHours) {
+      data.expiresInHours = parseInt(inviteExpiryHours);
+    }
+    return data;
+  };
+
   const handleOpenInvite = async () => {
     if (!activeInvite) {
-      await createInvite.mutateAsync({ teamId, data: {} });
+      await createInvite.mutateAsync({ teamId, data: buildInviteData() });
       await refetchInvites();
     }
     setInviteDialogOpen(true);
@@ -120,7 +129,7 @@ export default function Players() {
     if (activeInvite) {
       await revokeInvite.mutateAsync({ teamId, inviteId: activeInvite.id });
     }
-    await createInvite.mutateAsync({ teamId, data: {} });
+    await createInvite.mutateAsync({ teamId, data: buildInviteData() });
     await refetchInvites();
     setCopied(false);
   };
@@ -318,6 +327,21 @@ export default function Players() {
                     )}
                   </div>
                 )}
+
+                <div className="space-y-1">
+                  <label className="text-xs text-muted-foreground uppercase font-bold tracking-wider">Link Expiry</label>
+                  <select
+                    value={inviteExpiryHours}
+                    onChange={e => setInviteExpiryHours(e.target.value)}
+                    className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm focus:border-primary outline-none text-muted-foreground"
+                  >
+                    <option value="">No expiry</option>
+                    <option value="24">24 hours</option>
+                    <option value="48">48 hours</option>
+                    <option value="168">1 week</option>
+                    <option value="720">30 days</option>
+                  </select>
+                </div>
 
                 <Button
                   size="sm"
