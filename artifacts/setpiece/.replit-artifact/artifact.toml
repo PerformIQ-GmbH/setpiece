@@ -1,5 +1,5 @@
 kind = "web"
-previewPath = "/setpiece/"
+previewPath = "/"
 title = "SETPIECE by PerformIQ"
 version = "1.0.0"
 id = "artifacts/setpiece"
@@ -11,7 +11,7 @@ version = "1.0.0"
 
 [[services]]
 name = "web"
-paths = [ "/setpiece/" ]
+paths = [ "/" ]
 localPort = 19174
 
 [services.development]
@@ -28,4 +28,4 @@ to = "/index.html"
 
 [services.env]
 PORT = "19174"
-BASE_PATH = "/setpiece/"
+BASE_PATH = "/"
