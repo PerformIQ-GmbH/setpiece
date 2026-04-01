@@ -3,6 +3,7 @@ import { eq, and, isNull, sql, gt, or } from "drizzle-orm";
 import crypto from "crypto";
 import { db, teamInvitesTable, teamsTable, playersTable } from "@workspace/db";
 import { requireCoachAccess, parseParam } from "../lib/authorization";
+import { getTierLimits } from "../lib/entitlements";
 import { z } from "zod/v4";
 
 const router: IRouter = Router();
@@ -54,7 +55,20 @@ router.get("/teams/:teamId/invites", async (req, res): Promise<void> => {
   const invites = await db
     .select()
     .from(teamInvitesTable)
-    .where(and(eq(teamInvitesTable.teamId, teamId), isNull(teamInvitesTable.revokedAt)));
+    .where(
+      and(
+        eq(teamInvitesTable.teamId, teamId),
+        isNull(teamInvitesTable.revokedAt),
+        or(
+          isNull(teamInvitesTable.expiresAt),
+          gt(teamInvitesTable.expiresAt, new Date())
+        ),
+        or(
+          isNull(teamInvitesTable.maxUses),
+          sql`${teamInvitesTable.useCount} < ${teamInvitesTable.maxUses}`
+        )
+      )
+    );
 
   res.json(invites);
 });
@@ -176,8 +190,8 @@ router.post("/join/:token", async (req, res): Promise<void> => {
       .where(eq(playersTable.teamId, inviteTeamId));
 
     const count = playerCount[0]?.count ?? 0;
-    const limit = team.tier === "team" ? 50 : 25;
-    if (count >= limit) {
+    const limits = getTierLimits(team.tier);
+    if (count >= limits.maxPlayers) {
       await tx
         .update(teamInvitesTable)
         .set({ useCount: sql`${teamInvitesTable.useCount} - 1` })
