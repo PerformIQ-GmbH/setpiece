@@ -173,7 +173,7 @@ export default function DemoSetPieceViewer() {
             assignments={setPiece.assignments || []}
             players={players || []}
             activeRoleId={null}
-            onSelectRole={() => {}}
+            onRoleClick={() => {}}
             onRoleDragEnd={() => {}}
             activeTool="select"
             annotations={annotations}
@@ -187,6 +187,7 @@ export default function DemoSetPieceViewer() {
             category={setPiece.category}
             pitchTheme={pitchTheme}
             steps={steps}
+            readOnly
           />
           {showLegend && (
             <div className="absolute bottom-4 left-4 z-10">

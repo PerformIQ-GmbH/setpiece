@@ -103,16 +103,6 @@ router.get("/demo/teams/:teamId/set-pieces/:setPieceId", async (req, res): Promi
     .from(setPieceRolesTable)
     .where(eq(setPieceRolesTable.setPieceId, piece.id));
 
-  const assignments = await db
-    .select()
-    .from(roleAssignmentsTable)
-    .where(
-      eq(
-        roleAssignmentsTable.roleId,
-        roles[0]?.id ?? "",
-      ),
-    );
-
   const allAssignments = [];
   for (const role of roles) {
     const roleAssigns = await db
