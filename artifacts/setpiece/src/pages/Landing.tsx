@@ -60,7 +60,7 @@ export default function Landing() {
             <Button size="lg" onClick={handleLogin} className="text-base sm:text-lg px-6 sm:px-8 py-5 sm:py-6 rounded-full shadow-lg shadow-primary/25 hover:shadow-xl hover:shadow-primary/40 hover:-translate-y-1 transition-all w-full sm:w-auto">
               Get Started
             </Button>
-            <Button size="lg" variant="outline" className="text-base sm:text-lg px-6 sm:px-8 py-5 sm:py-6 rounded-full bg-card/50 backdrop-blur-sm hover:bg-card w-full sm:w-auto">
+            <Button size="lg" variant="outline" className="text-base sm:text-lg px-6 sm:px-8 py-5 sm:py-6 rounded-full bg-card/50 backdrop-blur-sm hover:bg-card w-full sm:w-auto" onClick={() => setLocation('/demo')}>
               View Demo
             </Button>
           </div>

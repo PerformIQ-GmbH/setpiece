@@ -96,6 +96,7 @@ All mounted at `/api` via Express router. Key routes:
 - Ghost Mode: `/api/teams/:teamId/set-pieces/:setPieceId/ghost`
 - Audit: `/api/teams/:teamId/audit`
 - Pricing: `/api/pricing`
+- Demo: `/api/demo/team`, `/api/demo/teams/:teamId/players`, `/api/demo/teams/:teamId/set-pieces`, `/api/demo/teams/:teamId/set-pieces/:id`, `/api/demo/teams/:teamId/matchdays`, `/api/demo/teams/:teamId/matchdays/:id`, `/api/demo/teams/:teamId/readiness` (all read-only, no auth, locked to seed demo team)
 
 ## Seed Data
 
@@ -139,7 +140,9 @@ React + Vite frontend (Coach Dashboard + Player PWA).
 
 - Preview path: `/setpiece/`
 - Pages: Landing, Onboarding (5-step wizard), Dashboard, TeamDashboard, Players, Templates, SetPieceEditor (save states, PDF export, inline title editing, ghost mode link), Matchdays, MatchdayDetail (QR share with player scope + expiry), Readiness (search + set piece filter), GhostMode, Pricing, Settings, PlayerPWA, PlayerQuiz
-- Components: Layout (CoachLayout with sidebar + mobile drawer), StatusBadge, InstallPrompt
+- Demo Pages: DemoEntry (redirects to demo team), DemoTeamDashboard, DemoPlayers, DemoSetPieces, DemoSetPieceViewer (read-only tactical board), DemoMatchdays, DemoMatchdayDetail, DemoReadiness — all under `/demo/*` routes, no auth required
+- Components: Layout (CoachLayout with sidebar + mobile drawer), DemoLayout (demo sidebar + banner), DemoBanner (persistent CTA), StatusBadge, InstallPrompt
+- Contexts: DemoContext (provides isDemo, demoTeamId, demoTeam via React Query cached fetch)
 - Editor Components (`src/components/editor/`): Zustand-based tactical editor with:
   - `editorStore.ts` — Zustand store for tool selection, annotations, entities, drawing state, step-based animation (steps CRUD, activeStepIndex, playMode step/all, auto-advance), editor mode (basic/advanced), pitch theme, tutorial/tips/legend/inspector state. New annotations auto-assigned to active step. Persists editor mode, pitch theme, and tip preferences to localStorage.
   - `types.ts` — TypeScript types for EditorTool, Annotation, AnimationStep, EntityMarker, Point, EditorMode, PitchTheme, BoardData. Defines BASIC_TOOLS/ADVANCED_TOOLS arrays, PITCH_THEMES/CORNER_PITCH_THEMES color configs, ACTION_SEMANTICS, `migrateLegacyBoardData()` for backward-compatible step migration.

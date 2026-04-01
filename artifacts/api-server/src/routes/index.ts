@@ -14,6 +14,7 @@ import ghostRouter from "./ghost";
 import auditRouter from "./audit";
 import pricingRouter from "./pricing";
 import membershipsRouter from "./memberships";
+import demoRouter from "./demo";
 
 const router: IRouter = Router();
 
@@ -32,5 +33,6 @@ router.use(readinessRouter);
 router.use(ghostRouter);
 router.use(auditRouter);
 router.use(pricingRouter);
+router.use(demoRouter);
 
 export default router;
