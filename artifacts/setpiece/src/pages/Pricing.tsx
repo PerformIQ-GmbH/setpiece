@@ -8,8 +8,6 @@ import { CheckCircle2, Sparkles, Loader2, CreditCard, Check } from 'lucide-react
 import { motion } from 'framer-motion';
 import { useSearch } from 'wouter';
 
-const BASE = import.meta.env.BASE_URL || '/';
-
 export default function Pricing() {
   const { data } = useGetPricingData();
   const { data: teams } = useListTeams();
@@ -26,7 +24,7 @@ export default function Pricing() {
 
     setLoadingTier(tier.id!);
     try {
-      const res = await fetch(`${BASE}api/billing/checkout`, {
+      const res = await fetch('/api/billing/checkout', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',

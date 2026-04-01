@@ -53,7 +53,7 @@ artifacts-monorepo/
 - **Ghost Mode**: Preview substitution impact with suitability hints and warnings
 - **Audit Events**: Full trail of all actions
 - **Pricing**: Free, Solo Coach (8 CHF/mo), Team (19 CHF/mo) — paid via Stripe Checkout
-- **Stripe Integration**: stripe-replit-sync for webhook processing + data sync; products/prices live in `stripe.*` schema; teams table has `stripeCustomerId` + `stripeSubscriptionId`
+- **Stripe Integration**: stripe-replit-sync for webhook processing + data sync; products/prices live in `stripe.*` schema; teams table has `stripeCustomerId`, `stripeSubscriptionId`, `stripeSubscriptionStatus`
 
 ## Database Schema
 
@@ -97,8 +97,8 @@ All mounted at `/api` via Express router. Key routes:
 - Ghost Mode: `/api/teams/:teamId/set-pieces/:setPieceId/ghost`
 - Audit: `/api/teams/:teamId/audit`
 - Pricing: `/api/pricing` (returns tiers with Stripe price IDs from synced stripe.products/prices)
-- Billing: `/api/billing/checkout` (POST, creates Stripe Checkout session), `/api/billing/portal` (POST, creates Stripe Customer Portal session), `/api/billing/subscription` (GET, returns current subscription status)
-- Stripe Webhook: `/api/stripe/webhook` (POST, registered BEFORE express.json() in app.ts, handles stripe-replit-sync processWebhook)
+- Billing: `/api/billing/checkout` (POST, creates Stripe Checkout session, requires teamId+priceId+tierId), `/api/billing/portal` (POST, creates Stripe Customer Portal session, requires teamId), `/api/billing/subscription/:teamId` (GET, returns current subscription status) — all require coach+ role
+- Stripe Webhook: `/api/billing/webhook` (POST, registered BEFORE express.json() in app.ts, handles stripe-replit-sync processWebhook + tier updates)
 - Demo: `/api/demo/team`, `/api/demo/teams/:teamId/players`, `/api/demo/teams/:teamId/set-pieces`, `/api/demo/teams/:teamId/set-pieces/:id`, `/api/demo/teams/:teamId/matchdays`, `/api/demo/teams/:teamId/matchdays/:id`, `/api/demo/teams/:teamId/readiness` (all read-only, no auth, locked to seed demo team)
 
 ## Seed Data

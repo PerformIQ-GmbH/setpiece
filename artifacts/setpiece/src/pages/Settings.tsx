@@ -99,7 +99,7 @@ export default function Settings() {
                       onClick={async () => {
                         setPortalLoading(true);
                         try {
-                          const res = await fetch(`${BASE}api/billing/portal`, {
+                          const res = await fetch('/api/billing/portal', {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
                             credentials: 'include',
