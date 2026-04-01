@@ -16,6 +16,8 @@ function getBaseUrl(): string {
   return "https://setpiece.performiq.ch";
 }
 
+const APP_BASE_PATH = process.env.APP_BASE_PATH || "/setpiece";
+
 async function getCoachTeamById(req: Request, res: Response, teamId: string) {
   if (!req.isAuthenticated()) {
     res.status(401).json({ error: "Not authenticated" });
@@ -155,8 +157,8 @@ router.post("/billing/checkout", async (req: Request, res: Response): Promise<vo
       payment_method_types: ["card"],
       line_items: [{ price: priceId, quantity: 1 }],
       mode: "subscription",
-      success_url: `${baseUrl}/setpiece/pricing?success=true`,
-      cancel_url: `${baseUrl}/setpiece/pricing?canceled=true`,
+      success_url: `${baseUrl}${APP_BASE_PATH}/pricing?success=true`,
+      cancel_url: `${baseUrl}${APP_BASE_PATH}/pricing?canceled=true`,
       metadata: { teamId: ctx.team.id, tierId },
       subscription_data: {
         metadata: { teamId: ctx.team.id, tierId },
@@ -192,7 +194,7 @@ router.post("/billing/portal", async (req: Request, res: Response): Promise<void
 
     const session = await stripe.billingPortal.sessions.create({
       customer: ctx.team.stripeCustomerId,
-      return_url: `${baseUrl}/setpiece/settings`,
+      return_url: `${baseUrl}${APP_BASE_PATH}/settings`,
     });
 
     res.json({ url: session.url });
