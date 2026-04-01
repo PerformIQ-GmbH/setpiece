@@ -1,7 +1,6 @@
 import { Router, type IRouter, type Request, type Response } from "express";
 import {
   GetCurrentAuthUserResponse,
-  ExchangeMobileAuthorizationCodeBody,
   ExchangeMobileAuthorizationCodeResponse,
   LogoutMobileSessionResponse,
 } from "@workspace/api-zod";
@@ -21,6 +20,8 @@ import {
 
 const SALT_ROUNDS = 12;
 const RESET_TOKEN_TTL = 60 * 60 * 1000;
+const OAUTH_STATE_TTL = 10 * 60 * 1000;
+const oauthStates = new Map<string, { returnTo: string; expiresAt: number }>();
 
 const router: IRouter = Router();
 
@@ -104,7 +105,6 @@ router.post("/auth/register", async (req: Request, res: Response) => {
         firstName: firstName || existing.firstName,
         lastName: lastName || existing.lastName,
         authProvider: "email",
-        emailVerified: true,
         updatedAt: new Date(),
       })
       .where(eq(usersTable.id, existing.id))
@@ -124,7 +124,7 @@ router.post("/auth/register", async (req: Request, res: Response) => {
       firstName: firstName || null,
       lastName: lastName || null,
       authProvider: "email",
-      emailVerified: true,
+      emailVerified: false,
     })
     .returning();
 
@@ -187,7 +187,8 @@ router.post("/auth/forgot-password", async (req: Request, res: Response) => {
     expiresAt: new Date(Date.now() + RESET_TOKEN_TTL),
   });
 
-  req.log.info({ email: emailLower, token }, "Password reset token created (email sending not configured — use token directly)");
+  const resetUrl = `${getOrigin(req)}/reset-password?token=${token}`;
+  req.log.info({ email: emailLower, resetUrl }, "Password reset token created — email delivery pending integration");
 });
 
 router.post("/auth/reset-password", async (req: Request, res: Response) => {
@@ -236,7 +237,12 @@ router.get("/auth/google", (req: Request, res: Response) => {
   }
 
   const returnTo = getSafeReturnTo(req.query.returnTo);
-  const state = Buffer.from(JSON.stringify({ returnTo })).toString("base64url");
+  const nonce = crypto.randomBytes(16).toString("hex");
+  oauthStates.set(nonce, { returnTo, expiresAt: Date.now() + OAUTH_STATE_TTL });
+
+  for (const [key, val] of oauthStates) {
+    if (val.expiresAt < Date.now()) oauthStates.delete(key);
+  }
 
   const callbackUrl = `${getOrigin(req)}/api/auth/google/callback`;
 
@@ -247,7 +253,7 @@ router.get("/auth/google", (req: Request, res: Response) => {
     scope: "openid email profile",
     access_type: "offline",
     prompt: "consent",
-    state,
+    state: nonce,
   });
 
   res.redirect(`https://accounts.google.com/o/oauth2/v2/auth?${params}`);
@@ -261,11 +267,19 @@ router.get("/auth/google/callback", async (req: Request, res: Response) => {
     return;
   }
 
-  let returnTo = "/";
-  try {
-    const parsed = JSON.parse(Buffer.from(state as string, "base64url").toString());
-    returnTo = getSafeReturnTo(parsed.returnTo);
-  } catch {}
+  if (!state || typeof state !== "string") {
+    res.redirect("/login?error=invalid_state");
+    return;
+  }
+
+  const storedState = oauthStates.get(state);
+  if (!storedState || storedState.expiresAt < Date.now()) {
+    oauthStates.delete(state);
+    res.redirect("/login?error=invalid_state");
+    return;
+  }
+  oauthStates.delete(state);
+  const returnTo = getSafeReturnTo(storedState.returnTo);
 
   const clientId = process.env.GOOGLE_CLIENT_ID;
   const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
@@ -365,14 +379,8 @@ router.get("/logout", async (req: Request, res: Response) => {
 router.post(
   "/mobile-auth/token-exchange",
   async (req: Request, res: Response) => {
-    const parsed = ExchangeMobileAuthorizationCodeBody.safeParse(req.body);
-    if (!parsed.success) {
-      res.status(400).json({ error: "Missing or invalid required parameters" });
-      return;
-    }
-
     const { email, password } = req.body;
-    if (!email || !password) {
+    if (!email || typeof email !== "string" || !password || typeof password !== "string") {
       res.status(400).json({ error: "Email and password are required" });
       return;
     }
