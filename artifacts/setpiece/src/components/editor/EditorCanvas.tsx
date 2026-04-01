@@ -653,6 +653,9 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
                 label={ent.label}
                 lightPitch={lightPitch}
                 draggable={canInteract}
+                onDragMove={canInteract ? (pos) => {
+                  updateSnappedAnnotations(ent.id, toPct(pos), activeStepId);
+                } : undefined}
                 onDragEnd={canInteract ? (pos) => {
                   const newPct = snapPos(toPct(pos), ent.position);
                   updateSnappedAnnotations(ent.id, newPct, activeStepId);
@@ -675,6 +678,9 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
                 label={ent.label}
                 lightPitch={lightPitch}
                 draggable={canInteract}
+                onDragMove={canInteract ? (pos) => {
+                  updateSnappedAnnotations(ent.id, toPct(pos), activeStepId);
+                } : undefined}
                 onDragEnd={canInteract ? (pos) => {
                   const newPct = snapPos(toPct(pos), ent.position);
                   updateSnappedAnnotations(ent.id, newPct, activeStepId);
@@ -697,6 +703,9 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
                 isDimmed={isDimmed}
                 lightPitch={lightPitch}
                 draggable={canInteract}
+                onDragMove={canInteract ? (pos) => {
+                  updateSnappedAnnotations(ent.id, toPct(pos), activeStepId);
+                } : undefined}
                 onDragEnd={canInteract ? (pos) => {
                   const newPct = snapPos(toPct(pos), ent.position);
                   updateSnappedAnnotations(ent.id, newPct, activeStepId);
@@ -735,6 +744,9 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
               label={role.name}
               lightPitch={lightPitch}
               draggable={roleInteractive}
+              onDragMove={roleInteractive ? (pos) => {
+                updateSnappedAnnotations(role.id, toPct(pos), activeStepId);
+              } : undefined}
               onDragEnd={roleInteractive ? (pos) => {
                 const newPct = snapPos(toPct(pos), { x: role.startPosition?.x ?? 50, y: role.startPosition?.y ?? 50 });
                 updateSnappedAnnotations(role.id, newPct, activeStepId);

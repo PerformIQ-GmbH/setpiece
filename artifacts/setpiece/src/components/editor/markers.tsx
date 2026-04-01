@@ -12,6 +12,7 @@ interface MarkerProps {
   shirtNumber?: number | string;
   draggable?: boolean;
   lightPitch?: boolean;
+  onDragMove?: (pos: { x: number; y: number }) => void;
   onDragEnd?: (pos: { x: number; y: number }) => void;
   onClick?: () => void;
   onTap?: () => void;
@@ -23,7 +24,7 @@ const R = 16;
 
 export function TeamPlayerMarker({
   x, y, isSelected, isHovered, isDimmed, isUnassigned, label, lastName, shirtNumber, lightPitch,
-  draggable, onDragEnd, onClick, onTap, onMouseEnter, onMouseLeave,
+  draggable, onDragMove, onDragEnd, onClick, onTap, onMouseEnter, onMouseLeave,
 }: MarkerProps) {
   const fill = lightPitch ? '#059669' : '#0d3320';
   const borderDefault = lightPitch ? '#047857' : '#166534';
@@ -44,6 +45,7 @@ export function TeamPlayerMarker({
     <Group
       x={x} y={y} draggable={draggable}
       opacity={dimOpacity}
+      onDragMove={onDragMove ? (e) => onDragMove({ x: e.target.x(), y: e.target.y() }) : undefined}
       onDragEnd={onDragEnd ? (e) => onDragEnd({ x: e.target.x(), y: e.target.y() }) : undefined}
       onClick={(e) => { e.cancelBubble = true; onClick?.(); }}
       onTap={(e) => { e.cancelBubble = true; onTap?.(); }}
@@ -184,7 +186,7 @@ export function TeamPlayerMarker({
 
 export function OpponentMarker({
   x, y, isSelected, isHovered, isDimmed, label, shirtNumber, lightPitch,
-  draggable, onDragEnd, onClick, onTap, onMouseEnter, onMouseLeave,
+  draggable, onDragMove, onDragEnd, onClick, onTap, onMouseEnter, onMouseLeave,
 }: MarkerProps) {
   const fill = lightPitch ? '#dc2626' : '#3b1010';
   const borderDefault = lightPitch ? '#b91c1c' : '#991b1b';
@@ -198,6 +200,7 @@ export function OpponentMarker({
     <Group
       x={x} y={y} draggable={draggable}
       opacity={dimOpacity}
+      onDragMove={onDragMove ? (e) => onDragMove({ x: e.target.x(), y: e.target.y() }) : undefined}
       onDragEnd={onDragEnd ? (e) => onDragEnd({ x: e.target.x(), y: e.target.y() }) : undefined}
       onClick={(e) => { e.cancelBubble = true; onClick?.(); }}
       onTap={(e) => { e.cancelBubble = true; onTap?.(); }}
@@ -254,7 +257,7 @@ export function OpponentMarker({
 
 export function GoalkeeperMarker({
   x, y, isSelected, isHovered, isDimmed, label, shirtNumber, lightPitch,
-  draggable, onDragEnd, onClick, onTap, onMouseEnter, onMouseLeave,
+  draggable, onDragMove, onDragEnd, onClick, onTap, onMouseEnter, onMouseLeave,
 }: MarkerProps) {
   const fill = lightPitch ? '#059669' : '#0d3320';
   const borderDefault = lightPitch ? '#047857' : '#166534';
@@ -269,6 +272,7 @@ export function GoalkeeperMarker({
     <Group
       x={x} y={y} draggable={draggable}
       opacity={dimOpacity}
+      onDragMove={onDragMove ? (e) => onDragMove({ x: e.target.x(), y: e.target.y() }) : undefined}
       onDragEnd={onDragEnd ? (e) => onDragEnd({ x: e.target.x(), y: e.target.y() }) : undefined}
       onClick={(e) => { e.cancelBubble = true; onClick?.(); }}
       onTap={(e) => { e.cancelBubble = true; onTap?.(); }}
@@ -324,7 +328,7 @@ export function GoalkeeperMarker({
 }
 
 export function BallMarker({
-  x, y, isSelected, isDimmed, lightPitch, draggable, onDragEnd, onClick, onTap,
+  x, y, isSelected, isDimmed, lightPitch, draggable, onDragMove, onDragEnd, onClick, onTap,
 }: Omit<MarkerProps, 'shirtNumber' | 'label' | 'isHovered' | 'isUnassigned' | 'lastName'> & { isSelected?: boolean }) {
   const br = 10;
   const ringColor = lightPitch ? '#333' : '#ffffff';
@@ -333,6 +337,7 @@ export function BallMarker({
     <Group
       x={x} y={y} draggable={draggable}
       opacity={dimOpacity}
+      onDragMove={onDragMove ? (e) => onDragMove({ x: e.target.x(), y: e.target.y() }) : undefined}
       onDragEnd={onDragEnd ? (e) => onDragEnd({ x: e.target.x(), y: e.target.y() }) : undefined}
       onClick={(e) => { e.cancelBubble = true; onClick?.(); }}
       onTap={(e) => { e.cancelBubble = true; onTap?.(); }}
