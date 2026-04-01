@@ -21,7 +21,7 @@ import {
 const SALT_ROUNDS = 12;
 const RESET_TOKEN_TTL = 60 * 60 * 1000;
 const OAUTH_STATE_TTL = 10 * 60 * 1000;
-const oauthStates = new Map<string, { returnTo: string; expiresAt: number }>();
+const OAUTH_STATE_COOKIE = "oauth_state";
 
 const router: IRouter = Router();
 
@@ -187,8 +187,7 @@ router.post("/auth/forgot-password", async (req: Request, res: Response) => {
     expiresAt: new Date(Date.now() + RESET_TOKEN_TTL),
   });
 
-  const resetUrl = `${getOrigin(req)}/reset-password?token=${token}`;
-  req.log.info({ email: emailLower, resetUrl }, "Password reset token created — email delivery pending integration");
+  req.log.info({ email: emailLower }, "Password reset token created — email delivery pending integration");
 });
 
 router.post("/auth/reset-password", async (req: Request, res: Response) => {
@@ -238,11 +237,15 @@ router.get("/auth/google", (req: Request, res: Response) => {
 
   const returnTo = getSafeReturnTo(req.query.returnTo);
   const nonce = crypto.randomBytes(16).toString("hex");
-  oauthStates.set(nonce, { returnTo, expiresAt: Date.now() + OAUTH_STATE_TTL });
+  const statePayload = Buffer.from(JSON.stringify({ nonce, returnTo })).toString("base64url");
 
-  for (const [key, val] of oauthStates) {
-    if (val.expiresAt < Date.now()) oauthStates.delete(key);
-  }
+  res.cookie(OAUTH_STATE_COOKIE, nonce, {
+    httpOnly: true,
+    secure: true,
+    sameSite: "lax",
+    maxAge: OAUTH_STATE_TTL,
+    path: "/api/auth/google",
+  });
 
   const callbackUrl = `${getOrigin(req)}/api/auth/google/callback`;
 
@@ -253,7 +256,7 @@ router.get("/auth/google", (req: Request, res: Response) => {
     scope: "openid email profile",
     access_type: "offline",
     prompt: "consent",
-    state: nonce,
+    state: statePayload,
   });
 
   res.redirect(`https://accounts.google.com/o/oauth2/v2/auth?${params}`);
@@ -272,14 +275,23 @@ router.get("/auth/google/callback", async (req: Request, res: Response) => {
     return;
   }
 
-  const storedState = oauthStates.get(state);
-  if (!storedState || storedState.expiresAt < Date.now()) {
-    oauthStates.delete(state);
+  const cookieNonce = req.cookies?.[OAUTH_STATE_COOKIE];
+  res.clearCookie(OAUTH_STATE_COOKIE, { path: "/api/auth/google" });
+
+  let stateData: { nonce: string; returnTo: string };
+  try {
+    stateData = JSON.parse(Buffer.from(state, "base64url").toString());
+  } catch {
     res.redirect("/login?error=invalid_state");
     return;
   }
-  oauthStates.delete(state);
-  const returnTo = getSafeReturnTo(storedState.returnTo);
+
+  if (!cookieNonce || cookieNonce !== stateData.nonce) {
+    res.redirect("/login?error=invalid_state");
+    return;
+  }
+
+  const returnTo = getSafeReturnTo(stateData.returnTo);
 
   const clientId = process.env.GOOGLE_CLIENT_ID;
   const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
