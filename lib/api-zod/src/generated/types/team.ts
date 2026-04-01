@@ -20,6 +20,10 @@ export interface Team {
   teamColors?: TeamTeamColors;
   ownerId: string;
   tier: string;
+  /** @nullable */
+  stripeCustomerId?: string | null;
+  /** @nullable */
+  stripeSubscriptionId?: string | null;
   createdAt: Date;
   updatedAt: Date;
 }

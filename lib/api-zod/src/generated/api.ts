@@ -98,6 +98,8 @@ export const ListTeamsResponseItem = zod.object({
     .nullish(),
   ownerId: zod.string(),
   tier: zod.string(),
+  stripeCustomerId: zod.string().nullish(),
+  stripeSubscriptionId: zod.string().nullish(),
   createdAt: zod.coerce.date(),
   updatedAt: zod.coerce.date(),
 });
@@ -141,6 +143,8 @@ export const GetTeamResponse = zod.object({
     .nullish(),
   ownerId: zod.string(),
   tier: zod.string(),
+  stripeCustomerId: zod.string().nullish(),
+  stripeSubscriptionId: zod.string().nullish(),
   createdAt: zod.coerce.date(),
   updatedAt: zod.coerce.date(),
 });
@@ -179,6 +183,8 @@ export const UpdateTeamResponse = zod.object({
     .nullish(),
   ownerId: zod.string(),
   tier: zod.string(),
+  stripeCustomerId: zod.string().nullish(),
+  stripeSubscriptionId: zod.string().nullish(),
   createdAt: zod.coerce.date(),
   updatedAt: zod.coerce.date(),
 });
@@ -1298,6 +1304,8 @@ export const GetMatchPackDataResponse = zod.object({
       .nullish(),
     ownerId: zod.string(),
     tier: zod.string(),
+    stripeCustomerId: zod.string().nullish(),
+    stripeSubscriptionId: zod.string().nullish(),
     createdAt: zod.coerce.date(),
     updatedAt: zod.coerce.date(),
   }),
@@ -1480,8 +1488,51 @@ export const GetPricingDataResponse = zod.object({
       currency: zod.string(),
       interval: zod.string(),
       features: zod.array(zod.string()),
+      stripePriceId: zod.string().nullish(),
+      limits: zod
+        .object({
+          maxPlayers: zod.number().optional(),
+          maxSetPieces: zod.number().optional(),
+          maxMatchdays: zod.number().optional(),
+          maxShareLinks: zod.number().optional(),
+        })
+        .optional(),
       highlighted: zod.boolean().optional(),
       cta: zod.string().optional(),
     }),
   ),
+});
+
+/**
+ * @summary Get current subscription status (coach+ only)
+ */
+export const GetBillingSubscriptionResponse = zod.object({
+  subscription: zod
+    .object({
+      id: zod.string().optional(),
+      status: zod.string().optional(),
+      currentPeriodEnd: zod.number().optional(),
+      cancelAtPeriodEnd: zod.boolean().optional(),
+    })
+    .nullish(),
+  tier: zod.string(),
+});
+
+/**
+ * @summary Create a Stripe checkout session (coach+ only)
+ */
+export const CreateBillingCheckoutBody = zod.object({
+  priceId: zod.string(),
+  tierId: zod.string(),
+});
+
+export const CreateBillingCheckoutResponse = zod.object({
+  url: zod.string().nullable(),
+});
+
+/**
+ * @summary Create a Stripe customer portal session (coach+ only)
+ */
+export const CreateBillingPortalResponse = zod.object({
+  url: zod.string(),
 });

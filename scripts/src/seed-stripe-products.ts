@@ -56,8 +56,9 @@ async function createProducts() {
 
     console.log('\nDone! Webhooks will sync this data to your database automatically.');
     console.log('Use the Stripe Dashboard to see your products.');
-  } catch (error: any) {
-    console.error('Error creating products:', error.message);
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : String(error);
+    console.error('Error creating products:', message);
     process.exit(1);
   }
 }

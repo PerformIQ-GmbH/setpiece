@@ -5,6 +5,7 @@
  * SETPIECE by PerformIQ API
  * OpenAPI spec version: 0.1.0
  */
+import type { PricingDataTiersItemLimits } from "./pricingDataTiersItemLimits";
 
 export type PricingDataTiersItem = {
   id: string;
@@ -13,6 +14,9 @@ export type PricingDataTiersItem = {
   currency: string;
   interval: string;
   features: string[];
+  /** @nullable */
+  stripePriceId?: string | null;
+  limits?: PricingDataTiersItemLimits;
   highlighted?: boolean;
   cta?: string;
 };

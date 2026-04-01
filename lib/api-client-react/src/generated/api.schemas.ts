@@ -91,6 +91,10 @@ export interface Team {
   teamColors?: TeamTeamColors;
   ownerId: string;
   tier: string;
+  /** @nullable */
+  stripeCustomerId?: string | null;
+  /** @nullable */
+  stripeSubscriptionId?: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -711,6 +715,13 @@ export interface AuditEvent {
   createdAt: string;
 }
 
+export type PricingDataTiersItemLimits = {
+  maxPlayers?: number;
+  maxSetPieces?: number;
+  maxMatchdays?: number;
+  maxShareLinks?: number;
+};
+
 export type PricingDataTiersItem = {
   id: string;
   name: string;
@@ -718,12 +729,36 @@ export type PricingDataTiersItem = {
   currency: string;
   interval: string;
   features: string[];
+  /** @nullable */
+  stripePriceId?: string | null;
+  limits?: PricingDataTiersItemLimits;
   highlighted?: boolean;
   cta?: string;
 };
 
 export interface PricingData {
   tiers: PricingDataTiersItem[];
+}
+
+/**
+ * @nullable
+ */
+export type BillingSubscriptionSubscription = {
+  id?: string;
+  status?: string;
+  currentPeriodEnd?: number;
+  cancelAtPeriodEnd?: boolean;
+} | null;
+
+export interface BillingSubscription {
+  /** @nullable */
+  subscription?: BillingSubscriptionSubscription;
+  tier: string;
+}
+
+export interface CreateCheckoutBody {
+  priceId: string;
+  tierId: string;
 }
 
 export type AuthorizationSessionHeaderParameter = string;
@@ -809,4 +844,13 @@ export type GetBoardPreview200 = {
 export type ListAuditEventsParams = {
   limit?: number;
   eventType?: string;
+};
+
+export type CreateBillingCheckout200 = {
+  /** @nullable */
+  url: string | null;
+};
+
+export type CreateBillingPortal200 = {
+  url: string;
 };

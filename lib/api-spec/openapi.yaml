@@ -1097,6 +1097,72 @@ paths:
               schema:
                 $ref: "#/components/schemas/PricingData"
 
+  # ─── Billing ───
+  /billing/subscription:
+    get:
+      operationId: getBillingSubscription
+      tags: [billing]
+      summary: Get current subscription status (coach+ only)
+      responses:
+        "200":
+          description: Subscription info
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BillingSubscription"
+        "401":
+          description: Not authenticated
+        "403":
+          description: Insufficient permissions
+
+  /billing/checkout:
+    post:
+      operationId: createBillingCheckout
+      tags: [billing]
+      summary: Create a Stripe checkout session (coach+ only)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateCheckoutBody"
+      responses:
+        "200":
+          description: Checkout session URL
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [url]
+                properties:
+                  url:
+                    type: [string, 'null']
+        "401":
+          description: Not authenticated
+        "403":
+          description: Insufficient permissions
+
+  /billing/portal:
+    post:
+      operationId: createBillingPortal
+      tags: [billing]
+      summary: Create a Stripe customer portal session (coach+ only)
+      responses:
+        "200":
+          description: Portal session URL
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [url]
+                properties:
+                  url:
+                    type: string
+        "401":
+          description: Not authenticated
+        "403":
+          description: Insufficient permissions
+
 components:
   parameters:
     AuthorizationSessionHeader:
@@ -1259,6 +1325,10 @@ components:
           type: string
         tier:
           type: string
+        stripeCustomerId:
+          type: [string, 'null']
+        stripeSubscriptionId:
+          type: [string, 'null']
         createdAt:
           type: string
           format: date-time
@@ -2189,7 +2259,47 @@ components:
                 type: array
                 items:
                   type: string
+              stripePriceId:
+                type: [string, 'null']
+              limits:
+                type: object
+                properties:
+                  maxPlayers:
+                    type: integer
+                  maxSetPieces:
+                    type: integer
+                  maxMatchdays:
+                    type: integer
+                  maxShareLinks:
+                    type: integer
               highlighted:
                 type: boolean
               cta:
                 type: string
+
+    BillingSubscription:
+      type: object
+      required: [tier]
+      properties:
+        subscription:
+          type: [object, 'null']
+          properties:
+            id:
+              type: string
+            status:
+              type: string
+            currentPeriodEnd:
+              type: integer
+            cancelAtPeriodEnd:
+              type: boolean
+        tier:
+          type: string
+
+    CreateCheckoutBody:
+      type: object
+      required: [priceId, tierId]
+      properties:
+        priceId:
+          type: string
+        tierId:
+          type: string

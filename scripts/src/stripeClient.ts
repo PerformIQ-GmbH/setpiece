@@ -1,6 +1,17 @@
 import Stripe from 'stripe';
 
-let connectionSettings: any;
+interface StripeConnectionSettings {
+  settings: {
+    publishable: string;
+    secret: string;
+  };
+}
+
+interface ConnectorResponse {
+  items?: StripeConnectionSettings[];
+}
+
+let connectionSettings: StripeConnectionSettings | undefined;
 
 async function getCredentials() {
   const hostname = process.env.REPLIT_CONNECTORS_HOSTNAME;
@@ -30,7 +41,7 @@ async function getCredentials() {
     }
   });
 
-  const data = await response.json();
+  const data: ConnectorResponse = await response.json();
 
   connectionSettings = data.items?.[0];
 
