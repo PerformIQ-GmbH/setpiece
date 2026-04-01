@@ -3,7 +3,7 @@ import { useEditorStore } from './editorStore';
 import { ANNOTATION_COLORS } from './types';
 import type { Annotation, EntityMarker } from './types';
 import { cn } from '@/lib/utils';
-import { Users, Layers, Trash2, Plus, ChevronDown, ChevronRight, ArrowLeft, UserRound, Info, Search, X } from 'lucide-react';
+import { Users, Layers, Trash2, Copy, Plus, ChevronDown, ChevronRight, ArrowLeft, UserRound, Info, Search, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { BoardHealth } from './BoardHealth';
 
@@ -39,6 +39,7 @@ interface InspectorPanelProps {
   onAssignPlayer: (roleId: string, playerId: string) => void;
   onAssignBackup: (roleId: string, backupPlayerId: string) => void;
   onDeleteRole: (roleId: string) => void;
+  onDuplicateRole: (roleId: string) => void;
   onAddRole: () => void;
   forceVisible?: boolean;
 }
@@ -203,7 +204,7 @@ function PlayerCombobox({ players, assignments, roles, currentRoleId, value, onC
 
 export function InspectorPanel({
   roles, assignments, players, activeRoleId,
-  onRoleClick, onAssignPlayer, onAssignBackup, onDeleteRole, onAddRole,
+  onRoleClick, onAssignPlayer, onAssignBackup, onDeleteRole, onDuplicateRole, onAddRole,
   forceVisible,
 }: InspectorPanelProps) {
   const selectedAnnotationId = useEditorStore((s) => s.selectedAnnotationId);
@@ -250,6 +251,7 @@ export function InspectorPanel({
           onAssignPlayer={(playerId) => onAssignPlayer(activeRoleId, playerId)}
           onAssignBackup={(backupId) => onAssignBackup(activeRoleId, backupId)}
           onDeleteRole={() => onDeleteRole(activeRoleId)}
+          onDuplicateRole={() => onDuplicateRole(activeRoleId)}
           onBack={() => onRoleClick(activeRoleId)}
         />
       ) : (
@@ -261,6 +263,7 @@ export function InspectorPanel({
           onRoleClick={onRoleClick}
           onAssignPlayer={onAssignPlayer}
           onDeleteRole={onDeleteRole}
+          onDuplicateRole={onDuplicateRole}
           onAddRole={onAddRole}
         />
       )}
@@ -453,7 +456,7 @@ function AnnotationInspector({ annotation, onUpdate, onDelete, roles }: {
   );
 }
 
-function RoleMarkerInspector({ role, assignment, player, linkedAnnotations, players, assignments, roles, activeRoleId, onAssignPlayer, onAssignBackup, onDeleteRole, onBack }: {
+function RoleMarkerInspector({ role, assignment, player, linkedAnnotations, players, assignments, roles, activeRoleId, onAssignPlayer, onAssignBackup, onDeleteRole, onDuplicateRole, onBack }: {
   role: RoleData;
   assignment?: AssignmentData;
   player?: PlayerData;
@@ -465,6 +468,7 @@ function RoleMarkerInspector({ role, assignment, player, linkedAnnotations, play
   onAssignPlayer: (playerId: string) => void;
   onAssignBackup: (backupPlayerId: string) => void;
   onDeleteRole: () => void;
+  onDuplicateRole: () => void;
   onBack: () => void;
 }) {
   return (
@@ -489,9 +493,14 @@ function RoleMarkerInspector({ role, assignment, player, linkedAnnotations, play
             <p className="text-[9px] text-muted-foreground">{assignment ? 'Assigned' : 'Unassigned'}</p>
           </div>
         </div>
-        <Button size="sm" variant="ghost" onClick={onDeleteRole} className="h-7 text-red-400 hover:text-red-300 hover:bg-red-500/10">
-          <Trash2 className="w-3.5 h-3.5" />
-        </Button>
+        <div className="flex items-center gap-0.5">
+          <Button size="sm" variant="ghost" onClick={onDuplicateRole} className="h-7 text-muted-foreground hover:text-white hover:bg-muted/50" title="Duplicate role">
+            <Copy className="w-3.5 h-3.5" />
+          </Button>
+          <Button size="sm" variant="ghost" onClick={onDeleteRole} className="h-7 text-red-400 hover:text-red-300 hover:bg-red-500/10">
+            <Trash2 className="w-3.5 h-3.5" />
+          </Button>
+        </div>
       </div>
       <div className="flex-1 overflow-y-auto">
         <CollapsibleSection title="Assignment">
@@ -634,7 +643,7 @@ function EntityInspector({ entity, onUpdate, onDelete }: {
   );
 }
 
-function RolesPanel({ roles, assignments, players, activeRoleId, onRoleClick, onAssignPlayer, onDeleteRole, onAddRole }: {
+function RolesPanel({ roles, assignments, players, activeRoleId, onRoleClick, onAssignPlayer, onDeleteRole, onDuplicateRole, onAddRole }: {
   roles: RoleData[];
   assignments: AssignmentData[];
   players?: PlayerData[];
@@ -642,6 +651,7 @@ function RolesPanel({ roles, assignments, players, activeRoleId, onRoleClick, on
   onRoleClick: (id: string) => void;
   onAssignPlayer: (roleId: string, playerId: string) => void;
   onDeleteRole: (roleId: string) => void;
+  onDuplicateRole: (roleId: string) => void;
   onAddRole: () => void;
 }) {
   return (
@@ -691,12 +701,21 @@ function RolesPanel({ roles, assignments, players, activeRoleId, onRoleClick, on
                   )} />
                   {role.name}
                 </h3>
-                <button
-                  onClick={(e) => { e.stopPropagation(); onDeleteRole(role.id); }}
-                  className="text-muted-foreground hover:text-destructive p-0.5"
-                >
-                  <Trash2 className="w-3 h-3" />
-                </button>
+                <div className="flex items-center gap-0.5">
+                  <button
+                    onClick={(e) => { e.stopPropagation(); onDuplicateRole(role.id); }}
+                    className="text-muted-foreground hover:text-white p-0.5"
+                    title="Duplicate role"
+                  >
+                    <Copy className="w-3 h-3" />
+                  </button>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); onDeleteRole(role.id); }}
+                    className="text-muted-foreground hover:text-destructive p-0.5"
+                  >
+                    <Trash2 className="w-3 h-3" />
+                  </button>
+                </div>
               </div>
               <div onClick={e => e.stopPropagation()}>
                 <PlayerCombobox

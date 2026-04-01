@@ -341,6 +341,28 @@ export default function SetPieceEditor() {
     }
   };
 
+  const handleDuplicateRole = async (roleId: string) => {
+    const sourceRole = setPiece?.roles.find(r => r.id === roleId);
+    if (!sourceRole) return;
+    setSaveState('saving');
+    try {
+      const srcX = sourceRole.startPosition?.x ?? 50;
+      const srcY = sourceRole.startPosition?.y ?? 50;
+      const offsetX = Math.min(srcX + 3, 98);
+      const offsetY = Math.min(srcY + 3, 98);
+      const res = await createRole.mutateAsync({
+        teamId, setPieceId,
+        data: { name: `${sourceRole.name} (copy)`, startPosition: { x: offsetX, y: offsetY } },
+      });
+      setActiveRoleId(res.id);
+      setActiveTool('select');
+      await refetch();
+      setSaveState('saved');
+    } catch {
+      setSaveState('error');
+    }
+  };
+
   const handleExportPDF = async () => {
     if (!canvasHandleRef.current) return;
     const jsPDF = (await import('jspdf')).default;
@@ -739,6 +761,7 @@ export default function SetPieceEditor() {
             onAssignPlayer={assignPlayer}
             onAssignBackup={assignBackupPlayer}
             onDeleteRole={handleDeleteRole}
+            onDuplicateRole={handleDuplicateRole}
             onAddRole={() => { setPendingPos(null); setNewRoleName(''); setRoleFormOpen(true); }}
           />
         )}
@@ -766,6 +789,7 @@ export default function SetPieceEditor() {
                 onAssignPlayer={assignPlayer}
                 onAssignBackup={assignBackupPlayer}
                 onDeleteRole={handleDeleteRole}
+                onDuplicateRole={handleDuplicateRole}
                 onAddRole={() => { setPendingPos(null); setNewRoleName(''); setRoleFormOpen(true); setMobileInspectorOpen(false); }}
                 forceVisible
               />
