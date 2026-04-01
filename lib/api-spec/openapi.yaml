@@ -1098,11 +1098,13 @@ paths:
                 $ref: "#/components/schemas/PricingData"
 
   # ─── Billing ───
-  /billing/subscription:
+  /billing/subscription/{teamId}:
     get:
       operationId: getBillingSubscription
       tags: [billing]
       summary: Get current subscription status (coach+ only)
+      parameters:
+        - $ref: "#/components/parameters/TeamId"
       responses:
         "200":
           description: Subscription info
@@ -1147,6 +1149,12 @@ paths:
       operationId: createBillingPortal
       tags: [billing]
       summary: Create a Stripe customer portal session (coach+ only)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreatePortalBody"
       responses:
         "200":
           description: Portal session URL
@@ -1328,6 +1336,8 @@ components:
         stripeCustomerId:
           type: [string, 'null']
         stripeSubscriptionId:
+          type: [string, 'null']
+        stripeSubscriptionStatus:
           type: [string, 'null']
         createdAt:
           type: string
@@ -2297,9 +2307,18 @@ components:
 
     CreateCheckoutBody:
       type: object
-      required: [priceId, tierId]
+      required: [priceId, tierId, teamId]
       properties:
         priceId:
           type: string
         tierId:
+          type: string
+        teamId:
+          type: string
+
+    CreatePortalBody:
+      type: object
+      required: [teamId]
+      properties:
+        teamId:
           type: string

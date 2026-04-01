@@ -28,6 +28,7 @@ import type {
   CreateCheckoutBody,
   CreateMatchdayBody,
   CreatePlayerBody,
+  CreatePortalBody,
   CreateRoleBody,
   CreateSetPieceBody,
   CreateShareLinkBody,
@@ -5153,44 +5154,57 @@ export function useGetPricingData<
 /**
  * @summary Get current subscription status (coach+ only)
  */
-export const getGetBillingSubscriptionUrl = () => {
-  return `/api/billing/subscription`;
+export const getGetBillingSubscriptionUrl = (teamId: string) => {
+  return `/api/billing/subscription/${teamId}`;
 };
 
 export const getBillingSubscription = async (
+  teamId: string,
   options?: RequestInit,
 ): Promise<BillingSubscription> => {
-  return customFetch<BillingSubscription>(getGetBillingSubscriptionUrl(), {
-    ...options,
-    method: "GET",
-  });
+  return customFetch<BillingSubscription>(
+    getGetBillingSubscriptionUrl(teamId),
+    {
+      ...options,
+      method: "GET",
+    },
+  );
 };
 
-export const getGetBillingSubscriptionQueryKey = () => {
-  return [`/api/billing/subscription`] as const;
+export const getGetBillingSubscriptionQueryKey = (teamId: string) => {
+  return [`/api/billing/subscription/${teamId}`] as const;
 };
 
 export const getGetBillingSubscriptionQueryOptions = <
   TData = Awaited<ReturnType<typeof getBillingSubscription>>,
   TError = ErrorType<void>,
->(options?: {
-  query?: UseQueryOptions<
-    Awaited<ReturnType<typeof getBillingSubscription>>,
-    TError,
-    TData
-  >;
-  request?: SecondParameter<typeof customFetch>;
-}) => {
+>(
+  teamId: string,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getBillingSubscription>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
   const { query: queryOptions, request: requestOptions } = options ?? {};
 
   const queryKey =
-    queryOptions?.queryKey ?? getGetBillingSubscriptionQueryKey();
+    queryOptions?.queryKey ?? getGetBillingSubscriptionQueryKey(teamId);
 
   const queryFn: QueryFunction<
     Awaited<ReturnType<typeof getBillingSubscription>>
-  > = ({ signal }) => getBillingSubscription({ signal, ...requestOptions });
+  > = ({ signal }) =>
+    getBillingSubscription(teamId, { signal, ...requestOptions });
 
-  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!teamId,
+    ...queryOptions,
+  } as UseQueryOptions<
     Awaited<ReturnType<typeof getBillingSubscription>>,
     TError,
     TData
@@ -5209,15 +5223,18 @@ export type GetBillingSubscriptionQueryError = ErrorType<void>;
 export function useGetBillingSubscription<
   TData = Awaited<ReturnType<typeof getBillingSubscription>>,
   TError = ErrorType<void>,
->(options?: {
-  query?: UseQueryOptions<
-    Awaited<ReturnType<typeof getBillingSubscription>>,
-    TError,
-    TData
-  >;
-  request?: SecondParameter<typeof customFetch>;
-}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
-  const queryOptions = getGetBillingSubscriptionQueryOptions(options);
+>(
+  teamId: string,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getBillingSubscription>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetBillingSubscriptionQueryOptions(teamId, options);
 
   const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
     queryKey: QueryKey;
@@ -5320,11 +5337,14 @@ export const getCreateBillingPortalUrl = () => {
 };
 
 export const createBillingPortal = async (
+  createPortalBody: CreatePortalBody,
   options?: RequestInit,
 ): Promise<CreateBillingPortal200> => {
   return customFetch<CreateBillingPortal200>(getCreateBillingPortalUrl(), {
     ...options,
     method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(createPortalBody),
   });
 };
 
@@ -5335,14 +5355,14 @@ export const getCreateBillingPortalMutationOptions = <
   mutation?: UseMutationOptions<
     Awaited<ReturnType<typeof createBillingPortal>>,
     TError,
-    void,
+    { data: BodyType<CreatePortalBody> },
     TContext
   >;
   request?: SecondParameter<typeof customFetch>;
 }): UseMutationOptions<
   Awaited<ReturnType<typeof createBillingPortal>>,
   TError,
-  void,
+  { data: BodyType<CreatePortalBody> },
   TContext
 > => {
   const mutationKey = ["createBillingPortal"];
@@ -5356,9 +5376,11 @@ export const getCreateBillingPortalMutationOptions = <
 
   const mutationFn: MutationFunction<
     Awaited<ReturnType<typeof createBillingPortal>>,
-    void
-  > = () => {
-    return createBillingPortal(requestOptions);
+    { data: BodyType<CreatePortalBody> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return createBillingPortal(data, requestOptions);
   };
 
   return { mutationFn, ...mutationOptions };
@@ -5367,7 +5389,7 @@ export const getCreateBillingPortalMutationOptions = <
 export type CreateBillingPortalMutationResult = NonNullable<
   Awaited<ReturnType<typeof createBillingPortal>>
 >;
-
+export type CreateBillingPortalMutationBody = BodyType<CreatePortalBody>;
 export type CreateBillingPortalMutationError = ErrorType<void>;
 
 /**
@@ -5380,14 +5402,14 @@ export const useCreateBillingPortal = <
   mutation?: UseMutationOptions<
     Awaited<ReturnType<typeof createBillingPortal>>,
     TError,
-    void,
+    { data: BodyType<CreatePortalBody> },
     TContext
   >;
   request?: SecondParameter<typeof customFetch>;
 }): UseMutationResult<
   Awaited<ReturnType<typeof createBillingPortal>>,
   TError,
-  void,
+  { data: BodyType<CreatePortalBody> },
   TContext
 > => {
   return useMutation(getCreateBillingPortalMutationOptions(options));

@@ -22,6 +22,7 @@ export * from "./createBillingPortal200";
 export * from "./createCheckoutBody";
 export * from "./createMatchdayBody";
 export * from "./createPlayerBody";
+export * from "./createPortalBody";
 export * from "./createRoleBody";
 export * from "./createRoleBodyMovementPathItem";
 export * from "./createRoleBodyStartPosition";

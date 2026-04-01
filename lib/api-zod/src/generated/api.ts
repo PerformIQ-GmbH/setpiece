@@ -100,6 +100,7 @@ export const ListTeamsResponseItem = zod.object({
   tier: zod.string(),
   stripeCustomerId: zod.string().nullish(),
   stripeSubscriptionId: zod.string().nullish(),
+  stripeSubscriptionStatus: zod.string().nullish(),
   createdAt: zod.coerce.date(),
   updatedAt: zod.coerce.date(),
 });
@@ -145,6 +146,7 @@ export const GetTeamResponse = zod.object({
   tier: zod.string(),
   stripeCustomerId: zod.string().nullish(),
   stripeSubscriptionId: zod.string().nullish(),
+  stripeSubscriptionStatus: zod.string().nullish(),
   createdAt: zod.coerce.date(),
   updatedAt: zod.coerce.date(),
 });
@@ -185,6 +187,7 @@ export const UpdateTeamResponse = zod.object({
   tier: zod.string(),
   stripeCustomerId: zod.string().nullish(),
   stripeSubscriptionId: zod.string().nullish(),
+  stripeSubscriptionStatus: zod.string().nullish(),
   createdAt: zod.coerce.date(),
   updatedAt: zod.coerce.date(),
 });
@@ -1306,6 +1309,7 @@ export const GetMatchPackDataResponse = zod.object({
     tier: zod.string(),
     stripeCustomerId: zod.string().nullish(),
     stripeSubscriptionId: zod.string().nullish(),
+    stripeSubscriptionStatus: zod.string().nullish(),
     createdAt: zod.coerce.date(),
     updatedAt: zod.coerce.date(),
   }),
@@ -1506,6 +1510,10 @@ export const GetPricingDataResponse = zod.object({
 /**
  * @summary Get current subscription status (coach+ only)
  */
+export const GetBillingSubscriptionParams = zod.object({
+  teamId: zod.coerce.string(),
+});
+
 export const GetBillingSubscriptionResponse = zod.object({
   subscription: zod
     .object({
@@ -1524,6 +1532,7 @@ export const GetBillingSubscriptionResponse = zod.object({
 export const CreateBillingCheckoutBody = zod.object({
   priceId: zod.string(),
   tierId: zod.string(),
+  teamId: zod.string(),
 });
 
 export const CreateBillingCheckoutResponse = zod.object({
@@ -1533,6 +1542,10 @@ export const CreateBillingCheckoutResponse = zod.object({
 /**
  * @summary Create a Stripe customer portal session (coach+ only)
  */
+export const CreateBillingPortalBody = zod.object({
+  teamId: zod.string(),
+});
+
 export const CreateBillingPortalResponse = zod.object({
   url: zod.string(),
 });

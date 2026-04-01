@@ -57,6 +57,7 @@ export class WebhookHandlers {
               tier: tierId,
               stripeSubscriptionId: subscriptionId,
               stripeCustomerId: obj.customer ?? undefined,
+              stripeSubscriptionStatus: "active",
             })
             .where(eq(teamsTable.id, teamId));
           logger.info({ teamId, tierId, subscriptionId }, "Team upgraded via checkout");
@@ -67,13 +68,11 @@ export class WebhookHandlers {
       case "invoice.paid": {
         const subId = obj.subscription;
         if (subId) {
-          const [team] = await db
-            .select()
-            .from(teamsTable)
+          await db
+            .update(teamsTable)
+            .set({ stripeSubscriptionStatus: "active" })
             .where(eq(teamsTable.stripeSubscriptionId, subId));
-          if (team) {
-            logger.info({ teamId: team.id }, "Invoice paid — subscription confirmed active");
-          }
+          logger.info({ subscriptionId: subId }, "Invoice paid — subscription confirmed active");
         }
         break;
       }
@@ -81,13 +80,11 @@ export class WebhookHandlers {
       case "invoice.payment_failed": {
         const subId = obj.subscription;
         if (subId) {
-          const [team] = await db
-            .select()
-            .from(teamsTable)
+          await db
+            .update(teamsTable)
+            .set({ stripeSubscriptionStatus: "past_due" })
             .where(eq(teamsTable.stripeSubscriptionId, subId));
-          if (team) {
-            logger.warn({ teamId: team.id }, "Invoice payment failed — subscription at risk");
-          }
+          logger.warn({ subscriptionId: subId }, "Invoice payment failed — marked past_due");
         }
         break;
       }
@@ -98,7 +95,11 @@ export class WebhookHandlers {
         if (teamId) {
           await db
             .update(teamsTable)
-            .set({ tier: "free", stripeSubscriptionId: null })
+            .set({
+              tier: "free",
+              stripeSubscriptionId: null,
+              stripeSubscriptionStatus: "canceled",
+            })
             .where(eq(teamsTable.id, teamId));
           logger.info({ teamId }, "Team downgraded to free (subscription deleted)");
         }
@@ -113,17 +114,25 @@ export class WebhookHandlers {
           if (status === "canceled" || status === "unpaid") {
             await db
               .update(teamsTable)
-              .set({ tier: "free", stripeSubscriptionId: null })
+              .set({
+                tier: "free",
+                stripeSubscriptionId: null,
+                stripeSubscriptionStatus: status,
+              })
               .where(eq(teamsTable.id, teamId));
             logger.info({ teamId, status }, "Team downgraded — subscription canceled/unpaid");
           } else if (status === "past_due") {
+            await db
+              .update(teamsTable)
+              .set({ stripeSubscriptionStatus: "past_due" })
+              .where(eq(teamsTable.id, teamId));
             logger.warn({ teamId }, "Subscription past due — payment retry pending");
           } else if (status === "active") {
             const tierId = obj.metadata?.tierId;
             if (tierId) {
               await db
                 .update(teamsTable)
-                .set({ tier: tierId })
+                .set({ tier: tierId, stripeSubscriptionStatus: "active" })
                 .where(eq(teamsTable.id, teamId));
               logger.info({ teamId, tierId }, "Subscription reactivated");
             }

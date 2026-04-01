@@ -1,12 +1,22 @@
 import { Router, type IRouter } from "express";
-import { eq, sql } from "drizzle-orm";
+import { eq, and, sql } from "drizzle-orm";
 import { db, teamsTable, membershipsTable } from "@workspace/db";
 import { getUncachableStripeClient } from "../lib/stripeClient";
 import type { Request, Response } from "express";
 
 const router: IRouter = Router();
 
-async function getCoachTeam(req: Request, res: Response) {
+function getBaseUrl(): string {
+  const customDomain = process.env.APP_DOMAIN;
+  if (customDomain) return `https://${customDomain}`;
+
+  const replitDomains = process.env.REPLIT_DOMAINS;
+  if (replitDomains) return `https://${replitDomains.split(",")[0]}`;
+
+  return "https://setpiece.performiq.ch";
+}
+
+async function getCoachTeamById(req: Request, res: Response, teamId: string) {
   if (!req.isAuthenticated()) {
     res.status(401).json({ error: "Not authenticated" });
     return null;
@@ -15,10 +25,15 @@ async function getCoachTeam(req: Request, res: Response) {
   const [membership] = await db
     .select({ teamId: membershipsTable.teamId, role: membershipsTable.role })
     .from(membershipsTable)
-    .where(eq(membershipsTable.userId, req.user.id));
+    .where(
+      and(
+        eq(membershipsTable.userId, req.user.id),
+        eq(membershipsTable.teamId, teamId),
+      ),
+    );
 
   if (!membership) {
-    res.status(404).json({ error: "No team found" });
+    res.status(403).json({ error: "You do not have access to this team" });
     return null;
   }
 
@@ -64,8 +79,8 @@ async function getValidPriceIdForTier(tierId: string): Promise<string | null> {
 
 const VALID_TIERS = new Set(["solo_coach", "team"]);
 
-router.get("/billing/subscription", async (req: Request, res: Response): Promise<void> => {
-  const ctx = await getCoachTeam(req, res);
+router.get("/billing/subscription/:teamId", async (req: Request, res: Response): Promise<void> => {
+  const ctx = await getCoachTeamById(req, res, req.params.teamId);
   if (!ctx) return;
 
   if (!ctx.team.stripeSubscriptionId) {
@@ -91,10 +106,16 @@ router.get("/billing/subscription", async (req: Request, res: Response): Promise
 });
 
 router.post("/billing/checkout", async (req: Request, res: Response): Promise<void> => {
-  const ctx = await getCoachTeam(req, res);
+  const { priceId, tierId, teamId } = req.body as { priceId?: string; tierId?: string; teamId?: string };
+
+  if (!teamId) {
+    res.status(400).json({ error: "teamId is required" });
+    return;
+  }
+
+  const ctx = await getCoachTeamById(req, res, teamId);
   if (!ctx) return;
 
-  const { priceId, tierId } = req.body as { priceId?: string; tierId?: string };
   if (!priceId || !tierId) {
     res.status(400).json({ error: "priceId and tierId are required" });
     return;
@@ -127,7 +148,7 @@ router.post("/billing/checkout", async (req: Request, res: Response): Promise<vo
       customerId = customer.id;
     }
 
-    const baseUrl = `https://${req.get("host")}`;
+    const baseUrl = getBaseUrl();
 
     const session = await stripe.checkout.sessions.create({
       customer: customerId,
@@ -150,7 +171,14 @@ router.post("/billing/checkout", async (req: Request, res: Response): Promise<vo
 });
 
 router.post("/billing/portal", async (req: Request, res: Response): Promise<void> => {
-  const ctx = await getCoachTeam(req, res);
+  const { teamId } = req.body as { teamId?: string };
+
+  if (!teamId) {
+    res.status(400).json({ error: "teamId is required" });
+    return;
+  }
+
+  const ctx = await getCoachTeamById(req, res, teamId);
   if (!ctx) return;
 
   if (!ctx.team.stripeCustomerId) {
@@ -160,7 +188,7 @@ router.post("/billing/portal", async (req: Request, res: Response): Promise<void
 
   try {
     const stripe = await getUncachableStripeClient();
-    const baseUrl = `https://${req.get("host")}`;
+    const baseUrl = getBaseUrl();
 
     const session = await stripe.billingPortal.sessions.create({
       customer: ctx.team.stripeCustomerId,

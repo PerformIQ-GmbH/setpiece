@@ -30,7 +30,7 @@ export default function Pricing() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({ priceId: tier.stripePriceId, tierId: tier.id }),
+        body: JSON.stringify({ priceId: tier.stripePriceId, tierId: tier.id, teamId: team?.id }),
       });
       const data = await res.json();
       if (data.url) {

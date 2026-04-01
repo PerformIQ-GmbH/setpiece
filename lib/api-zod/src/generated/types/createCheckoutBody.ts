@@ -9,4 +9,5 @@
 export interface CreateCheckoutBody {
   priceId: string;
   tierId: string;
+  teamId: string;
 }

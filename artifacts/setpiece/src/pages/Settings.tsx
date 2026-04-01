@@ -103,6 +103,7 @@ export default function Settings() {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
                             credentials: 'include',
+                            body: JSON.stringify({ teamId: team.id }),
                           });
                           const data = await res.json();
                           if (data.url) window.location.href = data.url;

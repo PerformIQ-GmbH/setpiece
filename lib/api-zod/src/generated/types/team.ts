@@ -24,6 +24,8 @@ export interface Team {
   stripeCustomerId?: string | null;
   /** @nullable */
   stripeSubscriptionId?: string | null;
+  /** @nullable */
+  stripeSubscriptionStatus?: string | null;
   createdAt: Date;
   updatedAt: Date;
 }

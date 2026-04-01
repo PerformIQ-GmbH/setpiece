@@ -95,6 +95,8 @@ export interface Team {
   stripeCustomerId?: string | null;
   /** @nullable */
   stripeSubscriptionId?: string | null;
+  /** @nullable */
+  stripeSubscriptionStatus?: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -759,6 +761,11 @@ export interface BillingSubscription {
 export interface CreateCheckoutBody {
   priceId: string;
   tierId: string;
+  teamId: string;
+}
+
+export interface CreatePortalBody {
+  teamId: string;
 }
 
 export type AuthorizationSessionHeaderParameter = string;

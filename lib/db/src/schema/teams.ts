@@ -15,6 +15,7 @@ export const teamsTable = pgTable("teams", {
   tier: varchar("tier", { length: 50 }).notNull().default("free"),
   stripeCustomerId: text("stripe_customer_id"),
   stripeSubscriptionId: text("stripe_subscription_id"),
+  stripeSubscriptionStatus: varchar("stripe_subscription_status", { length: 50 }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
 });
