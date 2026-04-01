@@ -25,7 +25,7 @@ export default function Players() {
   const [, params] = useRoute('/teams/:teamId/players');
   const teamId = params?.teamId || '';
   const { data: team } = useGetTeam(teamId);
-  const { data: players, refetch } = useListPlayers(teamId, { query: { refetchInterval: 10000 } });
+  const { data: players, refetch } = useListPlayers(teamId, { query: { refetchInterval: 5000 } });
   const createPlayer = useCreatePlayer();
   const updatePlayer = useUpdatePlayer();
   const deletePlayer = useDeletePlayer();
@@ -133,6 +133,14 @@ export default function Players() {
     await createInvite.mutateAsync({ teamId, data: buildInviteData() });
     await refetchInvites();
     setCopied(false);
+  };
+
+  const handleRevokeInvite = async () => {
+    if (activeInvite) {
+      await revokeInvite.mutateAsync({ teamId, inviteId: activeInvite.id });
+      await refetchInvites();
+      setCopied(false);
+    }
   };
 
   const handleCopy = async () => {
@@ -344,16 +352,28 @@ export default function Players() {
                   </div>
                 )}
 
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  onClick={handleRegenerateInvite}
-                  disabled={createInvite.isPending || revokeInvite.isPending}
-                  className="w-full text-muted-foreground hover:text-white"
-                >
-                  {createInvite.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <RefreshCw className="w-4 h-4 mr-2" />}
-                  Generate New Link
-                </Button>
+                <div className="flex gap-2">
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={handleRevokeInvite}
+                    disabled={revokeInvite.isPending}
+                    className="flex-1 text-muted-foreground hover:text-destructive"
+                  >
+                    <Trash2 className="w-4 h-4 mr-2" />
+                    Revoke
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={handleRegenerateInvite}
+                    disabled={createInvite.isPending || revokeInvite.isPending}
+                    className="flex-1 text-muted-foreground hover:text-white"
+                  >
+                    {createInvite.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <RefreshCw className="w-4 h-4 mr-2" />}
+                    Regenerate
+                  </Button>
+                </div>
               </>
             ) : (
               <Button
