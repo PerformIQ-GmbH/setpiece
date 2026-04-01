@@ -6,20 +6,42 @@ import type { Request, Response } from "express";
 
 const router: IRouter = Router();
 
-async function getUserTeam(userId: string) {
-  const [membership] = await db
-    .select({ teamId: membershipsTable.teamId })
-    .from(membershipsTable)
-    .where(eq(membershipsTable.userId, userId));
+async function getCoachTeam(req: Request, res: Response) {
+  if (!req.isAuthenticated()) {
+    res.status(401).json({ error: "Not authenticated" });
+    return null;
+  }
 
-  if (!membership) return null;
+  const [membership] = await db
+    .select({ teamId: membershipsTable.teamId, role: membershipsTable.role })
+    .from(membershipsTable)
+    .where(eq(membershipsTable.userId, req.user.id));
+
+  if (!membership) {
+    res.status(404).json({ error: "No team found" });
+    return null;
+  }
+
+  if (membership.role !== "head_coach" && membership.role !== "assistant_coach") {
+    res.status(403).json({ error: "Only coaches can manage billing" });
+    return null;
+  }
 
   const [team] = await db
     .select()
     .from(teamsTable)
     .where(eq(teamsTable.id, membership.teamId));
 
-  return team || null;
+  if (!team) {
+    res.status(404).json({ error: "Team not found" });
+    return null;
+  }
+
+  return { team, user: req.user };
+}
+
+interface StripePriceRow {
+  price_id: string;
 }
 
 async function getValidPriceIdForTier(tierId: string): Promise<string | null> {
@@ -33,7 +55,8 @@ async function getValidPriceIdForTier(tierId: string): Promise<string | null> {
       AND p.metadata->>'tierId' = ${tierId}
       LIMIT 1
     `);
-    return (result.rows[0] as any)?.price_id || null;
+    const row = result.rows[0] as StripePriceRow | undefined;
+    return row?.price_id || null;
   } catch {
     return null;
   }
@@ -42,26 +65,17 @@ async function getValidPriceIdForTier(tierId: string): Promise<string | null> {
 const VALID_TIERS = new Set(["solo_coach", "team"]);
 
 router.get("/billing/subscription", async (req: Request, res: Response): Promise<void> => {
-  const user = (req as any).user;
-  if (!user) {
-    res.status(401).json({ error: "Not authenticated" });
-    return;
-  }
+  const ctx = await getCoachTeam(req, res);
+  if (!ctx) return;
 
-  const team = await getUserTeam(user.id);
-  if (!team) {
-    res.json({ subscription: null, tier: "free" });
-    return;
-  }
-
-  if (!team.stripeSubscriptionId) {
-    res.json({ subscription: null, tier: team.tier });
+  if (!ctx.team.stripeSubscriptionId) {
+    res.json({ subscription: null, tier: ctx.team.tier });
     return;
   }
 
   try {
     const stripe = await getUncachableStripeClient();
-    const subscription = await stripe.subscriptions.retrieve(team.stripeSubscriptionId);
+    const subscription = await stripe.subscriptions.retrieve(ctx.team.stripeSubscriptionId);
     res.json({
       subscription: {
         id: subscription.id,
@@ -69,21 +83,18 @@ router.get("/billing/subscription", async (req: Request, res: Response): Promise
         currentPeriodEnd: subscription.current_period_end,
         cancelAtPeriodEnd: subscription.cancel_at_period_end,
       },
-      tier: team.tier,
+      tier: ctx.team.tier,
     });
   } catch {
-    res.json({ subscription: null, tier: team.tier });
+    res.json({ subscription: null, tier: ctx.team.tier });
   }
 });
 
 router.post("/billing/checkout", async (req: Request, res: Response): Promise<void> => {
-  const user = (req as any).user;
-  if (!user) {
-    res.status(401).json({ error: "Not authenticated" });
-    return;
-  }
+  const ctx = await getCoachTeam(req, res);
+  if (!ctx) return;
 
-  const { priceId, tierId } = req.body;
+  const { priceId, tierId } = req.body as { priceId?: string; tierId?: string };
   if (!priceId || !tierId) {
     res.status(400).json({ error: "priceId and tierId are required" });
     return;
@@ -100,25 +111,19 @@ router.post("/billing/checkout", async (req: Request, res: Response): Promise<vo
     return;
   }
 
-  const team = await getUserTeam(user.id);
-  if (!team) {
-    res.status(404).json({ error: "No team found" });
-    return;
-  }
-
   try {
     const stripe = await getUncachableStripeClient();
 
-    let customerId = team.stripeCustomerId;
+    let customerId = ctx.team.stripeCustomerId;
     if (!customerId) {
       const customer = await stripe.customers.create({
-        email: user.email,
-        metadata: { teamId: team.id, userId: user.id },
+        email: ctx.user.email,
+        metadata: { teamId: ctx.team.id, userId: ctx.user.id },
       });
       await db
         .update(teamsTable)
         .set({ stripeCustomerId: customer.id })
-        .where(eq(teamsTable.id, team.id));
+        .where(eq(teamsTable.id, ctx.team.id));
       customerId = customer.id;
     }
 
@@ -131,27 +136,24 @@ router.post("/billing/checkout", async (req: Request, res: Response): Promise<vo
       mode: "subscription",
       success_url: `${baseUrl}/setpiece/pricing?success=true`,
       cancel_url: `${baseUrl}/setpiece/pricing?canceled=true`,
-      metadata: { teamId: team.id, tierId },
+      metadata: { teamId: ctx.team.id, tierId },
       subscription_data: {
-        metadata: { teamId: team.id, tierId },
+        metadata: { teamId: ctx.team.id, tierId },
       },
     });
 
     res.json({ url: session.url });
-  } catch (error: any) {
-    res.status(500).json({ error: error.message || "Failed to create checkout session" });
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : "Failed to create checkout session";
+    res.status(500).json({ error: message });
   }
 });
 
 router.post("/billing/portal", async (req: Request, res: Response): Promise<void> => {
-  const user = (req as any).user;
-  if (!user) {
-    res.status(401).json({ error: "Not authenticated" });
-    return;
-  }
+  const ctx = await getCoachTeam(req, res);
+  if (!ctx) return;
 
-  const team = await getUserTeam(user.id);
-  if (!team || !team.stripeCustomerId) {
+  if (!ctx.team.stripeCustomerId) {
     res.status(404).json({ error: "No subscription found" });
     return;
   }
@@ -161,13 +163,14 @@ router.post("/billing/portal", async (req: Request, res: Response): Promise<void
     const baseUrl = `https://${req.get("host")}`;
 
     const session = await stripe.billingPortal.sessions.create({
-      customer: team.stripeCustomerId,
+      customer: ctx.team.stripeCustomerId,
       return_url: `${baseUrl}/setpiece/settings`,
     });
 
     res.json({ url: session.url });
-  } catch (error: any) {
-    res.status(500).json({ error: error.message || "Failed to create portal session" });
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : "Failed to create portal session";
+    res.status(500).json({ error: message });
   }
 });
 

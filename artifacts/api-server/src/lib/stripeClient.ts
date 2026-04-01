@@ -1,6 +1,17 @@
 import Stripe from 'stripe';
 
-let connectionSettings: any;
+interface StripeConnectionSettings {
+  settings: {
+    publishable: string;
+    secret: string;
+  };
+}
+
+interface ConnectorResponse {
+  items?: StripeConnectionSettings[];
+}
+
+let connectionSettings: StripeConnectionSettings | undefined;
 
 async function getCredentials() {
   const hostname = process.env.REPLIT_CONNECTORS_HOSTNAME;
@@ -30,7 +41,7 @@ async function getCredentials() {
     }
   });
 
-  const data = await response.json();
+  const data: ConnectorResponse = await response.json();
 
   connectionSettings = data.items?.[0];
 
@@ -62,9 +73,16 @@ export async function getStripeSecretKey() {
   return secretKey;
 }
 
-let stripeSync: any = null;
+interface StripeSyncInstance {
+  processWebhook(payload: Buffer, signature: string): Promise<void>;
+  runMigrations(): Promise<void>;
+  findOrCreateManagedWebhook(url: string): Promise<{ webhook?: { secret?: string } }>;
+  syncBackfill(): Promise<void>;
+}
 
-export async function getStripeSync() {
+let stripeSync: StripeSyncInstance | null = null;
+
+export async function getStripeSync(): Promise<StripeSyncInstance> {
   if (!stripeSync) {
     const { StripeSync } = await import('stripe-replit-sync');
     const secretKey = await getStripeSecretKey();
@@ -75,7 +93,7 @@ export async function getStripeSync() {
         max: 2,
       },
       stripeSecretKey: secretKey,
-    });
+    }) as StripeSyncInstance;
   }
   return stripeSync;
 }
