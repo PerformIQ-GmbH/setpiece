@@ -1,6 +1,7 @@
 import { Router, type IRouter, type Request, type Response } from "express";
 import {
   GetCurrentAuthUserResponse,
+  ExchangeMobileAuthorizationCodeBody,
   ExchangeMobileAuthorizationCodeResponse,
   LogoutMobileSessionResponse,
 } from "@workspace/api-zod";
@@ -468,13 +469,14 @@ router.get("/logout", async (req: Request, res: Response) => {
 router.post(
   "/mobile-auth/token-exchange",
   async (req: Request, res: Response) => {
-    const { email, password } = req.body;
-    if (!email || typeof email !== "string" || !password || typeof password !== "string") {
+    const parsed = ExchangeMobileAuthorizationCodeBody.safeParse(req.body);
+    if (!parsed.success) {
       res.status(400).json({ error: "Email and password are required" });
       return;
     }
 
-    const emailLower = email.toLowerCase().trim();
+    const emailLower = parsed.data.email.toLowerCase().trim();
+    const { password } = parsed.data;
     const [user] = await db
       .select()
       .from(usersTable)

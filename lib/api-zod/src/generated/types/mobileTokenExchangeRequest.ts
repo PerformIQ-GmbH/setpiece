@@ -8,13 +8,7 @@
 
 export interface MobileTokenExchangeRequest {
   /** @minLength 1 */
-  code: string;
+  email: string;
   /** @minLength 1 */
-  code_verifier: string;
-  /** @minLength 1 */
-  redirect_uri: string;
-  /** @minLength 1 */
-  state: string;
-  /** @minLength 1 */
-  nonce?: string;
+  password: string;
 }

@@ -119,7 +119,7 @@ paths:
     post:
       tags: [Auth]
       operationId: exchangeMobileAuthorizationCode
-      summary: Exchange mobile OIDC code for session
+      summary: Exchange email/password credentials for bearer token
       requestBody:
         required: true
         content:
@@ -1184,22 +1184,13 @@ components:
             - type: 'null'
     MobileTokenExchangeRequest:
       type: object
-      required: [code, code_verifier, redirect_uri, state]
+      required: [email, password]
       properties:
-        code:
+        email:
           type: string
+          format: email
           minLength: 1
-        code_verifier:
-          type: string
-          minLength: 1
-        redirect_uri:
-          type: string
-          minLength: 1
-          format: uri
-        state:
-          type: string
-          minLength: 1
-        nonce:
+        password:
           type: string
           minLength: 1
     MobileTokenExchangeSuccess:

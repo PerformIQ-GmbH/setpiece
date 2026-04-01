@@ -512,7 +512,7 @@ export function useLogoutBrowserSession<
 }
 
 /**
- * @summary Exchange mobile OIDC code for session
+ * @summary Exchange email/password credentials for bearer token
  */
 export const getExchangeMobileAuthorizationCodeUrl = () => {
   return `/api/mobile-auth/token-exchange`;
@@ -580,7 +580,7 @@ export type ExchangeMobileAuthorizationCodeMutationError =
   ErrorType<ErrorEnvelope>;
 
 /**
- * @summary Exchange mobile OIDC code for session
+ * @summary Exchange email/password credentials for bearer token
  */
 export const useExchangeMobileAuthorizationCode = <
   TError = ErrorType<ErrorEnvelope>,

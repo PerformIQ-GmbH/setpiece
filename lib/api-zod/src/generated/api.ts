@@ -58,15 +58,12 @@ export const LogoutBrowserSessionHeader = zod.object({
 });
 
 /**
- * @summary Exchange mobile OIDC code for session
+ * @summary Exchange email/password credentials for bearer token
  */
 
 export const ExchangeMobileAuthorizationCodeBody = zod.object({
-  code: zod.string().min(1),
-  code_verifier: zod.string().min(1),
-  redirect_uri: zod.string().url().min(1),
-  state: zod.string().min(1),
-  nonce: zod.string().min(1).optional(),
+  email: zod.string().email().min(1),
+  password: zod.string().min(1),
 });
 
 export const ExchangeMobileAuthorizationCodeResponse = zod.object({
