@@ -51,6 +51,8 @@ export interface Annotation {
   width?: number;
   height?: number;
   linkedRoleId?: string;
+  snappedStartRef?: string;
+  snappedEndRef?: string;
   stepId?: string;
   ghost?: boolean;
 }
@@ -59,6 +61,7 @@ export interface BoardData {
   annotations: Annotation[];
   entities: EntityMarker[];
   steps?: AnimationStep[];
+  stepPositions?: Record<string, Record<string, Point>>;
 }
 
 export interface EntityMarker {
@@ -124,7 +127,13 @@ export function migrateLegacyBoardData(bd: Partial<BoardData>): BoardData {
     }
   }
 
-  return { annotations, entities, steps };
+  const stepPositions = (bd as Record<string, unknown>).stepPositions;
+  const validStepPositions: Record<string, Record<string, Point>> =
+    stepPositions && typeof stepPositions === 'object' && !Array.isArray(stepPositions)
+      ? stepPositions as Record<string, Record<string, Point>>
+      : {};
+
+  return { annotations, entities, steps, stepPositions: validStepPositions };
 }
 
 export interface PitchThemeColors {

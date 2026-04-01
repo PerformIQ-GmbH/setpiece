@@ -256,12 +256,12 @@ export function GoalkeeperMarker({
   x, y, isSelected, isHovered, isDimmed, label, shirtNumber, lightPitch,
   draggable, onDragEnd, onClick, onTap, onMouseEnter, onMouseLeave,
 }: MarkerProps) {
-  const fill = lightPitch ? '#d97706' : '#422006';
-  const borderDefault = lightPitch ? '#b45309' : '#92400e';
-  const borderHover = lightPitch ? '#f59e0b' : '#fbbf24';
-  const borderSelected = '#f59e0b';
-  const textColor = lightPitch ? '#ffffff' : '#fde68a';
-  const labelColor = lightPitch ? '#92400e' : '#fde68a';
+  const fill = lightPitch ? '#059669' : '#0d3320';
+  const borderDefault = lightPitch ? '#047857' : '#166534';
+  const borderHover = lightPitch ? '#10b981' : '#34d399';
+  const borderSelected = '#10b981';
+  const textColor = '#ffffff';
+  const labelColor = lightPitch ? '#065f46' : '#a7f3d0';
   const shadowColor = lightPitch ? 'rgba(0,0,0,0.25)' : '#000';
   const dimOpacity = isDimmed ? 0.35 : 1;
 

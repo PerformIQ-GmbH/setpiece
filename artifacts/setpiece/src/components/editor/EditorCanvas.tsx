@@ -7,7 +7,8 @@ import { TeamPlayerMarker, OpponentMarker, GoalkeeperMarker, BallMarker } from '
 import { AnnotationLayer, DrawingPreview } from './AnnotationLayer';
 import { useEditorStore } from './editorStore';
 import type { Point, Annotation, AnnotationType } from './types';
-import { snapPosition, PITCH_ANCHORS } from './snapUtils';
+import { snapPosition, PITCH_ANCHORS, findNearestMarker, buildMarkerRefs } from './snapUtils';
+import type { MarkerRef } from './snapUtils';
 
 interface RoleData {
   id: string;
@@ -46,12 +47,17 @@ export interface EditorCanvasHandle {
   toDataURL: (config?: { pixelRatio?: number; mimeType?: string }) => string;
 }
 
-const PAD = 24;
+function computePad(width: number): number {
+  if (width < 600) return 10;
+  if (width < 900) return 14;
+  return 24;
+}
 
 export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(function EditorCanvas({
   width, height, roles, assignments, players,
   activeRoleId, category = '', readOnly = false, onRoleClick, onRoleDragEnd, onPitchClick, onLabelPrompt,
 }, ref) {
+  const PAD = computePad(width);
   const isCornerKick = category.includes('corner');
   const halfPitch = !isCornerKick && category.includes('free_kick');
   const pitchTheme = useEditorStore((s) => s.pitchTheme);
@@ -72,12 +78,12 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
   const toPixel = useCallback((pct: Point) => ({
     x: PAD + (pct.x / 100) * pitchW,
     y: PAD + (pct.y / 100) * pitchH,
-  }), [pitchW, pitchH]);
+  }), [pitchW, pitchH, PAD]);
 
   const toPct = useCallback((px: Point) => ({
     x: Math.max(0, Math.min(100, ((px.x - PAD) / pitchW) * 100)),
     y: Math.max(0, Math.min(100, ((px.y - PAD) / pitchH) * 100)),
-  }), [pitchW, pitchH]);
+  }), [pitchW, pitchH, PAD]);
 
   const activeTool = useEditorStore((s) => s.activeTool);
   const annotations = useEditorStore((s) => s.annotations);
@@ -102,6 +108,7 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
 
   const snapEnabled = useEditorStore((s) => s.snapEnabled);
   const showGrid = useEditorStore((s) => s.showGrid);
+  const updateSnappedAnnotations = useEditorStore((s) => s.updateSnappedAnnotations);
   const layerVisibility = useEditorStore((s) => s.layerVisibility);
   const layerLocked = useEditorStore((s) => s.layerLocked);
   const setContextMenu = useEditorStore((s) => s.setContextMenu);
@@ -160,6 +167,64 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
   const isZoneTool = ['zone_circle', 'zone_rect'].includes(activeTool);
   const isEntityTool = ['team_player', 'opponent', 'goalkeeper', 'ball'].includes(activeTool);
 
+  const stepPositions = useEditorStore((s) => s.stepPositions);
+  const sortedStepIds = steps.map(s => s.id);
+
+  const resolvePositionForStep = (
+    roleId: string,
+    stepAnns: Annotation[],
+    startPos: Point,
+    t: number
+  ): Point => {
+    const linkedRun = stepAnns.find(
+      a => a.linkedRoleId === roleId && (a.type === 'run_path' || a.type === 'curved_run') && a.points.length >= 2
+    );
+    if (linkedRun) return interpolatePath(linkedRun.points, t);
+
+    const unlinkedRuns = stepAnns.filter(
+      a => !a.linkedRoleId && (a.type === 'run_path' || a.type === 'curved_run') && a.points.length >= 2
+    );
+    const roleIdx = roles.findIndex(r => r.id === roleId);
+    const usedLinkedCount = stepAnns.filter(
+      a => a.linkedRoleId && (a.type === 'run_path' || a.type === 'curved_run') && a.points.length >= 2
+    ).length;
+    const unlinkedIdx = roleIdx - usedLinkedCount;
+    if (unlinkedIdx >= 0 && unlinkedIdx < unlinkedRuns.length) {
+      return interpolatePath(unlinkedRuns[unlinkedIdx].points, t);
+    }
+
+    return startPos;
+  };
+
+  const computeStepResolvedPosition = (roleId: string, stepIndex: number): Point => {
+    const basePos = { x: (roles.find(r => r.id === roleId)?.startPosition?.x ?? 50), y: (roles.find(r => r.id === roleId)?.startPosition?.y ?? 50) };
+    const sid = sortedStepIds[stepIndex];
+    if (sid && stepPositions[sid]?.[roleId]) {
+      return stepPositions[sid][roleId];
+    }
+    if (stepIndex === 0) return basePos;
+    let cur = basePos;
+    for (let i = 0; i < stepIndex; i++) {
+      const prevSid = sortedStepIds[i];
+      if (prevSid && stepPositions[prevSid]?.[roleId]) {
+        cur = stepPositions[prevSid][roleId];
+      }
+      const prevAnns = annotations.filter(a => a.stepId === prevSid);
+      const endOfRun = resolvePositionForStep(roleId, prevAnns, cur, 1);
+      if (endOfRun.x !== cur.x || endOfRun.y !== cur.y) cur = endOfRun;
+    }
+    return cur;
+  };
+
+  const markerRefs = (() => {
+    const refs = buildMarkerRefs([], entities);
+    for (const role of roles) {
+      const pos = computeStepResolvedPosition(role.id, animation.activeStepIndex);
+      refs.push({ id: role.id, type: 'role', position: pos });
+    }
+    return refs;
+  })();
+
   const finishDrawing = useCallback(() => {
     if (drawingPoints.length < 2) {
       clearDrawingPoints();
@@ -175,19 +240,34 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
     const isPassType = toolType === 'pass_line' || toolType === 'curved_cross';
     const semanticDashed = isRunType ? true : isPassType ? false : isDashed;
     const semanticArrowhead = isRunType || isPassType ? true : showArrowhead;
+
+    const pts = [...drawingPoints];
+    const startMarker = findNearestMarker(pts[0], markerRefs);
+    const endMarker = findNearestMarker(pts[pts.length - 1], markerRefs);
+
+    if (startMarker) pts[0] = startMarker.position;
+    if (endMarker) pts[pts.length - 1] = endMarker.position;
+
     const ann: Annotation = {
       id: crypto.randomUUID(),
       type: toolType,
-      points: [...drawingPoints],
+      points: pts,
       color: strokeColor,
       strokeWidth,
       dashed: semanticDashed,
       arrowhead: semanticArrowhead,
       layerOrder: annotations.length,
+      snappedStartRef: startMarker?.id,
+      snappedEndRef: endMarker?.id,
     };
+
+    if (isRunType && startMarker?.type === 'role' && !ann.linkedRoleId) {
+      ann.linkedRoleId = startMarker.id;
+    }
+
     addAnnotation(ann);
     clearDrawingPoints();
-  }, [drawingPoints, activeTool, strokeColor, strokeWidth, isDashed, showArrowhead, annotations.length, addAnnotation, clearDrawingPoints]);
+  }, [drawingPoints, activeTool, strokeColor, strokeWidth, isDashed, showArrowhead, annotations.length, addAnnotation, clearDrawingPoints, markerRefs]);
 
   const handleStageInteraction = useCallback((e: Konva.KonvaEventObject<MouseEvent | TouchEvent>) => {
     if (readOnly) return;
@@ -372,7 +452,6 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
     ? annotations.filter(a => a.stepId === activeStepId)
     : annotations;
 
-  const sortedStepIds = steps.map(s => s.id);
   const isPlaying = animation.playing || animation.progress > 0;
   const isAllMode = animation.playMode === 'all';
 
@@ -388,44 +467,25 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
     ? [...priorStepAnnotations, ...stepAnnotations]
     : stepAnnotations;
 
-  const resolvePositionForStep = (
-    roleId: string,
-    stepAnns: Annotation[],
-    startPos: Point,
-    t: number
-  ): Point => {
-    const linkedRun = stepAnns.find(
-      a => a.linkedRoleId === roleId && (a.type === 'run_path' || a.type === 'curved_run') && a.points.length >= 2
-    );
-    if (linkedRun) return interpolatePath(linkedRun.points, t);
-
-    const unlinkedRuns = stepAnns.filter(
-      a => !a.linkedRoleId && (a.type === 'run_path' || a.type === 'curved_run') && a.points.length >= 2
-    );
-    const roleIdx = roles.findIndex(r => r.id === roleId);
-    const usedLinkedCount = stepAnns.filter(
-      a => a.linkedRoleId && (a.type === 'run_path' || a.type === 'curved_run') && a.points.length >= 2
-    ).length;
-    const unlinkedIdx = roleIdx - usedLinkedCount;
-    if (unlinkedIdx >= 0 && unlinkedIdx < unlinkedRuns.length) {
-      return interpolatePath(unlinkedRuns[unlinkedIdx].points, t);
+  const getAnimatedPosition = (roleId: string, role: RoleData): Point => {
+    const roleStartPos = { x: role.startPosition?.x ?? 50, y: role.startPosition?.y ?? 50 };
+    if (!animation.playing && animation.progress === 0) {
+      return computeStepResolvedPosition(roleId, animation.activeStepIndex);
     }
 
-    return startPos;
-  };
-
-  const getAnimatedPosition = (roleId: string, role: RoleData): Point => {
-    const basePos = { x: role.startPosition?.x ?? 50, y: role.startPosition?.y ?? 50 };
-    if (!animation.playing && animation.progress === 0) return basePos;
-
-    let currentPos = basePos;
+    let currentPos = roleStartPos;
 
     if (isAllMode && isPlaying) {
       for (let i = 0; i < animation.activeStepIndex; i++) {
         const sid = sortedStepIds[i];
+        if (sid && stepPositions[sid]?.[roleId]) {
+          currentPos = stepPositions[sid][roleId];
+        }
         const completedAnns = annotations.filter(a => a.stepId === sid);
         currentPos = resolvePositionForStep(roleId, completedAnns, currentPos, 1);
       }
+    } else {
+      currentPos = computeStepResolvedPosition(roleId, animation.activeStepIndex);
     }
 
     return resolvePositionForStep(roleId, stepAnnotations, currentPos, animation.progress);
@@ -541,17 +601,33 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
           lockedTypes={{ actions: layerLocked.actions, zones: layerLocked.zones, labels: layerLocked.labels }}
         />
 
-        {isDrawingTool && drawingPoints.length >= 2 && (
-          <DrawingPreview
-            points={drawingPoints}
-            toPixel={toPixel}
-            color={strokeColor}
-            strokeWidth={strokeWidth}
-            dashed={isDashed}
-            curved={isCurved}
-            arrowhead={showArrowhead}
-          />
-        )}
+        {isDrawingTool && drawingPoints.length >= 1 && (() => {
+          const startSnap = findNearestMarker(drawingPoints[0], markerRefs);
+          const endSnap = drawingPoints.length >= 2 ? findNearestMarker(drawingPoints[drawingPoints.length - 1], markerRefs) : null;
+          const startSnapPx = startSnap ? toPixel(startSnap.position) : null;
+          const endSnapPx = endSnap ? toPixel(endSnap.position) : null;
+          return (
+            <>
+              {startSnapPx && (
+                <KonvaCircle x={startSnapPx.x} y={startSnapPx.y} radius={20} stroke="#10b981" strokeWidth={2} opacity={0.7} dash={[4, 3]} />
+              )}
+              {endSnapPx && (
+                <KonvaCircle x={endSnapPx.x} y={endSnapPx.y} radius={20} stroke="#10b981" strokeWidth={2} opacity={0.7} dash={[4, 3]} />
+              )}
+              {drawingPoints.length >= 2 && (
+                <DrawingPreview
+                  points={drawingPoints}
+                  toPixel={toPixel}
+                  color={strokeColor}
+                  strokeWidth={strokeWidth}
+                  dashed={isDashed}
+                  curved={isCurved}
+                  arrowhead={showArrowhead}
+                />
+              )}
+            </>
+          );
+        })()}
       </Layer>
 
       <Layer>
@@ -577,7 +653,11 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
                 label={ent.label}
                 lightPitch={lightPitch}
                 draggable={canInteract}
-                onDragEnd={canInteract ? (pos) => updateEntity(ent.id, { position: snapPos(toPct(pos), ent.position) }) : undefined}
+                onDragEnd={canInteract ? (pos) => {
+                  const newPct = snapPos(toPct(pos), ent.position);
+                  updateSnappedAnnotations(ent.id, newPct, activeStepId);
+                  updateEntity(ent.id, { position: newPct });
+                } : undefined}
                 onClick={() => canInteract && setSelectedEntityId(ent.id)}
                 onTap={() => canInteract && setSelectedEntityId(ent.id)}
               />
@@ -595,7 +675,11 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
                 label={ent.label}
                 lightPitch={lightPitch}
                 draggable={canInteract}
-                onDragEnd={canInteract ? (pos) => updateEntity(ent.id, { position: snapPos(toPct(pos), ent.position) }) : undefined}
+                onDragEnd={canInteract ? (pos) => {
+                  const newPct = snapPos(toPct(pos), ent.position);
+                  updateSnappedAnnotations(ent.id, newPct, activeStepId);
+                  updateEntity(ent.id, { position: newPct });
+                } : undefined}
                 onClick={() => canInteract && setSelectedEntityId(ent.id)}
                 onTap={() => canInteract && setSelectedEntityId(ent.id)}
               />
@@ -613,7 +697,11 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
                 isDimmed={isDimmed}
                 lightPitch={lightPitch}
                 draggable={canInteract}
-                onDragEnd={canInteract ? (pos) => updateEntity(ent.id, { position: snapPos(toPct(pos), ent.position) }) : undefined}
+                onDragEnd={canInteract ? (pos) => {
+                  const newPct = snapPos(toPct(pos), ent.position);
+                  updateSnappedAnnotations(ent.id, newPct, activeStepId);
+                  updateEntity(ent.id, { position: newPct });
+                } : undefined}
                 onClick={() => canInteract && setSelectedEntityId(ent.id)}
                 onTap={() => canInteract && setSelectedEntityId(ent.id)}
               />
@@ -647,7 +735,11 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
               label={role.name}
               lightPitch={lightPitch}
               draggable={roleInteractive}
-              onDragEnd={roleInteractive ? (pos) => onRoleDragEnd(role.id, snapPos(toPct(pos), { x: role.startPosition?.x ?? 50, y: role.startPosition?.y ?? 50 })) : undefined}
+              onDragEnd={roleInteractive ? (pos) => {
+                const newPct = snapPos(toPct(pos), { x: role.startPosition?.x ?? 50, y: role.startPosition?.y ?? 50 });
+                updateSnappedAnnotations(role.id, newPct, activeStepId);
+                onRoleDragEnd(role.id, newPct);
+              } : undefined}
               onClick={() => roleInteractive && onRoleClick(role.id)}
               onTap={() => roleInteractive && onRoleClick(role.id)}
               onMouseEnter={() => setHoveredRoleId(role.id)}

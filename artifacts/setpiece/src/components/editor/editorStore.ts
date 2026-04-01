@@ -41,6 +41,7 @@ interface EditorState {
   updateAnnotation: (id: string, updates: Partial<Annotation>) => void;
   deleteAnnotation: (id: string) => void;
   moveAnnotation: (id: string, dxPct: number, dyPct: number) => void;
+  updateSnappedAnnotations: (refId: string, newPos: Point, stepId?: string) => void;
   clearAnnotations: () => void;
 
   entities: EntityMarker[];
@@ -65,6 +66,10 @@ interface EditorState {
   setShowArrowhead: (show: boolean) => void;
   forceDashed: boolean;
   setForceDashed: (dashed: boolean) => void;
+
+  stepPositions: Record<string, Record<string, Point>>;
+  setStepPositions: (sp: Record<string, Record<string, Point>>) => void;
+  setStepRolePosition: (stepId: string, roleId: string, pos: Point) => void;
 
   steps: AnimationStep[];
   setSteps: (steps: AnimationStep[]) => void;
@@ -196,6 +201,23 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       };
     }),
   })),
+  updateSnappedAnnotations: (refId, newPos, stepId?) => set((s) => ({
+    annotations: s.annotations.map((a) => {
+      if (stepId && a.stepId !== stepId) return a;
+      let updated = a;
+      if (a.snappedStartRef === refId) {
+        const pts = [...updated.points];
+        pts[0] = newPos;
+        updated = { ...updated, points: pts };
+      }
+      if (a.snappedEndRef === refId) {
+        const pts = [...updated.points];
+        pts[pts.length - 1] = newPos;
+        updated = { ...updated, points: pts };
+      }
+      return updated;
+    }),
+  })),
   clearAnnotations: () => set({ annotations: [], selectedAnnotationId: null }),
 
   entities: [],
@@ -225,6 +247,15 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   setShowArrowhead: (show) => set({ showArrowhead: show }),
   forceDashed: false,
   setForceDashed: (dashed) => set({ forceDashed: dashed }),
+
+  stepPositions: {},
+  setStepPositions: (sp) => set({ stepPositions: sp }),
+  setStepRolePosition: (stepId, roleId, pos) => set((s) => ({
+    stepPositions: {
+      ...s.stepPositions,
+      [stepId]: { ...(s.stepPositions[stepId] || {}), [roleId]: pos },
+    },
+  })),
 
   steps: [defaultStep],
   setSteps: (steps) => set({ steps }),
@@ -352,16 +383,26 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   presentationMode: false,
   setPresentationMode: (on) => set({ presentationMode: on }),
 
-  mirrorBoard: () => set((s) => ({
-    annotations: s.annotations.map(a => ({
-      ...a,
-      points: a.points.map(p => ({ x: 100 - p.x, y: p.y })),
-    })),
-    entities: s.entities.map(e => ({
-      ...e,
-      position: { x: 100 - e.position.x, y: e.position.y },
-    })),
-  })),
+  mirrorBoard: () => set((s) => {
+    const mirroredStepPositions: Record<string, Record<string, Point>> = {};
+    for (const [stepId, roleMap] of Object.entries(s.stepPositions)) {
+      mirroredStepPositions[stepId] = {};
+      for (const [roleId, pos] of Object.entries(roleMap)) {
+        mirroredStepPositions[stepId][roleId] = { x: 100 - pos.x, y: pos.y };
+      }
+    }
+    return {
+      annotations: s.annotations.map(a => ({
+        ...a,
+        points: a.points.map(p => ({ x: 100 - p.x, y: p.y })),
+      })),
+      entities: s.entities.map(e => ({
+        ...e,
+        position: { x: 100 - e.position.x, y: e.position.y },
+      })),
+      stepPositions: mirroredStepPositions,
+    };
+  }),
 
   contextMenu: null,
   setContextMenu: (menu) => set({ contextMenu: menu }),
@@ -375,6 +416,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       annotations: [],
       entities: [],
       drawingPoints: [],
+      stepPositions: {},
       steps: [fresh],
       animation: { playing: false, progress: 0, speed: 1, activeStepIndex: 0, playMode: 'step' },
       contextMenu: null,

@@ -117,6 +117,10 @@ export default function SetPieceEditor() {
   }, []);
 
   const setSteps = useEditorStore((s) => s.setSteps);
+  const stepPositions = useEditorStore((s) => s.stepPositions);
+  const setStepPositions = useEditorStore((s) => s.setStepPositions);
+  const setStepRolePosition = useEditorStore((s) => s.setStepRolePosition);
+  const animationState = useEditorStore((s) => s.animation);
 
   useEffect(() => {
     if (!setPiece?.id) return;
@@ -128,6 +132,9 @@ export default function SetPieceEditor() {
       setEntities(bd.entities);
       if (bd.steps && bd.steps.length > 0) {
         setSteps(bd.steps);
+      }
+      if (bd.stepPositions && typeof bd.stepPositions === 'object') {
+        setStepPositions(bd.stepPositions);
       }
     }
     boardDataLoadedRef.current = setPiece.id;
@@ -168,7 +175,7 @@ export default function SetPieceEditor() {
     try {
       await updateSetPiece.mutateAsync({
         teamId, setPieceId,
-        data: { boardData: { annotations: state.annotations, entities: state.entities, steps: state.steps } }
+        data: { boardData: { annotations: state.annotations, entities: state.entities, steps: state.steps, stepPositions: state.stepPositions } }
       });
       setSaveState('saved');
     } catch {
@@ -187,9 +194,18 @@ export default function SetPieceEditor() {
       saveBoardData();
     }, 2000);
     return () => clearTimeout(timer);
-  }, [annotations, entities, steps]);
+  }, [annotations, entities, steps, stepPositions]);
 
   const handleRoleDragEnd = useCallback(async (roleId: string, pos: { x: number; y: number }) => {
+    const currentStepIndex = useEditorStore.getState().animation.activeStepIndex;
+    const currentSteps = useEditorStore.getState().steps;
+    const currentStepId = currentSteps[currentStepIndex]?.id;
+
+    if (currentStepIndex > 0 && currentStepId) {
+      setStepRolePosition(currentStepId, roleId, pos);
+      return;
+    }
+
     const role = setPiece?.roles.find(r => r.id === roleId);
     const prevPos = { x: role?.startPosition?.x ?? 50, y: role?.startPosition?.y ?? 50 };
     setUndoStack(prev => [...prev, { roleId, prevPos, newPos: pos }]);
@@ -202,7 +218,7 @@ export default function SetPieceEditor() {
     } catch {
       setSaveState('error');
     }
-  }, [teamId, setPieceId, updateRole, refetch, setPiece?.roles]);
+  }, [teamId, setPieceId, updateRole, refetch, setPiece?.roles, setStepRolePosition]);
 
   const handleUndo = useCallback(async () => {
     const entry = undoStack[undoStack.length - 1];
