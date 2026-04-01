@@ -126,6 +126,31 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
   const steps = useEditorStore((s) => s.steps);
   const goToNextStep = useEditorStore((s) => s.goToNextStep);
 
+  const [stepTransitionT, setStepTransitionT] = useState(1);
+  const prevStepIndexRef = useRef(animation.activeStepIndex);
+  const transitionFromStepRef = useRef(animation.activeStepIndex);
+
+  useEffect(() => {
+    if (prevStepIndexRef.current !== animation.activeStepIndex && !animation.playing) {
+      transitionFromStepRef.current = prevStepIndexRef.current;
+      prevStepIndexRef.current = animation.activeStepIndex;
+      setStepTransitionT(0);
+      let start: number | null = null;
+      const duration = 300;
+      const animate = (ts: number) => {
+        if (!start) start = ts;
+        const elapsed = ts - start;
+        const t = Math.min(elapsed / duration, 1);
+        const eased = t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
+        setStepTransitionT(eased);
+        if (t < 1) requestAnimationFrame(animate);
+      };
+      requestAnimationFrame(animate);
+    } else {
+      prevStepIndexRef.current = animation.activeStepIndex;
+    }
+  }, [animation.activeStepIndex, animation.playing]);
+
   const hasFocusedElement = activeRoleId !== null || selectedEntityId !== null;
 
   useEffect(() => {
@@ -467,10 +492,20 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
     ? [...priorStepAnnotations, ...stepAnnotations]
     : stepAnnotations;
 
+  const lerpPoint = (a: Point, b: Point, t: number): Point => ({
+    x: a.x + (b.x - a.x) * t,
+    y: a.y + (b.y - a.y) * t,
+  });
+
   const getAnimatedPosition = (roleId: string, role: RoleData): Point => {
     const roleStartPos = { x: role.startPosition?.x ?? 50, y: role.startPosition?.y ?? 50 };
     if (!animation.playing && animation.progress === 0) {
-      return computeStepResolvedPosition(roleId, animation.activeStepIndex);
+      const target = computeStepResolvedPosition(roleId, animation.activeStepIndex);
+      if (stepTransitionT < 1) {
+        const from = computeStepResolvedPosition(roleId, transitionFromStepRef.current);
+        return lerpPoint(from, target, stepTransitionT);
+      }
+      return target;
     }
 
     let currentPos = roleStartPos;
