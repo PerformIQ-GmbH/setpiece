@@ -15,7 +15,9 @@ export default function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  const [error, setError] = useState(errorParam ? 'Google login failed. Please try again.' : '');
+  const verifiedParam = params.get('verified');
+  const [error, setError] = useState(errorParam ? 'Login failed. Please try again.' : '');
+  const [successMsg] = useState(verifiedParam ? 'Email verified! You can now sign in.' : '');
   const [loading, setLoading] = useState(false);
 
   React.useEffect(() => {
@@ -67,6 +69,12 @@ export default function Login() {
 
         <div className="bg-card border border-border rounded-2xl p-6">
           <h2 className="text-xl font-display font-bold text-center mb-6">Welcome back</h2>
+
+          {successMsg && (
+            <div className="bg-primary/10 border border-primary/30 text-primary text-sm rounded-lg px-4 py-3 mb-4">
+              {successMsg}
+            </div>
+          )}
 
           {error && (
             <div className="bg-destructive/10 border border-destructive/30 text-destructive text-sm rounded-lg px-4 py-3 mb-4">

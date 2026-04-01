@@ -4,7 +4,12 @@ import {
   ExchangeMobileAuthorizationCodeResponse,
   LogoutMobileSessionResponse,
 } from "@workspace/api-zod";
-import { db, usersTable, passwordResetTokensTable } from "@workspace/db";
+import {
+  db,
+  usersTable,
+  passwordResetTokensTable,
+  emailVerificationTokensTable,
+} from "@workspace/db";
 import { eq } from "drizzle-orm";
 import bcrypt from "bcrypt";
 import crypto from "crypto";
@@ -17,9 +22,14 @@ import {
   SESSION_TTL,
   type SessionData,
 } from "../lib/auth";
+import {
+  sendVerificationEmail,
+  sendPasswordResetEmail,
+} from "../lib/email";
 
 const SALT_ROUNDS = 12;
 const RESET_TOKEN_TTL = 60 * 60 * 1000;
+const VERIFICATION_TOKEN_TTL = 24 * 60 * 60 * 1000;
 const OAUTH_STATE_TTL = 10 * 60 * 1000;
 const OAUTH_STATE_COOKIE = "oauth_state";
 
@@ -47,6 +57,16 @@ function getSafeReturnTo(value: unknown): string {
     return "/";
   }
   return value;
+}
+
+async function issueVerificationEmail(userId: string, email: string, origin: string) {
+  const token = crypto.randomBytes(32).toString("hex");
+  await db.insert(emailVerificationTokensTable).values({
+    userId,
+    token,
+    expiresAt: new Date(Date.now() + VERIFICATION_TOKEN_TTL),
+  });
+  await sendVerificationEmail(email, token, origin);
 }
 
 async function createUserSession(res: Response, user: { id: string; email: string | null; firstName: string | null; lastName: string | null; profileImageUrl: string | null }) {
@@ -111,6 +131,9 @@ router.post("/auth/register", async (req: Request, res: Response) => {
       .returning();
 
     await createUserSession(res, updated);
+    if (!updated.emailVerified) {
+      await issueVerificationEmail(updated.id, emailLower, getOrigin(req));
+    }
     res.json({ user: { id: updated.id, email: updated.email, firstName: updated.firstName, lastName: updated.lastName } });
     return;
   }
@@ -129,6 +152,7 @@ router.post("/auth/register", async (req: Request, res: Response) => {
     .returning();
 
   await createUserSession(res, newUser);
+  await issueVerificationEmail(newUser.id, emailLower, getOrigin(req));
   res.status(201).json({ user: { id: newUser.id, email: newUser.email, firstName: newUser.firstName, lastName: newUser.lastName } });
 });
 
@@ -187,7 +211,8 @@ router.post("/auth/forgot-password", async (req: Request, res: Response) => {
     expiresAt: new Date(Date.now() + RESET_TOKEN_TTL),
   });
 
-  req.log.info({ email: emailLower }, "Password reset token created — email delivery pending integration");
+  await sendPasswordResetEmail(emailLower, token, getOrigin(req));
+  req.log.info({ email: emailLower }, "Password reset email sent");
 });
 
 router.post("/auth/reset-password", async (req: Request, res: Response) => {
@@ -226,6 +251,58 @@ router.post("/auth/reset-password", async (req: Request, res: Response) => {
     .where(eq(passwordResetTokensTable.id, resetToken.id));
 
   res.json({ message: "Password reset successfully" });
+});
+
+router.get("/auth/verify-email", async (req: Request, res: Response) => {
+  const { token } = req.query;
+
+  if (!token || typeof token !== "string") {
+    res.redirect("/login?error=invalid_verification");
+    return;
+  }
+
+  const [verifyToken] = await db
+    .select()
+    .from(emailVerificationTokensTable)
+    .where(eq(emailVerificationTokensTable.token, token));
+
+  if (!verifyToken || verifyToken.usedAt || verifyToken.expiresAt < new Date()) {
+    res.redirect("/login?error=expired_verification");
+    return;
+  }
+
+  await db
+    .update(usersTable)
+    .set({ emailVerified: true, updatedAt: new Date() })
+    .where(eq(usersTable.id, verifyToken.userId));
+
+  await db
+    .update(emailVerificationTokensTable)
+    .set({ usedAt: new Date() })
+    .where(eq(emailVerificationTokensTable.id, verifyToken.id));
+
+  res.redirect("/login?verified=true");
+});
+
+router.post("/auth/resend-verification", async (req: Request, res: Response) => {
+  const { email } = req.body;
+
+  if (!email) {
+    res.status(400).json({ error: "Email is required" });
+    return;
+  }
+
+  const emailLower = email.toLowerCase().trim();
+  const [user] = await db
+    .select()
+    .from(usersTable)
+    .where(eq(usersTable.email, emailLower));
+
+  res.json({ message: "If an unverified account exists, a verification email has been sent." });
+
+  if (!user || user.emailVerified) return;
+
+  await issueVerificationEmail(user.id, emailLower, getOrigin(req));
 });
 
 router.get("/auth/google", (req: Request, res: Response) => {

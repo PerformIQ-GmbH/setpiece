@@ -57,7 +57,7 @@ artifacts-monorepo/
 ## Database Schema
 
 13 tables in `lib/db/src/schema/`:
-- `auth.ts` — users (with passwordHash, emailVerified, authProvider columns), sessions, passwordResetTokens
+- `auth.ts` — users (with passwordHash, emailVerified, authProvider columns), sessions, passwordResetTokens, emailVerificationTokens
 - `teams.ts` — teams
 - `memberships.ts` — user-team memberships with roles
 - `players.ts` — team players with attributes
@@ -83,7 +83,7 @@ artifacts-monorepo/
 All mounted at `/api` via Express router. Key routes:
 
 - `GET /api/healthz` — health check
-- Auth: `/api/auth/user`, `/api/auth/register`, `/api/auth/login`, `/api/auth/forgot-password`, `/api/auth/reset-password`, `/api/auth/google`, `/api/auth/google/callback`, `/api/logout`
+- Auth: `/api/auth/user`, `/api/auth/register`, `/api/auth/login`, `/api/auth/forgot-password`, `/api/auth/reset-password`, `/api/auth/verify-email`, `/api/auth/resend-verification`, `/api/auth/google`, `/api/auth/google/callback`, `/api/logout`, `/api/mobile-auth/token-exchange` (email/password → bearer token)
 - Teams: `/api/teams`, `/api/teams/:teamId`
 - Players: `/api/teams/:teamId/players`, `/api/teams/:teamId/players/:playerId`
 - Templates: `/api/templates` (public, no auth)
@@ -161,7 +161,7 @@ React + Vite frontend (Coach Dashboard + Player PWA).
   - `QuickLegend.tsx` — Toggleable visual legend showing line types (run/pass/curved) and marker types (player/opponent/goalkeeper/ball)
 - Uses generated React Query hooks from `@workspace/api-client-react`
 - API base URL: empty string (API server is at root `/api/...` path)
-- Auth: client-side `/login`, `/register`, `/forgot-password` pages; logout via `/api/logout`
+- Auth: client-side `/login`, `/register`, `/forgot-password`, `/reset-password` pages; email verification via `/api/auth/verify-email`; logout via `/api/logout`; transactional emails via Resend integration
 - Player view: `/p/:shareToken` — mobile-first PWA, no auth needed
 - PWA: manifest.json, service worker (sw.js), offline-first caching
 - Design: Dark navy theme, emerald primary (#10b981), Outfit display font, Inter body font
