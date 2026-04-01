@@ -189,7 +189,7 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
     clearDrawingPoints();
   }, [drawingPoints, activeTool, strokeColor, strokeWidth, isDashed, showArrowhead, annotations.length, addAnnotation, clearDrawingPoints]);
 
-  const handleStageClick = useCallback((e: Konva.KonvaEventObject<MouseEvent>) => {
+  const handleStageInteraction = useCallback((e: Konva.KonvaEventObject<MouseEvent | TouchEvent>) => {
     if (readOnly) return;
     const isBackground = e.target === stageRef.current || e.target.name() === 'pitch-bg';
     const pos = stageRef.current?.getPointerPosition();
@@ -321,13 +321,14 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
   }, [activeTool, toPct, onPitchClick, strokeColor, strokeWidth, showArrowhead, annotations, entities,
     drawingPoints, addDrawingPoint, clearDrawingPoints, addAnnotation, addEntity,
     setSelectedAnnotationId, setSelectedEntityId, isDrawingTool, isEntityTool, onLabelPrompt,
-    deleteAnnotation, deleteEntity]);
+    deleteAnnotation, deleteEntity, readOnly]);
 
   const handleDblClick = useCallback(() => {
+    if (readOnly) return;
     if (isDrawingTool && drawingPoints.length >= 2) {
       finishDrawing();
     }
-  }, [isDrawingTool, drawingPoints.length, finishDrawing]);
+  }, [readOnly, isDrawingTool, drawingPoints.length, finishDrawing]);
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -491,10 +492,12 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
       ref={stageRef}
       width={width}
       height={height}
-      onClick={handleStageClick}
+      onClick={handleStageInteraction}
+      onTap={handleStageInteraction}
       onDblClick={handleDblClick}
+      onDblTap={handleDblClick}
       onContextMenu={handleContextMenu}
-      style={{ cursor: isDrawingTool ? 'crosshair' : isEntityTool ? 'cell' : 'default' }}
+      style={{ cursor: isDrawingTool ? 'crosshair' : isEntityTool ? 'cell' : 'default', touchAction: 'none' }}
     >
       <Layer>
         {isCornerKick ? (
