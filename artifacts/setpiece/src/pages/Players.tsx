@@ -25,7 +25,7 @@ export default function Players() {
   const [, params] = useRoute('/teams/:teamId/players');
   const teamId = params?.teamId || '';
   const { data: team } = useGetTeam(teamId);
-  const { data: players, refetch } = useListPlayers(teamId);
+  const { data: players, refetch } = useListPlayers(teamId, { query: { refetchInterval: 10000 } });
   const createPlayer = useCreatePlayer();
   const updatePlayer = useUpdatePlayer();
   const deletePlayer = useDeletePlayer();
