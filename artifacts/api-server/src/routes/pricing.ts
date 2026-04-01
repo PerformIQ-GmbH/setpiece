@@ -1,8 +1,32 @@
 import { Router, type IRouter } from "express";
+import { sql } from "drizzle-orm";
+import { db } from "@workspace/db";
 
 const router: IRouter = Router();
 
 router.get("/pricing", async (_req, res): Promise<void> => {
+  let soloPriceId: string | null = null;
+  let teamPriceId: string | null = null;
+
+  try {
+    const result = await db.execute(sql`
+      SELECT pr.id as price_id, p.metadata
+      FROM stripe.prices pr
+      JOIN stripe.products p ON pr.product = p.id
+      WHERE p.active = true AND pr.active = true
+      AND pr.recurring IS NOT NULL
+      ORDER BY pr.unit_amount ASC
+    `);
+
+    for (const row of result.rows as any[]) {
+      const metadata = typeof row.metadata === 'string' ? JSON.parse(row.metadata) : row.metadata;
+      if (metadata?.tierId === 'solo_coach') soloPriceId = row.price_id;
+      if (metadata?.tierId === 'team') teamPriceId = row.price_id;
+    }
+  } catch {
+    // Stripe tables may not exist yet
+  }
+
   res.json({
     tiers: [
       {
@@ -11,6 +35,7 @@ router.get("/pricing", async (_req, res): Promise<void> => {
         price: 0,
         currency: "CHF",
         interval: "month",
+        stripePriceId: null,
         features: [
           "1 team",
           "Up to 15 players",
@@ -29,6 +54,7 @@ router.get("/pricing", async (_req, res): Promise<void> => {
         price: 8,
         currency: "CHF",
         interval: "month",
+        stripePriceId: soloPriceId,
         features: [
           "1 team",
           "Up to 30 players",
@@ -45,7 +71,7 @@ router.get("/pricing", async (_req, res): Promise<void> => {
         ],
         limits: { maxPlayers: 30, maxSetPieces: 20, maxMatchdays: 20, maxShareLinks: 20 },
         highlighted: true,
-        cta: "Start Free Trial",
+        cta: "Upgrade",
       },
       {
         id: "team",
@@ -53,6 +79,7 @@ router.get("/pricing", async (_req, res): Promise<void> => {
         price: 19,
         currency: "CHF",
         interval: "month",
+        stripePriceId: teamPriceId,
         features: [
           "Multiple teams",
           "Up to 100 players",
@@ -72,7 +99,7 @@ router.get("/pricing", async (_req, res): Promise<void> => {
         ],
         limits: { maxPlayers: 100, maxSetPieces: 100, maxMatchdays: 100, maxShareLinks: 100 },
         highlighted: false,
-        cta: "Contact Us",
+        cta: "Upgrade",
       },
     ],
   });

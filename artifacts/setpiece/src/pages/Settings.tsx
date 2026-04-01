@@ -3,14 +3,23 @@ import { CoachLayout } from '@/components/Layout';
 import { useListTeams, useUpdateTeam, useGetCurrentAuthUser } from '@workspace/api-client-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Settings as SettingsIcon, Palette, User } from 'lucide-react';
+import { Settings as SettingsIcon, Palette, User, CreditCard, Loader2, ExternalLink } from 'lucide-react';
 import { motion } from 'framer-motion';
+
+const BASE = import.meta.env.BASE_URL || '/';
+
+const TIER_LABELS: Record<string, string> = {
+  free: 'Free',
+  solo_coach: 'Solo Coach',
+  team: 'Team',
+};
 
 export default function Settings() {
   const { data: auth } = useGetCurrentAuthUser();
   const { data: teams, refetch } = useListTeams();
   const updateTeam = useUpdateTeam();
   const team = teams?.[0];
+  const [portalLoading, setPortalLoading] = useState(false);
 
   const [form, setForm] = useState({
     name: '', clubName: '', coachName: '', logoUrl: '',
@@ -73,6 +82,51 @@ export default function Settings() {
 
         {team && (
           <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
+            <Card className="bg-card border-border mb-6">
+              <CardContent className="p-6">
+                <h2 className="font-display font-bold text-base text-white flex items-center gap-2 mb-4">
+                  <CreditCard className="h-4 w-4 text-primary" /> Subscription
+                </h2>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-muted-foreground">Current Plan</p>
+                    <p className="text-lg font-bold text-white">{TIER_LABELS[team.tier] || team.tier}</p>
+                  </div>
+                  {team.tier !== 'free' && team.stripeCustomerId ? (
+                    <Button
+                      variant="outline"
+                      disabled={portalLoading}
+                      onClick={async () => {
+                        setPortalLoading(true);
+                        try {
+                          const res = await fetch(`${BASE}api/billing/portal`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            credentials: 'include',
+                          });
+                          const data = await res.json();
+                          if (data.url) window.location.href = data.url;
+                        } finally {
+                          setPortalLoading(false);
+                        }
+                      }}
+                    >
+                      {portalLoading ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <ExternalLink className="h-4 w-4 mr-1" />}
+                      Manage Subscription
+                    </Button>
+                  ) : (
+                    <Button variant="outline" onClick={() => { window.location.href = `${BASE}pricing`; }}>
+                      Upgrade Plan
+                    </Button>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          </motion.div>
+        )}
+
+        {team && (
+          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
             <Card className="bg-card border-border">
               <CardContent className="p-6">
                 <h2 className="font-display font-bold text-base text-white flex items-center gap-2 mb-4">

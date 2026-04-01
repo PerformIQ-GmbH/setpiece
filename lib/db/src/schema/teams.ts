@@ -13,6 +13,8 @@ export const teamsTable = pgTable("teams", {
   teamColors: jsonb("team_colors").$type<{ primary: string; secondary: string }>(),
   ownerId: varchar("owner_id").notNull().references(() => usersTable.id),
   tier: varchar("tier", { length: 50 }).notNull().default("free"),
+  stripeCustomerId: text("stripe_customer_id"),
+  stripeSubscriptionId: text("stripe_subscription_id"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
 });

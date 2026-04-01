@@ -52,7 +52,8 @@ artifacts-monorepo/
 - **Quiz Attempts**: Auto-generated quizzes based on role data (tap_zone, multiple_choice, yes_no)
 - **Ghost Mode**: Preview substitution impact with suitability hints and warnings
 - **Audit Events**: Full trail of all actions
-- **Pricing**: Free, Solo Coach (8 CHF/mo), Team (19 CHF/mo)
+- **Pricing**: Free, Solo Coach (8 CHF/mo), Team (19 CHF/mo) — paid via Stripe Checkout
+- **Stripe Integration**: stripe-replit-sync for webhook processing + data sync; products/prices live in `stripe.*` schema; teams table has `stripeCustomerId` + `stripeSubscriptionId`
 
 ## Database Schema
 
@@ -95,7 +96,9 @@ All mounted at `/api` via Express router. Key routes:
 - Readiness: `/api/teams/:teamId/readiness`
 - Ghost Mode: `/api/teams/:teamId/set-pieces/:setPieceId/ghost`
 - Audit: `/api/teams/:teamId/audit`
-- Pricing: `/api/pricing`
+- Pricing: `/api/pricing` (returns tiers with Stripe price IDs from synced stripe.products/prices)
+- Billing: `/api/billing/checkout` (POST, creates Stripe Checkout session), `/api/billing/portal` (POST, creates Stripe Customer Portal session), `/api/billing/subscription` (GET, returns current subscription status)
+- Stripe Webhook: `/api/stripe/webhook` (POST, registered BEFORE express.json() in app.ts, handles stripe-replit-sync processWebhook)
 - Demo: `/api/demo/team`, `/api/demo/teams/:teamId/players`, `/api/demo/teams/:teamId/set-pieces`, `/api/demo/teams/:teamId/set-pieces/:id`, `/api/demo/teams/:teamId/matchdays`, `/api/demo/teams/:teamId/matchdays/:id`, `/api/demo/teams/:teamId/readiness` (all read-only, no auth, locked to seed demo team)
 
 ## Seed Data
@@ -122,6 +125,7 @@ Every package extends `tsconfig.base.json` with `composite: true`. Root `tsconfi
 - `pnpm --filter @workspace/api-spec run codegen` — regenerate Zod schemas and React Query hooks
 - `pnpm --filter @workspace/db run push` — push schema to database
 - `pnpm --filter @workspace/scripts run seed` — seed demo data
+- `pnpm --filter @workspace/scripts exec tsx src/seed-stripe-products.ts` — create Stripe subscription products (Solo Coach + Team)
 
 ## Packages
 
