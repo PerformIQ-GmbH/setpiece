@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useRoute } from 'wouter';
 import { useGetJoinInfo, useJoinTeam } from '@workspace/api-client-react';
 import { Button } from '@/components/ui/button';
