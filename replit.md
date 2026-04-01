@@ -14,7 +14,7 @@ pnpm workspace monorepo using TypeScript.
 - **TypeScript version**: 5.9
 - **API framework**: Express 5
 - **Database**: PostgreSQL + Drizzle ORM
-- **Auth**: Replit Auth (OpenID Connect with PKCE)
+- **Auth**: Email/Password (bcrypt) + Google OAuth2, session-based
 - **Validation**: Zod (`zod/v4`), `drizzle-zod`
 - **API codegen**: Orval (from OpenAPI spec)
 - **Build**: esbuild (ESM bundle)
@@ -57,7 +57,7 @@ artifacts-monorepo/
 ## Database Schema
 
 13 tables in `lib/db/src/schema/`:
-- `auth.ts` — users, sessions (Replit Auth)
+- `auth.ts` — users (with passwordHash, emailVerified, authProvider columns), sessions, passwordResetTokens
 - `teams.ts` — teams
 - `memberships.ts` — user-team memberships with roles
 - `players.ts` — team players with attributes
@@ -83,7 +83,7 @@ artifacts-monorepo/
 All mounted at `/api` via Express router. Key routes:
 
 - `GET /api/healthz` — health check
-- Auth: `/api/auth/user`, `/api/login`, `/api/callback`, `/api/logout`, `/api/mobile-auth/*`
+- Auth: `/api/auth/user`, `/api/auth/register`, `/api/auth/login`, `/api/auth/forgot-password`, `/api/auth/reset-password`, `/api/auth/google`, `/api/auth/google/callback`, `/api/logout`
 - Teams: `/api/teams`, `/api/teams/:teamId`
 - Players: `/api/teams/:teamId/players`, `/api/teams/:teamId/players/:playerId`
 - Templates: `/api/templates` (public, no auth)
@@ -126,7 +126,7 @@ Every package extends `tsconfig.base.json` with `composite: true`. Root `tsconfi
 
 ### `artifacts/api-server` (`@workspace/api-server`)
 
-Express 5 API server with Replit Auth, structured pino logging.
+Express 5 API server with email/password + Google OAuth auth, structured pino logging.
 
 - Entry: `src/index.ts`
 - App: `src/app.ts` — CORS, cookies, auth middleware, routes
@@ -161,7 +161,7 @@ React + Vite frontend (Coach Dashboard + Player PWA).
   - `QuickLegend.tsx` — Toggleable visual legend showing line types (run/pass/curved) and marker types (player/opponent/goalkeeper/ball)
 - Uses generated React Query hooks from `@workspace/api-client-react`
 - API base URL: empty string (API server is at root `/api/...` path)
-- Auth: login redirects to `/api/login`, logout to `/api/logout`
+- Auth: client-side `/login`, `/register`, `/forgot-password` pages; logout via `/api/logout`
 - Player view: `/p/:shareToken` — mobile-first PWA, no auth needed
 - PWA: manifest.json, service worker (sw.js), offline-first caching
 - Design: Dark navy theme, emerald primary (#10b981), Outfit display font, Inter body font
