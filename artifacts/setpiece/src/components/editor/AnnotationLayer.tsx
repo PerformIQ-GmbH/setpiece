@@ -1,3 +1,4 @@
+import { useRef } from 'react';
 import { Group, Line, Circle, Rect, Text, Arrow } from 'react-konva';
 import type Konva from 'konva';
 import type { Annotation, Point } from './types';
@@ -51,6 +52,7 @@ function DragHandle({
   onUpdatePoint: (id: string, pointIndex: number, newPos: Point) => void;
   locked: boolean;
 }) {
+  const rafRef = useRef<number>(0);
   if (locked) return null;
   const px = toPixel(point);
   return (
@@ -64,12 +66,16 @@ function DragHandle({
       hitStrokeWidth={HANDLE_HIT_WIDTH}
       draggable
       onDragMove={(e: Konva.KonvaEventObject<DragEvent>) => {
-        const newPct = toPct({ x: e.target.x(), y: e.target.y() });
-        onUpdatePoint(annId, index, newPct);
+        cancelAnimationFrame(rafRef.current);
+        const x = e.target.x();
+        const y = e.target.y();
+        rafRef.current = requestAnimationFrame(() => {
+          onUpdatePoint(annId, index, toPct({ x, y }));
+        });
       }}
       onDragEnd={(e: Konva.KonvaEventObject<DragEvent>) => {
-        const newPct = toPct({ x: e.target.x(), y: e.target.y() });
-        onUpdatePoint(annId, index, newPct);
+        cancelAnimationFrame(rafRef.current);
+        onUpdatePoint(annId, index, toPct({ x: e.target.x(), y: e.target.y() }));
       }}
       onClick={(e) => { e.cancelBubble = true; }}
       onTap={(e) => { e.cancelBubble = true; }}
@@ -98,10 +104,18 @@ function RadiusHandle({
   onUpdateRadius: (id: string, radius: number) => void;
   locked: boolean;
 }) {
+  const rafRef = useRef<number>(0);
   if (locked) return null;
-  const rPx = (radiusPct / 100) * Math.min(pitchW, pitchH);
+  const minDim = Math.min(pitchW, pitchH);
+  const rPx = (radiusPct / 100) * minDim;
   const centerPx = toPixel(center);
   const edgePx = { x: centerPx.x + rPx, y: centerPx.y };
+
+  const computeRadius = (ex: number, ey: number) => {
+    const dx = ex - centerPx.x;
+    const dy = ey - centerPx.y;
+    return (Math.sqrt(dx * dx + dy * dy) / minDim) * 100;
+  };
 
   return (
     <Circle
@@ -114,18 +128,16 @@ function RadiusHandle({
       hitStrokeWidth={HANDLE_HIT_WIDTH}
       draggable
       onDragMove={(e: Konva.KonvaEventObject<DragEvent>) => {
-        const dx = e.target.x() - centerPx.x;
-        const dy = e.target.y() - centerPx.y;
-        const distPx = Math.sqrt(dx * dx + dy * dy);
-        const newRadiusPct = (distPx / Math.min(pitchW, pitchH)) * 100;
-        onUpdateRadius(annId, newRadiusPct);
+        cancelAnimationFrame(rafRef.current);
+        const ex = e.target.x();
+        const ey = e.target.y();
+        rafRef.current = requestAnimationFrame(() => {
+          onUpdateRadius(annId, computeRadius(ex, ey));
+        });
       }}
       onDragEnd={(e: Konva.KonvaEventObject<DragEvent>) => {
-        const dx = e.target.x() - centerPx.x;
-        const dy = e.target.y() - centerPx.y;
-        const distPx = Math.sqrt(dx * dx + dy * dy);
-        const newRadiusPct = (distPx / Math.min(pitchW, pitchH)) * 100;
-        onUpdateRadius(annId, newRadiusPct);
+        cancelAnimationFrame(rafRef.current);
+        onUpdateRadius(annId, computeRadius(e.target.x(), e.target.y()));
       }}
       onClick={(e) => { e.cancelBubble = true; }}
       onTap={(e) => { e.cancelBubble = true; }}
