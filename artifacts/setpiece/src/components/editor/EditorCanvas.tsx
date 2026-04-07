@@ -136,16 +136,25 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
       prevStepIndexRef.current = animation.activeStepIndex;
       setStepTransitionT(0);
       let start: number | null = null;
+      let frameId: number;
+      let cancelled = false;
       const duration = 300;
       const animate = (ts: number) => {
+        if (cancelled) return;
         if (!start) start = ts;
         const elapsed = ts - start;
         const t = Math.min(elapsed / duration, 1);
         const eased = t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
         setStepTransitionT(eased);
-        if (t < 1) requestAnimationFrame(animate);
+        if (t < 1) {
+          frameId = requestAnimationFrame(animate);
+        }
       };
-      requestAnimationFrame(animate);
+      frameId = requestAnimationFrame(animate);
+      return () => {
+        cancelled = true;
+        cancelAnimationFrame(frameId);
+      };
     } else {
       prevStepIndexRef.current = animation.activeStepIndex;
     }
@@ -223,13 +232,14 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
 
   const computeStepResolvedPosition = (roleId: string, stepIndex: number): Point => {
     const basePos = { x: (roles.find(r => r.id === roleId)?.startPosition?.x ?? 50), y: (roles.find(r => r.id === roleId)?.startPosition?.y ?? 50) };
-    const sid = sortedStepIds[stepIndex];
+    const clampedIndex = Math.max(0, Math.min(stepIndex, sortedStepIds.length - 1));
+    const sid = sortedStepIds[clampedIndex];
     if (sid && stepPositions[sid]?.[roleId]) {
       return stepPositions[sid][roleId];
     }
-    if (stepIndex === 0) return basePos;
+    if (clampedIndex === 0) return basePos;
     let cur = basePos;
-    for (let i = 0; i < stepIndex; i++) {
+    for (let i = 0; i < clampedIndex; i++) {
       const prevSid = sortedStepIds[i];
       if (prevSid && stepPositions[prevSid]?.[roleId]) {
         cur = stepPositions[prevSid][roleId];
@@ -459,15 +469,17 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
 
   const interpolatePath = (path: Point[], t: number): Point => {
     if (path.length === 0) return { x: 50, y: 50 };
-    if (path.length === 1 || t <= 0) return path[0];
-    if (t >= 1) return path[path.length - 1];
+    if (path.length === 1 || t <= 0) return { x: path[0]?.x ?? 50, y: path[0]?.y ?? 50 };
+    if (t >= 1) { const last = path[path.length - 1]; return { x: last?.x ?? 50, y: last?.y ?? 50 }; }
     const totalSegments = path.length - 1;
     const segIdx = Math.min(Math.floor(t * totalSegments), totalSegments - 1);
     const segT = (t * totalSegments) - segIdx;
-    return {
-      x: path[segIdx].x + (path[segIdx + 1].x - path[segIdx].x) * segT,
-      y: path[segIdx].y + (path[segIdx + 1].y - path[segIdx].y) * segT,
-    };
+    const p0 = path[segIdx];
+    const p1 = path[segIdx + 1];
+    if (!p0 || !p1) return { x: 50, y: 50 };
+    const x = (p0.x ?? 50) + ((p1.x ?? 50) - (p0.x ?? 50)) * segT;
+    const y = (p0.y ?? 50) + ((p1.y ?? 50) - (p0.y ?? 50)) * segT;
+    return { x: Number.isFinite(x) ? x : 50, y: Number.isFinite(y) ? y : 50 };
   };
 
   const activeStep = steps[animation.activeStepIndex];
@@ -497,12 +509,18 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
     y: a.y + (b.y - a.y) * t,
   });
 
+  const safePoint = (p: Point): Point => ({
+    x: Number.isFinite(p.x) ? p.x : 50,
+    y: Number.isFinite(p.y) ? p.y : 50,
+  });
+
   const getAnimatedPosition = (roleId: string, role: RoleData): Point => {
     const roleStartPos = { x: role.startPosition?.x ?? 50, y: role.startPosition?.y ?? 50 };
     if (!animation.playing && animation.progress === 0) {
-      const target = computeStepResolvedPosition(roleId, animation.activeStepIndex);
+      const target = safePoint(computeStepResolvedPosition(roleId, animation.activeStepIndex));
       if (stepTransitionT < 1) {
-        const from = computeStepResolvedPosition(roleId, transitionFromStepRef.current);
+        const clampedFrom = Math.min(transitionFromStepRef.current, steps.length - 1);
+        const from = safePoint(computeStepResolvedPosition(roleId, Math.max(0, clampedFrom)));
         return lerpPoint(from, target, stepTransitionT);
       }
       return target;
@@ -523,7 +541,7 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
       currentPos = computeStepResolvedPosition(roleId, animation.activeStepIndex);
     }
 
-    return resolvePositionForStep(roleId, stepAnnotations, currentPos, animation.progress);
+    return safePoint(resolvePositionForStep(roleId, stepAnnotations, currentPos, animation.progress));
   };
 
   const getAnimatedBallPosition = (): Point | null => {

@@ -2,195 +2,87 @@
 
 ## Overview
 
-Football set-piece execution system. Coaches create set pieces with a tactical editor, assign player roles, share via QR codes, manage matchdays, and track player readiness via quizzes. Players access their role via a mobile-first PWA.
+SETPIECE is a football set-piece execution system designed to empower coaches and engage players. It enables coaches to create, manage, and share tactical set pieces, track player readiness, and analyze performance. The system streamlines set-piece management, improves player understanding, and enhances team cohesion, ultimately aiming to provide a competitive advantage on the field. The platform includes a comprehensive tactical editor, player role assignments, matchday management, and player readiness tracking via interactive quizzes. Players access their specific roles and set-piece information through a mobile-first Progressive Web Application (PWA).
 
-pnpm workspace monorepo using TypeScript.
+## User Preferences
 
-## Stack
+I prefer iterative development, with a focus on delivering core features first and then refining them.
+Please use clear and concise language in all explanations and documentation.
+When making significant changes, please ask for confirmation before proceeding.
+I prefer detailed explanations for complex technical decisions.
+Do not make changes to the `lib/db` folder without explicit instruction.
+Do not make changes to the `artifacts/setpiece` folder without explicit instruction.
 
-- **Monorepo tool**: pnpm workspaces
-- **Node.js version**: 24
-- **Package manager**: pnpm
-- **TypeScript version**: 5.9
-- **API framework**: Express 5
-- **Database**: PostgreSQL + Drizzle ORM
-- **Auth**: Email/Password (bcrypt) + Google OAuth2, session-based
-- **Validation**: Zod (`zod/v4`), `drizzle-zod`
-- **API codegen**: Orval (from OpenAPI spec)
-- **Build**: esbuild (ESM bundle)
+## System Architecture
 
-## Structure
+The project is a pnpm workspace monorepo utilizing TypeScript.
 
-```text
-artifacts-monorepo/
-├── artifacts/              # Deployable applications
-│   └── api-server/         # Express API server
-├── lib/                    # Shared libraries
-│   ├── api-spec/           # OpenAPI spec + Orval codegen config
-│   ├── api-client-react/   # Generated React Query hooks
-│   ├── api-zod/            # Generated Zod schemas from OpenAPI
-│   └── db/                 # Drizzle ORM schema + DB connection
-├── scripts/                # Utility scripts
-│   └── src/                # Individual .ts scripts
-├── pnpm-workspace.yaml
-├── tsconfig.base.json
-├── tsconfig.json
-└── package.json
-```
+**Technical Stack:**
+- **Monorepo Tool:** pnpm workspaces
+- **Node.js:** v24
+- **Package Manager:** pnpm
+- **TypeScript:** v5.9
+- **API Framework:** Express 5
+- **Database:** PostgreSQL with Drizzle ORM
+- **Authentication:** Email/Password (bcrypt) + Google OAuth2, session-based
+- **Validation:** Zod (`zod/v4`), `drizzle-zod`
+- **API Codegen:** Orval (from OpenAPI spec)
+- **Build Tool:** esbuild (ESM bundle)
+- **Frontend:** React + Vite (Coach Dashboard and Player PWA)
 
-## Domain Model
+**Project Structure:**
+The monorepo is organized into `artifacts` (deployable applications), `lib` (shared libraries), and `scripts` (utility scripts).
+- `artifacts/api-server`: The Express API server.
+- `artifacts/setpiece`: The React + Vite frontend application, serving both the coach dashboard and the player PWA.
+- `lib/api-spec`: Contains the OpenAPI specification for the API.
+- `lib/api-client-react`: Generated React Query hooks for API interaction.
+- `lib/api-zod`: Generated Zod schemas from the OpenAPI spec.
+- `lib/db`: Drizzle ORM schema and database connection.
 
-- **Teams**: Owned by coaches, contain players and set pieces
-- **Players**: Team members with attributes (height, speed, heading strength, tags)
-- **Set Piece Templates**: Library of reusable set piece patterns (10 built-in)
-- **Set Pieces**: Team-specific instances with status (draft → ready → active_matchday → archived)
-- **Roles**: Named positions within a set piece (Delivery, Near Post Flick, etc.)
-- **Role Assignments**: Maps roles to players with optional backup player
-- **Matchdays**: Group set pieces for a specific match
-- **Share Links**: Scoped, tokenized access (playerScope, matchdayScope, allowedSetPieceIds, expiry, revocation)
-- **Team Invites**: Invite links with QR codes for player self-registration (token-based, max uses, expiry, revocation)
-- **Player Readiness**: Tracks view count, opened/ready/quiz status per player per set piece
-- **Quiz Attempts**: Auto-generated quizzes based on role data (tap_zone, multiple_choice, yes_no)
-- **Ghost Mode**: Preview substitution impact with suitability hints and warnings
-- **Audit Events**: Full trail of all actions
-- **Pricing**: Free, Solo Coach (8 CHF/mo), Team (19 CHF/mo) — paid via Stripe Checkout
-- **Stripe Integration**: stripe-replit-sync for webhook processing + data sync; products/prices live in `stripe.*` schema; teams table has `stripeCustomerId`, `stripeSubscriptionId`, `stripeSubscriptionStatus`
+**Domain Model Highlights:**
+- **Teams:** Owned by coaches, contain players and set pieces.
+- **Players:** Team members with attributes and assigned roles.
+- **Set Pieces:** Team-specific tactical plays with versioning and status (draft, ready, active_matchday, archived).
+- **Roles:** Defined positions within a set piece (e.g., Delivery, Near Post Flick).
+- **Matchdays:** Groups set pieces for specific matches.
+- **Share Links:** Tokenized access for players to view set pieces or matchdays.
+- **Player Readiness:** Tracks player engagement with set pieces (view count, quiz status).
+- **Quiz Attempts:** Auto-generated quizzes based on role data.
+- **Ghost Mode:** Allows previewing substitution impacts.
+- **Pricing:** Tiered subscription model (Free, Solo Coach, Team).
 
-## Database Schema
+**Frontend (Coach Dashboard & Player PWA):**
+- **UI/UX:** Dark navy theme with emerald primary accents, using Outfit for display and Inter for body text.
+- **Key Pages:** Landing, Onboarding, Dashboard, Team Dashboard, Players, Templates, Set Piece Editor, Matchdays, Readiness, Pricing, Settings, Player PWA, Player Quiz.
+- **Set Piece Editor:** A sophisticated tactical editor built with React Konva and Zustand for state management. It supports:
+    - Tool selection, annotations (run paths, pass lines, zones), entity markers (players, ball).
+    - Step-based animation for set piece progression.
+    - Multiple editor modes (basic/advanced), pitch themes.
+    - Snap-to-pitch-anchors and snap-to-marker functionality for precise drawing.
+    - Contextual right panel for inspecting annotations, entities, and roles.
+    - Validation panel (`BoardHealth`) to check for unassigned roles and missing paths.
+    - Presentation Mode for full-screen playback.
+    - Tutorial Overlay and Contextual Tips for user guidance.
+- **ErrorBoundary:** Wraps critical components (e.g., EditorCanvas) to prevent unhandled React errors from causing a blank/black screen. Shows a friendly error UI with a "Try Again" button.
+- **Player PWA:** Mobile-first design accessed via share tokens, no authentication required for viewing. Supports offline caching.
+- **Demo Pages:** Read-only demo versions of key features available without authentication under `/demo/*` routes.
 
-13 tables in `lib/db/src/schema/`:
-- `auth.ts` — users (with passwordHash, emailVerified, authProvider columns), sessions, passwordResetTokens, emailVerificationTokens
-- `teams.ts` — teams
-- `memberships.ts` — user-team memberships with roles
-- `players.ts` — team players with attributes
-- `setPieceTemplates.ts` — template library (auto-seeded on startup via `seedTemplates.ts`)
-- `setPieces.ts` — team set pieces with versioning
-- `setPieceRoles.ts` — roles within set pieces
-- `roleAssignments.ts` — role-to-player mapping
-- `playerReadiness.ts` — readiness tracking
-- `quizAttempts.ts` — quiz submissions
-- `shareLinks.ts` — scoped share tokens
-- `matchdays.ts` — matchdays + matchday_set_pieces junction
-- `auditEvents.ts` — audit trail
+**Backend (API Server):**
+- **Authorization:** Role-based access control (`requireTeamAccess`, `requireCoachAccess`, `requireHeadCoachAccess`) and share-token middleware (`requireShareToken`).
+- **Security:** Zod validation for all request bodies and query parameters, ensuring data integrity and preventing malformed requests.
+- **API Routes:** Comprehensive set of RESTful endpoints for authentication, team management, player management, set piece creation and management, matchday organization, sharing, quizzes, billing, and auditing.
 
-## Authorization & Security
+## External Dependencies
 
-- **Role-based access control**: `requireTeamAccess(req, res, roles?)` checks membership; `requireCoachAccess` (head_coach + assistant_coach) and `requireHeadCoachAccess` (head_coach only) enforce write permissions
-- **Share-token middleware**: `requireShareToken(req, res)` validates token, checks expiry/revocation, updates `lastAccessedAt`
-- **Cross-team integrity**: Assignment writes verify player belongs to team; share-token write paths verify player and set piece belong to link's team
-- **Zod validation**: All request bodies and query parameters validated with Zod schemas; errors return 400 with structured details
-
-## API Routes
-
-All mounted at `/api` via Express router. Key routes:
-
-- `GET /api/healthz` — health check
-- Auth: `/api/auth/user`, `/api/auth/register`, `/api/auth/login`, `/api/auth/forgot-password`, `/api/auth/reset-password`, `/api/auth/verify-email`, `/api/auth/resend-verification`, `/api/auth/google`, `/api/auth/google/callback`, `/api/logout`, `/api/mobile-auth/token-exchange` (email/password → bearer token)
-- Teams: `/api/teams`, `/api/teams/:teamId`
-- Players: `/api/teams/:teamId/players`, `/api/teams/:teamId/players/:playerId`
-- Templates: `/api/templates` (public, no auth)
-- Set Pieces: `/api/teams/:teamId/set-pieces`, status updates, match-pack export
-- Roles & Assignments: nested under set pieces
-- Matchdays: `/api/teams/:teamId/matchdays`, add/remove set pieces
-- Sharing: `/api/teams/:teamId/share-links`, `/api/p/:shareToken` (player view)
-- Quiz: `/api/p/:shareToken/quiz` (GET questions, POST answers)
-- Readiness: `/api/teams/:teamId/readiness`
-- Ghost Mode: `/api/teams/:teamId/set-pieces/:setPieceId/ghost`
-- Audit: `/api/teams/:teamId/audit`
-- Pricing: `/api/pricing` (returns tiers with Stripe price IDs from synced stripe.products/prices)
-- Billing: `/api/billing/checkout` (POST, creates Stripe Checkout session, requires teamId+priceId+tierId), `/api/billing/portal` (POST, creates Stripe Customer Portal session, requires teamId), `/api/billing/subscription/:teamId` (GET, returns current subscription status) — all require coach+ role
-- Stripe Webhook: `/api/billing/webhook` (POST, registered BEFORE express.json() in app.ts, handles stripe-replit-sync processWebhook + tier updates)
-- Demo: `/api/demo/team`, `/api/demo/teams/:teamId/players`, `/api/demo/teams/:teamId/set-pieces`, `/api/demo/teams/:teamId/set-pieces/:id`, `/api/demo/teams/:teamId/matchdays`, `/api/demo/teams/:teamId/matchdays/:id`, `/api/demo/teams/:teamId/readiness` (all read-only, no auth, locked to seed demo team)
-
-## Seed Data
-
-Run `pnpm --filter @workspace/scripts run seed` to populate:
-- 1 demo coach, 1 team (FC Demo), 14 players
-- 10 set piece templates across all categories
-- 5 set pieces with roles and assignments
-- 1 matchday with 3 active set pieces
-- Player readiness records
-- 1 share link
-
-## TypeScript & Composite Projects
-
-Every package extends `tsconfig.base.json` with `composite: true`. Root `tsconfig.json` lists all packages as project references.
-
-- Typecheck from root: `pnpm run typecheck`
-- Only `.d.ts` emitted during typecheck; JS bundling via esbuild/tsx/vite
-
-## Root Scripts
-
-- `pnpm run build` — typecheck + build all packages
-- `pnpm run typecheck` — `tsc --build --emitDeclarationOnly`
-- `pnpm --filter @workspace/api-spec run codegen` — regenerate Zod schemas and React Query hooks
-- `pnpm --filter @workspace/db run push` — push schema to database
-- `pnpm --filter @workspace/scripts run seed` — seed demo data
-- `pnpm --filter @workspace/scripts exec tsx src/seed-stripe-products.ts` — create Stripe subscription products (Solo Coach + Team)
-
-## Packages
-
-### `artifacts/api-server` (`@workspace/api-server`)
-
-Express 5 API server with email/password + Google OAuth auth, structured pino logging.
-
-- Entry: `src/index.ts`
-- App: `src/app.ts` — CORS, cookies, auth middleware, routes
-- Routes: `src/routes/index.ts` mounts 14 sub-routers
-- Depends on: `@workspace/db`, `@workspace/api-zod`
-
-### `artifacts/setpiece` (`@workspace/setpiece`)
-
-React + Vite frontend (Coach Dashboard + Player PWA).
-
-- Preview path: `/setpiece/`
-- Pages: Landing, Onboarding (5-step wizard), Dashboard, TeamDashboard, Players, Templates, SetPieceEditor (save states, PDF export, inline title editing, ghost mode link), Matchdays, MatchdayDetail (QR share with player scope + expiry), Readiness (search + set piece filter), GhostMode, Pricing, Settings, PlayerPWA, PlayerQuiz
-- Demo Pages: DemoEntry (redirects to demo team), DemoTeamDashboard, DemoPlayers, DemoSetPieces, DemoSetPieceViewer (read-only tactical board), DemoMatchdays, DemoMatchdayDetail, DemoReadiness — all under `/demo/*` routes, no auth required
-- Components: Layout (CoachLayout with sidebar + mobile drawer), DemoLayout (demo sidebar + banner), DemoBanner (persistent CTA), StatusBadge, InstallPrompt
-- Contexts: DemoContext (provides isDemo, demoTeamId, demoTeam via React Query cached fetch)
-- Editor Components (`src/components/editor/`): Zustand-based tactical editor with:
-  - `editorStore.ts` — Zustand store for tool selection, annotations, entities, drawing state, step-based animation (steps CRUD, activeStepIndex, playMode step/all, auto-advance), editor mode (basic/advanced), pitch theme, tutorial/tips/legend/inspector state. New annotations auto-assigned to active step. Persists editor mode, pitch theme, and tip preferences to localStorage.
-  - `types.ts` — TypeScript types for EditorTool, Annotation, AnimationStep, EntityMarker, Point, EditorMode, PitchTheme, BoardData. Defines BASIC_TOOLS/ADVANCED_TOOLS arrays, PITCH_THEMES/CORNER_PITCH_THEMES color configs, ACTION_SEMANTICS, `migrateLegacyBoardData()` for backward-compatible step migration.
-  - `markers.tsx` — Konva markers: TeamPlayerMarker (emerald), OpponentMarker (red), GoalkeeperMarker (emerald hexagon), BallMarker — all support `lightPitch`, `isDimmed`, `isUnassigned` props. TeamPlayerMarker shows lastName below marker; unassigned roles get dashed outline, question mark, reduced opacity.
-  - `PremiumPitch.tsx` — Themed pitch with mowing stripes, corner arcs, penalty spots; accepts `theme` prop (dark/green/light)
-  - `OffensiveCornerPitch.tsx` — Corner kick pitch (654x608 ref coords); accepts `theme` prop (dark/green/light)
-  - `AnnotationLayer.tsx` — Renders run paths, pass lines, curved runs, zone circles/rects, labels
-  - `EditorCanvas.tsx` — Main canvas integrating pitch, markers, annotations, drawing, and step-aware animation loop (filters annotations by active step, auto-advances in 'all' mode); reads pitchTheme from store; passes player lastName, unassigned state, and dimming. Supports snap-to-pitch-anchors and snap-to-markers (auto-link run paths to roles), grid overlay, layer visibility/locking, context menu, per-step role positions with cascade from run paths, responsive padding (10px mobile / 14px tablet / 24px desktop), and readOnly mode (for presentation).
-  - `EditorToolbar.tsx` — Left sidebar with grouped tools (Select, Place, Draw), Basic/Advanced mode toggle, snap/grid/mirror/layers/presentation controls, undo/redo, animation controls; ARIA labels on all buttons
-  - `BottomBar.tsx` — Bottom bar with step tabs (add/rename/delete/navigate steps, annotation count badges), play mode toggle (step/all), contextual tool label, selection info, color picker, style controls (advanced mode), animation slider/speed
-  - `InspectorPanel.tsx` — Context-aware right panel: annotation inspector (with semantic hints), entity inspector, role marker inspector (with linked paths), or roles list (with empty state). Collapsible sections via CollapsibleSection component. Uses searchable PlayerCombobox with unique assignment enforcement (taken players shown as disabled). Includes BoardHealth validation panel.
-  - `snapUtils.ts` — Snap-to-pitch-anchors (center, penalty spots, corners, goal posts, box edges) and snap-to-marker positions. Threshold-based (2.5% distance). `findNearestMarker()` + `buildMarkerRefs()` for snap-to-marker arrow endpoints with auto-linking.
-  - `PresentationMode.tsx` — Fullscreen overlay for presenting set pieces with step playback, prev/next/play/pause controls, step number badges, legend toggle, and exit button. Read-only canvas prevents accidental edits.
-  - `EditorContextMenu.tsx` — Right-click context menu for selected annotations/entities with duplicate, convert type (run ↔ pass), move to step, and delete actions.
-  - `LayerPanel.tsx` — Layer visibility and lock controls for team players, opponents, ball, actions/paths, zones, and labels. Hidden layers are not rendered; locked layers are rendered but not interactive.
-  - `BoardHealth.tsx` — Compact validation panel showing green/amber/red status: checks for unassigned roles and missing movement paths. Collapsible, renders in the roles list view.
-  - `TutorialOverlay.tsx` — 6-step modal walkthrough with progress bar, localStorage persistence (key: setpiece-tutorial-completed). Auto-shows for first-time users.
-  - `ContextualTip.tsx` — Tool-reactive dismissable tip cards (per-tool localStorage persistence). Shows hint text for the active tool.
-  - `QuickLegend.tsx` — Toggleable visual legend showing line types (run/pass/curved) and marker types (player/opponent/goalkeeper/ball)
-- Uses generated React Query hooks from `@workspace/api-client-react`
-- API base URL: empty string (API server is at root `/api/...` path)
-- Auth: client-side `/login`, `/register`, `/forgot-password`, `/reset-password` pages; email verification via `/api/auth/verify-email`; logout via `/api/logout`; transactional emails via Resend integration
-- Player view: `/p/:shareToken` — mobile-first PWA, no auth needed
-- PWA: manifest.json, service worker (sw.js), offline-first caching
-- Design: Dark navy theme, emerald primary (#10b981), Outfit display font, Inter body font
-- Dependencies: framer-motion, lucide-react, qrcode.react, date-fns, wouter, zustand, html2canvas, jspdf, react-konva, konva
-
-### `lib/db` (`@workspace/db`)
-
-Drizzle ORM + PostgreSQL. 13 schema files.
-
-### `lib/api-spec` (`@workspace/api-spec`)
-
-OpenAPI 3.1 spec with comprehensive endpoints for the SETPIECE system.
-
-### `lib/api-zod` (`@workspace/api-zod`)
-
-Generated Zod schemas from OpenAPI spec.
-
-### `lib/api-client-react` (`@workspace/api-client-react`)
-
-Generated React Query hooks and fetch client. `setBaseUrl()` configures the API base path.
-
-### `scripts` (`@workspace/scripts`)
-
-Utility scripts including database seeding.
+- **PostgreSQL:** Primary database for all application data.
+- **Stripe:** Used for handling subscriptions, payments (Stripe Checkout), and customer portal management. Integrated with `stripe-replit-sync` for webhook processing and data synchronization.
+- **Google OAuth2:** For user authentication.
+- **Resend:** For sending transactional emails, including email verification.
+- **framer-motion:** For animations in the React frontend.
+- **lucide-react:** For icons in the React frontend.
+- **qrcode.react:** For generating QR codes in the React frontend.
+- **date-fns:** For date manipulation in the React frontend.
+- **wouter:** For routing in the React frontend.
+- **zustand:** For state management in the React frontend.
+- **html2canvas & jspdf:** For PDF export functionality in the set piece editor.
+- **react-konva & konva:** For building the interactive set piece tactical editor.

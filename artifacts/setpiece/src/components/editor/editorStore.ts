@@ -308,7 +308,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   setAnimationProgress: (progress) => set((s) => ({ animation: { ...s.animation, progress } })),
   setAnimationSpeed: (speed) => set((s) => ({ animation: { ...s.animation, speed } })),
   setActiveStepIndex: (index) => set((s) => ({
-    animation: { ...s.animation, activeStepIndex: index, progress: 0, playing: false },
+    animation: { ...s.animation, activeStepIndex: Math.max(0, Math.min(index, s.steps.length - 1)), progress: 0, playing: false },
   })),
   setPlayMode: (mode) => set((s) => ({
     animation: { ...s.animation, playMode: mode },

@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
+import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { useRoute } from 'wouter';
 import { useGetTeam, useGetSetPiece, useCreateRole, useUpdateRole, useDeleteRole, useUpsertAssignment, useListPlayers, useUpdateSetPieceStatus, useUpdateSetPiece } from '@workspace/api-client-react';
 import type { SetPieceRole, RoleAssignment } from '@workspace/api-client-react';
@@ -730,20 +731,22 @@ export default function SetPieceEditor() {
           <main data-tutorial="pitch" className="flex-1 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-background via-card to-background relative overflow-hidden flex items-center justify-center">
             <div ref={canvasRef} className="w-full h-full p-1 md:p-3 flex items-center justify-center relative" data-pitch-container>
               {!presentationMode && (
-                <EditorCanvas
-                  ref={canvasHandleRef}
-                  width={canvasSize.width}
-                  height={canvasSize.height}
-                  roles={setPiece.roles}
-                  assignments={setPiece.assignments || []}
-                  players={players}
-                  activeRoleId={activeRoleId}
-                  category={setPiece.category}
-                  onRoleClick={(id) => setActiveRoleId(id === activeRoleId ? null : id)}
-                  onRoleDragEnd={handleRoleDragEnd}
-                  onPitchClick={handlePitchClick}
-                  onLabelPrompt={handleLabelPrompt}
-                />
+                <ErrorBoundary>
+                  <EditorCanvas
+                    ref={canvasHandleRef}
+                    width={canvasSize.width}
+                    height={canvasSize.height}
+                    roles={setPiece.roles}
+                    assignments={setPiece.assignments || []}
+                    players={players}
+                    activeRoleId={activeRoleId}
+                    category={setPiece.category}
+                    onRoleClick={(id) => setActiveRoleId(id === activeRoleId ? null : id)}
+                    onRoleDragEnd={handleRoleDragEnd}
+                    onPitchClick={handlePitchClick}
+                    onLabelPrompt={handleLabelPrompt}
+                  />
+                </ErrorBoundary>
               )}
               {setPiece.roles.length === 0 && entities.length === 0 && annotations.length === 0 && (
                 <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-10">
