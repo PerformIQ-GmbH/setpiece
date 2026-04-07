@@ -1,0 +1,284 @@
+We are doing a major UX/UI upgrade of the tactical editor to make it feel closer to a premium industry-leading tactics tool, with strong iPad/tablet usability and direct manipulation on the canvas.
+
+IMPORTANT:
+Do not do a superficial visual pass.
+This is a real editor interaction refactor.
+
+Please first analyze the current implementation, especially:
+- editorStore.ts
+- EditorCanvas.tsx
+- AnnotationLayer.tsx
+- SetPieceEditor.tsx
+- EditorToolbar.tsx
+- InspectorPanel.tsx
+- markers.tsx
+
+Then implement the following in two precise phases.
+
+==================================================
+PRIMARY GOAL
+==================================================
+
+Transform the editor into a much more direct, touch-friendly, canvas-first tactical tool.
+
+The editor should feel:
+- more fluid
+- more visual
+- more iPad-friendly
+- less panel-heavy
+- more like direct tactical manipulation
+- more practical for real coaching use
+
+Do not break existing core functionality unnecessarily.
+Keep the code organized and performance-conscious.
+
+==================================================
+PHASE 1 — DIRECT MANIPULATION ON THE CANVAS
+==================================================
+
+When a user selects an annotation (arrow, line, zone, etc.), they must be able to edit it directly by dragging its endpoints or corner points.
+
+----------------------------------
+1. STORE SUPPORT
+----------------------------------
+
+In editorStore.ts:
+- add an action:
+  `updateAnnotationPoint(id: string, pointIndex: number, newPos: Point)`
+- this action must update exactly one point in the annotation’s `points` array
+- preserve immutability / proper store updates
+- keep the implementation clean and reusable
+
+Also make sure the selected annotation/entity state works cleanly with this new handle-editing workflow.
+
+----------------------------------
+2. DRAG HANDLES IN ANNOTATIONLAYER
+----------------------------------
+
+In AnnotationLayer.tsx:
+- when `selectedId === annotation.id`, render draggable edit handles for that annotation
+- render `Konva.Circle` handles at each point in `annotation.points`
+
+Requirements:
+- use `draggable`
+- use `onDragMove` for live position updates
+- use `onDragEnd` for final commit cleanup if needed
+- make dragging feel immediate and fluid
+
+Important:
+Use a performance-conscious approach:
+- prefer local/transient update behavior during drag if needed
+- avoid unnecessary full-canvas heavy rerenders
+- use `e.target.x()` / `e.target.y()` carefully
+- keep interaction smooth on tablet devices
+
+----------------------------------
+3. HANDLE VISUAL DESIGN
+----------------------------------
+
+Handles must be visually clear and touch-friendly.
+
+Style:
+- white fill
+- border in the annotation color
+- radius around 6–8 visually
+- larger touch target / hit area than the visible circle
+- strong contrast on both light and green pitch themes
+- selected annotation handles should feel obvious and premium
+
+Touch UX:
+- make them easy to grab on iPad
+- do not use tiny precision-only handles
+
+----------------------------------
+4. SHAPE-SPECIFIC EDITING
+----------------------------------
+
+Support shape-specific editing behavior.
+
+For example:
+- `zone_rect` → corner handles must be draggable
+- `run_path` / path-based annotations → joints / points must be draggable
+- lines/arrows → start and end points draggable
+- if the shape supports multiple points, all relevant points should be editable
+
+If necessary, normalize shape behavior internally so editing is clean and predictable.
+
+----------------------------------
+5. SELECTION / FOCUS UX
+----------------------------------
+
+When an annotation is selected:
+- highlight it clearly
+- show its handles
+- optionally dim other annotations slightly for clarity
+- ensure selected state is visually stronger than now
+
+==================================================
+PHASE 2 — FLOATING, APP-CENTRIC LAYOUT (IPAD-OPTIMIZED)
+==================================================
+
+The current layout compresses the canvas too much on tablets.
+We want a “floating island” app layout where the field is the true primary surface.
+
+----------------------------------
+1. FULL-SCREEN CANVAS PRIORITY
+----------------------------------
+
+In SetPieceEditor.tsx:
+- remove rigid layout constraints such as hard side widths for the main editor experience
+- the EditorCanvas / pitch should take the full available screen:
+  - `absolute inset-0 w-full h-full`
+- the pitch must become the main visual surface
+- the UI should float above it instead of permanently squeezing it
+
+Desktop can still preserve good structure, but tablet/mobile must prioritize the canvas.
+
+----------------------------------
+2. FLOATING TOOLBAR
+----------------------------------
+
+In EditorToolbar.tsx:
+- redesign the toolbar into a floating island layout
+- for example:
+  - centered at the bottom
+  OR
+  - compact vertical island on the left
+- use a premium blurred floating surface:
+  - `bg-background/80`
+  - `backdrop-blur`
+  - `rounded-2xl`
+  - `shadow-2xl`
+  - high z-index
+
+Requirements:
+- compact
+- touch-friendly
+- grouped tools
+- support popovers/sub-tools where useful
+- do not overload the toolbar
+- preserve quick access to the most important actions
+
+----------------------------------
+3. INSPECTOR AS SHEET / COLLAPSIBLE PANEL
+----------------------------------
+
+In InspectorPanel.tsx:
+- on smaller screens, convert the inspector into a Shadcn `Sheet`
+- it should slide in from the right
+- open via a button
+- ideal for roster management, detailed properties, and assignments
+- on larger screens it can remain a panel if appropriate
+
+Goal:
+Do not permanently steal horizontal space from the pitch on tablet/mobile.
+
+----------------------------------
+4. CONTEXTUAL FLOATING MINI BAR
+----------------------------------
+
+Add a contextual floating mini-toolbar when an annotation or marker is selected.
+
+Behavior:
+- when `selectedAnnotationId` or `selectedEntityId` exists
+- show a small floating action bar near the selected object or above the main toolbar
+
+Possible actions:
+- delete
+- duplicate
+- color change
+- line style
+- quick type conversion if relevant
+
+Important:
+- this should not live deep inside the inspector only
+- make the most important context actions immediate and nearby
+- position this in screen-space, not as a fragile canvas-only UI if possible
+
+==================================================
+ADDITIONAL UX REQUIREMENTS
+==================================================
+
+These improvements are also required because they directly improve real-world usability.
+
+----------------------------------
+A. TOUCH-FIRST INTERACTION
+----------------------------------
+
+Design all major editor interactions with iPad/tablet in mind:
+- large hit targets
+- generous spacing
+- touch-friendly buttons
+- avoid tiny controls
+- ensure floating UI does not block the canvas excessively
+
+----------------------------------
+B. GESTURE MODEL
+----------------------------------
+
+If the editor already supports or can support it cleanly:
+- one-finger drag = move object / handle
+- two-finger pan = move around canvas
+- pinch = zoom
+Do not break existing interactions, but improve the gesture model where possible.
+
+----------------------------------
+C. SAFE AREA / MOBILE POLISH
+----------------------------------
+
+Floating UI must respect safe areas and bottom spacing on tablets/mobile devices.
+Do not place controls too close to edges.
+
+----------------------------------
+D. VISUAL HIERARCHY
+----------------------------------
+
+The canvas is the primary surface.
+Toolbar, mini-bar, inspector sheet, and helper UI must all feel secondary and layered above the board cleanly.
+
+----------------------------------
+E. PERFORMANCE
+----------------------------------
+
+Do not degrade Konva performance.
+Be careful with:
+- drag handle rerenders
+- selected state updates
+- floating overlay repositioning
+- sheet open/close behavior
+- canvas scale / zoom interactions
+
+==================================================
+DELIVERY ORDER
+==================================================
+
+Work in this order:
+1. analyze current code structure
+2. implement Phase 1 store support
+3. implement draggable edit handles in AnnotationLayer
+4. refine handle visuals and touch area
+5. verify shape-specific editing
+6. refactor SetPieceEditor layout for full-screen canvas priority
+7. rebuild toolbar into floating island
+8. convert inspector to responsive sheet/collapsible behavior
+9. add contextual floating mini-bar
+10. polish touch UX and performance
+
+==================================================
+SUCCESS CRITERIA
+==================================================
+
+The result is acceptable only if:
+- selected annotations can be edited directly through visible drag handles
+- dragging endpoints/corners feels fluid
+- handles are easy to use on iPad
+- the canvas becomes the dominant full-screen surface
+- toolbar feels like a floating app control island
+- inspector no longer permanently crushes the canvas on tablet sizes
+- contextual actions are surfaced near the selected object
+- the editor feels much more direct and modern than before
+
+At the end:
+- summarize what changed
+- list the main files changed
+- mention any follow-up suggestions for further mobile optimization
