@@ -9,7 +9,7 @@ import {
   ChevronDown, ChevronRight,
   Undo2, Redo2,
   Magnet, Grid3x3, FlipHorizontal2, Presentation, Layers,
-  Wrench,
+  Wrench, PanelRight, PanelRightClose,
 } from 'lucide-react';
 import { BASIC_TOOLS } from './types';
 import { LayerPanel } from './LayerPanel';
@@ -111,6 +111,9 @@ export function EditorToolbar({ onUndo, onRedo, canUndo, canRedo, onMirror }: Ed
   const showGrid = useEditorStore((s) => s.showGrid);
   const setShowGrid = useEditorStore((s) => s.setShowGrid);
   const setPresentationMode = useEditorStore((s) => s.setPresentationMode);
+
+  const inspectorCollapsed = useEditorStore((s) => s.inspectorCollapsed);
+  const setInspectorCollapsed = useEditorStore((s) => s.setInspectorCollapsed);
 
   const [showLayerPanel, setShowLayerPanel] = useState(false);
 
@@ -265,6 +268,19 @@ export function EditorToolbar({ onUndo, onRedo, canUndo, canRedo, onMirror }: Ed
           <Redo2 className="w-4 h-4" />
         </button>
       </div>
+
+      <Divider />
+
+      <button
+        onClick={() => setInspectorCollapsed(!inspectorCollapsed)}
+        title={inspectorCollapsed ? 'Show Inspector' : 'Hide Inspector'}
+        className={cn(
+          "w-10 h-9 rounded-lg flex items-center justify-center transition-all",
+          !inspectorCollapsed ? "bg-primary/20 text-primary" : "text-muted-foreground hover:bg-secondary hover:text-white"
+        )}
+      >
+        {inspectorCollapsed ? <PanelRight className="w-4 h-4" /> : <PanelRightClose className="w-4 h-4" />}
+      </button>
     </div>
   );
 }

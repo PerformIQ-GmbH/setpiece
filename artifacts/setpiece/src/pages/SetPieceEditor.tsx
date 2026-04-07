@@ -66,6 +66,15 @@ export default function SetPieceEditor() {
   const mirrorBoard = useEditorStore((s) => s.mirrorBoard);
   const presentationMode = useEditorStore((s) => s.presentationMode);
   const isMobile = useIsMobile();
+  const [isTablet, setIsTablet] = useState(false);
+  useEffect(() => {
+    const mql = window.matchMedia('(min-width: 768px) and (max-width: 1023px)');
+    const onChange = () => setIsTablet(mql.matches);
+    mql.addEventListener('change', onChange);
+    setIsTablet(mql.matches);
+    return () => mql.removeEventListener('change', onChange);
+  }, []);
+  const useSheetInspector = isMobile || isTablet;
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [mobileInspectorOpen, setMobileInspectorOpen] = useState(false);
 
@@ -600,14 +609,25 @@ export default function SetPieceEditor() {
                 </Button>
               )}
 
-              <button
-                onClick={() => setInspectorCollapsed(!inspectorCollapsed)}
-                title={inspectorCollapsed ? 'Show Panel' : 'Hide Panel'}
-                aria-label={inspectorCollapsed ? 'Show Inspector Panel' : 'Hide Inspector Panel'}
-                className="w-7 h-7 rounded flex items-center justify-center text-muted-foreground hover:text-white transition-colors"
-              >
-                {inspectorCollapsed ? <PanelRight className="w-3.5 h-3.5" /> : <PanelRightClose className="w-3.5 h-3.5" />}
-              </button>
+              {!isTablet && (
+                <button
+                  onClick={() => setInspectorCollapsed(!inspectorCollapsed)}
+                  title={inspectorCollapsed ? 'Show Panel' : 'Hide Panel'}
+                  aria-label={inspectorCollapsed ? 'Show Inspector Panel' : 'Hide Inspector Panel'}
+                  className="w-7 h-7 rounded flex items-center justify-center text-muted-foreground hover:text-white transition-colors"
+                >
+                  {inspectorCollapsed ? <PanelRight className="w-3.5 h-3.5" /> : <PanelRightClose className="w-3.5 h-3.5" />}
+                </button>
+              )}
+              {isTablet && (
+                <button
+                  onClick={() => setMobileInspectorOpen(true)}
+                  title="Open Inspector"
+                  className="w-7 h-7 rounded flex items-center justify-center text-muted-foreground hover:text-white transition-colors"
+                >
+                  <Settings2 className="w-3.5 h-3.5" />
+                </button>
+              )}
             </>
           )}
 
@@ -768,9 +788,9 @@ export default function SetPieceEditor() {
           </div>
         )}
 
-        <ContextualMiniBar />
+        <ContextualMiniBar canvasRef={canvasRef} />
 
-        {!isMobile && !inspectorCollapsed && (
+        {!useSheetInspector && !inspectorCollapsed && (
           <div className="absolute right-3 top-3 z-20 w-72 lg:w-80" style={{ maxHeight: 'calc(100% - 120px)' }}>
             <div className="h-full bg-card/95 backdrop-blur-xl rounded-2xl shadow-2xl border border-border/60 overflow-y-auto scrollbar-none">
               <InspectorPanel
@@ -790,39 +810,39 @@ export default function SetPieceEditor() {
         )}
 
         <div className="absolute bottom-3 left-0 right-0 z-20">
-          <BottomBar mobile={isMobile} />
+          <BottomBar mobile={isMobile || isTablet} />
         </div>
       </div>
 
       {isMobile && (
-        <>
-          <MobileToolDrawer
-            onUndo={handleUndo}
-            onRedo={handleRedo}
-            canUndo={undoStack.length > 0}
-            canRedo={redoStack.length > 0}
-            onMirror={handleMirror}
-          />
+        <MobileToolDrawer
+          onUndo={handleUndo}
+          onRedo={handleRedo}
+          canUndo={undoStack.length > 0}
+          canRedo={redoStack.length > 0}
+          onMirror={handleMirror}
+        />
+      )}
 
-          <Sheet open={mobileInspectorOpen} onOpenChange={setMobileInspectorOpen}>
-            <SheetContent side="right" className="bg-card border-border w-[300px] p-0">
-              <SheetTitle className="sr-only">Inspector</SheetTitle>
-              <InspectorPanel
-                roles={setPiece.roles}
-                assignments={setPiece.assignments || []}
-                players={players}
-                activeRoleId={activeRoleId}
-                onRoleClick={(id) => setActiveRoleId(id === activeRoleId ? null : id)}
-                onAssignPlayer={assignPlayer}
-                onAssignBackup={assignBackupPlayer}
-                onDeleteRole={handleDeleteRole}
-                onDuplicateRole={handleDuplicateRole}
-                onAddRole={() => { setPendingPos(null); setNewRoleName(''); setRoleFormOpen(true); setMobileInspectorOpen(false); }}
-                forceVisible
-              />
-            </SheetContent>
-          </Sheet>
-        </>
+      {useSheetInspector && (
+        <Sheet open={mobileInspectorOpen} onOpenChange={setMobileInspectorOpen}>
+          <SheetContent side="right" className="bg-card border-border w-[300px] p-0">
+            <SheetTitle className="sr-only">Inspector</SheetTitle>
+            <InspectorPanel
+              roles={setPiece.roles}
+              assignments={setPiece.assignments || []}
+              players={players}
+              activeRoleId={activeRoleId}
+              onRoleClick={(id) => setActiveRoleId(id === activeRoleId ? null : id)}
+              onAssignPlayer={assignPlayer}
+              onAssignBackup={assignBackupPlayer}
+              onDeleteRole={handleDeleteRole}
+              onDuplicateRole={handleDuplicateRole}
+              onAddRole={() => { setPendingPos(null); setNewRoleName(''); setRoleFormOpen(true); setMobileInspectorOpen(false); }}
+              forceVisible
+            />
+          </SheetContent>
+        </Sheet>
       )}
 
       <TutorialOverlay
