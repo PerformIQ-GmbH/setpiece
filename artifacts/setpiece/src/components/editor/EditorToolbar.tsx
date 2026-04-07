@@ -96,9 +96,11 @@ interface EditorToolbarProps {
   canUndo?: boolean;
   canRedo?: boolean;
   onMirror?: () => void;
+  onOpenInspectorSheet?: () => void;
+  useSheetInspector?: boolean;
 }
 
-export function EditorToolbar({ onUndo, onRedo, canUndo, canRedo, onMirror }: EditorToolbarProps) {
+export function EditorToolbar({ onUndo, onRedo, canUndo, canRedo, onMirror, onOpenInspectorSheet, useSheetInspector }: EditorToolbarProps) {
   const editorMode = useEditorStore((s) => s.editorMode);
   const setEditorMode = useEditorStore((s) => s.setEditorMode);
   const animation = useEditorStore((s) => s.animation);
@@ -272,14 +274,20 @@ export function EditorToolbar({ onUndo, onRedo, canUndo, canRedo, onMirror }: Ed
       <Divider />
 
       <button
-        onClick={() => setInspectorCollapsed(!inspectorCollapsed)}
-        title={inspectorCollapsed ? 'Show Inspector' : 'Hide Inspector'}
+        onClick={() => {
+          if (useSheetInspector && onOpenInspectorSheet) {
+            onOpenInspectorSheet();
+          } else {
+            setInspectorCollapsed(!inspectorCollapsed);
+          }
+        }}
+        title={useSheetInspector ? 'Open Inspector' : (inspectorCollapsed ? 'Show Inspector' : 'Hide Inspector')}
         className={cn(
           "w-10 h-9 rounded-lg flex items-center justify-center transition-all",
-          !inspectorCollapsed ? "bg-primary/20 text-primary" : "text-muted-foreground hover:bg-secondary hover:text-white"
+          !useSheetInspector && !inspectorCollapsed ? "bg-primary/20 text-primary" : "text-muted-foreground hover:bg-secondary hover:text-white"
         )}
       >
-        {inspectorCollapsed ? <PanelRight className="w-4 h-4" /> : <PanelRightClose className="w-4 h-4" />}
+        {inspectorCollapsed || useSheetInspector ? <PanelRight className="w-4 h-4" /> : <PanelRightClose className="w-4 h-4" />}
       </button>
     </div>
   );

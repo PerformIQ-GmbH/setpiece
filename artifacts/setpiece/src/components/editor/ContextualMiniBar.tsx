@@ -1,7 +1,7 @@
 import { useRef, useEffect, useState, type RefObject } from 'react';
 import { useEditorStore } from './editorStore';
 import { ANNOTATION_COLORS } from './types';
-import type { Annotation } from './types';
+import type { Annotation, AnnotationType } from './types';
 import { cn } from '@/lib/utils';
 import { Trash2, Copy, Minus, ArrowRight } from 'lucide-react';
 
@@ -9,7 +9,13 @@ interface ContextualMiniBarProps {
   canvasRef: RefObject<HTMLDivElement | null>;
 }
 
-const LINE_TYPES = ['run_path', 'curved_run', 'pass_line', 'curved_cross'] as const;
+const LINE_TYPE_SET: ReadonlySet<AnnotationType> = new Set([
+  'run_path', 'curved_run', 'pass_line', 'curved_cross',
+]);
+
+function isLineAnnotation(type: AnnotationType): boolean {
+  return LINE_TYPE_SET.has(type);
+}
 
 export function ContextualMiniBar({ canvasRef }: ContextualMiniBarProps) {
   const selectedAnnotationId = useEditorStore((s) => s.selectedAnnotationId);
@@ -34,7 +40,16 @@ export function ContextualMiniBar({ canvasRef }: ContextualMiniBarProps) {
     if (!selectedAnn && !selectedEnt) { setPos(null); return; }
 
     const updatePosition = () => {
-      const rect = container.getBoundingClientRect();
+      const stageEl = container.querySelector('.konvajs-content') as HTMLElement | null;
+      const parentEl = container.closest('.relative') as HTMLElement | null;
+      if (!stageEl || !parentEl) { setPos(null); return; }
+
+      const stageRect = stageEl.getBoundingClientRect();
+      const parentRect = parentEl.getBoundingClientRect();
+
+      const stageOffsetX = stageRect.left - parentRect.left;
+      const stageOffsetY = stageRect.top - parentRect.top;
+
       let pctX = 50;
       let pctY = 50;
 
@@ -48,11 +63,11 @@ export function ContextualMiniBar({ canvasRef }: ContextualMiniBarProps) {
         pctY = selectedEnt.position.y;
       }
 
-      const pixelX = (pctX / 100) * rect.width;
-      const pixelY = (pctY / 100) * rect.height;
+      const pixelX = stageOffsetX + (pctX / 100) * stageRect.width;
+      const pixelY = stageOffsetY + (pctY / 100) * stageRect.height;
 
       const barW = barRef.current?.offsetWidth || 200;
-      const clampedX = Math.max(barW / 2 + 8, Math.min(rect.width - barW / 2 - 8, pixelX));
+      const clampedX = Math.max(barW / 2 + 8, Math.min(parentRect.width - barW / 2 - 8, pixelX));
       const offsetY = Math.max(8, pixelY - 44);
 
       setPos({ x: clampedX, y: offsetY });
@@ -67,7 +82,7 @@ export function ContextualMiniBar({ canvasRef }: ContextualMiniBarProps) {
   if (!selectedAnn && !selectedEnt) return null;
   if (!pos) return null;
 
-  const isLine = selectedAnn && LINE_TYPES.includes(selectedAnn.type as any);
+  const isLine = selectedAnn ? isLineAnnotation(selectedAnn.type) : false;
 
   const handleDelete = () => {
     if (selectedAnnotationId) deleteAnnotation(selectedAnnotationId);

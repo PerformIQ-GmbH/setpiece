@@ -784,6 +784,8 @@ export default function SetPieceEditor() {
               canUndo={undoStack.length > 0}
               canRedo={redoStack.length > 0}
               onMirror={handleMirror}
+              useSheetInspector={useSheetInspector}
+              onOpenInspectorSheet={() => setMobileInspectorOpen(true)}
             />
           </div>
         )}
