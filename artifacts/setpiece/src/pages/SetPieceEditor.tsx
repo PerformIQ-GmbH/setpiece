@@ -66,12 +66,13 @@ export default function SetPieceEditor() {
   const mirrorBoard = useEditorStore((s) => s.mirrorBoard);
   const presentationMode = useEditorStore((s) => s.presentationMode);
   const isMobile = useIsMobile();
-  const [isTablet, setIsTablet] = useState(false);
+  const [isTablet, setIsTablet] = useState(() =>
+    typeof window !== 'undefined' ? window.matchMedia('(min-width: 768px) and (max-width: 1023px)').matches : false
+  );
   useEffect(() => {
     const mql = window.matchMedia('(min-width: 768px) and (max-width: 1023px)');
     const onChange = () => setIsTablet(mql.matches);
     mql.addEventListener('change', onChange);
-    setIsTablet(mql.matches);
     return () => mql.removeEventListener('change', onChange);
   }, []);
   const useSheetInspector = isMobile || isTablet;
@@ -609,25 +610,7 @@ export default function SetPieceEditor() {
                 </Button>
               )}
 
-              {!isTablet && (
-                <button
-                  onClick={() => setInspectorCollapsed(!inspectorCollapsed)}
-                  title={inspectorCollapsed ? 'Show Panel' : 'Hide Panel'}
-                  aria-label={inspectorCollapsed ? 'Show Inspector Panel' : 'Hide Inspector Panel'}
-                  className="w-7 h-7 rounded flex items-center justify-center text-muted-foreground hover:text-white transition-colors"
-                >
-                  {inspectorCollapsed ? <PanelRight className="w-3.5 h-3.5" /> : <PanelRightClose className="w-3.5 h-3.5" />}
-                </button>
-              )}
-              {isTablet && (
-                <button
-                  onClick={() => setMobileInspectorOpen(true)}
-                  title="Open Inspector"
-                  className="w-7 h-7 rounded flex items-center justify-center text-muted-foreground hover:text-white transition-colors"
-                >
-                  <Settings2 className="w-3.5 h-3.5" />
-                </button>
-              )}
+              
             </>
           )}
 
