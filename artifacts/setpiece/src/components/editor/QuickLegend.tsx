@@ -8,7 +8,7 @@ export function QuickLegend() {
   if (!showLegend) return null;
 
   return (
-    <div className="absolute top-3 right-3 z-30 animate-in fade-in slide-in-from-top-2 duration-200">
+    <div className="absolute top-3 left-1/2 -translate-x-1/2 z-10 animate-in fade-in slide-in-from-top-2 duration-200">
       <div className="bg-card/95 backdrop-blur-md border border-border rounded-xl shadow-xl p-3.5 w-52">
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-1.5">

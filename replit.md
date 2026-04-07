@@ -59,7 +59,9 @@ The monorepo is organized into `artifacts` (deployable applications), `lib` (sha
     - Step-based animation for set piece progression.
     - Multiple editor modes (basic/advanced), pitch themes.
     - Snap-to-pitch-anchors and snap-to-marker functionality for precise drawing.
-    - Contextual right panel for inspecting annotations, entities, and roles.
+    - **Floating island layout:** Canvas fills the full viewport; toolbar, inspector, and bottom bar float as glassmorphic overlays with `backdrop-blur-xl` and `rounded-2xl`. Inspector is a floating right panel on desktop (collapsible via `inspectorCollapsed` store flag) and a Sheet on mobile.
+    - **Contextual mini-bar (`ContextualMiniBar`):** Floating top-center bar that appears when an annotation/entity is selected, providing quick actions (color picker, dash toggle, arrowhead, duplicate, delete).
+    - **Direct manipulation drag handles:** Per-waypoint `DragHandle` and `RadiusHandle` on canvas for annotations, with live RAF-throttled updates.
     - Validation panel (`BoardHealth`) to check for unassigned roles and missing paths.
     - Presentation Mode for full-screen playback.
     - Tutorial Overlay and Contextual Tips for user guidance.

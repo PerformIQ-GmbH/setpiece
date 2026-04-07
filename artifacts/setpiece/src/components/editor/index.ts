@@ -9,5 +9,6 @@ export { ContextualTip } from './ContextualTip';
 export { QuickLegend } from './QuickLegend';
 export { PresentationMode } from './PresentationMode';
 export { EditorContextMenu } from './EditorContextMenu';
+export { ContextualMiniBar } from './ContextualMiniBar';
 export { useEditorStore } from './editorStore';
 export type { EditorTool, EditorMode, PitchTheme, Annotation, AnimationStep, EntityMarker, Point, BoardData } from './types';

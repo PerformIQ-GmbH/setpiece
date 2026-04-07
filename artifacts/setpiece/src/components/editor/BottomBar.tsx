@@ -107,7 +107,7 @@ export function BottomBar({ mobile = false }: { mobile?: boolean }) {
 
   if (mobile) {
     return (
-      <div className="border-t border-border bg-card/80 backdrop-blur-md shrink-0 pb-[env(safe-area-inset-bottom)]">
+      <div className="mx-2 mb-2 bg-card/95 backdrop-blur-xl rounded-2xl shadow-2xl border border-border/60 shrink-0 pb-[env(safe-area-inset-bottom)]">
         <div className="h-10 flex items-center px-2 gap-1 overflow-x-auto">
           <button
             onClick={goToPrevStep}
@@ -185,8 +185,8 @@ export function BottomBar({ mobile = false }: { mobile?: boolean }) {
   }
 
   return (
-    <div className="border-t border-border bg-card/80 backdrop-blur-md shrink-0">
-      <div className="h-9 flex items-center px-2 gap-1 border-b border-border/40 overflow-x-auto">
+    <div className="mx-3 mb-2 bg-card/95 backdrop-blur-xl rounded-2xl shadow-2xl border border-border/60 shrink-0">
+      <div className="h-9 flex items-center px-2 gap-1 border-b border-border/40 overflow-x-auto rounded-t-2xl">
         <button
           onClick={goToPrevStep}
           disabled={animation.activeStepIndex === 0}

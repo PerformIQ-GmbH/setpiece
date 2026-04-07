@@ -115,7 +115,7 @@ export function EditorToolbar({ onUndo, onRedo, canUndo, canRedo, onMirror }: Ed
   const [showLayerPanel, setShowLayerPanel] = useState(false);
 
   return (
-    <div data-tutorial="toolbar" className="w-14 border-r border-border bg-card/60 backdrop-blur-md flex flex-col items-center py-3 gap-1 shrink-0 relative">
+    <div data-tutorial="toolbar" className="w-14 bg-card/95 backdrop-blur-xl rounded-2xl shadow-2xl border border-border/60 flex flex-col items-center py-3 gap-1 relative">
       <div className="flex flex-col items-center gap-0.5">
         <ToolGroupLabel text="Select" />
         {SELECT_TOOLS.map((t) => <ToolButton key={t.tool} {...t} />)}
