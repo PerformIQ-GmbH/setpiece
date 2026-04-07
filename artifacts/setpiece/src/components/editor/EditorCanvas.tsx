@@ -104,6 +104,8 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
   const setSelectedEntityId = useEditorStore((s) => s.setSelectedEntityId);
   const deleteAnnotation = useEditorStore((s) => s.deleteAnnotation);
   const moveAnnotation = useEditorStore((s) => s.moveAnnotation);
+  const updateAnnotationPoint = useEditorStore((s) => s.updateAnnotationPoint);
+  const updateAnnotationRadius = useEditorStore((s) => s.updateAnnotationRadius);
   const deleteEntity = useEditorStore((s) => s.deleteEntity);
 
   const snapEnabled = useEditorStore((s) => s.snapEnabled);
@@ -645,6 +647,8 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
           hasFocusedElement={hasFocusedElement}
           onSelect={readOnly ? () => {} : setSelectedAnnotationId}
           onMove={moveAnnotation}
+          onUpdatePoint={updateAnnotationPoint}
+          onUpdateRadius={updateAnnotationRadius}
           toPixel={toPixel}
           toPct={toPct}
           pitchW={pitchW}

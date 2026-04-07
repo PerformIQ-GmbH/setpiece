@@ -9,6 +9,8 @@ interface AnnotationLayerProps {
   hasFocusedElement?: boolean;
   onSelect: (id: string | null) => void;
   onMove: (id: string, dx: number, dy: number) => void;
+  onUpdatePoint: (id: string, pointIndex: number, newPos: Point) => void;
+  onUpdateRadius?: (id: string, radius: number) => void;
   toPixel: (pct: Point) => Point;
   toPct: (px: Point) => Point;
   pitchW: number;
@@ -27,7 +29,100 @@ function pctToAbsPoints(points: Point[], toPixel: (p: Point) => Point): number[]
   return flat;
 }
 
-export function AnnotationLayer({ annotations, selectedId, focusedRoleId, hasFocusedElement, onSelect, onMove, toPixel, toPct, pitchW, pitchH, pad, readOnly, lockedTypes }: AnnotationLayerProps) {
+const HANDLE_RADIUS = 7;
+const HANDLE_HIT_WIDTH = 22;
+
+function DragHandle({
+  point,
+  index,
+  annId,
+  color,
+  toPixel,
+  toPct,
+  onUpdatePoint,
+  locked,
+}: {
+  point: Point;
+  index: number;
+  annId: string;
+  color: string;
+  toPixel: (p: Point) => Point;
+  toPct: (px: Point) => Point;
+  onUpdatePoint: (id: string, pointIndex: number, newPos: Point) => void;
+  locked: boolean;
+}) {
+  if (locked) return null;
+  const px = toPixel(point);
+  return (
+    <Circle
+      x={px.x}
+      y={px.y}
+      radius={HANDLE_RADIUS}
+      fill="#ffffff"
+      stroke={color}
+      strokeWidth={2}
+      hitStrokeWidth={HANDLE_HIT_WIDTH}
+      draggable
+      onDragEnd={(e: Konva.KonvaEventObject<DragEvent>) => {
+        const newPct = toPct({ x: e.target.x(), y: e.target.y() });
+        onUpdatePoint(annId, index, newPct);
+      }}
+      onClick={(e) => { e.cancelBubble = true; }}
+      onTap={(e) => { e.cancelBubble = true; }}
+    />
+  );
+}
+
+function RadiusHandle({
+  center,
+  radiusPct,
+  annId,
+  color,
+  toPixel,
+  pitchW,
+  pitchH,
+  onUpdateRadius,
+  locked,
+}: {
+  center: Point;
+  radiusPct: number;
+  annId: string;
+  color: string;
+  toPixel: (p: Point) => Point;
+  pitchW: number;
+  pitchH: number;
+  onUpdateRadius: (id: string, radius: number) => void;
+  locked: boolean;
+}) {
+  if (locked) return null;
+  const rPx = (radiusPct / 100) * Math.min(pitchW, pitchH);
+  const centerPx = toPixel(center);
+  const edgePx = { x: centerPx.x + rPx, y: centerPx.y };
+
+  return (
+    <Circle
+      x={edgePx.x}
+      y={edgePx.y}
+      radius={HANDLE_RADIUS}
+      fill="#ffffff"
+      stroke={color}
+      strokeWidth={2}
+      hitStrokeWidth={HANDLE_HIT_WIDTH}
+      draggable
+      onDragEnd={(e: Konva.KonvaEventObject<DragEvent>) => {
+        const dx = e.target.x() - centerPx.x;
+        const dy = e.target.y() - centerPx.y;
+        const distPx = Math.sqrt(dx * dx + dy * dy);
+        const newRadiusPct = (distPx / Math.min(pitchW, pitchH)) * 100;
+        onUpdateRadius(annId, newRadiusPct);
+      }}
+      onClick={(e) => { e.cancelBubble = true; }}
+      onTap={(e) => { e.cancelBubble = true; }}
+    />
+  );
+}
+
+export function AnnotationLayer({ annotations, selectedId, focusedRoleId, hasFocusedElement, onSelect, onMove, onUpdatePoint, onUpdateRadius, toPixel, toPct, pitchW, pitchH, pad, readOnly, lockedTypes }: AnnotationLayerProps) {
   const isTypeLocked = (ann: Annotation): boolean => {
     if (readOnly) return true;
     if (!lockedTypes) return false;
@@ -63,7 +158,9 @@ export function AnnotationLayer({ annotations, selectedId, focusedRoleId, hasFoc
       {annotations.map((ann) => {
         const isSelected = ann.id === selectedId;
         const isLinkedToFocused = focusedRoleId ? ann.linkedRoleId === focusedRoleId : false;
-        const annOpacityScale = hasFocusedElement && !isSelected && !isLinkedToFocused ? 0.3 : isLinkedToFocused ? 1.15 : 1;
+        const dimForSelection = selectedId && !isSelected ? 0.35 : 1;
+        const dimForFocus = hasFocusedElement && !isSelected && !isLinkedToFocused ? 0.3 : isLinkedToFocused ? 1.15 : 1;
+        const annOpacityScale = Math.min(dimForSelection, dimForFocus);
         const drag = makeDragHandlers(ann);
 
         const ghostColor = ann.ghost ? '#3b82f6' : ann.color;
@@ -89,7 +186,7 @@ export function AnnotationLayer({ annotations, selectedId, focusedRoleId, hasFoc
                     points={flatPts}
                     stroke="#ffffff"
                     strokeWidth={ann.strokeWidth + 4}
-                    opacity={0.2}
+                    opacity={0.25}
                     lineCap="round"
                     lineJoin="round"
                   />
@@ -109,6 +206,19 @@ export function AnnotationLayer({ annotations, selectedId, focusedRoleId, hasFoc
                   onClick={(e) => { e.cancelBubble = true; if (!locked) onSelect(ann.id); }}
                   onTap={(e) => { e.cancelBubble = true; if (!locked) onSelect(ann.id); }}
                 />
+                {isSelected && ann.points.map((pt, i) => (
+                  <DragHandle
+                    key={`handle-${ann.id}-${i}`}
+                    point={pt}
+                    index={i}
+                    annId={ann.id}
+                    color={ann.color}
+                    toPixel={toPixel}
+                    toPct={toPct}
+                    onUpdatePoint={onUpdatePoint}
+                    locked={locked}
+                  />
+                ))}
               </Group>
             );
           }
@@ -125,7 +235,7 @@ export function AnnotationLayer({ annotations, selectedId, focusedRoleId, hasFoc
                     points={curvePts}
                     stroke="#ffffff"
                     strokeWidth={ann.strokeWidth + 4}
-                    opacity={0.2}
+                    opacity={0.25}
                     tension={0.4}
                     lineCap="round"
                     lineJoin="round"
@@ -147,6 +257,19 @@ export function AnnotationLayer({ annotations, selectedId, focusedRoleId, hasFoc
                   onClick={(e) => { e.cancelBubble = true; if (!locked) onSelect(ann.id); }}
                   onTap={(e) => { e.cancelBubble = true; if (!locked) onSelect(ann.id); }}
                 />
+                {isSelected && ann.points.map((pt, i) => (
+                  <DragHandle
+                    key={`handle-${ann.id}-${i}`}
+                    point={pt}
+                    index={i}
+                    annId={ann.id}
+                    color={ann.color}
+                    toPixel={toPixel}
+                    toPct={toPct}
+                    onUpdatePoint={onUpdatePoint}
+                    locked={locked}
+                  />
+                ))}
               </Group>
             );
           }
@@ -158,6 +281,17 @@ export function AnnotationLayer({ annotations, selectedId, focusedRoleId, hasFoc
             const zoneLocked = isTypeLocked(ann);
             return (
               <Group key={ann.id}>
+                {isSelected && (
+                  <Circle
+                    x={center.x}
+                    y={center.y}
+                    radius={r + 3}
+                    stroke="#ffffff"
+                    strokeWidth={2}
+                    opacity={0.3}
+                    dash={[4, 4]}
+                  />
+                )}
                 <Circle
                   x={center.x}
                   y={center.y}
@@ -180,6 +314,31 @@ export function AnnotationLayer({ annotations, selectedId, focusedRoleId, hasFoc
                     onMove(ann.id, dx, dy);
                   }}
                 />
+                {isSelected && (
+                  <DragHandle
+                    point={ann.points[0]}
+                    index={0}
+                    annId={ann.id}
+                    color={ann.color}
+                    toPixel={toPixel}
+                    toPct={toPct}
+                    onUpdatePoint={onUpdatePoint}
+                    locked={zoneLocked}
+                  />
+                )}
+                {isSelected && onUpdateRadius && (
+                  <RadiusHandle
+                    center={ann.points[0]}
+                    radiusPct={ann.radius ?? 10}
+                    annId={ann.id}
+                    color={ann.color}
+                    toPixel={toPixel}
+                    pitchW={pitchW}
+                    pitchH={pitchH}
+                    onUpdateRadius={onUpdateRadius}
+                    locked={zoneLocked}
+                  />
+                )}
               </Group>
             );
           }
@@ -195,6 +354,19 @@ export function AnnotationLayer({ annotations, selectedId, focusedRoleId, hasFoc
             const rectLocked = isTypeLocked(ann);
             return (
               <Group key={ann.id}>
+                {isSelected && (
+                  <Rect
+                    x={rx - 2}
+                    y={ry - 2}
+                    width={rw + 4}
+                    height={rh + 4}
+                    stroke="#ffffff"
+                    strokeWidth={1.5}
+                    opacity={0.3}
+                    dash={[4, 4]}
+                    cornerRadius={3}
+                  />
+                )}
                 <Rect
                   x={rx}
                   y={ry}
@@ -220,6 +392,19 @@ export function AnnotationLayer({ annotations, selectedId, focusedRoleId, hasFoc
                     onMove(ann.id, dx, dy);
                   }}
                 />
+                {isSelected && ann.points.map((pt, i) => (
+                  <DragHandle
+                    key={`handle-${ann.id}-${i}`}
+                    point={pt}
+                    index={i}
+                    annId={ann.id}
+                    color={ann.color}
+                    toPixel={toPixel}
+                    toPct={toPct}
+                    onUpdatePoint={onUpdatePoint}
+                    locked={rectLocked}
+                  />
+                ))}
               </Group>
             );
           }
@@ -246,7 +431,7 @@ export function AnnotationLayer({ annotations, selectedId, focusedRoleId, hasFoc
                     width={(ann.label?.length ?? 4) * 8 + 8}
                     height={22}
                     stroke="#ffffff"
-                    strokeWidth={1}
+                    strokeWidth={1.5}
                     opacity={0.4}
                     cornerRadius={3}
                     dash={[3, 3]}
@@ -265,6 +450,18 @@ export function AnnotationLayer({ annotations, selectedId, focusedRoleId, hasFoc
                   onClick={(e) => { e.cancelBubble = true; if (!labelLocked) onSelect(ann.id); }}
                   onTap={(e) => { e.cancelBubble = true; if (!labelLocked) onSelect(ann.id); }}
                 />
+                {isSelected && (
+                  <DragHandle
+                    point={ann.points[0]}
+                    index={0}
+                    annId={ann.id}
+                    color={ann.color}
+                    toPixel={toPixel}
+                    toPct={toPct}
+                    onUpdatePoint={onUpdatePoint}
+                    locked={labelLocked}
+                  />
+                )}
               </Group>
             );
           }

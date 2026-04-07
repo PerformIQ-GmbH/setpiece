@@ -41,6 +41,8 @@ interface EditorState {
   updateAnnotation: (id: string, updates: Partial<Annotation>) => void;
   deleteAnnotation: (id: string) => void;
   moveAnnotation: (id: string, dxPct: number, dyPct: number) => void;
+  updateAnnotationPoint: (id: string, pointIndex: number, newPos: Point) => void;
+  updateAnnotationRadius: (id: string, radius: number) => void;
   updateSnappedAnnotations: (refId: string, newPos: Point, stepId?: string) => void;
   clearAnnotations: () => void;
 
@@ -200,6 +202,23 @@ export const useEditorStore = create<EditorState>((set, get) => ({
         })),
       };
     }),
+  })),
+  updateAnnotationPoint: (id, pointIndex, newPos) => set((s) => ({
+    annotations: s.annotations.map((a) => {
+      if (a.id !== id) return a;
+      if (pointIndex < 0 || pointIndex >= a.points.length) return a;
+      const pts = [...a.points];
+      pts[pointIndex] = {
+        x: Math.max(0, Math.min(100, newPos.x)),
+        y: Math.max(0, Math.min(100, newPos.y)),
+      };
+      return { ...a, points: pts };
+    }),
+  })),
+  updateAnnotationRadius: (id, radius) => set((s) => ({
+    annotations: s.annotations.map((a) =>
+      a.id === id ? { ...a, radius: Math.max(1, Math.min(50, radius)) } : a
+    ),
   })),
   updateSnappedAnnotations: (refId, newPos, stepId?) => set((s) => ({
     annotations: s.annotations.map((a) => {
