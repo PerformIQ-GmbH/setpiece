@@ -63,6 +63,10 @@ function DragHandle({
       strokeWidth={2}
       hitStrokeWidth={HANDLE_HIT_WIDTH}
       draggable
+      onDragMove={(e: Konva.KonvaEventObject<DragEvent>) => {
+        const newPct = toPct({ x: e.target.x(), y: e.target.y() });
+        onUpdatePoint(annId, index, newPct);
+      }}
       onDragEnd={(e: Konva.KonvaEventObject<DragEvent>) => {
         const newPct = toPct({ x: e.target.x(), y: e.target.y() });
         onUpdatePoint(annId, index, newPct);
@@ -109,6 +113,13 @@ function RadiusHandle({
       strokeWidth={2}
       hitStrokeWidth={HANDLE_HIT_WIDTH}
       draggable
+      onDragMove={(e: Konva.KonvaEventObject<DragEvent>) => {
+        const dx = e.target.x() - centerPx.x;
+        const dy = e.target.y() - centerPx.y;
+        const distPx = Math.sqrt(dx * dx + dy * dy);
+        const newRadiusPct = (distPx / Math.min(pitchW, pitchH)) * 100;
+        onUpdateRadius(annId, newRadiusPct);
+      }}
       onDragEnd={(e: Konva.KonvaEventObject<DragEvent>) => {
         const dx = e.target.x() - centerPx.x;
         const dy = e.target.y() - centerPx.y;
@@ -158,7 +169,7 @@ export function AnnotationLayer({ annotations, selectedId, focusedRoleId, hasFoc
       {annotations.map((ann) => {
         const isSelected = ann.id === selectedId;
         const isLinkedToFocused = focusedRoleId ? ann.linkedRoleId === focusedRoleId : false;
-        const dimForSelection = selectedId && !isSelected ? 0.35 : 1;
+        const dimForSelection = selectedId && !isSelected ? 0.3 : 1;
         const dimForFocus = hasFocusedElement && !isSelected && !isLinkedToFocused ? 0.3 : isLinkedToFocused ? 1.15 : 1;
         const annOpacityScale = Math.min(dimForSelection, dimForFocus);
         const drag = makeDragHandlers(ann);
