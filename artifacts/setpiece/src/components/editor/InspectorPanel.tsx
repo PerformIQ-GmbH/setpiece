@@ -1,4 +1,5 @@
-import { useState, useRef, useEffect, useMemo } from 'react';
+import { useState, useRef, useEffect, useMemo, useLayoutEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { useEditorStore } from './editorStore';
 import { ANNOTATION_COLORS } from './types';
 import type { Annotation, EntityMarker } from './types';
@@ -77,17 +78,30 @@ function PlayerCombobox({ players, assignments, roles, currentRoleId, value, onC
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState('');
   const containerRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLDivElement>(null);
+  const dropdownRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const [dropdownPos, setDropdownPos] = useState<{ top: number; left: number; width: number } | null>(null);
 
   useEffect(() => {
     const handler = (e: MouseEvent) => {
-      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+      if (
+        containerRef.current && !containerRef.current.contains(e.target as Node) &&
+        dropdownRef.current && !dropdownRef.current.contains(e.target as Node)
+      ) {
         setOpen(false);
       }
     };
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
   }, []);
+
+  useLayoutEffect(() => {
+    if (open && triggerRef.current) {
+      const rect = triggerRef.current.getBoundingClientRect();
+      setDropdownPos({ top: rect.bottom + 4, left: rect.left, width: rect.width });
+    }
+  }, [open]);
 
   const selectedPlayer = value ? players?.find(p => p.id === value) : null;
 
@@ -111,6 +125,7 @@ function PlayerCombobox({ players, assignments, roles, currentRoleId, value, onC
   return (
     <div ref={containerRef} className="relative">
       <div
+        ref={triggerRef}
         onClick={() => { setOpen(!open); setSearch(''); setTimeout(() => inputRef.current?.focus(), 50); }}
         className={cn(
           "w-full bg-secondary border rounded-lg px-2 py-1.5 text-[11px] cursor-pointer flex items-center gap-1.5 transition-colors",
@@ -136,8 +151,12 @@ function PlayerCombobox({ players, assignments, roles, currentRoleId, value, onC
         <ChevronDown className="w-3 h-3 text-muted-foreground shrink-0" />
       </div>
 
-      {open && (
-        <div className="absolute z-50 top-full left-0 right-0 mt-1 bg-card border border-border rounded-lg shadow-xl max-h-56 flex flex-col">
+      {open && createPortal(
+        <div
+          ref={dropdownRef}
+          className="fixed z-[9999] bg-card border border-border rounded-lg shadow-xl max-h-56 flex flex-col"
+          style={dropdownPos ? { top: dropdownPos.top, left: dropdownPos.left, width: dropdownPos.width } : undefined}
+        >
           <div className="flex items-center gap-1.5 px-2 py-1.5 border-b border-border">
             <Search className="w-3 h-3 text-muted-foreground shrink-0" />
             <input
@@ -196,7 +215,8 @@ function PlayerCombobox({ players, assignments, roles, currentRoleId, value, onC
               <div className="px-2 py-3 text-[11px] text-muted-foreground text-center">No players found</div>
             )}
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );

@@ -67,15 +67,15 @@ function DragHandle({
       draggable
       onDragMove={(e: Konva.KonvaEventObject<DragEvent>) => {
         cancelAnimationFrame(rafRef.current);
-        const x = e.target.x();
-        const y = e.target.y();
+        const abs = e.target.getAbsolutePosition();
         rafRef.current = requestAnimationFrame(() => {
-          onUpdatePoint(annId, index, toPct({ x, y }));
+          onUpdatePoint(annId, index, toPct({ x: abs.x, y: abs.y }));
         });
       }}
       onDragEnd={(e: Konva.KonvaEventObject<DragEvent>) => {
         cancelAnimationFrame(rafRef.current);
-        onUpdatePoint(annId, index, toPct({ x: e.target.x(), y: e.target.y() }));
+        const abs = e.target.getAbsolutePosition();
+        onUpdatePoint(annId, index, toPct({ x: abs.x, y: abs.y }));
       }}
       onClick={(e) => { e.cancelBubble = true; }}
       onTap={(e) => { e.cancelBubble = true; }}
@@ -176,9 +176,14 @@ export function AnnotationLayer({ annotations, selectedId, focusedRoleId, hasFoc
     };
   };
 
+  const zoneTypes = new Set(['zone_circle', 'zone_rect']);
+  const zones = annotations.filter(a => zoneTypes.has(a.type));
+  const nonZones = annotations.filter(a => !zoneTypes.has(a.type));
+  const orderedAnnotations = [...zones, ...nonZones];
+
   return (
     <Group>
-      {annotations.map((ann) => {
+      {orderedAnnotations.map((ann) => {
         const isSelected = ann.id === selectedId;
         const isLinkedToFocused = focusedRoleId ? ann.linkedRoleId === focusedRoleId : false;
         const dimForSelection = selectedId && !isSelected ? 0.3 : 1;
@@ -320,7 +325,7 @@ export function AnnotationLayer({ annotations, selectedId, focusedRoleId, hasFoc
                   y={center.y}
                   radius={r}
                   fill={ann.color}
-                  opacity={0.12 * annOpacityScale}
+                  opacity={0.25 * annOpacityScale}
                   stroke={ann.color}
                   strokeWidth={isSelected ? ann.strokeWidth + 1 : ann.strokeWidth}
                   dash={[6, 4]}
@@ -396,7 +401,7 @@ export function AnnotationLayer({ annotations, selectedId, focusedRoleId, hasFoc
                   width={rw}
                   height={rh}
                   fill={ann.color}
-                  opacity={0.1 * annOpacityScale}
+                  opacity={0.22 * annOpacityScale}
                   stroke={ann.color}
                   strokeWidth={isSelected ? ann.strokeWidth + 1 : ann.strokeWidth}
                   dash={[6, 4]}
@@ -499,6 +504,7 @@ export function AnnotationLayer({ annotations, selectedId, focusedRoleId, hasFoc
 
 interface DrawingPreviewProps {
   points: Point[];
+  cursorPoint?: Point | null;
   toPixel: (pct: Point) => Point;
   color: string;
   strokeWidth: number;
@@ -507,9 +513,12 @@ interface DrawingPreviewProps {
   arrowhead: boolean;
 }
 
-export function DrawingPreview({ points, toPixel, color, strokeWidth, dashed, curved, arrowhead }: DrawingPreviewProps) {
-  if (points.length < 2) return null;
-  const flatPts = pctToAbsPoints(points, toPixel);
+export function DrawingPreview({ points, cursorPoint, toPixel, color, strokeWidth, dashed, curved, arrowhead }: DrawingPreviewProps) {
+  const previewPoints = cursorPoint && points.length >= 1
+    ? [...points, cursorPoint]
+    : points;
+  if (previewPoints.length < 2) return null;
+  const flatPts = pctToAbsPoints(previewPoints, toPixel);
   const Component = arrowhead ? Arrow : Line;
   return (
     <Component

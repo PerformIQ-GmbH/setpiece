@@ -170,7 +170,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   setInspectorCollapsed: (collapsed) => set({ inspectorCollapsed: collapsed }),
 
   activeTool: 'select',
-  setActiveTool: (tool) => set({ activeTool: tool, selectedAnnotationId: null, selectedEntityId: null }),
+  setActiveTool: (tool) => set({ activeTool: tool, selectedAnnotationId: null, selectedEntityId: null, drawingPoints: [] }),
 
   selectedAnnotationId: null,
   setSelectedAnnotationId: (id) => set({ selectedAnnotationId: id, selectedEntityId: null }),

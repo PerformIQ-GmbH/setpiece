@@ -12,7 +12,7 @@ import { StatusBadge } from '@/components/StatusBadge';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Sheet, SheetContent, SheetTrigger, SheetTitle } from '@/components/ui/sheet';
-import { ArrowLeft, ShieldCheck, Ghost, FileDown, Loader2, Cloud, CloudOff, HelpCircle, Info, PanelRightClose, PanelRight, Sun, Trees, Moon, MoreVertical, Settings2 } from 'lucide-react';
+import { ArrowLeft, ShieldCheck, Ghost, FileDown, Loader2, Cloud, CloudOff, HelpCircle, Info, PanelRightClose, PanelRight, Sun, Trees, Moon, MoreVertical, Settings2, Check } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Link } from 'wouter';
 import { useIsMobile } from '@/hooks/use-mobile';
@@ -116,6 +116,7 @@ export default function SetPieceEditor() {
   const strokeColor = useEditorStore((s) => s.strokeColor);
   const strokeWidth = useEditorStore((s) => s.strokeWidth);
   const showArrowhead = useEditorStore((s) => s.showArrowhead);
+  const drawingPoints = useEditorStore((s) => s.drawingPoints);
   const resetStore = useEditorStore((s) => s.resetStore);
   const steps = useEditorStore((s) => s.steps);
 
@@ -774,6 +775,25 @@ export default function SetPieceEditor() {
         )}
 
         <ContextualMiniBar canvasRef={canvasRef} />
+
+        {['run_path', 'curved_run', 'pass_line', 'curved_cross'].includes(activeTool) && drawingPoints.length >= 2 && canvasHandleRef.current && (() => {
+          const screenPos = canvasHandleRef.current?.getLastDrawingPointScreen();
+          if (!screenPos) return null;
+          const containerRect = canvasRef.current?.getBoundingClientRect();
+          if (!containerRect) return null;
+          const relX = screenPos.x - containerRect.left + 16;
+          const relY = screenPos.y - containerRect.top - 16;
+          return (
+            <button
+              onClick={() => canvasHandleRef.current?.finishDrawing()}
+              className="absolute z-30 w-8 h-8 rounded-full bg-emerald-500 text-white shadow-lg flex items-center justify-center hover:bg-emerald-400 active:scale-90 transition-all"
+              style={{ left: relX, top: relY }}
+              title="Confirm drawing (Enter)"
+            >
+              <Check className="w-4 h-4" />
+            </button>
+          );
+        })()}
 
         {!useSheetInspector && !inspectorCollapsed && (
           <div className="absolute right-3 top-3 z-20 w-72 lg:w-80" style={{ maxHeight: 'calc(100% - 120px)' }}>

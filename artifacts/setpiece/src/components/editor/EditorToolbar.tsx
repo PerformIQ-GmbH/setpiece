@@ -88,7 +88,8 @@ function Divider() {
   return <div className="w-7 border-t border-border/40 my-0.5" />;
 }
 
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 
 interface EditorToolbarProps {
   onUndo?: () => void;
@@ -118,6 +119,15 @@ export function EditorToolbar({ onUndo, onRedo, canUndo, canRedo, onMirror, onOp
   const setInspectorCollapsed = useEditorStore((s) => s.setInspectorCollapsed);
 
   const [showLayerPanel, setShowLayerPanel] = useState(false);
+  const layerBtnRef = useRef<HTMLButtonElement>(null);
+  const [layerPanelPos, setLayerPanelPos] = useState<{ top: number; left: number } | null>(null);
+
+  useEffect(() => {
+    if (showLayerPanel && layerBtnRef.current) {
+      const rect = layerBtnRef.current.getBoundingClientRect();
+      setLayerPanelPos({ top: rect.top, left: rect.right + 8 });
+    }
+  }, [showLayerPanel]);
 
   return (
     <div data-tutorial="toolbar" className="w-14 bg-card/95 backdrop-blur-xl rounded-2xl shadow-2xl border border-border/60 flex flex-col items-center py-3 gap-1 relative">
@@ -191,6 +201,7 @@ export function EditorToolbar({ onUndo, onRedo, canUndo, canRedo, onMirror, onOp
         </button>
         <div className="relative">
           <button
+            ref={layerBtnRef}
             onClick={() => setShowLayerPanel(!showLayerPanel)}
             title="Layer Controls"
             className={cn(
@@ -200,14 +211,18 @@ export function EditorToolbar({ onUndo, onRedo, canUndo, canRedo, onMirror, onOp
           >
             <Layers className="w-3.5 h-3.5" />
           </button>
-          {showLayerPanel && (
+          {showLayerPanel && createPortal(
             <>
-              <div className="fixed inset-0 z-40" onClick={() => setShowLayerPanel(false)} />
-              <div className="absolute left-full top-0 ml-2 w-52 bg-card border border-border rounded-xl shadow-2xl z-50 p-2">
+              <div className="fixed inset-0 z-[9998]" onClick={() => setShowLayerPanel(false)} />
+              <div
+                className="fixed w-52 bg-card border border-border rounded-xl shadow-2xl z-[9999] p-2"
+                style={layerPanelPos ? { top: layerPanelPos.top, left: layerPanelPos.left } : undefined}
+              >
                 <div className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider px-2 py-1 mb-1">Layers</div>
                 <LayerPanel />
               </div>
-            </>
+            </>,
+            document.body
           )}
         </div>
       </div>

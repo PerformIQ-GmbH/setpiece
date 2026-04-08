@@ -45,6 +45,8 @@ interface EditorCanvasProps {
 
 export interface EditorCanvasHandle {
   toDataURL: (config?: { pixelRatio?: number; mimeType?: string }) => string;
+  finishDrawing: () => void;
+  getLastDrawingPointScreen: () => { x: number; y: number } | null;
 }
 
 function computePad(width: number): number {
@@ -64,13 +66,7 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
   const lightPitch = pitchTheme === 'light';
   const stageRef = useRef<Konva.Stage>(null);
   const [hoveredRoleId, setHoveredRoleId] = useState<string | null>(null);
-
-  useImperativeHandle(ref, () => ({
-    toDataURL: (config) => {
-      if (!stageRef.current) return '';
-      return stageRef.current.toDataURL({ pixelRatio: config?.pixelRatio ?? 2, mimeType: config?.mimeType ?? 'image/png' });
-    },
-  }), []);
+  const [cursorPoint, setCursorPoint] = useState<Point | null>(null);
 
   const pitchW = width - PAD * 2;
   const pitchH = height - PAD * 2;
@@ -263,6 +259,11 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
   })();
 
   const finishDrawing = useCallback(() => {
+    const drawingTools = ['run_path', 'curved_run', 'pass_line', 'curved_cross'];
+    if (!drawingTools.includes(activeTool)) {
+      clearDrawingPoints();
+      return;
+    }
     if (drawingPoints.length < 2) {
       clearDrawingPoints();
       return;
@@ -304,7 +305,36 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
 
     addAnnotation(ann);
     clearDrawingPoints();
+    setCursorPoint(null);
   }, [drawingPoints, activeTool, strokeColor, strokeWidth, isDashed, showArrowhead, annotations.length, addAnnotation, clearDrawingPoints, markerRefs]);
+
+  useImperativeHandle(ref, () => ({
+    toDataURL: (config) => {
+      if (!stageRef.current) return '';
+      return stageRef.current.toDataURL({ pixelRatio: config?.pixelRatio ?? 2, mimeType: config?.mimeType ?? 'image/png' });
+    },
+    finishDrawing,
+    getLastDrawingPointScreen: () => {
+      const pts = useEditorStore.getState().drawingPoints;
+      if (pts.length === 0) return null;
+      const lastPt = pts[pts.length - 1];
+      const px = toPixel(lastPt);
+      const container = stageRef.current?.container();
+      if (!container) return null;
+      const rect = container.getBoundingClientRect();
+      return { x: rect.left + px.x, y: rect.top + px.y };
+    },
+  }), [finishDrawing, toPixel]);
+
+  const handleMouseMove = useCallback((e: Konva.KonvaEventObject<MouseEvent>) => {
+    if (!isDrawingTool || readOnly) {
+      if (cursorPoint) setCursorPoint(null);
+      return;
+    }
+    const pos = stageRef.current?.getPointerPosition();
+    if (!pos) return;
+    setCursorPoint(toPct(pos));
+  }, [isDrawingTool, readOnly, toPct, cursorPoint]);
 
   const handleStageInteraction = useCallback((e: Konva.KonvaEventObject<MouseEvent | TouchEvent>) => {
     if (readOnly) return;
@@ -611,6 +641,7 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
       onTap={handleStageInteraction}
       onDblClick={handleDblClick}
       onDblTap={handleDblClick}
+      onMouseMove={handleMouseMove}
       onContextMenu={handleContextMenu}
       style={{ cursor: isDrawingTool ? 'crosshair' : isEntityTool ? 'cell' : 'default', touchAction: 'none' }}
     >
@@ -671,17 +702,16 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
               {endSnapPx && (
                 <KonvaCircle x={endSnapPx.x} y={endSnapPx.y} radius={20} stroke="#10b981" strokeWidth={2} opacity={0.7} dash={[4, 3]} />
               )}
-              {drawingPoints.length >= 2 && (
-                <DrawingPreview
-                  points={drawingPoints}
-                  toPixel={toPixel}
-                  color={strokeColor}
-                  strokeWidth={strokeWidth}
-                  dashed={isDashed}
-                  curved={isCurved}
-                  arrowhead={showArrowhead}
-                />
-              )}
+              <DrawingPreview
+                points={drawingPoints}
+                cursorPoint={cursorPoint}
+                toPixel={toPixel}
+                color={strokeColor}
+                strokeWidth={strokeWidth}
+                dashed={isDashed}
+                curved={isCurved}
+                arrowhead={showArrowhead}
+              />
             </>
           );
         })()}
