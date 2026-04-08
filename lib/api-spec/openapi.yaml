@@ -663,6 +663,22 @@ paths:
               schema:
                 $ref: "#/components/schemas/SetPiece"
 
+  /teams/{teamId}/set-pieces/{setPieceId}/clone:
+    post:
+      operationId: cloneSetPiece
+      tags: [setPieces]
+      summary: Clone a set piece with all roles and assignments
+      parameters:
+        - $ref: "#/components/parameters/TeamId"
+        - $ref: "#/components/parameters/SetPieceId"
+      responses:
+        "201":
+          description: Cloned set piece
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SetPieceDetail"
+
   # ─── Roles ───
   /teams/{teamId}/set-pieces/{setPieceId}/roles:
     get:

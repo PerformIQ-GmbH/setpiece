@@ -332,6 +332,115 @@ router.put("/teams/:teamId/set-pieces/:setPieceId/preview", async (req, res): Pr
   res.json({ previewImageUrl: piece.previewImageUrl });
 });
 
+router.post("/teams/:teamId/set-pieces/:setPieceId/clone", async (req, res): Promise<void> => {
+  const teamId = await requireCoachAccess(req, res);
+  if (!teamId) return;
+
+  if (!(await checkEntitlement(teamId, "set_pieces", res))) return;
+
+  const setPieceId = parseParam(req.params.setPieceId);
+
+  const [source] = await db
+    .select()
+    .from(setPiecesTable)
+    .where(and(eq(setPiecesTable.id, setPieceId), eq(setPiecesTable.teamId, teamId)));
+
+  if (!source) {
+    res.status(404).json({ error: "Set piece not found" });
+    return;
+  }
+
+  const suffix = " (Copy)";
+  const clonedTitle = source.title.length + suffix.length > 255
+    ? source.title.slice(0, 255 - suffix.length) + suffix
+    : source.title + suffix;
+
+  const result = await db.transaction(async (tx) => {
+    const [cloned] = await tx
+      .insert(setPiecesTable)
+      .values({
+        teamId,
+        title: clonedTitle,
+        category: source.category,
+        description: source.description,
+        boardData: source.boardData,
+        coachingNotes: source.coachingNotes,
+        status: "draft",
+        createdBy: req.user!.id,
+        updatedBy: req.user!.id,
+      })
+      .returning();
+
+    const sourceRoles = await tx
+      .select()
+      .from(setPieceRolesTable)
+      .where(eq(setPieceRolesTable.setPieceId, setPieceId));
+
+    const roleIdMap = new Map<string, string>();
+
+    for (const sr of sourceRoles) {
+      const [newRole] = await tx
+        .insert(setPieceRolesTable)
+        .values({
+          setPieceId: cloned.id,
+          name: sr.name,
+          description: sr.description,
+          startPosition: sr.startPosition,
+          movementPath: sr.movementPath,
+          coachingPoint: sr.coachingPoint,
+          sortOrder: sr.sortOrder,
+        })
+        .returning();
+      roleIdMap.set(sr.id, newRole.id);
+    }
+
+    for (const sr of sourceRoles) {
+      const assigns = await tx
+        .select()
+        .from(roleAssignmentsTable)
+        .where(eq(roleAssignmentsTable.roleId, sr.id));
+      for (const a of assigns) {
+        const newRoleId = roleIdMap.get(sr.id);
+        if (newRoleId) {
+          await tx.insert(roleAssignmentsTable).values({
+            roleId: newRoleId,
+            playerId: a.playerId,
+            backupPlayerId: a.backupPlayerId,
+            notes: a.notes,
+          });
+        }
+      }
+    }
+
+    await tx.insert(auditEventsTable).values({
+      teamId,
+      userId: req.user!.id,
+      eventType: "set_piece_created",
+      entityType: "set_piece",
+      entityId: cloned.id,
+      metadata: { title: cloned.title, clonedFrom: setPieceId },
+    });
+
+    const newRoles = await tx
+      .select()
+      .from(setPieceRolesTable)
+      .where(eq(setPieceRolesTable.setPieceId, cloned.id));
+
+    const allAssignments = [];
+    for (const role of newRoles) {
+      const assigns = await tx
+        .select()
+        .from(roleAssignmentsTable)
+        .where(eq(roleAssignmentsTable.roleId, role.id));
+      allAssignments.push(...assigns);
+    }
+
+    return { ...cloned, roles: newRoles, assignments: allAssignments };
+  });
+
+  res.status(201).json(result);
+});
+
 router.get("/teams/:teamId/set-pieces/:setPieceId/preview", async (req, res): Promise<void> => {
   const teamId = await requireTeamAccess(req, res);
   if (!teamId) return;

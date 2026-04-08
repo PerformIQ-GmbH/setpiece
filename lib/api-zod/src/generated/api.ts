@@ -717,6 +717,14 @@ export const UpdateSetPieceStatusResponse = zod.object({
 });
 
 /**
+ * @summary Clone a set piece with all roles and assignments
+ */
+export const CloneSetPieceParams = zod.object({
+  teamId: zod.coerce.string(),
+  setPieceId: zod.coerce.string(),
+});
+
+/**
  * @summary List roles for a set piece
  */
 export const ListRolesParams = zod.object({

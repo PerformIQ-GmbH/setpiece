@@ -1,12 +1,12 @@
 import { useState } from 'react';
 import { CoachLayout } from '@/components/Layout';
 import { useRoute, useLocation } from 'wouter';
-import { useGetTeam, useListTemplates, useListSetPieces, useCreateSetPiece } from '@workspace/api-client-react';
+import { useGetTeam, useListTemplates, useListSetPieces, useCreateSetPiece, useCloneSetPiece } from '@workspace/api-client-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { StatusBadge } from '@/components/StatusBadge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Plus, ArrowRight, Sparkles, LayoutDashboard } from 'lucide-react';
+import { Plus, ArrowRight, Sparkles, LayoutDashboard, Copy } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { Link } from 'wouter';
 
@@ -30,6 +30,7 @@ export default function Templates() {
   const { data: templates } = useListTemplates();
   const { data: setPieces, refetch: refetchSP } = useListSetPieces(teamId);
   const createSP = useCreateSetPiece();
+  const cloneSP = useCloneSetPiece();
 
   const [category, setCategory] = useState('all');
   const [blankOpen, setBlankOpen] = useState(false);
@@ -40,6 +41,18 @@ export default function Templates() {
   const useTemplate = async (templateId: string, title: string, cat: string) => {
     const sp = await createSP.mutateAsync({ teamId, data: { title, category: cat, templateId } });
     setLocation(`/teams/${teamId}/set-pieces/${sp.id}/editor`);
+  };
+
+  const handleClone = async (e: React.MouseEvent, setPieceId: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+    try {
+      const cloned = await cloneSP.mutateAsync({ teamId, setPieceId });
+      refetchSP();
+      setLocation(`/teams/${teamId}/set-pieces/${cloned.id}/editor`);
+    } catch {
+      alert("Failed to duplicate set piece. Please try again.");
+    }
   };
 
   const createBlank = async (e: React.FormEvent) => {
@@ -79,7 +92,17 @@ export default function Templates() {
                     <CardContent className="p-4">
                       <div className="flex justify-between items-start mb-1">
                         <h3 className="font-bold text-sm text-white group-hover:text-primary transition-colors truncate">{sp.title}</h3>
-                        <StatusBadge status={sp.status} />
+                        <div className="flex items-center gap-1.5">
+                          <button
+                            onClick={(e) => handleClone(e, sp.id)}
+                            disabled={cloneSP.isPending}
+                            className="p-1 rounded hover:bg-muted transition-colors text-muted-foreground hover:text-primary"
+                            title="Duplicate set piece"
+                          >
+                            <Copy className="h-3.5 w-3.5" />
+                          </button>
+                          <StatusBadge status={sp.status} />
+                        </div>
                       </div>
                       <p className="text-xs text-muted-foreground capitalize">{sp.category.replace(/_/g, ' ')}</p>
                     </CardContent>

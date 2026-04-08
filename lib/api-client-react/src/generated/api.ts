@@ -2983,6 +2983,91 @@ export const useUpdateSetPieceStatus = <
 };
 
 /**
+ * @summary Clone a set piece with all roles and assignments
+ */
+export const getCloneSetPieceUrl = (teamId: string, setPieceId: string) => {
+  return `/api/teams/${teamId}/set-pieces/${setPieceId}/clone`;
+};
+
+export const cloneSetPiece = async (
+  teamId: string,
+  setPieceId: string,
+  options?: RequestInit,
+): Promise<SetPieceDetail> => {
+  return customFetch<SetPieceDetail>(getCloneSetPieceUrl(teamId, setPieceId), {
+    ...options,
+    method: "POST",
+  });
+};
+
+export const getCloneSetPieceMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof cloneSetPiece>>,
+    TError,
+    { teamId: string; setPieceId: string },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof cloneSetPiece>>,
+  TError,
+  { teamId: string; setPieceId: string },
+  TContext
+> => {
+  const mutationKey = ["cloneSetPiece"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof cloneSetPiece>>,
+    { teamId: string; setPieceId: string }
+  > = (props) => {
+    const { teamId, setPieceId } = props ?? {};
+
+    return cloneSetPiece(teamId, setPieceId, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type CloneSetPieceMutationResult = NonNullable<
+  Awaited<ReturnType<typeof cloneSetPiece>>
+>;
+
+export type CloneSetPieceMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Clone a set piece with all roles and assignments
+ */
+export const useCloneSetPiece = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof cloneSetPiece>>,
+    TError,
+    { teamId: string; setPieceId: string },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof cloneSetPiece>>,
+  TError,
+  { teamId: string; setPieceId: string },
+  TContext
+> => {
+  return useMutation(getCloneSetPieceMutationOptions(options));
+};
+
+/**
  * @summary List roles for a set piece
  */
 export const getListRolesUrl = (teamId: string, setPieceId: string) => {
