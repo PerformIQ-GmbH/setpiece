@@ -155,24 +155,14 @@ export function AnnotationLayer({ annotations, selectedId, focusedRoleId, hasFoc
     return false;
   };
 
-  const makeDragHandlers = (ann: Annotation) => {
-    if (isTypeLocked(ann)) return { draggable: false };
-    let startPos = { x: 0, y: 0 };
-    return {
-      draggable: true,
-      onDragStart: (e: Konva.KonvaEventObject<DragEvent>) => {
-        startPos = { x: e.target.x(), y: e.target.y() };
-      },
-      onDragEnd: (e: Konva.KonvaEventObject<DragEvent>) => {
-        const endPos = { x: e.target.x(), y: e.target.y() };
-        const dxPx = endPos.x - startPos.x;
-        const dyPx = endPos.y - startPos.y;
-        const dxPct = (dxPx / pitchW) * 100;
-        const dyPct = (dyPx / pitchH) * 100;
-        e.target.x(startPos.x);
-        e.target.y(startPos.y);
-        onMove(ann.id, dxPct, dyPct);
-      },
+  const makeShapeDragEnd = (ann: Annotation) => {
+    if (isTypeLocked(ann)) return undefined;
+    return (e: Konva.KonvaEventObject<DragEvent>) => {
+      const dx = e.target.x();
+      const dy = e.target.y();
+      const dxPct = (dx / pitchW) * 100;
+      const dyPct = (dy / pitchH) * 100;
+      onMove(ann.id, dxPct, dyPct);
     };
   };
 
@@ -189,7 +179,7 @@ export function AnnotationLayer({ annotations, selectedId, focusedRoleId, hasFoc
         const dimForSelection = selectedId && !isSelected ? 0.3 : 1;
         const dimForFocus = hasFocusedElement && !isSelected && !isLinkedToFocused ? 0.3 : isLinkedToFocused ? 1.15 : 1;
         const annOpacityScale = Math.min(dimForSelection, dimForFocus);
-        const drag = makeDragHandlers(ann);
+        const shapeDragEnd = makeShapeDragEnd(ann);
 
         const ghostColor = ann.ghost ? '#3b82f6' : ann.color;
         const ghostOpacity = ann.ghost ? 0.4 : 1;
@@ -208,7 +198,7 @@ export function AnnotationLayer({ annotations, selectedId, focusedRoleId, hasFoc
             const flatPts = pctToAbsPoints(ann.points, toPixel);
             const Component = effectiveArrowhead ? Arrow : Line;
             return (
-              <Group key={ann.id} {...drag}>
+              <Group key={ann.id}>
                 {isSelected && (
                   <Line
                     points={flatPts}
@@ -220,6 +210,8 @@ export function AnnotationLayer({ annotations, selectedId, focusedRoleId, hasFoc
                   />
                 )}
                 <Component
+                  x={0}
+                  y={0}
                   points={flatPts}
                   stroke={ghostColor}
                   strokeWidth={isLinkedToFocused ? ann.strokeWidth + 1 : ann.strokeWidth}
@@ -231,6 +223,8 @@ export function AnnotationLayer({ annotations, selectedId, focusedRoleId, hasFoc
                   fill={effectiveArrowhead ? ghostColor : undefined}
                   opacity={Math.min(1, 0.85 * annOpacityScale * ghostOpacity)}
                   hitStrokeWidth={16}
+                  draggable={!locked && !isSelected}
+                  onDragEnd={shapeDragEnd}
                   onClick={(e) => { e.cancelBubble = true; if (!locked) onSelect(ann.id); }}
                   onTap={(e) => { e.cancelBubble = true; if (!locked) onSelect(ann.id); }}
                 />
@@ -257,7 +251,7 @@ export function AnnotationLayer({ annotations, selectedId, focusedRoleId, hasFoc
             const curvePts = pctToAbsPoints(ann.points, toPixel);
             const Component = effectiveArrowhead ? Arrow : Line;
             return (
-              <Group key={ann.id} {...drag}>
+              <Group key={ann.id}>
                 {isSelected && (
                   <Line
                     points={curvePts}
@@ -270,6 +264,8 @@ export function AnnotationLayer({ annotations, selectedId, focusedRoleId, hasFoc
                   />
                 )}
                 <Component
+                  x={0}
+                  y={0}
                   points={curvePts}
                   stroke={ghostColor}
                   strokeWidth={isLinkedToFocused ? ann.strokeWidth + 1 : ann.strokeWidth}
@@ -282,6 +278,8 @@ export function AnnotationLayer({ annotations, selectedId, focusedRoleId, hasFoc
                   fill={effectiveArrowhead ? ghostColor : undefined}
                   opacity={Math.min(1, 0.85 * annOpacityScale * ghostOpacity)}
                   hitStrokeWidth={16}
+                  draggable={!locked && !isSelected}
+                  onDragEnd={shapeDragEnd}
                   onClick={(e) => { e.cancelBubble = true; if (!locked) onSelect(ann.id); }}
                   onTap={(e) => { e.cancelBubble = true; if (!locked) onSelect(ann.id); }}
                 />
@@ -337,8 +335,6 @@ export function AnnotationLayer({ annotations, selectedId, focusedRoleId, hasFoc
                     const newPct = toPct({ x: e.target.x(), y: e.target.y() });
                     const dx = newPct.x - ann.points[0].x;
                     const dy = newPct.y - ann.points[0].y;
-                    e.target.x(center.x);
-                    e.target.y(center.y);
                     onMove(ann.id, dx, dy);
                   }}
                 />
@@ -415,8 +411,6 @@ export function AnnotationLayer({ annotations, selectedId, focusedRoleId, hasFoc
                     const origPct = toPct({ x: rx, y: ry });
                     const dx = newPct.x - origPct.x;
                     const dy = newPct.y - origPct.y;
-                    e.target.x(rx);
-                    e.target.y(ry);
                     onMove(ann.id, dx, dy);
                   }}
                 />
@@ -442,13 +436,11 @@ export function AnnotationLayer({ annotations, selectedId, focusedRoleId, hasFoc
             const pos = toPixel(ann.points[0]);
             const labelLocked = isTypeLocked(ann);
             return (
-              <Group key={ann.id} draggable={!labelLocked}
+              <Group key={ann.id} x={0} y={0} draggable={!labelLocked}
                 onDragEnd={labelLocked ? undefined : (e) => {
                   const newPct = toPct({ x: e.target.x() + pos.x, y: e.target.y() + pos.y });
                   const dx = newPct.x - ann.points[0].x;
                   const dy = newPct.y - ann.points[0].y;
-                  e.target.x(0);
-                  e.target.y(0);
                   onMove(ann.id, dx, dy);
                 }}
               >
