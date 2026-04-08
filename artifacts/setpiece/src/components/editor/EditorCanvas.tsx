@@ -652,6 +652,7 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
       onDblClick={handleDblClick}
       onDblTap={handleDblClick}
       onMouseMove={handleMouseMove}
+      onTouchMove={handleMouseMove}
       onContextMenu={handleContextMenu}
       style={{ cursor: isDrawingTool ? 'crosshair' : isEntityTool ? 'cell' : 'default', touchAction: 'none' }}
     >
