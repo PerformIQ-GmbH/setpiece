@@ -135,14 +135,11 @@ export default function Settings() {
                 <Smartphone className="h-4 w-4 text-primary" /> Install App
               </h2>
               {isInstalled ? (
-                <div className="flex items-center gap-3 py-2">
-                  <div className="h-10 w-10 rounded-xl bg-primary/20 flex items-center justify-center shrink-0">
-                    <CheckCircle2 className="h-5 w-5 text-primary" />
-                  </div>
-                  <div>
-                    <p className="text-sm font-semibold text-white">App Installed</p>
-                    <p className="text-xs text-muted-foreground">SETPIECE is installed on this device</p>
-                  </div>
+                <div className="space-y-3">
+                  <p className="text-sm text-muted-foreground">SETPIECE is installed on this device.</p>
+                  <Button className="w-full" disabled>
+                    <CheckCircle2 className="h-4 w-4 mr-2" /> App Installed
+                  </Button>
                 </div>
               ) : canInstall ? (
                 <div className="space-y-3">

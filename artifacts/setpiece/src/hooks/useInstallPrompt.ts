@@ -29,10 +29,9 @@ if (typeof window !== 'undefined') {
 
 function getIsStandalone(): boolean {
   if (typeof window === 'undefined') return false;
-  return (
-    window.matchMedia('(display-mode: standalone)').matches ||
-    (navigator as any).standalone === true
-  );
+  if (window.matchMedia('(display-mode: standalone)').matches) return true;
+  if ('standalone' in navigator && (navigator as Navigator & { standalone?: boolean }).standalone) return true;
+  return false;
 }
 
 export function useInstallPrompt() {
@@ -63,18 +62,14 @@ export function useInstallPrompt() {
 
   const triggerInstall = useCallback(async () => {
     if (!sharedPrompt) return false;
-    try {
-      await sharedPrompt.prompt();
-      const { outcome } = await sharedPrompt.userChoice;
-      if (outcome === 'accepted') {
-        sharedPrompt = null;
-        notifyListeners();
-        return true;
-      }
-      return false;
-    } catch {
-      return false;
+    await sharedPrompt.prompt();
+    const { outcome } = await sharedPrompt.userChoice;
+    if (outcome === 'accepted') {
+      sharedPrompt = null;
+      notifyListeners();
+      return true;
     }
+    return false;
   }, []);
 
   const dismissBanner = useCallback(() => {
