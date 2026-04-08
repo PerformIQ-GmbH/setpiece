@@ -41,6 +41,7 @@ interface InspectorPanelProps {
   onAssignBackup: (roleId: string, backupPlayerId: string) => void;
   onDeleteRole: (roleId: string) => void;
   onDuplicateRole: (roleId: string) => void;
+  onRenameRole: (roleId: string, newName: string) => void;
   onAddRole: () => void;
   forceVisible?: boolean;
 }
@@ -224,7 +225,7 @@ function PlayerCombobox({ players, assignments, roles, currentRoleId, value, onC
 
 export function InspectorPanel({
   roles, assignments, players, activeRoleId,
-  onRoleClick, onAssignPlayer, onAssignBackup, onDeleteRole, onDuplicateRole, onAddRole,
+  onRoleClick, onAssignPlayer, onAssignBackup, onDeleteRole, onDuplicateRole, onRenameRole, onAddRole,
   forceVisible,
 }: InspectorPanelProps) {
   const selectedAnnotationId = useEditorStore((s) => s.selectedAnnotationId);
@@ -272,6 +273,7 @@ export function InspectorPanel({
           onAssignBackup={(backupId) => onAssignBackup(activeRoleId, backupId)}
           onDeleteRole={() => onDeleteRole(activeRoleId)}
           onDuplicateRole={() => onDuplicateRole(activeRoleId)}
+          onRenameRole={(newName) => onRenameRole(activeRoleId, newName)}
           onBack={() => onRoleClick(activeRoleId)}
         />
       ) : (
@@ -476,7 +478,7 @@ function AnnotationInspector({ annotation, onUpdate, onDelete, roles }: {
   );
 }
 
-function RoleMarkerInspector({ role, assignment, player, linkedAnnotations, players, assignments, roles, activeRoleId, onAssignPlayer, onAssignBackup, onDeleteRole, onDuplicateRole, onBack }: {
+function RoleMarkerInspector({ role, assignment, player, linkedAnnotations, players, assignments, roles, activeRoleId, onAssignPlayer, onAssignBackup, onDeleteRole, onDuplicateRole, onRenameRole, onBack }: {
   role: RoleData;
   assignment?: AssignmentData;
   player?: PlayerData;
@@ -489,8 +491,26 @@ function RoleMarkerInspector({ role, assignment, player, linkedAnnotations, play
   onAssignBackup: (backupPlayerId: string) => void;
   onDeleteRole: () => void;
   onDuplicateRole: () => void;
+  onRenameRole: (newName: string) => void;
   onBack: () => void;
 }) {
+  const [editing, setEditing] = useState(false);
+  const [editName, setEditName] = useState(role.name);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => { setEditName(role.name); }, [role.name]);
+  useEffect(() => { if (editing) inputRef.current?.select(); }, [editing]);
+
+  const commitRename = () => {
+    const trimmed = editName.trim();
+    setEditing(false);
+    if (trimmed && trimmed !== role.name) {
+      onRenameRole(trimmed);
+    } else {
+      setEditName(role.name);
+    }
+  };
+
   return (
     <div className="flex flex-col h-full">
       <div className="p-3 border-b border-border flex justify-between items-center">
@@ -509,7 +529,23 @@ function RoleMarkerInspector({ role, assignment, player, linkedAnnotations, play
             )}
           </div>
           <div>
-            <h2 className="font-display font-bold text-sm text-white">{role.name}</h2>
+            {editing ? (
+              <input
+                ref={inputRef}
+                value={editName}
+                onChange={(e) => setEditName(e.target.value)}
+                onBlur={commitRename}
+                onKeyDown={(e) => { if (e.key === 'Enter') commitRename(); if (e.key === 'Escape') { setEditName(role.name); setEditing(false); } }}
+                className="font-display font-bold text-sm text-white bg-secondary border border-primary rounded px-1.5 py-0.5 outline-none w-full max-w-[160px]"
+                maxLength={100}
+              />
+            ) : (
+              <h2
+                className="font-display font-bold text-sm text-white cursor-text hover:text-primary transition-colors"
+                onClick={() => setEditing(true)}
+                title="Click to rename"
+              >{role.name}</h2>
+            )}
             <p className="text-[9px] text-muted-foreground">{assignment ? 'Assigned' : 'Unassigned'}</p>
           </div>
         </div>

@@ -391,6 +391,17 @@ export default function SetPieceEditor() {
     }
   };
 
+  const handleRenameRole = async (roleId: string, newName: string) => {
+    setSaveState('saving');
+    try {
+      await updateRole.mutateAsync({ teamId, setPieceId, roleId, data: { name: newName } });
+      await refetch();
+      setSaveState('saved');
+    } catch {
+      setSaveState('error');
+    }
+  };
+
   const handleExportPDF = async () => {
     if (!canvasHandleRef.current) return;
     const jsPDF = (await import('jspdf')).default;
@@ -808,6 +819,7 @@ export default function SetPieceEditor() {
                 onAssignBackup={assignBackupPlayer}
                 onDeleteRole={handleDeleteRole}
                 onDuplicateRole={handleDuplicateRole}
+                onRenameRole={handleRenameRole}
                 onAddRole={() => { setPendingPos(null); setNewRoleName(''); setRoleFormOpen(true); }}
               />
             </div>
@@ -843,6 +855,7 @@ export default function SetPieceEditor() {
               onAssignBackup={assignBackupPlayer}
               onDeleteRole={handleDeleteRole}
               onDuplicateRole={handleDuplicateRole}
+              onRenameRole={handleRenameRole}
               onAddRole={() => { setPendingPos(null); setNewRoleName(''); setRoleFormOpen(true); setMobileInspectorOpen(false); }}
               forceVisible
             />
