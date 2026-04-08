@@ -231,11 +231,13 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
   const computeStepResolvedPosition = (roleId: string, stepIndex: number): Point => {
     const basePos = { x: (roles.find(r => r.id === roleId)?.startPosition?.x ?? 50), y: (roles.find(r => r.id === roleId)?.startPosition?.y ?? 50) };
     const clampedIndex = Math.max(0, Math.min(stepIndex, sortedStepIds.length - 1));
-    const sid = sortedStepIds[clampedIndex];
-    if (sid && stepPositions[sid]?.[roleId]) {
-      return stepPositions[sid][roleId];
+    if (clampedIndex === 0) {
+      const sid0 = sortedStepIds[0];
+      if (sid0 && stepPositions[sid0]?.[roleId]) {
+        return stepPositions[sid0][roleId];
+      }
+      return basePos;
     }
-    if (clampedIndex === 0) return basePos;
     let cur = basePos;
     for (let i = 0; i < clampedIndex; i++) {
       const prevSid = sortedStepIds[i];
@@ -245,6 +247,10 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
       const prevAnns = annotations.filter(a => a.stepId === prevSid);
       const endOfRun = resolvePositionForStep(roleId, prevAnns, cur, 1);
       if (endOfRun.x !== cur.x || endOfRun.y !== cur.y) cur = endOfRun;
+    }
+    const targetSid = sortedStepIds[clampedIndex];
+    if (targetSid && stepPositions[targetSid]?.[roleId]) {
+      return stepPositions[targetSid][roleId];
     }
     return cur;
   };
@@ -568,6 +574,10 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
         }
         const completedAnns = annotations.filter(a => a.stepId === sid);
         currentPos = resolvePositionForStep(roleId, completedAnns, currentPos, 1);
+      }
+      const curSid = sortedStepIds[animation.activeStepIndex];
+      if (curSid && stepPositions[curSid]?.[roleId]) {
+        currentPos = stepPositions[curSid][roleId];
       }
     } else {
       currentPos = computeStepResolvedPosition(roleId, animation.activeStepIndex);
