@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { CoachLayout } from '@/components/Layout';
 import { useRoute, Link } from 'wouter';
-import { useGetTeam, useGetMatchday, useListSetPieces, useListPlayers, useAddSetPieceToMatchday, useRemoveSetPieceFromMatchday, useCreateShareLink } from '@workspace/api-client-react';
-import type { Player, CreateShareLinkBody } from '@workspace/api-client-react';
+import { useGetTeam, useGetMatchday, useListSetPieces, useListPlayers, useAddSetPieceToMatchday, useRemoveSetPieceFromMatchday, useCreateShareLink, getSetPiece } from '@workspace/api-client-react';
+import type { Player, CreateShareLinkBody, SetPieceRole, RoleAssignment } from '@workspace/api-client-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { StatusBadge } from '@/components/StatusBadge';
@@ -31,13 +31,21 @@ export default function MatchdayDetail() {
     if (!matchday) return;
     setExportingPDF(true);
     try {
-      const jsPDF = (await import('jspdf')).default;
+      const [jsPDFMod, { renderSetPieceSteps }] = await Promise.all([
+        import('jspdf'),
+        import('@/utils/offscreenPitchRenderer'),
+      ]);
+      const jsPDF = jsPDFMod.default;
       const pdf = new jsPDF('p', 'mm', 'a4');
       const pw = 210;
       const ph = 297;
 
-      pdf.setFillColor(10, 14, 23);
-      pdf.rect(0, 0, pw, ph, 'F');
+      const addPageBg = () => {
+        pdf.setFillColor(255, 255, 255);
+        pdf.rect(0, 0, pw, ph, 'F');
+      };
+
+      addPageBg();
 
       pdf.setFillColor(16, 185, 129);
       pdf.rect(0, 0, pw, 4, 'F');
@@ -46,22 +54,22 @@ export default function MatchdayDetail() {
       pdf.setFontSize(10);
       pdf.text('SETPIECE by PerformIQ', 15, 18);
 
-      pdf.setTextColor(255, 255, 255);
+      pdf.setTextColor(30, 30, 30);
       pdf.setFontSize(22);
       pdf.text(team?.name || 'Team', 15, 30);
 
       pdf.setFontSize(16);
-      pdf.setTextColor(200, 200, 200);
+      pdf.setTextColor(80, 80, 80);
       pdf.text(`Match Pack: ${matchday.title}`, 15, 40);
 
       if (matchday.opponent) {
         pdf.setFontSize(11);
-        pdf.setTextColor(150, 150, 150);
+        pdf.setTextColor(100, 100, 100);
         pdf.text(`vs ${matchday.opponent}`, 15, 48);
       }
       if (matchday.date) {
         pdf.setFontSize(10);
-        pdf.setTextColor(130, 130, 130);
+        pdf.setTextColor(120, 120, 120);
         pdf.text(new Date(matchday.date).toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }), 15, 55);
       }
 
@@ -72,7 +80,7 @@ export default function MatchdayDetail() {
         pdf.setTextColor(16, 185, 129);
         pdf.text('COACHING NOTES', 15, yOff);
         yOff += 6;
-        pdf.setTextColor(180, 180, 180);
+        pdf.setTextColor(60, 60, 60);
         pdf.setFontSize(9);
         const noteLines = pdf.splitTextToSize(matchday.notes, 180);
         pdf.text(noteLines, 15, yOff);
@@ -80,15 +88,41 @@ export default function MatchdayDetail() {
       }
 
       const pieces = matchday.setPieces || [];
-      for (const sp of pieces) {
-        if (yOff > 250) {
-          pdf.addPage();
-          pdf.setFillColor(10, 14, 23);
-          pdf.rect(0, 0, pw, ph, 'F');
-          yOff = 20;
-        }
+      const imgWidth = 170;
+      const imgAspect = 560 / 800;
+      const imgHeight = imgWidth * imgAspect;
 
-        pdf.setDrawColor(30, 40, 50);
+      const detailResults = await Promise.allSettled(
+        pieces.map(sp => getSetPiece(teamId, sp.id))
+      );
+      const detailMap = new Map<string, Awaited<ReturnType<typeof getSetPiece>>>();
+      detailResults.forEach((result, idx) => {
+        if (result.status === 'fulfilled') {
+          detailMap.set(pieces[idx].id, result.value);
+        }
+      });
+
+      const ensureSpace = (needed: number) => {
+        if (yOff + needed > ph - 15) {
+          pdf.addPage();
+          addPageBg();
+          yOff = 15;
+        }
+      };
+
+      const playerList = (players || []).map((p: Player) => ({
+        id: p.id,
+        firstName: p.firstName,
+        lastName: p.lastName,
+        shirtNumber: p.shirtNumber,
+      }));
+
+      for (const sp of pieces) {
+        const spDetail = detailMap.get(sp.id) || null;
+
+        ensureSpace(20);
+
+        pdf.setDrawColor(200, 210, 200);
         pdf.line(15, yOff, 195, yOff);
         yOff += 6;
 
@@ -96,45 +130,105 @@ export default function MatchdayDetail() {
         pdf.setFontSize(13);
         pdf.text(sp.title, 15, yOff);
         pdf.setFontSize(9);
-        pdf.setTextColor(130, 130, 130);
+        pdf.setTextColor(120, 120, 120);
         pdf.text(sp.category.replace(/_/g, ' ').toUpperCase(), 15, yOff + 5);
         yOff += 12;
 
-        pdf.setTextColor(180, 180, 180);
+        pdf.setTextColor(60, 60, 60);
         if (sp.description) {
+          ensureSpace(10);
           const descLines = pdf.splitTextToSize(sp.description, 170);
           pdf.text(descLines, 15, yOff);
           yOff += descLines.length * 4 + 2;
         }
         if (sp.coachingNotes) {
+          ensureSpace(10);
           pdf.setTextColor(16, 185, 129);
           pdf.setFontSize(8);
           pdf.text('NOTES:', 15, yOff);
-          pdf.setTextColor(160, 160, 160);
+          pdf.setTextColor(80, 80, 80);
           const noteLines = pdf.splitTextToSize(sp.coachingNotes, 160);
           pdf.text(noteLines, 35, yOff);
           yOff += noteLines.length * 3.5 + 2;
           pdf.setFontSize(9);
         }
-        pdf.setTextColor(130, 130, 130);
+
+        const boardData = (spDetail?.boardData || sp.boardData || {}) as Record<string, unknown>;
+        const roles = (spDetail?.roles || []).map((r: SetPieceRole) => ({
+          id: r.id,
+          name: r.name,
+          startPosition: r.startPosition,
+        }));
+        const assignments = (spDetail?.assignments || []).map((a: RoleAssignment) => ({
+          roleId: a.roleId,
+          playerId: a.playerId,
+        }));
+
+        const hasBoard = boardData && Object.keys(boardData).length > 0;
+
+        if (hasBoard) {
+          const stepImages = renderSetPieceSteps({
+            boardData,
+            roles,
+            assignments,
+            players: playerList,
+            category: sp.category,
+          });
+
+          for (let si = 0; si < stepImages.length; si++) {
+            ensureSpace(10 + imgHeight + 4);
+
+            pdf.setTextColor(16, 185, 129);
+            pdf.setFontSize(9);
+            pdf.text(stepImages[si].stepLabel, 20, yOff);
+            yOff += 4;
+
+            pdf.addImage(stepImages[si].dataUrl, 'PNG', 20, yOff, imgWidth, imgHeight);
+            yOff += imgHeight + 4;
+          }
+        }
+
+        if (roles.length > 0) {
+          ensureSpace(12);
+          pdf.setTextColor(30, 30, 30);
+          pdf.setFontSize(10);
+          pdf.text('Roles & Assignments', 15, yOff);
+          yOff += 6;
+          pdf.setFontSize(8);
+          for (const role of spDetail?.roles || []) {
+            ensureSpace(7);
+            const assignment = spDetail?.assignments?.find((a: RoleAssignment) => a.roleId === role.id);
+            const player = assignment ? players?.find((p: Player) => p.id === assignment.playerId) : null;
+            const playerName = player ? `${player.firstName} ${player.lastName} (#${player.shirtNumber || '?'})` : 'Unassigned';
+            pdf.setTextColor(16, 185, 129);
+            pdf.text(role.name, 15, yOff);
+            pdf.setTextColor(80, 80, 80);
+            pdf.text(playerName, 75, yOff);
+            yOff += 5;
+          }
+          yOff += 4;
+        }
+
+        ensureSpace(10);
+        pdf.setTextColor(120, 120, 120);
+        pdf.setFontSize(8);
         pdf.text(`Status: ${sp.status} · Version: ${sp.versionNumber}`, 15, yOff);
-        yOff += 5;
-        yOff += 4;
+        yOff += 8;
       }
 
+      ensureSpace(45);
       const qrSize = 25;
-      const qrY = Math.min(yOff + 10, ph - qrSize - 20);
       pdf.setTextColor(100, 100, 100);
       pdf.setFontSize(8);
-      pdf.text('Scan to access player view', pw - 15 - qrSize, qrY - 3);
+      pdf.text('Scan to access player view', pw - 15 - qrSize, yOff - 3);
 
-      pdf.setFillColor(255, 255, 255);
-      pdf.rect(pw - 15 - qrSize, qrY, qrSize, qrSize, 'F');
+      pdf.setFillColor(240, 240, 240);
+      pdf.rect(pw - 15 - qrSize, yOff, qrSize, qrSize, 'F');
       pdf.setTextColor(80, 80, 80);
       pdf.setFontSize(6);
-      pdf.text('SETPIECE QR', pw - 15 - qrSize + 3, qrY + qrSize / 2 + 2);
+      pdf.text('SETPIECE QR', pw - 15 - qrSize + 3, yOff + qrSize / 2 + 2);
 
-      pdf.setTextColor(50, 50, 50);
+      pdf.setTextColor(150, 150, 150);
       pdf.setFontSize(7);
       pdf.text(`Generated ${new Date().toLocaleString()} · SETPIECE by PerformIQ`, 15, ph - 8);
 

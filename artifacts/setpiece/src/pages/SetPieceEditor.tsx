@@ -403,41 +403,111 @@ export default function SetPieceEditor() {
   };
 
   const handleExportPDF = async () => {
-    if (!canvasHandleRef.current) return;
-    const jsPDF = (await import('jspdf')).default;
+    if (!setPiece) return;
+    const [jsPDFMod, { renderSetPieceSteps }] = await Promise.all([
+      import('jspdf'),
+      import('@/utils/offscreenPitchRenderer'),
+    ]);
+    const jsPDF = jsPDFMod.default;
+    const pw = 210;
+    const ph = 297;
+
+    const stepImages = renderSetPieceSteps({
+      boardData: (setPiece.boardData || {}) as Record<string, unknown>,
+      roles: (setPiece.roles || []).map((r: SetPieceRole) => ({
+        id: r.id,
+        name: r.name,
+        startPosition: r.startPosition,
+      })),
+      assignments: (setPiece.assignments || []).map((a: RoleAssignment) => ({
+        roleId: a.roleId,
+        playerId: a.playerId,
+      })),
+      players: (players || []).map(p => ({
+        id: p.id,
+        firstName: p.firstName,
+        lastName: p.lastName,
+        shirtNumber: p.shirtNumber,
+      })),
+      category: setPiece.category,
+    });
+
     const pdf = new jsPDF('p', 'mm', 'a4');
-    pdf.setFillColor(10, 14, 23);
-    pdf.rect(0, 0, 210, 297, 'F');
-    pdf.setTextColor(255, 255, 255);
-    pdf.setFontSize(20);
-    pdf.text(setPiece?.title || 'Set Piece', 105, 20, { align: 'center' });
+
+    const addPageBg = () => {
+      pdf.setFillColor(255, 255, 255);
+      pdf.rect(0, 0, pw, ph, 'F');
+    };
+
+    addPageBg();
+
+    pdf.setFillColor(16, 185, 129);
+    pdf.rect(0, 0, pw, 3, 'F');
+
+    pdf.setTextColor(16, 185, 129);
     pdf.setFontSize(10);
-    pdf.setTextColor(150, 150, 150);
-    pdf.text(setPiece?.category?.replace(/_/g, ' ').toUpperCase() || '', 105, 28, { align: 'center' });
-    const imgData = canvasHandleRef.current.toDataURL({ pixelRatio: 2 });
+    pdf.text('SETPIECE by PerformIQ', pw / 2, 14, { align: 'center' });
+
+    pdf.setTextColor(30, 30, 30);
+    pdf.setFontSize(20);
+    pdf.text(setPiece.title || 'Set Piece', pw / 2, 24, { align: 'center' });
+
+    pdf.setFontSize(10);
+    pdf.setTextColor(100, 100, 100);
+    pdf.text(setPiece.category?.replace(/_/g, ' ').toUpperCase() || '', pw / 2, 31, { align: 'center' });
+
+    let yOff = 38;
     const imgWidth = 170;
-    const imgHeight = (canvasSize.height / canvasSize.width) * imgWidth;
-    pdf.addImage(imgData, 'PNG', 20, 35, imgWidth, imgHeight);
-    let yOff = 40 + imgHeight + 10;
-    pdf.setTextColor(255, 255, 255);
+    const imgAspect = 560 / 800;
+    const imgHeight = imgWidth * imgAspect;
+
+    for (let i = 0; i < stepImages.length; i++) {
+      const neededHeight = 10 + imgHeight + 4;
+      if (yOff + neededHeight > ph - 15) {
+        pdf.addPage();
+        addPageBg();
+        yOff = 15;
+      }
+
+      pdf.setTextColor(16, 185, 129);
+      pdf.setFontSize(11);
+      pdf.text(stepImages[i].stepLabel, 20, yOff);
+      yOff += 5;
+
+      pdf.addImage(stepImages[i].dataUrl, 'PNG', 20, yOff, imgWidth, imgHeight);
+      yOff += imgHeight + 6;
+    }
+
+    const ensureSpace = (needed: number) => {
+      if (yOff + needed > ph - 15) {
+        pdf.addPage();
+        addPageBg();
+        yOff = 15;
+      }
+    };
+
+    ensureSpace(14);
+    pdf.setTextColor(30, 30, 30);
     pdf.setFontSize(12);
     pdf.text('Roles & Assignments', 20, yOff);
     yOff += 8;
     pdf.setFontSize(9);
-    setPiece?.roles?.forEach((role: SetPieceRole) => {
+    setPiece.roles?.forEach((role: SetPieceRole) => {
+      ensureSpace(8);
       const assignment = setPiece.assignments?.find((a: RoleAssignment) => a.roleId === role.id);
       const player = assignment ? players?.find(p => p.id === assignment.playerId) : null;
       const playerName = player ? `${player.firstName} ${player.lastName} (#${player.shirtNumber || '?'})` : 'Unassigned';
       pdf.setTextColor(16, 185, 129);
       pdf.text(role.name, 20, yOff);
-      pdf.setTextColor(200, 200, 200);
+      pdf.setTextColor(80, 80, 80);
       pdf.text(playerName, 80, yOff);
       yOff += 6;
     });
+
     pdf.setFontSize(7);
-    pdf.setTextColor(100, 100, 100);
-    pdf.text('SETPIECE by PerformIQ', 105, 290, { align: 'center' });
-    pdf.save(`${setPiece?.title || 'setpiece'}.pdf`);
+    pdf.setTextColor(150, 150, 150);
+    pdf.text('SETPIECE by PerformIQ', pw / 2, ph - 8, { align: 'center' });
+    pdf.save(`${setPiece.title || 'setpiece'}.pdf`);
   };
 
   const handleTitleSave = async () => {
