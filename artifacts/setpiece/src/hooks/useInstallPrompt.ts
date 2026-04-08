@@ -14,7 +14,9 @@ function notifyListeners() {
   listeners.forEach((fn) => fn());
 }
 
-if (typeof window !== 'undefined') {
+let _listenersAttached = false;
+if (typeof window !== 'undefined' && !_listenersAttached) {
+  _listenersAttached = true;
   window.addEventListener('beforeinstallprompt', (e: Event) => {
     e.preventDefault();
     sharedPrompt = e as BeforeInstallPromptEvent;
