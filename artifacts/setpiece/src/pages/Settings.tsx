@@ -3,7 +3,8 @@ import { CoachLayout } from '@/components/Layout';
 import { useListTeams, useUpdateTeam, useGetCurrentAuthUser } from '@workspace/api-client-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Settings as SettingsIcon, Palette, User, CreditCard, Loader2, ExternalLink } from 'lucide-react';
+import { Settings as SettingsIcon, Palette, User, CreditCard, Loader2, ExternalLink, Download, Smartphone, CheckCircle2 } from 'lucide-react';
+import { useInstallPrompt } from '@/hooks/useInstallPrompt';
 import { motion } from 'framer-motion';
 
 const BASE = import.meta.env.BASE_URL || '/';
@@ -20,6 +21,7 @@ export default function Settings() {
   const updateTeam = useUpdateTeam();
   const team = teams?.[0];
   const [portalLoading, setPortalLoading] = useState(false);
+  const { canInstall, isInstalled, triggerInstall, isSafari } = useInstallPrompt();
 
   const [form, setForm] = useState({
     name: '', clubName: '', coachName: '', logoUrl: '',
@@ -126,8 +128,49 @@ export default function Settings() {
           </motion.div>
         )}
 
+        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}>
+          <Card className="bg-card border-border mb-6">
+            <CardContent className="p-6">
+              <h2 className="font-display font-bold text-base text-white flex items-center gap-2 mb-4">
+                <Smartphone className="h-4 w-4 text-primary" /> Install App
+              </h2>
+              {isInstalled ? (
+                <div className="flex items-center gap-3 py-2">
+                  <div className="h-10 w-10 rounded-xl bg-primary/20 flex items-center justify-center shrink-0">
+                    <CheckCircle2 className="h-5 w-5 text-primary" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-semibold text-white">App Installed</p>
+                    <p className="text-xs text-muted-foreground">SETPIECE is installed on this device</p>
+                  </div>
+                </div>
+              ) : canInstall ? (
+                <div className="space-y-3">
+                  <p className="text-sm text-muted-foreground">Install SETPIECE on your device for quick access and an app-like experience.</p>
+                  <Button className="w-full" onClick={triggerInstall}>
+                    <Download className="h-4 w-4 mr-2" /> Install SETPIECE
+                  </Button>
+                </div>
+              ) : isSafari ? (
+                <div className="space-y-3">
+                  <p className="text-sm text-muted-foreground">To install SETPIECE on your device:</p>
+                  <ol className="text-sm text-muted-foreground space-y-1.5 list-decimal list-inside">
+                    <li>Tap the <span className="text-white font-medium">Share</span> button in Safari's toolbar</li>
+                    <li>Scroll down and tap <span className="text-white font-medium">Add to Home Screen</span></li>
+                    <li>Tap <span className="text-white font-medium">Add</span> to confirm</li>
+                  </ol>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  <p className="text-sm text-muted-foreground">To install SETPIECE, open this site in Chrome or Edge, then look for the install option in your browser's menu or address bar.</p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </motion.div>
+
         {team && (
-          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
+          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25 }}>
             <Card className="bg-card border-border">
               <CardContent className="p-6">
                 <h2 className="font-display font-bold text-base text-white flex items-center gap-2 mb-4">

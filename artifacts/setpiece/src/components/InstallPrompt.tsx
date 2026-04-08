@@ -1,40 +1,12 @@
-import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Download, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-
-interface BeforeInstallPromptEvent extends Event {
-  prompt: () => Promise<void>;
-  userChoice: Promise<{ outcome: 'accepted' | 'dismissed' }>;
-}
+import { useInstallPrompt } from '@/hooks/useInstallPrompt';
 
 export function InstallPrompt() {
-  const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
-  const [dismissed, setDismissed] = useState(false);
+  const { canInstall, triggerInstall, bannerDismissed, dismissBanner } = useInstallPrompt();
 
-  useEffect(() => {
-    const handler = (e: Event) => {
-      e.preventDefault();
-      setDeferredPrompt(e as BeforeInstallPromptEvent);
-    };
-    window.addEventListener('beforeinstallprompt', handler);
-    return () => window.removeEventListener('beforeinstallprompt', handler);
-  }, []);
-
-  const handleInstall = async () => {
-    if (!deferredPrompt) return;
-    await deferredPrompt.prompt();
-    const { outcome } = await deferredPrompt.userChoice;
-    if (outcome === 'accepted') {
-      setDeferredPrompt(null);
-    }
-  };
-
-  const handleDismiss = () => {
-    setDismissed(true);
-  };
-
-  if (!deferredPrompt || dismissed) return null;
+  if (!canInstall || bannerDismissed) return null;
 
   return (
     <AnimatePresence>
@@ -53,11 +25,11 @@ export function InstallPrompt() {
               <p className="font-bold text-sm text-white">Install SETPIECE</p>
               <p className="text-xs text-muted-foreground mt-0.5">Add to your home screen for quick access</p>
             </div>
-            <button onClick={handleDismiss} className="text-muted-foreground hover:text-white transition-colors">
+            <button onClick={dismissBanner} className="text-muted-foreground hover:text-white transition-colors">
               <X className="h-4 w-4" />
             </button>
           </div>
-          <Button size="sm" className="w-full mt-3" onClick={handleInstall}>
+          <Button size="sm" className="w-full mt-3" onClick={triggerInstall}>
             Install App
           </Button>
         </div>
