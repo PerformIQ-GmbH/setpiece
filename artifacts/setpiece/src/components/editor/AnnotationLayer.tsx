@@ -327,7 +327,7 @@ export function AnnotationLayer({ annotations, selectedId, focusedRoleId, hasFoc
                   fill={ann.color}
                   opacity={0.25 * annOpacityScale}
                   stroke={ann.color}
-                  strokeWidth={isSelected ? ann.strokeWidth + 1 : ann.strokeWidth}
+                  strokeWidth={isSelected ? ann.strokeWidth + 1.5 : ann.strokeWidth + 0.5}
                   dash={[6, 4]}
                   hitStrokeWidth={12}
                   draggable={!zoneLocked}
@@ -403,7 +403,7 @@ export function AnnotationLayer({ annotations, selectedId, focusedRoleId, hasFoc
                   fill={ann.color}
                   opacity={0.22 * annOpacityScale}
                   stroke={ann.color}
-                  strokeWidth={isSelected ? ann.strokeWidth + 1 : ann.strokeWidth}
+                  strokeWidth={isSelected ? ann.strokeWidth + 1.5 : ann.strokeWidth + 0.5}
                   dash={[6, 4]}
                   cornerRadius={3}
                   hitStrokeWidth={12}
