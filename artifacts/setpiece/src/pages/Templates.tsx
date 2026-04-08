@@ -6,9 +6,10 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { StatusBadge } from '@/components/StatusBadge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Plus, ArrowRight, Sparkles, LayoutDashboard, Copy } from 'lucide-react';
+import { Plus, ArrowRight, Sparkles, LayoutDashboard, Copy, Loader2 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { Link } from 'wouter';
+import { useToast } from '@/hooks/use-toast';
 
 const CATEGORIES = [
   'all',
@@ -31,6 +32,8 @@ export default function Templates() {
   const { data: setPieces, refetch: refetchSP } = useListSetPieces(teamId);
   const createSP = useCreateSetPiece();
   const cloneSP = useCloneSetPiece();
+  const { toast } = useToast();
+  const [cloningId, setCloningId] = useState<string | null>(null);
 
   const [category, setCategory] = useState('all');
   const [blankOpen, setBlankOpen] = useState(false);
@@ -46,12 +49,16 @@ export default function Templates() {
   const handleClone = async (e: React.MouseEvent, setPieceId: string) => {
     e.preventDefault();
     e.stopPropagation();
+    setCloningId(setPieceId);
     try {
       const cloned = await cloneSP.mutateAsync({ teamId, setPieceId });
       refetchSP();
+      toast({ title: "Set piece duplicated", description: `"${cloned.title}" is ready to edit.` });
       setLocation(`/teams/${teamId}/set-pieces/${cloned.id}/editor`);
     } catch {
-      alert("Failed to duplicate set piece. Please try again.");
+      toast({ title: "Failed to duplicate", description: "Something went wrong. Please try again.", variant: "destructive" });
+    } finally {
+      setCloningId(null);
     }
   };
 
@@ -95,11 +102,11 @@ export default function Templates() {
                         <div className="flex items-center gap-1.5">
                           <button
                             onClick={(e) => handleClone(e, sp.id)}
-                            disabled={cloneSP.isPending}
-                            className="p-1 rounded hover:bg-muted transition-colors text-muted-foreground hover:text-primary"
+                            disabled={cloningId === sp.id}
+                            className="p-1 rounded hover:bg-muted transition-colors text-muted-foreground hover:text-primary disabled:opacity-50"
                             title="Duplicate set piece"
                           >
-                            <Copy className="h-3.5 w-3.5" />
+                            {cloningId === sp.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Copy className="h-3.5 w-3.5" />}
                           </button>
                           <StatusBadge status={sp.status} />
                         </div>
