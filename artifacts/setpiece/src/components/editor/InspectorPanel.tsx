@@ -57,16 +57,16 @@ function CollapsibleSection({ title, icon: Icon, defaultOpen = true, children }:
 }) {
   const [open, setOpen] = useState(defaultOpen);
   return (
-    <div className="border-b border-border/50 last:border-b-0">
+    <div className="border-b border-white/[0.04] last:border-b-0">
       <button
         onClick={() => setOpen(!open)}
-        className="w-full flex items-center gap-2 px-3 py-2.5 text-[10px] font-bold text-muted-foreground uppercase tracking-wider hover:text-white transition-colors"
+        className="w-full flex items-center gap-2 px-4 py-3 text-[10px] font-bold text-muted-foreground uppercase tracking-[0.12em] hover:text-white transition-colors"
       >
         {open ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
         {Icon && <Icon className="w-3.5 h-3.5 text-primary" />}
         {title}
       </button>
-      {open && <div className="px-3 pb-3">{children}</div>}
+      {open && <div className="px-4 pb-4">{children}</div>}
     </div>
   );
 }
@@ -536,22 +536,22 @@ function RoleMarkerInspector({ role, assignment, player, linkedAnnotations, play
 
   return (
     <div className="flex flex-col h-full">
-      <div className="p-3 border-b border-border flex justify-between items-center">
-        <div className="flex items-center gap-2">
-          <button onClick={onBack} className="text-muted-foreground hover:text-white transition-colors">
+      <div className="p-4 border-b border-white/[0.06] bg-white/[0.02]">
+        <div className="flex items-center gap-3">
+          <button onClick={onBack} className="w-8 h-8 rounded-lg bg-white/[0.06] flex items-center justify-center text-muted-foreground hover:text-white transition-colors shrink-0">
             <ArrowLeft className="w-4 h-4" />
           </button>
           <div className={cn(
-            "w-7 h-7 rounded-full border-2 flex items-center justify-center",
-            assignment ? "bg-emerald-700 border-emerald-500" : "bg-gray-700 border-gray-500 border-dashed",
+            "w-9 h-9 rounded-xl border-2 flex items-center justify-center shrink-0",
+            assignment ? "bg-emerald-700/50 border-emerald-500/50" : "bg-white/[0.04] border-white/10 border-dashed",
           )}>
             {assignment ? (
-              <UserRound className="w-3.5 h-3.5 text-white" />
+              <UserRound className="w-4 h-4 text-white" />
             ) : (
-              <span className="text-gray-400 text-xs font-bold">?</span>
+              <span className="text-muted-foreground text-xs font-bold">?</span>
             )}
           </div>
-          <div>
+          <div className="flex-1 min-w-0">
             {editing ? (
               <input
                 ref={inputRef}
@@ -559,30 +559,30 @@ function RoleMarkerInspector({ role, assignment, player, linkedAnnotations, play
                 onChange={(e) => setEditName(e.target.value)}
                 onBlur={commitRename}
                 onKeyDown={(e) => { if (e.key === 'Enter') commitRename(); if (e.key === 'Escape') { setEditName(role.name); setEditing(false); } }}
-                className="font-display font-bold text-sm text-white bg-secondary border border-primary rounded px-1.5 py-0.5 outline-none w-full max-w-[160px]"
+                className="font-display font-bold text-sm text-white bg-white/[0.06] border border-primary rounded-lg px-2 py-1 outline-none w-full max-w-[160px]"
                 maxLength={100}
               />
             ) : (
               <h2
-                className="font-display font-bold text-sm text-white cursor-text hover:text-primary transition-colors"
+                className="font-display font-bold text-sm text-white cursor-text hover:text-primary transition-colors truncate"
                 onClick={() => setEditing(true)}
                 title="Click to rename"
               >{role.name}</h2>
             )}
-            <p className="text-[9px] text-muted-foreground">{assignment ? 'Assigned' : 'Unassigned'}</p>
+            <p className="text-[10px] text-muted-foreground mt-0.5">{assignment ? 'Assigned' : 'Unassigned'}</p>
           </div>
         </div>
-        <div className="flex items-center gap-0.5">
-          <Button size="sm" variant="ghost" onClick={onDuplicateRole} className="h-7 text-muted-foreground hover:text-white hover:bg-muted/50" title="Duplicate role">
-            <Copy className="w-3.5 h-3.5" />
+        <div className="flex items-center gap-1.5 mt-3 ml-11">
+          <Button size="sm" variant="ghost" onClick={onDuplicateRole} className="h-7 text-muted-foreground hover:text-white text-[10px] gap-1" title="Duplicate role">
+            <Copy className="w-3 h-3" /> Duplicate
           </Button>
-          <Button size="sm" variant="ghost" onClick={onDeleteRole} className="h-7 text-red-400 hover:text-red-300 hover:bg-red-500/10">
-            <Trash2 className="w-3.5 h-3.5" />
+          <Button size="sm" variant="ghost" onClick={onDeleteRole} className="h-7 text-red-400 hover:text-red-300 hover:bg-red-500/10 text-[10px] gap-1">
+            <Trash2 className="w-3 h-3" /> Delete
           </Button>
         </div>
       </div>
       <div className="flex-1 overflow-y-auto">
-        <CollapsibleSection title="Assignment">
+        <CollapsibleSection title="Assignment" icon={Users}>
           <PlayerCombobox
             players={players}
             assignments={assignments}
@@ -592,7 +592,10 @@ function RoleMarkerInspector({ role, assignment, player, linkedAnnotations, play
             onChange={onAssignPlayer}
           />
           {!assignment && (
-            <p className="text-[9px] text-amber-300 mt-1.5">Assign a squad player to this role</p>
+            <p className="text-[9px] text-amber-300 mt-2 flex items-center gap-1">
+              <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
+              Assign a squad player to this role
+            </p>
           )}
         </CollapsibleSection>
 
@@ -605,32 +608,32 @@ function RoleMarkerInspector({ role, assignment, player, linkedAnnotations, play
             value={assignment?.backupPlayerId || ''}
             onChange={onAssignBackup}
           />
-          <p className="text-[9px] text-muted-foreground mt-1.5">Optional substitute if primary player is unavailable</p>
+          <p className="text-[9px] text-muted-foreground mt-2">Optional substitute if primary player is unavailable</p>
         </CollapsibleSection>
 
         {onUpdateRoleField && (
-          <CollapsibleSection title="Role Details" defaultOpen={!!(role.description || role.coachingPoint)}>
-            <div className="space-y-3">
-              <div className="space-y-1">
-                <label className="text-[10px] text-muted-foreground">Description</label>
+          <CollapsibleSection title="Tactical Notes" defaultOpen={!!(role.description || role.coachingPoint)}>
+            <div className="space-y-4">
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Task / Description</label>
                 <textarea
                   value={editDescription}
                   onChange={(e) => setEditDescription(e.target.value)}
                   onBlur={commitDescription}
                   placeholder="What should this player do?"
                   rows={2}
-                  className="w-full bg-secondary border border-border rounded-lg px-2.5 py-1.5 text-xs text-foreground focus:outline-none focus:border-primary resize-none"
+                  className="w-full bg-white/[0.03] border border-white/[0.08] rounded-xl px-3 py-2 text-xs text-foreground focus:outline-none focus:border-primary/40 focus:ring-2 focus:ring-primary/20 resize-none transition-all"
                 />
               </div>
-              <div className="space-y-1">
-                <label className="text-[10px] text-muted-foreground">Coaching Point</label>
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Coaching Point</label>
                 <textarea
                   value={editCoachingPoint}
                   onChange={(e) => setEditCoachingPoint(e.target.value)}
                   onBlur={commitCoachingPoint}
                   placeholder="Key instruction for the player"
                   rows={2}
-                  className="w-full bg-secondary border border-border rounded-lg px-2.5 py-1.5 text-xs text-foreground focus:outline-none focus:border-primary resize-none"
+                  className="w-full bg-white/[0.03] border border-white/[0.08] rounded-xl px-3 py-2 text-xs text-foreground focus:outline-none focus:border-primary/40 focus:ring-2 focus:ring-primary/20 resize-none transition-all"
                 />
                 <p className="text-[9px] text-muted-foreground">Shown to the player in the quiz and matchday pack</p>
               </div>
@@ -765,11 +768,11 @@ function RolesPanel({ roles, assignments, players, activeRoleId, onRoleClick, on
 }) {
   return (
     <>
-      <div className="p-3 border-b border-border flex justify-between items-center">
+      <div className="p-4 border-b border-white/[0.06] bg-white/[0.02] flex justify-between items-center">
         <h2 className="font-display font-bold text-sm flex items-center gap-2">
-          <Users className="w-4 h-4 text-primary" /> Roles ({roles.length})
+          <Users className="w-4 h-4 text-primary" /> Roles <span className="text-muted-foreground font-normal">({roles.length})</span>
         </h2>
-        <Button size="sm" variant="outline" onClick={onAddRole} className="border-border h-7 text-xs">
+        <Button size="sm" variant="outline" onClick={onAddRole} className="h-7 text-xs rounded-lg">
           <Plus className="w-3.5 h-3.5 mr-1" /> Add
         </Button>
       </div>
@@ -778,11 +781,11 @@ function RolesPanel({ roles, assignments, players, activeRoleId, onRoleClick, on
 
       <div className="flex-1 overflow-y-auto p-3 space-y-2">
         {roles.length === 0 && (
-          <div className="flex flex-col items-center py-8 text-center">
-            <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center mb-3">
-              <UserRound className="w-5 h-5 text-primary" />
+          <div className="flex flex-col items-center py-10 text-center">
+            <div className="w-14 h-14 rounded-2xl bg-primary/10 flex items-center justify-center mb-4">
+              <UserRound className="w-6 h-6 text-primary" />
             </div>
-            <p className="text-sm text-white font-medium mb-1">No roles yet</p>
+            <p className="text-sm text-white font-semibold mb-1">No roles yet</p>
             <p className="text-[11px] text-muted-foreground max-w-[200px] leading-relaxed">
               Click "Add" or use the Team Player tool to place your first role on the pitch.
             </p>
@@ -797,8 +800,8 @@ function RolesPanel({ roles, assignments, players, activeRoleId, onRoleClick, on
             <div
               key={role.id}
               className={cn(
-                "p-2.5 rounded-xl border transition-all cursor-pointer",
-                isActive ? "bg-primary/10 border-primary/50 shadow-md shadow-primary/10" : "bg-background border-border hover:border-muted-foreground/50"
+                "p-3 rounded-xl border transition-all cursor-pointer",
+                isActive ? "bg-primary/[0.08] border-primary/40 shadow-md shadow-primary/10" : "bg-white/[0.02] border-white/[0.06] hover:border-white/[0.12]"
               )}
               onClick={() => onRoleClick(role.id)}
             >

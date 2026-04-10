@@ -69,7 +69,7 @@ function ToolButton({ tool, icon: Icon, label, compact }: ToolDef & { compact?: 
       )}
     >
       <Icon className={cn("w-4 h-4", compact && "w-3.5 h-3.5")} />
-      <div className="absolute left-full ml-2.5 px-2.5 py-1.5 bg-card border border-border rounded-lg text-[11px] text-white whitespace-nowrap opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity z-50 shadow-xl">
+      <div className="absolute left-full ml-2.5 px-3 py-1.5 bg-card border border-white/[0.1] rounded-xl text-[11px] text-white whitespace-nowrap opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity z-50 shadow-2xl">
         {label}
       </div>
     </button>
@@ -85,7 +85,7 @@ function ToolGroupLabel({ text }: { text: string }) {
 }
 
 function Divider() {
-  return <div className="w-7 border-t border-border/40 my-0.5" />;
+  return <div className="w-7 border-t border-white/[0.06] my-1" />;
 }
 
 import { useState, useRef, useEffect } from 'react';
@@ -130,7 +130,7 @@ export function EditorToolbar({ onUndo, onRedo, canUndo, canRedo, onMirror, onOp
   }, [showLayerPanel]);
 
   return (
-    <div data-tutorial="toolbar" className="w-14 bg-card/95 backdrop-blur-xl rounded-2xl shadow-2xl border border-border/60 flex flex-col items-center py-3 gap-1 relative">
+    <div data-tutorial="toolbar" className="w-14 bg-card/95 backdrop-blur-xl rounded-2xl shadow-2xl border border-white/[0.08] flex flex-col items-center py-3 gap-1 relative">
       <div className="flex flex-col items-center gap-0.5">
         <ToolGroupLabel text="Select" />
         {SELECT_TOOLS.map((t) => <ToolButton key={t.tool} {...t} />)}

@@ -557,7 +557,7 @@ export default function SetPieceEditor() {
 
   return (
     <div className="min-h-screen bg-background text-foreground flex flex-col h-screen overflow-hidden">
-      <header data-tutorial="header" className="h-12 border-b border-border bg-card/80 backdrop-blur-md flex items-center justify-between px-3 md:px-4 shrink-0 z-10">
+      <header data-tutorial="header" className="h-12 border-b border-white/[0.06] bg-card/80 backdrop-blur-xl flex items-center justify-between px-3 md:px-4 shrink-0 z-10">
         <div className="flex items-center gap-2 min-w-0">
           <Link href={`/teams/${teamId}/templates`}>
             <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-white rounded-full h-8 w-8 md:h-7 md:w-7 shrink-0">
@@ -814,7 +814,7 @@ export default function SetPieceEditor() {
 
       <div className="flex-1 relative overflow-hidden">
         <main data-tutorial="pitch" className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-background via-card to-background flex items-center justify-center">
-          <div ref={canvasRef} className="w-full h-full p-1 md:p-3 flex items-center justify-center relative" data-pitch-container>
+          <div ref={canvasRef} className="w-full h-full p-1 sm:p-2 md:p-3 lg:p-4 flex items-center justify-center relative" data-pitch-container>
             {!presentationMode && (
               <ErrorBoundary>
                 <EditorCanvas
@@ -888,8 +888,8 @@ export default function SetPieceEditor() {
         })()}
 
         {!useSheetInspector && !inspectorCollapsed && (
-          <div className="absolute right-3 top-3 z-20 w-72 lg:w-80" style={{ maxHeight: 'calc(100% - 120px)' }}>
-            <div className="h-full bg-card/95 backdrop-blur-xl rounded-2xl shadow-2xl border border-border/60 overflow-y-auto scrollbar-none">
+          <div className="absolute right-3 top-3 z-20 w-72 lg:w-80 xl:w-[340px]" style={{ maxHeight: 'calc(100% - 120px)' }}>
+            <div className="h-full bg-card/95 backdrop-blur-xl rounded-2xl shadow-2xl shadow-black/30 border border-white/[0.08] overflow-y-auto scrollbar-none">
               <InspectorPanel
                 roles={setPiece.roles}
                 assignments={setPiece.assignments || []}
@@ -925,7 +925,7 @@ export default function SetPieceEditor() {
 
       {useSheetInspector && (
         <Sheet open={mobileInspectorOpen} onOpenChange={setMobileInspectorOpen}>
-          <SheetContent side="right" className="bg-card border-border w-[300px] p-0">
+          <SheetContent side="right" className="bg-card border-l border-white/[0.06] w-[300px] sm:w-[320px] p-0">
             <SheetTitle className="sr-only">Inspector</SheetTitle>
             <InspectorPanel
               roles={setPiece.roles}
@@ -952,7 +952,7 @@ export default function SetPieceEditor() {
       />
 
       <Dialog open={roleFormOpen} onOpenChange={setRoleFormOpen}>
-        <DialogContent className="bg-card border-border sm:max-w-sm">
+        <DialogContent className="bg-card border-white/[0.08] sm:max-w-sm rounded-2xl">
           <DialogHeader><DialogTitle className="text-sm">New Role</DialogTitle></DialogHeader>
           <form onSubmit={handleCreateRole} className="space-y-3 pt-1">
             <input
@@ -961,15 +961,15 @@ export default function SetPieceEditor() {
               value={newRoleName}
               onChange={e => setNewRoleName(e.target.value)}
               placeholder="e.g. Near Post Flick"
-              className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm focus:border-primary outline-none"
+              className="w-full bg-white/[0.03] border border-white/[0.08] rounded-xl px-4 py-2.5 text-sm focus:border-primary/40 focus:ring-2 focus:ring-primary/20 outline-none transition-all"
             />
-            <Button type="submit" className="w-full" disabled={createRole.isPending}>Create Role</Button>
+            <Button type="submit" className="w-full rounded-xl" disabled={createRole.isPending}>Create Role</Button>
           </form>
         </DialogContent>
       </Dialog>
 
       <Dialog open={labelFormOpen} onOpenChange={setLabelFormOpen}>
-        <DialogContent className="bg-card border-border sm:max-w-sm">
+        <DialogContent className="bg-card border-white/[0.08] sm:max-w-sm rounded-2xl">
           <DialogHeader><DialogTitle className="text-sm">Add Label</DialogTitle></DialogHeader>
           <form onSubmit={handleCreateLabel} className="space-y-3 pt-1">
             <input
@@ -978,9 +978,9 @@ export default function SetPieceEditor() {
               value={labelText}
               onChange={e => setLabelText(e.target.value)}
               placeholder="Label text..."
-              className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm focus:border-primary outline-none"
+              className="w-full bg-white/[0.03] border border-white/[0.08] rounded-xl px-4 py-2.5 text-sm focus:border-primary/40 focus:ring-2 focus:ring-primary/20 outline-none transition-all"
             />
-            <Button type="submit" className="w-full">Add Label</Button>
+            <Button type="submit" className="w-full rounded-xl">Add Label</Button>
           </form>
         </DialogContent>
       </Dialog>

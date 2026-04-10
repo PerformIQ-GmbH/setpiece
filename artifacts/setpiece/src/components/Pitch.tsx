@@ -44,9 +44,8 @@ export function Pitch({
   };
 
   return (
-    <div className={cn("relative w-full aspect-[2/3] bg-emerald-900 rounded-xl overflow-hidden shadow-2xl border-4 border-white/20", className)}>
-      {/* Grass pattern */}
-      <div className="absolute inset-0 opacity-20 bg-[repeating-linear-gradient(0deg,transparent,transparent_10%,#000_10%,#000_20%)] mix-blend-overlay pointer-events-none" />
+    <div className={cn("relative w-full aspect-[2/3] bg-emerald-900 rounded-2xl overflow-hidden shadow-2xl shadow-black/30 border border-white/[0.12]", className)}>
+      <div className="absolute inset-0 opacity-15 bg-[repeating-linear-gradient(0deg,transparent,transparent_10%,#000_10%,#000_20%)] mix-blend-overlay pointer-events-none" />
       
       <svg
         viewBox="0 0 100 100"
@@ -55,7 +54,7 @@ export function Pitch({
         onClick={handlePitchClick}
       >
         {/* Pitch Lines */}
-        <g stroke="rgba(255,255,255,0.6)" strokeWidth="0.5" fill="none">
+        <g stroke="rgba(255,255,255,0.5)" strokeWidth="0.6" fill="none">
           {/* Outer bounds */}
           <rect x="2" y="2" width="96" height="96" />
           
@@ -113,9 +112,9 @@ export function Pitch({
                   d={`M ${sx} ${sy} ${role.movementPath.filter(p => p.x != null && p.y != null).map(p => `L ${p.x} ${p.y}`).join(' ')}`}
                   fill="none"
                   stroke={color}
-                  strokeWidth="0.75"
-                  strokeDasharray="2 1"
-                  className={cn("transition-all duration-300", isActive ? "opacity-100" : "opacity-40")}
+                  strokeWidth="1"
+                  strokeDasharray="2.5 1.5"
+                  className={cn("transition-all duration-300", isActive ? "opacity-100" : "opacity-50")}
                   markerEnd="url(#arrowhead)"
                 />
               )}
@@ -136,20 +135,20 @@ export function Pitch({
                 <circle
                   cx={sx}
                   cy={sy}
-                  r={isActive ? "3.5" : "2.5"}
+                  r={isActive ? "4" : "3"}
                   fill={color}
-                  stroke="rgba(0,0,0,0.5)"
-                  strokeWidth="0.5"
+                  stroke="rgba(0,0,0,0.6)"
+                  strokeWidth="0.6"
                 />
                 <text
                   x={sx}
-                  y={sy + 0.5}
-                  fontSize="2.5"
+                  y={sy + 0.6}
+                  fontSize="2.8"
                   fontWeight="bold"
                   fill="#000"
                   textAnchor="middle"
                   dominantBaseline="middle"
-                  className="pointer-events-none"
+                  className="pointer-events-none select-none"
                 >
                   {role.name.substring(0, 1)}
                 </text>
@@ -158,10 +157,11 @@ export function Pitch({
                   <circle
                     cx={sx}
                     cy={sy}
-                    r="4.5"
+                    r="5.5"
                     fill="none"
                     stroke={color}
-                    strokeWidth="0.5"
+                    strokeWidth="0.4"
+                    opacity="0.6"
                     className="animate-ping origin-center"
                   />
                 )}

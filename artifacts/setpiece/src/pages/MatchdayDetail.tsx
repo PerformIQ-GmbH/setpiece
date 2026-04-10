@@ -300,64 +300,69 @@ export default function MatchdayDetail() {
 
   return (
     <CoachLayout teamId={teamId} teamName={team?.name}>
-      <div className="flex items-center gap-3 mb-6">
+      <div className="flex items-center gap-4 mb-8">
         <Link href={`/teams/${teamId}/matchdays`}>
-          <Button variant="ghost" size="icon" className="rounded-full"><ArrowLeft className="h-5 w-5" /></Button>
+          <Button variant="ghost" size="icon" className="rounded-xl w-10 h-10 bg-white/[0.04] hover:bg-white/[0.08]"><ArrowLeft className="h-5 w-5" /></Button>
         </Link>
-        <div className="flex-1">
-          <h1 className="text-2xl font-display font-bold text-white">{matchday?.title}</h1>
+        <div className="flex-1 min-w-0">
+          <h1 className="text-2xl font-display font-bold text-white truncate">{matchday?.title}</h1>
           <p className="text-muted-foreground text-sm">
             {matchday?.opponent ? `vs ${matchday.opponent}` : ''}
             {matchday?.date && ` · ${new Date(matchday.date).toLocaleDateString()}`}
           </p>
         </div>
-        <Button size="sm" variant="outline" onClick={handleExportMatchPack} disabled={exportingPDF} className="border-border text-muted-foreground">
-          {exportingPDF ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <FileDown className="h-4 w-4 mr-2" />}
-          {exportingPDF ? 'Exporting...' : 'Export PDF'}
-        </Button>
-        <Button size="sm" variant="outline" onClick={() => { setShareLink(''); setShareScope('all'); setSelectedPlayers([]); setExpiryHours(''); setShareOpen(true); }} className="border-primary/30 text-primary">
-          <QrCode className="h-4 w-4 mr-2" /> Share
-        </Button>
-        <Button size="sm" onClick={() => setAddOpen(true)}>
-          <Plus className="h-4 w-4 mr-2" /> Add Set Piece
-        </Button>
+        <div className="flex items-center gap-2 shrink-0">
+          <Button size="sm" variant="outline" onClick={handleExportMatchPack} disabled={exportingPDF} className="rounded-xl">
+            {exportingPDF ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <FileDown className="h-4 w-4 mr-2" />}
+            {exportingPDF ? 'Exporting...' : 'Export PDF'}
+          </Button>
+          <Button size="sm" variant="outline" onClick={() => { setShareLink(''); setShareScope('all'); setSelectedPlayers([]); setExpiryHours(''); setShareOpen(true); }} className="border-primary/30 text-primary rounded-xl">
+            <QrCode className="h-4 w-4 mr-2" /> Share
+          </Button>
+          <Button size="sm" onClick={() => setAddOpen(true)} className="rounded-xl">
+            <Plus className="h-4 w-4 mr-2" /> Add Set Piece
+          </Button>
+        </div>
       </div>
 
-      <div className="mb-4">
-        <h2 className="font-display text-sm font-bold text-muted-foreground uppercase tracking-wider mb-3">Match Pack ({matchday?.setPieces?.length || 0} set pieces)</h2>
+      <div className="mb-5">
+        <p className="section-label mb-3">Match Pack ({matchday?.setPieces?.length || 0} set pieces)</p>
       </div>
 
       {matchday?.setPieces?.length === 0 ? (
-        <Card className="bg-card border-border border-dashed">
-          <CardContent className="p-8 text-center">
-            <LayoutDashboard className="h-10 w-10 text-muted-foreground mx-auto mb-3" />
-            <p className="text-muted-foreground text-sm">No set pieces in this match pack yet.</p>
-            <Button size="sm" className="mt-4" onClick={() => setAddOpen(true)}><Plus className="h-4 w-4 mr-2" /> Add Set Piece</Button>
+        <Card className="border-dashed border-white/10">
+          <CardContent className="p-10 text-center">
+            <div className="w-16 h-16 rounded-2xl bg-white/[0.04] flex items-center justify-center mx-auto mb-4">
+              <LayoutDashboard className="h-8 w-8 text-muted-foreground/40" />
+            </div>
+            <p className="text-muted-foreground text-sm mb-1">No set pieces in this match pack yet.</p>
+            <p className="text-muted-foreground/60 text-xs mb-5">Add set pieces to build your matchday preparation pack.</p>
+            <Button size="sm" onClick={() => setAddOpen(true)} className="rounded-xl"><Plus className="h-4 w-4 mr-2" /> Add Set Piece</Button>
           </CardContent>
         </Card>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {matchday?.setPieces?.map((sp, idx) => (
-            <motion.div key={sp.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: idx * 0.05 }}>
-              <Card className="bg-card border-border overflow-hidden group">
-                <div className="aspect-[16/9] bg-emerald-950/40 border-b border-border/50 relative flex items-center justify-center">
+            <motion.div key={sp.id} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: idx * 0.05 }}>
+              <Card className="overflow-hidden group hover:border-white/[0.12] transition-all">
+                <div className="aspect-[16/9] bg-emerald-950/30 border-b border-white/[0.06] relative flex items-center justify-center">
                   {sp.previewImageUrl ? (
                     <img src={sp.previewImageUrl} alt={sp.title} className="w-full h-full object-cover" />
                   ) : (
-                    <LayoutDashboard className="h-8 w-8 text-muted-foreground/30" />
+                    <LayoutDashboard className="h-8 w-8 text-muted-foreground/20" />
                   )}
                 </div>
-                <CardContent className="p-4">
+                <CardContent className="p-5">
                   <div className="flex justify-between items-start mb-2">
-                    <h3 className="font-bold text-sm text-white">{sp.title}</h3>
+                    <h3 className="font-bold text-sm text-white group-hover:text-primary/90 transition-colors">{sp.title}</h3>
                     <StatusBadge status={sp.status} />
                   </div>
-                  <p className="text-xs text-muted-foreground capitalize mb-3">{sp.category.replace(/_/g, ' ')}</p>
+                  <p className="text-xs text-muted-foreground capitalize mb-4">{sp.category.replace(/_/g, ' ')}</p>
                   <div className="flex gap-2">
                     <Link href={`/teams/${teamId}/set-pieces/${sp.id}/editor`} className="flex-1">
-                      <Button variant="outline" size="sm" className="w-full text-xs">Edit</Button>
+                      <Button variant="outline" size="sm" className="w-full text-xs rounded-xl">Edit</Button>
                     </Link>
-                    <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive" onClick={() => handleRemove(sp.id)}>
+                    <Button variant="ghost" size="icon" className="h-8 w-8 rounded-xl text-muted-foreground hover:text-destructive hover:bg-destructive/10" onClick={() => handleRemove(sp.id)}>
                       <Trash2 className="h-3.5 w-3.5" />
                     </Button>
                   </div>
@@ -369,17 +374,17 @@ export default function MatchdayDetail() {
       )}
 
       <Dialog open={addOpen} onOpenChange={setAddOpen}>
-        <DialogContent className="bg-card border-border sm:max-w-md max-h-[70vh] overflow-y-auto">
+        <DialogContent className="bg-card border-white/[0.08] sm:max-w-md max-h-[70vh] overflow-y-auto rounded-2xl">
           <DialogHeader><DialogTitle>Add Set Piece to Match Pack</DialogTitle></DialogHeader>
           {availablePieces.length === 0 ? (
-            <p className="text-sm text-muted-foreground py-4 text-center">All set pieces are already in this match pack.</p>
+            <p className="text-sm text-muted-foreground py-6 text-center">All set pieces are already in this match pack.</p>
           ) : (
             <div className="space-y-2 pt-2">
               {availablePieces.map(sp => (
-                <button key={sp.id} onClick={() => handleAdd(sp.id)} className="w-full flex items-center justify-between p-3 rounded-xl bg-secondary/50 border border-border hover:border-primary/30 transition-all text-left">
+                <button key={sp.id} onClick={() => handleAdd(sp.id)} className="w-full flex items-center justify-between p-4 rounded-xl bg-white/[0.03] border border-white/[0.06] hover:border-primary/30 hover:bg-white/[0.05] transition-all text-left active:scale-[0.99]">
                   <div>
                     <p className="font-semibold text-sm text-white">{sp.title}</p>
-                    <p className="text-xs text-muted-foreground capitalize">{sp.category.replace(/_/g, ' ')}</p>
+                    <p className="text-xs text-muted-foreground capitalize mt-0.5">{sp.category.replace(/_/g, ' ')}</p>
                   </div>
                   <StatusBadge status={sp.status} />
                 </button>
@@ -390,42 +395,42 @@ export default function MatchdayDetail() {
       </Dialog>
 
       <Dialog open={shareOpen} onOpenChange={setShareOpen}>
-        <DialogContent className="bg-card border-border sm:max-w-lg">
+        <DialogContent className="bg-card border-white/[0.08] sm:max-w-lg rounded-2xl">
           <DialogHeader><DialogTitle className="flex items-center gap-2"><Share2 className="h-5 w-5 text-primary" /> Share Match Pack</DialogTitle></DialogHeader>
 
           {!shareLink ? (
-            <div className="space-y-4 pt-2">
-              <div className="space-y-2">
-                <label className="text-xs text-muted-foreground uppercase font-bold tracking-wider flex items-center gap-2">
+            <div className="space-y-5 pt-2">
+              <div className="space-y-2.5">
+                <label className="section-label flex items-center gap-2">
                   <Users className="h-3.5 w-3.5" /> Player Scope
                 </label>
-                <div className="flex gap-2">
+                <div className="flex gap-3">
                   <button
                     onClick={() => setShareScope('all')}
-                    className={`flex-1 p-3 rounded-xl border text-sm text-left transition-all ${shareScope === 'all' ? 'bg-primary/10 border-primary/30 text-white' : 'bg-secondary/50 border-border text-muted-foreground hover:border-muted-foreground'}`}
+                    className={`flex-1 p-4 rounded-2xl border-2 text-sm text-left transition-all ${shareScope === 'all' ? 'bg-primary/[0.08] border-primary/40 text-white' : 'bg-white/[0.02] border-white/[0.06] text-muted-foreground hover:border-white/[0.15]'}`}
                   >
                     <p className="font-semibold">Team Link</p>
-                    <p className="text-xs opacity-70">Players identify themselves when they open</p>
+                    <p className="text-xs opacity-70 mt-1">Players identify themselves when they open</p>
                   </button>
                   <button
                     onClick={() => setShareScope('selected')}
-                    className={`flex-1 p-3 rounded-xl border text-sm text-left transition-all ${shareScope === 'selected' ? 'bg-primary/10 border-primary/30 text-white' : 'bg-secondary/50 border-border text-muted-foreground hover:border-muted-foreground'}`}
+                    className={`flex-1 p-4 rounded-2xl border-2 text-sm text-left transition-all ${shareScope === 'selected' ? 'bg-primary/[0.08] border-primary/40 text-white' : 'bg-white/[0.02] border-white/[0.06] text-muted-foreground hover:border-white/[0.15]'}`}
                   >
                     <p className="font-semibold">Selected Players</p>
-                    <p className="text-xs opacity-70">Restrict to specific players only</p>
+                    <p className="text-xs opacity-70 mt-1">Restrict to specific players only</p>
                   </button>
                 </div>
               </div>
 
               {shareScope === 'selected' && players && (
-                <div className="space-y-2 max-h-40 overflow-y-auto">
+                <div className="space-y-1.5 max-h-40 overflow-y-auto rounded-xl border border-white/[0.06] p-2">
                   {players.map((p: Player) => (
-                    <label key={p.id} className="flex items-center gap-3 p-2 rounded-lg hover:bg-secondary/30 cursor-pointer transition-colors">
+                    <label key={p.id} className="flex items-center gap-3 p-2.5 rounded-xl hover:bg-white/[0.04] cursor-pointer transition-colors">
                       <input
                         type="checkbox"
                         checked={selectedPlayers.includes(p.id)}
                         onChange={() => togglePlayer(p.id)}
-                        className="rounded border-border accent-primary"
+                        className="rounded border-white/20 accent-primary"
                       />
                       <span className="text-sm text-white">{p.firstName} {p.lastName}</span>
                       {p.shirtNumber && <span className="text-xs text-muted-foreground ml-auto">#{p.shirtNumber}</span>}
@@ -434,14 +439,14 @@ export default function MatchdayDetail() {
                 </div>
               )}
 
-              <div className="space-y-2">
-                <label className="text-xs text-muted-foreground uppercase font-bold tracking-wider flex items-center gap-2">
+              <div className="space-y-2.5">
+                <label className="section-label flex items-center gap-2">
                   <Clock className="h-3.5 w-3.5" /> Expiry (optional)
                 </label>
                 <select
                   value={expiryHours}
                   onChange={e => setExpiryHours(e.target.value)}
-                  className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm focus:border-primary outline-none"
+                  className="w-full bg-white/[0.03] border border-white/[0.08] rounded-xl px-4 py-2.5 text-sm focus:border-primary/40 focus:ring-2 focus:ring-primary/20 outline-none transition-all"
                 >
                   <option value="">No expiry</option>
                   <option value="1">1 hour</option>
@@ -453,29 +458,29 @@ export default function MatchdayDetail() {
               </div>
 
               {shareError && (
-                <div className="p-3 rounded-lg bg-red-500/10 border border-red-500/20 text-red-300 text-sm">
+                <div className="p-4 rounded-xl bg-red-500/10 border border-red-500/20 text-red-300 text-sm">
                   {shareError}
                 </div>
               )}
-              <Button className="w-full" onClick={handleShare} disabled={createShareLink.isPending}>
+              <Button className="w-full rounded-xl py-3" onClick={handleShare} disabled={createShareLink.isPending}>
                 {createShareLink.isPending ? 'Generating...' : 'Generate Share Link'}
               </Button>
             </div>
           ) : (
-            <div className="flex flex-col items-center py-4">
-              <div className="bg-white p-4 rounded-2xl mb-4">
+            <div className="flex flex-col items-center py-6">
+              <div className="bg-white p-5 rounded-2xl mb-5 shadow-lg">
                 <QRCodeSVG value={shareLink} size={180} />
               </div>
-              <p className="text-xs text-muted-foreground mb-4 text-center">
+              <p className="text-xs text-muted-foreground mb-5 text-center max-w-xs">
                 {shareScope === 'all' ? 'Shared team access link — players will identify themselves when they open it' : 'Player-specific link — only the selected player can access'}
               </p>
               <div className="flex gap-2 w-full">
-                <input readOnly value={shareLink} className="flex-1 bg-background border border-border rounded-lg px-3 py-2 text-xs text-foreground" />
-                <Button size="sm" variant="outline" onClick={handleCopy} className="min-w-[60px]">
+                <input readOnly value={shareLink} className="flex-1 bg-white/[0.03] border border-white/[0.08] rounded-xl px-4 py-2.5 text-xs text-foreground" />
+                <Button size="sm" variant="outline" onClick={handleCopy} className="min-w-[70px] rounded-xl">
                   {copied ? <><Check className="h-3 w-3 mr-1" /> Copied</> : <><Copy className="h-3 w-3 mr-1" /> Copy</>}
                 </Button>
               </div>
-              <Button variant="ghost" size="sm" className="mt-3 text-xs text-muted-foreground" onClick={() => { setShareLink(''); }}>
+              <Button variant="ghost" size="sm" className="mt-4 text-xs text-muted-foreground" onClick={() => { setShareLink(''); }}>
                 Generate New Link
               </Button>
             </div>

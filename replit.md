@@ -52,7 +52,7 @@ The monorepo is organized into `artifacts` (deployable applications), `lib` (sha
 - **Pricing:** Tiered subscription model (Free, Solo Coach, Team).
 
 **Frontend (Coach Dashboard & Player PWA):**
-- **UI/UX:** Dark navy theme with emerald primary accents, using Outfit for display and Inter for body text.
+- **UI/UX:** Premium dark-mode design system with emerald primary accents (#10b981), using Outfit for display and Inter for body text. Design tokens: --radius: 1.125rem (18px), surface layers (--surface-0 through --surface-3), premium spacing scale. UI primitives use rounded-xl/2xl borders, white/[0.06] translucent borders, gradient progress bars, shimmer skeleton animations, and active:scale-[0.98] micro-interactions. Utility classes: section-label, premium-card, premium-glow, sticky-bottom-bar, skeleton-shimmer.
 - **Key Pages:** Landing, Onboarding, Dashboard, Team Dashboard, Players, Templates, Set Piece Editor, Matchdays, Readiness, Pricing, Settings, Player PWA, Player Quiz.
 - **Set Piece Editor:** A sophisticated tactical editor built with React Konva and Zustand for state management. It supports:
     - Tool selection, annotations (run paths, pass lines, zones), entity markers (players, ball).

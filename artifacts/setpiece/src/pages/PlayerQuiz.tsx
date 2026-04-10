@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useRoute } from 'wouter';
 import { useGetQuizQuestions, useSubmitQuiz } from '@workspace/api-client-react';
-import { Loader2, CheckCircle2, XCircle, ChevronRight, ArrowLeft } from 'lucide-react';
+import { Loader2, CheckCircle2, XCircle, ChevronRight, ArrowLeft, Trophy, RotateCcw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Link } from 'wouter';
@@ -23,17 +23,26 @@ export default function PlayerQuiz() {
   const [result, setResult] = useState<{ passed: boolean; score: number; correct?: number; total: number } | null>(null);
 
   if (isLoading) {
-    return <div className="min-h-screen bg-[#0A0A0A] flex items-center justify-center"><Loader2 className="w-8 h-8 text-primary animate-spin" /></div>;
+    return (
+      <div className="min-h-screen bg-[var(--surface-0)] flex flex-col items-center justify-center gap-4">
+        <div className="w-12 h-12 rounded-2xl bg-primary/15 flex items-center justify-center">
+          <Loader2 className="w-6 h-6 text-primary animate-spin" />
+        </div>
+        <p className="text-sm text-muted-foreground">Loading quiz...</p>
+      </div>
+    );
   }
 
   if (error || !quizData || !quizData.questions?.length) {
     return (
-      <div className="min-h-screen bg-[#0A0A0A] text-white flex flex-col items-center justify-center p-6 text-center">
-        <XCircle className="w-16 h-16 text-destructive mb-4" />
-        <h1 className="text-2xl font-bold mb-2">Quiz Unavailable</h1>
-        <p className="text-muted-foreground mb-6">No quiz questions are available for this set piece.</p>
+      <div className="min-h-screen bg-[var(--surface-0)] text-white flex flex-col items-center justify-center p-6 text-center">
+        <div className="w-20 h-20 rounded-full bg-destructive/10 flex items-center justify-center mb-6">
+          <XCircle className="w-10 h-10 text-destructive" />
+        </div>
+        <h1 className="text-2xl font-display font-bold mb-3">Quiz Unavailable</h1>
+        <p className="text-muted-foreground mb-8 text-sm max-w-xs">No quiz questions are available for this set piece.</p>
         <Link href={`/p/${shareToken}`}>
-          <Button variant="outline" className="border-white/20"><ArrowLeft className="w-4 h-4 mr-2" /> Back to Set Pieces</Button>
+          <Button variant="outline"><ArrowLeft className="w-4 h-4 mr-2" /> Back to Set Pieces</Button>
         </Link>
       </div>
     );
@@ -81,67 +90,133 @@ export default function PlayerQuiz() {
 
   if (result) {
     const correctCount = result.correct ?? Math.round((result.score / 100) * result.total);
+    const isPassed = result.passed;
 
     return (
-      <div className="min-h-screen bg-[#0A0A0A] text-white">
-        <div className="max-w-md mx-auto min-h-screen bg-[#111111] flex flex-col items-center justify-center p-8 text-center">
-          <motion.div initial={{ scale: 0.5, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={{ type: 'spring', bounce: 0.4 }}>
-            {result.passed ? (
-              <CheckCircle2 className="w-24 h-24 text-primary mx-auto mb-6" />
-            ) : (
-              <XCircle className="w-24 h-24 text-destructive mx-auto mb-6" />
-            )}
+      <div className="min-h-screen bg-[var(--surface-0)] text-white">
+        <div className="max-w-md mx-auto min-h-screen bg-[var(--surface-1)] flex flex-col items-center justify-center p-8 text-center">
+          <motion.div
+            initial={{ scale: 0.5, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            transition={{ type: 'spring', bounce: 0.4 }}
+            className="mb-8"
+          >
+            <div className={`w-28 h-28 rounded-full flex items-center justify-center mx-auto ${isPassed ? 'bg-primary/15' : 'bg-destructive/10'}`}>
+              {isPassed ? (
+                <Trophy className="w-14 h-14 text-primary" />
+              ) : (
+                <XCircle className="w-14 h-14 text-destructive" />
+              )}
+            </div>
           </motion.div>
-          <h1 className="text-3xl font-bold mb-2">{result.passed ? 'Quiz Passed!' : 'Not Quite...'}</h1>
-          <p className="text-xl text-muted-foreground mb-1">
-            Score: <span className="text-white font-bold">{result.score}%</span>
-          </p>
-          <p className="text-sm text-muted-foreground mb-2">
-            {correctCount} of {result.total} correct
-          </p>
-          <p className="text-sm text-muted-foreground mb-8">
-            {result.passed ? 'Great work! You are marked as quiz-ready.' : 'Review the set piece and try again.'}
-          </p>
-          <Link href={`/p/${shareToken}`}>
-            <Button className="rounded-2xl px-8 py-6 text-lg">Back to Set Pieces</Button>
-          </Link>
+
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.2 }}
+          >
+            <h1 className="text-3xl font-display font-bold mb-3">
+              {isPassed ? 'Quiz Passed!' : 'Not Quite...'}
+            </h1>
+
+            <div className="flex items-center justify-center gap-6 mb-4">
+              <div className="text-center">
+                <p className="text-4xl font-display font-bold text-primary">{result.score}%</p>
+                <p className="text-xs text-muted-foreground mt-1">Score</p>
+              </div>
+              <div className="w-px h-10 bg-white/10" />
+              <div className="text-center">
+                <p className="text-4xl font-display font-bold text-white">{correctCount}<span className="text-muted-foreground text-lg">/{result.total}</span></p>
+                <p className="text-xs text-muted-foreground mt-1">Correct</p>
+              </div>
+            </div>
+
+            <div className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold mb-8 ${isPassed ? 'bg-primary/10 text-primary border border-primary/20' : 'bg-destructive/10 text-destructive border border-destructive/20'}`}>
+              {isPassed ? (
+                <><CheckCircle2 className="w-4 h-4" /> Marked as quiz-ready</>
+              ) : (
+                <><RotateCcw className="w-4 h-4" /> Review and try again</>
+              )}
+            </div>
+          </motion.div>
+
+          <div className="w-full space-y-3">
+            <Link href={`/p/${shareToken}`} className="block">
+              <Button className="w-full py-5 rounded-2xl text-base">
+                Back to Set Pieces
+              </Button>
+            </Link>
+            {!isPassed && (
+              <Button
+                variant="outline"
+                className="w-full py-5 rounded-2xl"
+                onClick={() => {
+                  setResult(null);
+                  setCurrentIdx(0);
+                  setAnswers({});
+                }}
+              >
+                <RotateCcw className="w-4 h-4 mr-2" /> Retry Quiz
+              </Button>
+            )}
+          </div>
         </div>
       </div>
     );
   }
 
+  const progressPct = ((currentIdx + 1) / questions.length) * 100;
+
   return (
-    <div className="min-h-screen bg-[#0A0A0A] text-white">
-      <div className="max-w-md mx-auto min-h-screen bg-[#111111] flex flex-col">
-        <header className="p-4 border-b border-white/10 bg-[#1A1A1A] flex items-center gap-4 sticky top-0 z-10">
+    <div className="min-h-screen bg-[var(--surface-0)] text-white">
+      <div className="max-w-md mx-auto min-h-screen bg-[var(--surface-1)] flex flex-col">
+        <header className="p-4 border-b border-white/[0.06] bg-[var(--surface-2)] flex items-center gap-4 sticky top-0 z-10 backdrop-blur-xl">
           <Link href={`/p/${shareToken}`}>
-            <button className="w-10 h-10 rounded-full bg-black/50 flex items-center justify-center">
+            <button className="w-10 h-10 rounded-xl bg-white/[0.06] flex items-center justify-center transition-colors hover:bg-white/10">
               <ArrowLeft className="w-5 h-5" />
             </button>
           </Link>
           <div className="flex-1">
-            <h2 className="font-bold text-lg">Readiness Quiz</h2>
+            <h2 className="font-display font-bold text-lg">Readiness Quiz</h2>
             <p className="text-xs text-muted-foreground">Question {currentIdx + 1} of {questions.length}</p>
+          </div>
+          <div className="flex items-center gap-1.5">
+            {questions.map((_: unknown, i: number) => (
+              <div
+                key={i}
+                className={`w-2 h-2 rounded-full transition-all duration-300 ${
+                  i < currentIdx ? 'bg-primary' :
+                  i === currentIdx ? 'bg-primary w-4' :
+                  'bg-white/10'
+                }`}
+              />
+            ))}
           </div>
         </header>
 
-        <div className="w-full bg-black/30 h-1">
-          <div className="bg-primary h-1 transition-all duration-300" style={{ width: `${((currentIdx + 1) / questions.length) * 100}%` }} />
+        <div className="w-full h-1 bg-white/[0.04]">
+          <motion.div
+            className="h-1 bg-gradient-to-r from-primary to-emerald-400 rounded-r-full"
+            animate={{ width: `${progressPct}%` }}
+            transition={{ duration: 0.3, ease: 'easeOut' }}
+          />
         </div>
 
         <main className="flex-1 p-6 flex flex-col">
           <AnimatePresence mode="wait">
             <motion.div
               key={currentQ.id}
-              initial={{ opacity: 0, x: 50 }}
+              initial={{ opacity: 0, x: 40 }}
               animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -50 }}
+              exit={{ opacity: 0, x: -40 }}
+              transition={{ duration: 0.25 }}
               className="flex-1 flex flex-col"
             >
-              <span className="text-xs font-bold uppercase tracking-widest text-primary mb-4">
+              <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-primary/10 border border-primary/20 text-primary text-xs font-bold uppercase tracking-wider mb-6 self-start">
                 {currentQ.type === 'tap_zone' ? 'Tap Zone' : 'Yes / No'}
-              </span>
-              <h3 className="text-xl font-bold mb-8">{currentQ.prompt}</h3>
+              </div>
+
+              <h3 className="text-xl font-display font-bold mb-8 leading-snug">{currentQ.prompt}</h3>
 
               {currentQ.type === 'yes_no' && (
                 <div className="grid grid-cols-2 gap-4">
@@ -149,10 +224,10 @@ export default function PlayerQuiz() {
                     <button
                       key={val}
                       onClick={() => handleAnswer(val)}
-                      className={`p-6 rounded-xl border text-lg font-bold capitalize transition-all ${
+                      className={`p-6 rounded-2xl border-2 text-lg font-bold capitalize transition-all active:scale-[0.97] ${
                         answers[currentQ.id] === val
-                          ? 'bg-primary/20 border-primary text-white'
-                          : 'bg-[#1A1A1A] border-white/10 hover:border-white/30 text-white/90'
+                          ? 'bg-primary/15 border-primary text-white shadow-lg shadow-primary/10'
+                          : 'bg-white/[0.03] border-white/[0.08] hover:border-white/20 text-white/80'
                       }`}
                     >
                       {val}
@@ -162,9 +237,9 @@ export default function PlayerQuiz() {
               )}
 
               {currentQ.type === 'tap_zone' && (
-                <div className="bg-[#1A1A1A] border border-white/10 rounded-xl p-4">
+                <div className="bg-white/[0.03] border border-white/[0.08] rounded-2xl p-5">
                   <p className="text-sm text-muted-foreground mb-4">Tap the approximate area on the pitch</p>
-                  <div className="relative aspect-[2/3] bg-emerald-900 rounded-lg overflow-hidden border border-white/20">
+                  <div className="relative aspect-[2/3] bg-emerald-900/80 rounded-xl overflow-hidden border border-white/15">
                     <svg
                       viewBox="0 0 100 100"
                       className="w-full h-full cursor-crosshair"
@@ -182,14 +257,25 @@ export default function PlayerQuiz() {
                         <circle cx="50" cy="100" r="15" />
                       </g>
                       {answers[currentQ.id] != null && typeof answers[currentQ.id] === 'object' ? (
-                        <circle
-                          cx={(answers[currentQ.id] as { x: number; y: number }).x}
-                          cy={(answers[currentQ.id] as { x: number; y: number }).y}
-                          r="4"
-                          fill="var(--color-primary)"
-                          stroke="white"
-                          strokeWidth="1"
-                        />
+                        <>
+                          <circle
+                            cx={(answers[currentQ.id] as { x: number; y: number }).x}
+                            cy={(answers[currentQ.id] as { x: number; y: number }).y}
+                            r="6"
+                            fill="var(--color-primary)"
+                            fillOpacity="0.2"
+                            stroke="var(--color-primary)"
+                            strokeWidth="0.5"
+                          />
+                          <circle
+                            cx={(answers[currentQ.id] as { x: number; y: number }).x}
+                            cy={(answers[currentQ.id] as { x: number; y: number }).y}
+                            r="3"
+                            fill="var(--color-primary)"
+                            stroke="white"
+                            strokeWidth="1"
+                          />
+                        </>
                       ) : null}
                     </svg>
                   </div>
@@ -199,14 +285,19 @@ export default function PlayerQuiz() {
           </AnimatePresence>
         </main>
 
-        <div className="p-6 bg-gradient-to-t from-black via-black/90 to-transparent">
+        <div className="p-5 pb-8" style={{ background: 'linear-gradient(to top, var(--surface-0) 50%, transparent)' }}>
           <Button
             onClick={handleNext}
             disabled={!hasAnswered || submitQuiz.isPending}
-            className="w-full py-6 text-lg rounded-2xl shadow-[0_0_20px_rgba(16,185,129,0.3)]"
+            className="w-full py-5 text-base rounded-2xl premium-glow"
           >
-            {submitQuiz.isPending ? 'Submitting...' : isLast ? 'Submit Quiz' : 'Next Question'}
-            {!isLast && <ChevronRight className="w-5 h-5 ml-2" />}
+            {submitQuiz.isPending ? (
+              <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Submitting...</>
+            ) : isLast ? (
+              'Submit Quiz'
+            ) : (
+              <>Next Question <ChevronRight className="w-5 h-5 ml-1" /></>
+            )}
           </Button>
         </div>
       </div>

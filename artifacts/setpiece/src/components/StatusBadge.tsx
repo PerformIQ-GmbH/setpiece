@@ -18,10 +18,20 @@ export function StatusBadge({ status, className }: { status: string; className?:
   const style = statusStyles[status] || 'bg-secondary text-muted-foreground border-border';
   return (
     <span className={cn(
-      'px-2 py-0.5 text-[10px] font-bold uppercase rounded-md border tracking-wide inline-block',
+      'px-2.5 py-1 text-[10px] font-bold uppercase rounded-lg border tracking-wider inline-flex items-center gap-1.5',
       style,
       className
     )}>
+      <span className={cn(
+        'w-1.5 h-1.5 rounded-full',
+        status === 'ready' || status === 'active' || status === 'passed' ? 'bg-emerald-400' :
+        status === 'draft' || status === 'not_opened' ? 'bg-zinc-400' :
+        status === 'active_matchday' ? 'bg-primary' :
+        status === 'injured' ? 'bg-red-400' :
+        status === 'needs_review' || status === 'archived' || status === 'suspended' ? 'bg-amber-400' :
+        status === 'opened' ? 'bg-blue-400' :
+        'bg-muted-foreground'
+      )} />
       {status.replace(/_/g, ' ')}
     </span>
   );

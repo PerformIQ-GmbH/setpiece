@@ -22,7 +22,7 @@ interface KonvaPitchProps {
 const PITCH_COLOR = '#0a4d2e';
 const LINE_COLOR = '#ffffff';
 const LINE_ALPHA = 0.4;
-const ROLE_RADIUS = 18;
+const ROLE_RADIUS = 20;
 const ACTIVE_COLOR = '#10b981';
 const INACTIVE_COLOR = '#6b7280';
 
@@ -110,22 +110,22 @@ export function KonvaPitch({ width, height, roles, activeRoleId, halfPitch, onRo
               }}
             >
               <Circle
-                radius={ROLE_RADIUS + 4}
+                radius={ROLE_RADIUS + 5}
                 fill={isActive ? ACTIVE_COLOR : 'transparent'}
-                opacity={0.25}
+                opacity={0.2}
               />
               <Circle
                 radius={ROLE_RADIUS}
                 fill={isActive ? ACTIVE_COLOR : INACTIVE_COLOR}
-                stroke={isActive ? '#ffffff' : 'transparent'}
-                strokeWidth={isActive ? 2 : 0}
+                stroke={isActive ? '#ffffff' : 'rgba(255,255,255,0.15)'}
+                strokeWidth={isActive ? 2.5 : 1}
                 shadowColor={isActive ? ACTIVE_COLOR : '#000'}
-                shadowBlur={isActive ? 12 : 4}
-                shadowOpacity={isActive ? 0.6 : 0.3}
+                shadowBlur={isActive ? 16 : 6}
+                shadowOpacity={isActive ? 0.7 : 0.4}
               />
               <Text
                 text={role.name.length > 6 ? role.name.slice(0, 5) + '..' : role.name}
-                fontSize={10}
+                fontSize={11}
                 fontFamily="Inter, sans-serif"
                 fontStyle="bold"
                 fill="#ffffff"
@@ -138,14 +138,15 @@ export function KonvaPitch({ width, height, roles, activeRoleId, halfPitch, onRo
               />
               <Text
                 text={role.name}
-                fontSize={9}
+                fontSize={10}
                 fontFamily="Inter, sans-serif"
+                fontStyle="600"
                 fill="#ffffff"
-                opacity={0.7}
+                opacity={0.8}
                 align="center"
-                width={80}
-                x={-40}
-                y={ROLE_RADIUS + 4}
+                width={90}
+                x={-45}
+                y={ROLE_RADIUS + 6}
               />
             </Group>
           );

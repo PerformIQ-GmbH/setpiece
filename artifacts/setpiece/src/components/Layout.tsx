@@ -121,14 +121,14 @@ export function CoachLayout({ children, teamId, teamName }: CoachLayoutProps) {
         </Sheet>
       </div>
 
-      <aside className="hidden md:flex flex-col w-[260px] border-r border-border bg-card/30 backdrop-blur-xl h-screen sticky top-0">
+      <aside className="hidden md:flex flex-col w-[260px] border-r border-white/[0.06] bg-card/30 backdrop-blur-xl h-screen sticky top-0">
         <div className="p-5 flex items-center gap-3">
-          <div className="h-9 w-9 rounded-xl bg-gradient-to-br from-primary to-emerald-600 flex items-center justify-center shadow-lg shadow-primary/20">
+          <div className="h-10 w-10 rounded-2xl bg-gradient-to-br from-primary to-emerald-600 flex items-center justify-center shadow-lg shadow-primary/20">
             <Move className="h-5 w-5 text-primary-foreground" />
           </div>
           <div>
             <h1 className="font-display font-bold text-xl tracking-tight text-white leading-none">SETPIECE</h1>
-            <p className="text-[9px] text-primary font-semibold tracking-widest uppercase">By PerformIQ</p>
+            <p className="text-[9px] text-primary font-semibold tracking-[0.2em] uppercase">By PerformIQ</p>
           </div>
         </div>
         
@@ -136,26 +136,26 @@ export function CoachLayout({ children, teamId, teamName }: CoachLayoutProps) {
           <NavLinks />
         </nav>
 
-        <div className="p-3 border-t border-border/50">
-          <div className="flex items-center gap-3 mb-3 px-2">
+        <div className="p-4 border-t border-white/[0.06]">
+          <div className="flex items-center gap-3 mb-3 px-1">
             <img 
               src={auth.user.profileImageUrl || `https://ui-avatars.com/api/?name=${auth.user.firstName}+${auth.user.lastName}&background=1a1a2e&color=10b981&size=40`} 
               alt="Avatar" 
-              className="w-9 h-9 rounded-full border border-border" 
+              className="w-9 h-9 rounded-xl border border-white/10" 
             />
             <div className="flex-1 min-w-0">
               <p className="text-sm font-semibold truncate text-foreground">{auth.user.firstName} {auth.user.lastName}</p>
               <p className="text-xs text-muted-foreground truncate">{auth.user.email}</p>
             </div>
           </div>
-          <Button variant="outline" size="sm" className="w-full justify-start text-muted-foreground hover:text-destructive hover:border-destructive/30 text-xs" onClick={handleLogout}>
+          <Button variant="outline" size="sm" className="w-full justify-start text-muted-foreground hover:text-destructive hover:border-destructive/30 text-xs rounded-xl" onClick={handleLogout}>
             <LogOut className="h-3.5 w-3.5 mr-2" /> Sign Out
           </Button>
         </div>
       </aside>
 
       <main className="flex-1 flex flex-col min-h-screen relative">
-        <div className="flex-1 overflow-y-auto p-4 md:p-8">
+        <div className="flex-1 overflow-y-auto p-4 md:p-6 lg:p-8">
           {children}
         </div>
       </main>
