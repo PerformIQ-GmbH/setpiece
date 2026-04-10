@@ -203,7 +203,7 @@ export default function PlayerPWA() {
                 <PlayerBoardViewer
                   roles={activeSetPiece.roles || []}
                   assignments={activeSetPiece.assignments || []}
-                  boardData={activeSetPiece.boardData as any}
+                  boardData={activeSetPiece.boardData ?? undefined}
                   category={activeSetPiece.category}
                   activePlayerId={selectedPlayerId || undefined}
                   activeRoleId={activeSetPiece.playerRole?.id}
@@ -230,12 +230,17 @@ export default function PlayerPWA() {
                 ) : null;
               })()}
 
-              {(activeSetPiece.playerRole?.coachingPoint || activeSetPiece.coachingNotes) && (
+              {activeSetPiece.playerRole?.coachingPoint && (
+                <div className="bg-[#1A1A1A] p-5 rounded-2xl border border-white/5 mb-4">
+                  <h3 className="text-sm font-bold text-muted-foreground uppercase tracking-widest mb-2">Coaching Point</h3>
+                  <p className="text-sm leading-relaxed text-white/90">{activeSetPiece.playerRole.coachingPoint}</p>
+                </div>
+              )}
+
+              {activeSetPiece.coachingNotes && (
                 <div className="bg-[#1A1A1A] p-5 rounded-2xl border border-white/5 mb-6">
-                  <h3 className="text-sm font-bold text-muted-foreground uppercase tracking-widest mb-3">Coaching Notes</h3>
-                  <p className="text-sm leading-relaxed text-white/90">
-                    {activeSetPiece.playerRole?.coachingPoint || activeSetPiece.coachingNotes}
-                  </p>
+                  <h3 className="text-sm font-bold text-muted-foreground uppercase tracking-widest mb-2">Coaching Notes</h3>
+                  <p className="text-sm leading-relaxed text-white/90">{activeSetPiece.coachingNotes}</p>
                 </div>
               )}
             </div>

@@ -466,7 +466,9 @@ export default function MatchdayDetail() {
               <div className="bg-white p-4 rounded-2xl mb-4">
                 <QRCodeSVG value={shareLink} size={180} />
               </div>
-              <p className="text-xs text-muted-foreground mb-4 text-center">Scan this QR code or share the link below</p>
+              <p className="text-xs text-muted-foreground mb-4 text-center">
+                {shareScope === 'all' ? 'Shared team access link — players will identify themselves when they open it' : 'Player-specific link — only the selected player can access'}
+              </p>
               <div className="flex gap-2 w-full">
                 <input readOnly value={shareLink} className="flex-1 bg-background border border-border rounded-lg px-3 py-2 text-xs text-foreground" />
                 <Button size="sm" variant="outline" onClick={handleCopy} className="min-w-[60px]">

@@ -1,9 +1,9 @@
 import { useRef, useMemo, useCallback, useState, useEffect } from 'react';
-import { Stage, Layer, Group, Line, Arrow, Circle as KonvaCircle, Rect, Text } from 'react-konva';
+import { Stage, Layer, Group, Line, Arrow } from 'react-konva';
 import { PremiumPitch } from '@/components/editor/PremiumPitch';
 import { OffensiveCornerPitch } from '@/components/editor/OffensiveCornerPitch';
 import { TeamPlayerMarker, OpponentMarker, GoalkeeperMarker, BallMarker } from '@/components/editor/markers';
-import type { Annotation, EntityMarker, BoardData as EditorBoardData } from '@/components/editor/types';
+import type { Annotation, EntityMarker } from '@/components/editor/types';
 
 interface RoleData {
   id: string;
@@ -19,10 +19,18 @@ interface AssignmentData {
   playerId: string;
 }
 
+interface BoardDataLike {
+  annotations?: Annotation[];
+  entities?: EntityMarker[];
+  steps?: Array<{ id: string; label: string }>;
+  stepPositions?: Record<string, Record<string, { x: number; y: number }>>;
+  [key: string]: unknown;
+}
+
 interface PlayerBoardViewerProps {
   roles: RoleData[];
   assignments?: AssignmentData[];
-  boardData?: EditorBoardData | Record<string, unknown> | null;
+  boardData?: BoardDataLike | null;
   category?: string;
   activePlayerId?: string | null;
   activeRoleId?: string | null;
@@ -79,9 +87,9 @@ export function PlayerBoardViewer({
     return assignment?.roleId || null;
   }, [explicitActiveRoleId, activePlayerId, assignments]);
 
-  const annotations: Annotation[] = (boardData as EditorBoardData)?.annotations || [];
-  const entities: EntityMarker[] = (boardData as EditorBoardData)?.entities || [];
-  const steps = (boardData as EditorBoardData)?.steps || [];
+  const annotations: Annotation[] = boardData?.annotations || [];
+  const entities: EntityMarker[] = boardData?.entities || [];
+  const steps = boardData?.steps || [];
   const firstStepId = steps.length > 0 ? steps[0].id : undefined;
   const visibleAnnotations = firstStepId
     ? annotations.filter((a: Annotation) => !a.stepId || a.stepId === firstStepId)
@@ -148,13 +156,14 @@ export function PlayerBoardViewer({
           <Group>
             {entities.map((ent: EntityMarker) => {
               const px = toPixel(ent.position);
+              const shouldDim = activeRoleId != null;
               if (ent.type === 'opponent') {
                 return (
                   <OpponentMarker
                     key={ent.id}
                     x={px.x} y={px.y}
                     shirtNumber={ent.shirtNumber}
-                    isDimmed={false}
+                    isDimmed={shouldDim}
                   />
                 );
               }
@@ -164,7 +173,7 @@ export function PlayerBoardViewer({
                     key={ent.id}
                     x={px.x} y={px.y}
                     shirtNumber={ent.shirtNumber}
-                    isDimmed={false}
+                    isDimmed={shouldDim}
                   />
                 );
               }
@@ -173,7 +182,7 @@ export function PlayerBoardViewer({
                   <BallMarker
                     key={ent.id}
                     x={px.x} y={px.y}
-                    isDimmed={false}
+                    isDimmed={shouldDim}
                     lightPitch={false}
                   />
                 );
