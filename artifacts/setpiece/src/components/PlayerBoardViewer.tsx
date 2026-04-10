@@ -1,17 +1,16 @@
-import { useMemo } from 'react';
-import { cn } from '@/lib/utils';
-
-interface Position {
-  x?: number | null;
-  y?: number | null;
-}
+import { useRef, useMemo, useCallback, useState, useEffect } from 'react';
+import { Stage, Layer, Group, Line, Arrow, Circle as KonvaCircle, Rect, Text } from 'react-konva';
+import { PremiumPitch } from '@/components/editor/PremiumPitch';
+import { OffensiveCornerPitch } from '@/components/editor/OffensiveCornerPitch';
+import { TeamPlayerMarker, OpponentMarker, GoalkeeperMarker, BallMarker } from '@/components/editor/markers';
+import type { Annotation, EntityMarker, BoardData as EditorBoardData } from '@/components/editor/types';
 
 interface RoleData {
   id: string;
   name: string;
   description?: string | null;
   coachingPoint?: string | null;
-  startPosition?: Position | null;
+  startPosition?: { x?: number | null; y?: number | null } | null;
   movementPath?: Array<{ x?: number; y?: number }> | null;
 }
 
@@ -20,46 +19,22 @@ interface AssignmentData {
   playerId: string;
 }
 
-interface BoardAnnotation {
-  type: string;
-  points: Array<{ x: number; y: number }>;
-  color: string;
-  strokeWidth: number;
-  dashed: boolean;
-  arrowhead: boolean;
-  ghost?: boolean;
-  linkedRoleId?: string;
-  stepId?: string;
-}
-
-interface BoardEntity {
-  type: 'opponent' | 'goalkeeper' | 'ball';
-  position: { x: number; y: number };
-  shirtNumber?: number;
-  label?: string;
-}
-
-interface BoardData {
-  annotations?: BoardAnnotation[];
-  entities?: BoardEntity[];
-  steps?: Array<{ id: string; label: string }>;
-}
-
 interface PlayerBoardViewerProps {
   roles: RoleData[];
   assignments?: AssignmentData[];
-  boardData?: BoardData | null;
+  boardData?: EditorBoardData | Record<string, unknown> | null;
   category?: string;
   activePlayerId?: string | null;
   activeRoleId?: string | null;
   className?: string;
+  players?: Array<{ id: string; firstName: string; lastName: string; shirtNumber?: number | null }>;
 }
 
-const TEAM_COLOR = '#10b981';
-const ACTIVE_COLOR = '#10b981';
-const MUTED_COLOR = 'rgba(255,255,255,0.35)';
-const OPPONENT_COLOR = '#ef4444';
-const BALL_COLOR = '#f59e0b';
+function computePad(width: number): number {
+  if (width < 300) return 8;
+  if (width < 600) return 10;
+  return 14;
+}
 
 export function PlayerBoardViewer({
   roles,
@@ -69,8 +44,33 @@ export function PlayerBoardViewer({
   activePlayerId,
   activeRoleId: explicitActiveRoleId,
   className,
+  players = [],
 }: PlayerBoardViewerProps) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [dims, setDims] = useState({ width: 400, height: 500 });
+
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    const observer = new ResizeObserver((entries) => {
+      const { width } = entries[0].contentRect;
+      setDims({ width, height: width * 1.25 });
+    });
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+
+  const { width, height } = dims;
+  const PAD = computePad(width);
   const isCornerKick = category.includes('corner');
+  const halfPitch = !isCornerKick && category.includes('free_kick');
+  const pitchW = width - PAD * 2;
+  const pitchH = height - PAD * 2;
+
+  const toPixel = useCallback((pct: { x: number; y: number }) => ({
+    x: PAD + (pct.x / 100) * pitchW,
+    y: PAD + (pct.y / 100) * pitchH,
+  }), [pitchW, pitchH, PAD]);
 
   const activeRoleId = useMemo(() => {
     if (explicitActiveRoleId) return explicitActiveRoleId;
@@ -79,157 +79,138 @@ export function PlayerBoardViewer({
     return assignment?.roleId || null;
   }, [explicitActiveRoleId, activePlayerId, assignments]);
 
-  const annotations = boardData?.annotations || [];
-  const entities = boardData?.entities || [];
-  const steps = boardData?.steps || [];
+  const annotations: Annotation[] = (boardData as EditorBoardData)?.annotations || [];
+  const entities: EntityMarker[] = (boardData as EditorBoardData)?.entities || [];
+  const steps = (boardData as EditorBoardData)?.steps || [];
   const firstStepId = steps.length > 0 ? steps[0].id : undefined;
   const visibleAnnotations = firstStepId
-    ? annotations.filter(a => !a.stepId || a.stepId === firstStepId)
+    ? annotations.filter((a: Annotation) => !a.stepId || a.stepId === firstStepId)
     : annotations;
 
+  const playerMap = useMemo(() => {
+    const m = new Map<string, { firstName: string; lastName: string; shirtNumber?: number | null }>();
+    for (const p of players) m.set(p.id, p);
+    return m;
+  }, [players]);
+
   return (
-    <div className={cn("relative w-full aspect-[4/5] rounded-xl overflow-hidden", className)}>
-      <svg viewBox="0 0 100 100" preserveAspectRatio="xMidYMid meet" className="w-full h-full">
-        <defs>
-          <marker id="pb-arrow" markerWidth="4" markerHeight="3" refX="3" refY="1.5" orient="auto">
-            <polygon points="0 0, 4 1.5, 0 3" fill="white" opacity="0.6" />
-          </marker>
-          <marker id="pb-arrow-active" markerWidth="4" markerHeight="3" refX="3" refY="1.5" orient="auto">
-            <polygon points="0 0, 4 1.5, 0 3" fill={ACTIVE_COLOR} />
-          </marker>
-          <radialGradient id="pb-field-grad" cx="50%" cy="30%" r="70%">
-            <stop offset="0%" stopColor="#0d5a35" />
-            <stop offset="100%" stopColor="#0a4d2e" />
-          </radialGradient>
-        </defs>
+    <div ref={containerRef} className={`relative w-full aspect-[4/5] ${className || ''}`}>
+      <Stage width={width} height={height} listening={false}>
+        <Layer>
+          {isCornerKick ? (
+            <OffensiveCornerPitch width={width} height={height} pad={PAD} theme="dark" />
+          ) : (
+            <PremiumPitch width={width} height={height} halfPitch={halfPitch} pad={PAD} theme="dark" />
+          )}
 
-        <rect x="0" y="0" width="100" height="100" rx="2" fill="url(#pb-field-grad)" />
+          <Group>
+            {visibleAnnotations.map((ann: Annotation) => {
+              if (!ann.points || ann.points.length < 2) return null;
+              const isLinkedToActive = ann.linkedRoleId === activeRoleId;
+              const opacity = isLinkedToActive ? 0.9 : 0.35;
+              const color = isLinkedToActive ? '#10b981' : (ann.ghost ? 'rgba(59,130,246,0.5)' : (ann.color || 'rgba(255,255,255,0.5)'));
+              const flatPoints = ann.points.flatMap((p: { x: number; y: number }) => {
+                const px = toPixel(p);
+                return [px.x, px.y];
+              });
 
-        {isCornerKick ? (
-          <CornerPitchLines />
-        ) : (
-          <HalfPitchLines />
-        )}
+              if (ann.arrowhead) {
+                return (
+                  <Arrow
+                    key={ann.id}
+                    points={flatPoints}
+                    stroke={color}
+                    strokeWidth={ann.strokeWidth || 2}
+                    opacity={opacity}
+                    dash={ann.dashed ? [6, 4] : undefined}
+                    pointerLength={8}
+                    pointerWidth={6}
+                    fill={color}
+                    listening={false}
+                  />
+                );
+              }
 
-        {visibleAnnotations.map((ann, i) => {
-          if (ann.points.length < 2) return null;
-          const isLinkedToActive = ann.linkedRoleId === activeRoleId;
-          const color = isLinkedToActive ? ACTIVE_COLOR : ann.ghost ? 'rgba(59,130,246,0.4)' : (ann.color || 'rgba(255,255,255,0.4)');
-          const opacity = isLinkedToActive ? 0.9 : 0.4;
-          const d = `M ${ann.points[0].x} ${ann.points[0].y} ${ann.points.slice(1).map(p => `L ${p.x} ${p.y}`).join(' ')}`;
+              return (
+                <Line
+                  key={ann.id}
+                  points={flatPoints}
+                  stroke={color}
+                  strokeWidth={ann.strokeWidth || 2}
+                  opacity={opacity}
+                  dash={ann.dashed ? [6, 4] : undefined}
+                  listening={false}
+                />
+              );
+            })}
+          </Group>
 
-          return (
-            <path
-              key={i}
-              d={d}
-              fill="none"
-              stroke={color}
-              strokeWidth={ann.strokeWidth * 0.4}
-              strokeDasharray={ann.dashed ? "2 1" : undefined}
-              opacity={opacity}
-              markerEnd={ann.arrowhead ? (isLinkedToActive ? "url(#pb-arrow-active)" : "url(#pb-arrow)") : undefined}
-            />
-          );
-        })}
+          <Group>
+            {entities.map((ent: EntityMarker) => {
+              const px = toPixel(ent.position);
+              if (ent.type === 'opponent') {
+                return (
+                  <OpponentMarker
+                    key={ent.id}
+                    x={px.x} y={px.y}
+                    shirtNumber={ent.shirtNumber}
+                    isDimmed={false}
+                  />
+                );
+              }
+              if (ent.type === 'goalkeeper') {
+                return (
+                  <GoalkeeperMarker
+                    key={ent.id}
+                    x={px.x} y={px.y}
+                    shirtNumber={ent.shirtNumber}
+                    isDimmed={false}
+                  />
+                );
+              }
+              if (ent.type === 'ball') {
+                return (
+                  <BallMarker
+                    key={ent.id}
+                    x={px.x} y={px.y}
+                    isDimmed={false}
+                    lightPitch={false}
+                  />
+                );
+              }
+              return null;
+            })}
+          </Group>
 
-        {entities.map((ent, i) => {
-          if (ent.type === 'ball') {
-            return (
-              <g key={`ent-${i}`}>
-                <circle cx={ent.position.x} cy={ent.position.y} r="2" fill={BALL_COLOR} stroke="rgba(0,0,0,0.4)" strokeWidth="0.3" />
-              </g>
-            );
-          }
-          const isOpponent = ent.type === 'opponent';
-          const fill = isOpponent ? OPPONENT_COLOR : 'rgba(255,255,255,0.5)';
-          return (
-            <g key={`ent-${i}`}>
-              <circle cx={ent.position.x} cy={ent.position.y} r="2.2" fill={fill} opacity={0.6} stroke="rgba(0,0,0,0.3)" strokeWidth="0.3" />
-              {ent.shirtNumber && (
-                <text x={ent.position.x} y={ent.position.y + 0.5} fontSize="1.8" fontWeight="bold" fill="white" textAnchor="middle" dominantBaseline="middle" opacity={0.8}>
-                  {ent.shirtNumber}
-                </text>
-              )}
-            </g>
-          );
-        })}
+          <Group>
+            {roles.map((role) => {
+              if (!role.startPosition || role.startPosition.x == null || role.startPosition.y == null) return null;
+              const px = toPixel({ x: role.startPosition.x, y: role.startPosition.y });
+              const isActive = role.id === activeRoleId;
+              const isDimmed = activeRoleId != null && !isActive;
 
-        {roles.map((role) => {
-          if (!role.startPosition || role.startPosition.x == null || role.startPosition.y == null) return null;
-          const sx = role.startPosition.x;
-          const sy = role.startPosition.y;
-          const isActive = role.id === activeRoleId;
-          const fill = isActive ? ACTIVE_COLOR : MUTED_COLOR;
-          const r = isActive ? 3.5 : 2.5;
+              const assignment = assignments.find(a => a.roleId === role.id);
+              const player = assignment ? playerMap.get(assignment.playerId) : undefined;
 
-          return (
-            <g key={role.id}>
-              {isActive && (
-                <circle cx={sx} cy={sy} r={r + 2} fill="none" stroke={ACTIVE_COLOR} strokeWidth="0.4" opacity={0.5}>
-                  <animate attributeName="r" values={`${r + 1};${r + 3};${r + 1}`} dur="2s" repeatCount="indefinite" />
-                  <animate attributeName="opacity" values="0.5;0.2;0.5" dur="2s" repeatCount="indefinite" />
-                </circle>
-              )}
-              <circle cx={sx} cy={sy} r={r} fill={fill} stroke={isActive ? 'rgba(16,185,129,0.6)' : 'rgba(0,0,0,0.3)'} strokeWidth={isActive ? '0.5' : '0.3'} />
-              <text
-                x={sx}
-                y={sy + 0.5}
-                fontSize={isActive ? '2.8' : '2.2'}
-                fontWeight="bold"
-                fill={isActive ? 'white' : 'rgba(0,0,0,0.7)'}
-                textAnchor="middle"
-                dominantBaseline="middle"
-              >
-                {role.name.substring(0, 2)}
-              </text>
-              {isActive && (
-                <text
-                  x={sx}
-                  y={sy + r + 3}
-                  fontSize="2.5"
-                  fontWeight="bold"
-                  fill="white"
-                  textAnchor="middle"
-                  dominantBaseline="middle"
-                >
-                  {role.name}
-                </text>
-              )}
-            </g>
-          );
-        })}
-      </svg>
+              return (
+                <TeamPlayerMarker
+                  key={role.id}
+                  x={px.x}
+                  y={px.y}
+                  isSelected={isActive}
+                  isDimmed={isDimmed}
+                  isUnassigned={!assignment}
+                  label={role.name}
+                  lastName={player?.lastName}
+                  shirtNumber={player?.shirtNumber ?? undefined}
+                  lightPitch={false}
+                  draggable={false}
+                />
+              );
+            })}
+          </Group>
+        </Layer>
+      </Stage>
     </div>
-  );
-}
-
-function HalfPitchLines() {
-  return (
-    <g stroke="rgba(255,255,255,0.25)" strokeWidth="0.4" fill="none">
-      <rect x="2" y="2" width="96" height="96" />
-      <rect x="20" y="2" width="60" height="25" />
-      <rect x="35" y="2" width="30" height="10" />
-      <rect x="42" y="0" width="16" height="2" fill="rgba(255,255,255,0.15)" stroke="rgba(255,255,255,0.25)" strokeWidth="0.4" />
-      <path d="M 35 27 A 20 20 0 0 0 65 27" />
-      <circle cx="50" cy="18" r="0.5" fill="rgba(255,255,255,0.3)" />
-      <circle cx="50" cy="98" r="15" />
-    </g>
-  );
-}
-
-function CornerPitchLines() {
-  return (
-    <g stroke="rgba(255,255,255,0.25)" strokeWidth="0.4" fill="none">
-      <rect x="2" y="2" width="96" height="96" />
-      <rect x="21" y="9" width="58" height="18" />
-      <line x1="21" y1="2" x2="21" y2="9" />
-      <line x1="79" y1="2" x2="79" y2="9" />
-      <rect x="37" y="2" width="26" height="9" />
-      <circle cx="50" cy="13" r="0.5" fill="rgba(255,255,255,0.3)" />
-      <path d="M 37 27 A 17 17 0 0 0 63 27" />
-      <line x1="2" y1="84" x2="98" y2="84" />
-      <path d="M 37 84 A 13 13 0 0 1 63 84" />
-      <circle cx="50" cy="84" r="0.5" fill="rgba(255,255,255,0.3)" />
-    </g>
   );
 }

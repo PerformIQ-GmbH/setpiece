@@ -217,12 +217,27 @@ export default function PlayerPWA() {
                 </div>
               )}
 
-              <div className="bg-[#1A1A1A] p-5 rounded-2xl border border-white/5 mb-6">
-                <h3 className="text-sm font-bold text-muted-foreground uppercase tracking-widest mb-3">Coaching Notes</h3>
-                <p className="text-sm leading-relaxed text-white/90">
-                  {activeSetPiece.playerRole?.coachingPoint || activeSetPiece.coachingNotes || "No specific notes provided for this routine."}
-                </p>
-              </div>
+              {(() => {
+                const myAssignment = (activeSetPiece.assignments || []).find(
+                  (a: { roleId: string; playerId: string; notes?: string | null }) =>
+                    a.roleId === activeSetPiece.playerRole?.id && a.playerId === selectedPlayerId
+                );
+                return myAssignment?.notes ? (
+                  <div className="bg-[#1A1A1A] p-5 rounded-2xl border border-primary/20 mb-4">
+                    <h3 className="text-sm font-bold text-primary uppercase tracking-widest mb-2">Coach's Note for You</h3>
+                    <p className="text-sm leading-relaxed text-white/90">{myAssignment.notes}</p>
+                  </div>
+                ) : null;
+              })()}
+
+              {(activeSetPiece.playerRole?.coachingPoint || activeSetPiece.coachingNotes) && (
+                <div className="bg-[#1A1A1A] p-5 rounded-2xl border border-white/5 mb-6">
+                  <h3 className="text-sm font-bold text-muted-foreground uppercase tracking-widest mb-3">Coaching Notes</h3>
+                  <p className="text-sm leading-relaxed text-white/90">
+                    {activeSetPiece.playerRole?.coachingPoint || activeSetPiece.coachingNotes}
+                  </p>
+                </div>
+              )}
             </div>
           </div>
 

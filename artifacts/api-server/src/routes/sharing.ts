@@ -282,6 +282,8 @@ router.get("/p/:shareToken/player/:playerId", async (req, res): Promise<void> =>
       allAssignments.push(...assigns);
     }
 
+    if (!playerRole) continue;
+
     setPiecesResult.push({
       id: sp.id,
       title: sp.title,
