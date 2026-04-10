@@ -1,0 +1,117 @@
+Polish and optimize the TRAINER VIEW for mobile, tablet and desktop in SETPIECE by PerformIQ.
+
+Current issue:
+The coach view is not truly responsive. On mobile, the screen wastes vertical space, the pitch does not use the viewport well, controls sit on top of the field in a cluttered way, labels are hard to read, and not everything feels visible or easy to use.
+
+Use the attached screenshot as a reference for the current problems:
+- too much empty space between header and pitch
+- pitch not using available height efficiently
+- floating controls clutter the field
+- bottom step controls are too weak and too close to the bottom edge
+- mobile header is too dense
+- labels overlap and are too small
+- overall layout feels like a compressed tablet/desktop view instead of a designed mobile coach experience
+
+Goals:
+- mobile: clean coach view with strong focus on the board
+- tablet: best editing experience
+- desktop: efficient board + inspector layout
+- preserve the same tactical board quality and pitch geometry across breakpoints
+
+Required changes:
+
+1) Mobile layout architecture
+Create a true mobile coach layout:
+- compact header
+- fullscreen / near-fullscreen board canvas
+- fixed bottom dock for primary controls
+- bottom sheet for editing details
+Do NOT keep multiple floating controls scattered over the board.
+
+2) Remove wasted vertical space
+- eliminate the large empty dark area between header and pitch
+- recalculate canvas height so the board fills the space between header and bottom dock
+- preserve safe area handling correctly
+
+3) Bottom dock
+Build a structured mobile bottom toolbar/dock with large tap targets:
+- left: pointer/select or drawing mode
+- center: step navigation
+- right: preview/play and more controls
+Use clean grouping and spacing.
+Reduce visual clutter.
+
+4) Editing details in bottom sheet
+When the coach taps a player/role/object:
+- open a bottom sheet
+- show role assignment
+- player selection
+- role details
+- coaching point
+- tactical notes
+Do not force long inspector content directly on the main screen.
+
+5) Header simplification
+On mobile:
+- keep only back, title, overflow menu
+- move secondary actions into overflow or sheet
+- reduce density and improve spacing
+
+6) Board visibility and framing
+- ensure the pitch uses available space better
+- support smart auto-fit for set piece area while preserving the same pitch proportions
+- especially for corners and free kicks, frame the relevant area better on mobile
+- allow a toggle if useful between full pitch and smart fit
+
+7) Label/readability improvements
+- reduce label density on mobile
+- show shorter labels on canvas
+- move long descriptions off the pitch and into sheets/cards
+- improve contrast and readability
+
+8) Tablet coach optimization
+Tablet should be the strongest coach editing mode:
+- better board-to-inspector ratio
+- larger usable editing panel
+- cleaner control placement
+- avoid cramped side panels
+- prefer side sheet or split layout depending on width
+
+9) Desktop coach optimization
+Desktop should feel efficient:
+- dominant board
+- stable inspector/sidebar
+- no excessive whitespace
+- no tiny side panel
+- preserve a premium tactical software feel
+
+10) Responsive behavior by breakpoint
+Implement intentional layouts:
+- mobile: board + bottom dock + bottom sheet
+- tablet: board + compact inspector / side sheet
+- desktop: board + full inspector sidebar
+Do not simply scale the same layout down.
+
+11) Visual polish
+- premium dark mode
+- PerformIQ green accents
+- subtle borders
+- 18-20px radius where appropriate
+- strong hierarchy
+- large tap targets
+- polished step navigation
+- elegant chips/buttons/menus
+- no cluttered overlays
+
+12) Maintain code quality
+- do not rewrite the whole app unnecessarily
+- reuse existing board/canvas logic
+- focus on responsive layout and UX improvements
+- keep code maintainable
+
+Deliverables:
+- updated responsive trainer layout
+- improved mobile coach view
+- improved tablet coach editing UX
+- improved desktop board/inspector proportions
+- concise summary of changed files and what improved
