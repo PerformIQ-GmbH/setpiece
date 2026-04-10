@@ -11,6 +11,8 @@ import { BoardHealth } from './BoardHealth';
 interface RoleData {
   id: string;
   name: string;
+  description?: string | null;
+  coachingPoint?: string | null;
   startPosition?: { x?: number | null; y?: number | null } | null;
 }
 
@@ -42,6 +44,7 @@ interface InspectorPanelProps {
   onDeleteRole: (roleId: string) => void;
   onDuplicateRole: (roleId: string) => void;
   onRenameRole: (roleId: string, newName: string) => void;
+  onUpdateRoleField?: (roleId: string, field: string, value: string) => void;
   onAddRole: () => void;
   forceVisible?: boolean;
 }
@@ -225,7 +228,7 @@ function PlayerCombobox({ players, assignments, roles, currentRoleId, value, onC
 
 export function InspectorPanel({
   roles, assignments, players, activeRoleId,
-  onRoleClick, onAssignPlayer, onAssignBackup, onDeleteRole, onDuplicateRole, onRenameRole, onAddRole,
+  onRoleClick, onAssignPlayer, onAssignBackup, onDeleteRole, onDuplicateRole, onRenameRole, onUpdateRoleField, onAddRole,
   forceVisible,
 }: InspectorPanelProps) {
   const selectedAnnotationId = useEditorStore((s) => s.selectedAnnotationId);
@@ -274,6 +277,7 @@ export function InspectorPanel({
           onDeleteRole={() => onDeleteRole(activeRoleId)}
           onDuplicateRole={() => onDuplicateRole(activeRoleId)}
           onRenameRole={(newName) => onRenameRole(activeRoleId, newName)}
+          onUpdateRoleField={onUpdateRoleField ? (field, value) => onUpdateRoleField(activeRoleId, field, value) : undefined}
           onBack={() => onRoleClick(activeRoleId)}
         />
       ) : (
@@ -478,7 +482,7 @@ function AnnotationInspector({ annotation, onUpdate, onDelete, roles }: {
   );
 }
 
-function RoleMarkerInspector({ role, assignment, player, linkedAnnotations, players, assignments, roles, activeRoleId, onAssignPlayer, onAssignBackup, onDeleteRole, onDuplicateRole, onRenameRole, onBack }: {
+function RoleMarkerInspector({ role, assignment, player, linkedAnnotations, players, assignments, roles, activeRoleId, onAssignPlayer, onAssignBackup, onDeleteRole, onDuplicateRole, onRenameRole, onUpdateRoleField, onBack }: {
   role: RoleData;
   assignment?: AssignmentData;
   player?: PlayerData;
@@ -492,14 +496,33 @@ function RoleMarkerInspector({ role, assignment, player, linkedAnnotations, play
   onDeleteRole: () => void;
   onDuplicateRole: () => void;
   onRenameRole: (newName: string) => void;
+  onUpdateRoleField?: (field: string, value: string) => void;
   onBack: () => void;
 }) {
   const [editing, setEditing] = useState(false);
   const [editName, setEditName] = useState(role.name);
+  const [editDescription, setEditDescription] = useState(role.description || '');
+  const [editCoachingPoint, setEditCoachingPoint] = useState(role.coachingPoint || '');
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => { setEditName(role.name); }, [role.name]);
+  useEffect(() => { setEditDescription(role.description || ''); }, [role.description]);
+  useEffect(() => { setEditCoachingPoint(role.coachingPoint || ''); }, [role.coachingPoint]);
   useEffect(() => { if (editing) inputRef.current?.select(); }, [editing]);
+
+  const commitDescription = () => {
+    const trimmed = editDescription.trim();
+    if (trimmed !== (role.description || '')) {
+      onUpdateRoleField?.('description', trimmed);
+    }
+  };
+
+  const commitCoachingPoint = () => {
+    const trimmed = editCoachingPoint.trim();
+    if (trimmed !== (role.coachingPoint || '')) {
+      onUpdateRoleField?.('coachingPoint', trimmed);
+    }
+  };
 
   const commitRename = () => {
     const trimmed = editName.trim();
@@ -584,6 +607,36 @@ function RoleMarkerInspector({ role, assignment, player, linkedAnnotations, play
           />
           <p className="text-[9px] text-muted-foreground mt-1.5">Optional substitute if primary player is unavailable</p>
         </CollapsibleSection>
+
+        {onUpdateRoleField && (
+          <CollapsibleSection title="Role Details" defaultOpen={!!(role.description || role.coachingPoint)}>
+            <div className="space-y-3">
+              <div className="space-y-1">
+                <label className="text-[10px] text-muted-foreground">Description</label>
+                <textarea
+                  value={editDescription}
+                  onChange={(e) => setEditDescription(e.target.value)}
+                  onBlur={commitDescription}
+                  placeholder="What should this player do?"
+                  rows={2}
+                  className="w-full bg-secondary border border-border rounded-lg px-2.5 py-1.5 text-xs text-foreground focus:outline-none focus:border-primary resize-none"
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="text-[10px] text-muted-foreground">Coaching Point</label>
+                <textarea
+                  value={editCoachingPoint}
+                  onChange={(e) => setEditCoachingPoint(e.target.value)}
+                  onBlur={commitCoachingPoint}
+                  placeholder="Key instruction for the player"
+                  rows={2}
+                  className="w-full bg-secondary border border-border rounded-lg px-2.5 py-1.5 text-xs text-foreground focus:outline-none focus:border-primary resize-none"
+                />
+                <p className="text-[9px] text-muted-foreground">Shown to the player in the quiz and matchday pack</p>
+              </div>
+            </div>
+          </CollapsibleSection>
+        )}
 
         {player && (
           <CollapsibleSection title="Player Details">

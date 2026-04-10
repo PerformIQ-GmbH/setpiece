@@ -994,6 +994,35 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorEnvelope"
+  /p/{shareToken}/player/{playerId}:
+    get:
+      operationId: getPlayerSpecificView
+      tags: [sharing]
+      summary: Get player-specific view for a share token
+      parameters:
+        - name: shareToken
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: playerId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Player-specific view data
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlayerSpecificViewData"
+        "404":
+          description: Player or link not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
   /p/{shareToken}/ready:
     post:
       operationId: markPlayerReady
@@ -1032,6 +1061,11 @@ paths:
         - name: setPieceId
           in: query
           required: true
+          schema:
+            type: string
+        - name: playerId
+          in: query
+          required: false
           schema:
             type: string
       responses:
@@ -2067,6 +2101,22 @@ components:
               type: [string, 'null']
             teamColors:
               type: [object, 'null']
+        players:
+          type: array
+          items:
+            type: object
+            required: [id, firstName, lastName]
+            properties:
+              id:
+                type: string
+              firstName:
+                type: string
+              lastName:
+                type: string
+              shirtNumber:
+                type: [integer, 'null']
+        shareScope:
+          type: string
         setPieces:
           type: array
           items:
@@ -2091,6 +2141,54 @@ components:
                 type: array
                 items:
                   $ref: "#/components/schemas/SetPieceRole"
+              assignments:
+                type: array
+                items:
+                  $ref: "#/components/schemas/RoleAssignment"
+    PlayerSpecificViewData:
+      type: object
+      required: [player, setPieces]
+      properties:
+        player:
+          type: object
+          required: [id, firstName, lastName]
+          properties:
+            id:
+              type: string
+            firstName:
+              type: string
+            lastName:
+              type: string
+            shirtNumber:
+              type: [integer, 'null']
+        setPieces:
+          type: array
+          items:
+            type: object
+            required: [id, title, category, status]
+            properties:
+              id:
+                type: string
+              title:
+                type: string
+              category:
+                type: string
+              status:
+                type: string
+              previewImageUrl:
+                type: [string, 'null']
+              boardData:
+                type: [object, 'null']
+              coachingNotes:
+                type: [string, 'null']
+              roles:
+                type: array
+                items:
+                  $ref: "#/components/schemas/SetPieceRole"
+              assignments:
+                type: array
+                items:
+                  $ref: "#/components/schemas/RoleAssignment"
               playerRole:
                 oneOf:
                   - $ref: "#/components/schemas/SetPieceRole"
@@ -2192,13 +2290,9 @@ components:
                 type: string
               type:
                 type: string
-                enum: [tap_zone, multiple_choice, yes_no]
+                enum: [tap_zone, yes_no]
               prompt:
                 type: string
-              options:
-                type: array
-                items:
-                  type: string
               correctAnswer:
                 {}
     SubmitQuizBody:
@@ -2228,6 +2322,8 @@ components:
         passed:
           type: boolean
         score:
+          type: integer
+        correct:
           type: integer
         total:
           type: integer

@@ -404,15 +404,15 @@ export default function MatchdayDetail() {
                     onClick={() => setShareScope('all')}
                     className={`flex-1 p-3 rounded-xl border text-sm text-left transition-all ${shareScope === 'all' ? 'bg-primary/10 border-primary/30 text-white' : 'bg-secondary/50 border-border text-muted-foreground hover:border-muted-foreground'}`}
                   >
-                    <p className="font-semibold">All Players</p>
-                    <p className="text-xs opacity-70">Anyone with the link can view</p>
+                    <p className="font-semibold">Team Link</p>
+                    <p className="text-xs opacity-70">Players identify themselves when they open</p>
                   </button>
                   <button
                     onClick={() => setShareScope('selected')}
                     className={`flex-1 p-3 rounded-xl border text-sm text-left transition-all ${shareScope === 'selected' ? 'bg-primary/10 border-primary/30 text-white' : 'bg-secondary/50 border-border text-muted-foreground hover:border-muted-foreground'}`}
                   >
                     <p className="font-semibold">Selected Players</p>
-                    <p className="text-xs opacity-70">Restrict to specific players</p>
+                    <p className="text-xs opacity-70">Restrict to specific players only</p>
                   </button>
                 </div>
               </div>

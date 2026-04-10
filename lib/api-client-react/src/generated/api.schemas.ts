@@ -509,10 +509,55 @@ export type PlayerViewDataTeam = {
   teamColors?: PlayerViewDataTeamTeamColors;
 };
 
+export type PlayerViewDataPlayersItem = {
+  id: string;
+  firstName: string;
+  lastName: string;
+  /** @nullable */
+  shirtNumber?: number | null;
+};
+
 /**
  * @nullable
  */
 export type PlayerViewDataSetPiecesItemBoardData = {
+  [key: string]: unknown;
+} | null;
+
+export type PlayerViewDataSetPiecesItem = {
+  id: string;
+  title: string;
+  category: string;
+  status: string;
+  /** @nullable */
+  previewImageUrl?: string | null;
+  /** @nullable */
+  boardData?: PlayerViewDataSetPiecesItemBoardData;
+  /** @nullable */
+  coachingNotes?: string | null;
+  roles?: SetPieceRole[];
+  assignments?: RoleAssignment[];
+};
+
+export interface PlayerViewData {
+  team: PlayerViewDataTeam;
+  players?: PlayerViewDataPlayersItem[];
+  shareScope?: string;
+  setPieces: PlayerViewDataSetPiecesItem[];
+}
+
+export type PlayerSpecificViewDataPlayer = {
+  id: string;
+  firstName: string;
+  lastName: string;
+  /** @nullable */
+  shirtNumber?: number | null;
+};
+
+/**
+ * @nullable
+ */
+export type PlayerSpecificViewDataSetPiecesItemBoardData = {
   [key: string]: unknown;
 } | null;
 
@@ -534,7 +579,7 @@ export interface PlayerReadinessStatus {
   updatedAt: string;
 }
 
-export type PlayerViewDataSetPiecesItem = {
+export type PlayerSpecificViewDataSetPiecesItem = {
   id: string;
   title: string;
   category: string;
@@ -542,17 +587,18 @@ export type PlayerViewDataSetPiecesItem = {
   /** @nullable */
   previewImageUrl?: string | null;
   /** @nullable */
-  boardData?: PlayerViewDataSetPiecesItemBoardData;
+  boardData?: PlayerSpecificViewDataSetPiecesItemBoardData;
   /** @nullable */
   coachingNotes?: string | null;
   roles?: SetPieceRole[];
+  assignments?: RoleAssignment[];
   playerRole?: SetPieceRole | null;
   readiness?: PlayerReadinessStatus | null;
 };
 
-export interface PlayerViewData {
-  team: PlayerViewDataTeam;
-  setPieces: PlayerViewDataSetPiecesItem[];
+export interface PlayerSpecificViewData {
+  player: PlayerSpecificViewDataPlayer;
+  setPieces: PlayerSpecificViewDataSetPiecesItem[];
 }
 
 export interface MarkReadyBody {
@@ -584,7 +630,6 @@ export type QuizDataQuestionsItemType =
 
 export const QuizDataQuestionsItemType = {
   tap_zone: "tap_zone",
-  multiple_choice: "multiple_choice",
   yes_no: "yes_no",
 } as const;
 
@@ -592,7 +637,6 @@ export type QuizDataQuestionsItem = {
   id: string;
   type: QuizDataQuestionsItemType;
   prompt: string;
-  options?: string[];
   correctAnswer?: unknown;
 };
 
@@ -618,6 +662,7 @@ export interface SubmitQuizBody {
 export interface QuizResult {
   passed: boolean;
   score: number;
+  correct?: number;
   total: number;
 }
 
@@ -890,6 +935,7 @@ export type RemoveSetPieceFromMatchdayBody = {
 
 export type GetQuizQuestionsParams = {
   setPieceId: string;
+  playerId?: string;
 };
 
 export type GetReadinessDashboardParams = {

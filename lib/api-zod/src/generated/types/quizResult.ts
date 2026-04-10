@@ -9,5 +9,6 @@
 export interface QuizResult {
   passed: boolean;
   score: number;
+  correct?: number;
   total: number;
 }

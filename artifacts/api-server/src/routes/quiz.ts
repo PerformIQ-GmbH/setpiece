@@ -27,9 +27,8 @@ const submitQuizSchema = z.object({
 
 interface QuizQuestion {
   id: string;
-  type: "tap_zone" | "multiple_choice" | "yes_no";
+  type: "tap_zone" | "yes_no";
   prompt: string;
-  options?: string[];
   correctAnswer: unknown;
 }
 
@@ -45,17 +44,6 @@ function generateQuizQuestions(
       type: "tap_zone",
       prompt: `Tap your start position for "${setPieceTitle}"`,
       correctAnswer: role.startPosition,
-    });
-  }
-
-  if (role.movementPath && role.movementPath.length > 0) {
-    const directions = ["Near post", "Far post", "Edge of box", "Short corner"];
-    questions.push({
-      id: "q2_first_run",
-      type: "multiple_choice",
-      prompt: `What is your first run in "${setPieceTitle}"?`,
-      options: directions,
-      correctAnswer: directions[0],
     });
   }
 
@@ -81,7 +69,7 @@ function generateQuizQuestions(
 function scoreAnswers(
   submitted: Array<{ questionId: string; answer: unknown }>,
   canonical: QuizQuestion[],
-): { score: number; total: number; passed: boolean; gradedAnswers: Array<{ questionId: string; answer: unknown; correct: boolean }> } {
+): { score: number; correct: number; total: number; passed: boolean; gradedAnswers: Array<{ questionId: string; answer: unknown; correct: boolean }> } {
   const total = canonical.length;
   let correct = 0;
   const gradedAnswers = [];
@@ -92,9 +80,9 @@ function scoreAnswers(
 
     if (submittedAnswer) {
       if (q.type === "yes_no") {
-        isCorrect = submittedAnswer.answer === q.correctAnswer;
-      } else if (q.type === "multiple_choice") {
-        isCorrect = submittedAnswer.answer === q.correctAnswer;
+        const ans = submittedAnswer.answer;
+        const normalised = ans === true || ans === "yes" || ans === "true";
+        isCorrect = normalised === q.correctAnswer;
       } else if (q.type === "tap_zone") {
         const target = q.correctAnswer as { x: number; y: number };
         const answer = submittedAnswer.answer as { x: number; y: number };
@@ -113,8 +101,11 @@ function scoreAnswers(
     });
   }
 
+  const percentage = total > 0 ? Math.round((correct / total) * 100) : 0;
+
   return {
-    score: total > 0 ? Math.round((correct / total) * 100) : 0,
+    score: percentage,
+    correct,
     total,
     passed: correct >= Math.ceil(total * 0.7),
     gradedAnswers,
@@ -126,6 +117,8 @@ router.get("/p/:shareToken/quiz", async (req, res): Promise<void> => {
   if (!link) return;
 
   const setPieceId = req.query.setPieceId as string;
+  const playerId = req.query.playerId as string | undefined;
+
   if (!setPieceId) {
     res.status(400).json({ error: "setPieceId query parameter is required" });
     return;
@@ -151,16 +144,18 @@ router.get("/p/:shareToken/quiz", async (req, res): Promise<void> => {
     .from(setPieceRolesTable)
     .where(eq(setPieceRolesTable.setPieceId, setPieceId));
 
-  let playerRole = roles[0] || null;
-  let roleId = playerRole?.id || null;
+  let playerRole: typeof roles[0] | null = null;
+  let roleId: string | null = null;
 
-  if (link.playerScope && link.playerScope.length > 0) {
+  const resolvePlayerId = playerId || (link.playerScope?.length ? link.playerScope[0] : null);
+
+  if (resolvePlayerId) {
     for (const role of roles) {
       const [assignment] = await db
         .select()
         .from(roleAssignmentsTable)
         .where(eq(roleAssignmentsTable.roleId, role.id));
-      if (assignment && link.playerScope.includes(assignment.playerId)) {
+      if (assignment && assignment.playerId === resolvePlayerId) {
         playerRole = role;
         roleId = role.id;
         break;
@@ -193,12 +188,7 @@ router.post("/p/:shareToken/quiz", async (req, res): Promise<void> => {
 
   const { playerId, setPieceId, roleId, answers } = parsed.data;
 
-  if (!link.playerScope || link.playerScope.length === 0) {
-    res.status(403).json({ error: "Player-scoped share link required for write actions" });
-    return;
-  }
-
-  if (!link.playerScope.includes(playerId)) {
+  if (link.playerScope && link.playerScope.length > 0 && !link.playerScope.includes(playerId)) {
     res.status(403).json({ error: "Player not in scope for this link" });
     return;
   }
@@ -232,28 +222,31 @@ router.post("/p/:shareToken/quiz", async (req, res): Promise<void> => {
     .from(setPieceRolesTable)
     .where(eq(setPieceRolesTable.setPieceId, setPieceId));
 
-  let playerRole = roles[0] || null;
+  let playerRole: typeof roles[0] | null = null;
   if (roleId) {
     const match = roles.find((r) => r.id === roleId);
     if (match) playerRole = match;
-  } else if (link.playerScope && link.playerScope.length > 0) {
+  } else {
     for (const role of roles) {
       const [assignment] = await db
         .select()
         .from(roleAssignmentsTable)
         .where(eq(roleAssignmentsTable.roleId, role.id));
-      if (assignment && link.playerScope.includes(assignment.playerId)) {
+      if (assignment && assignment.playerId === playerId) {
         playerRole = role;
         break;
       }
     }
   }
 
-  const canonicalQuestions = playerRole
-    ? generateQuizQuestions(playerRole, setPiece.title)
-    : [];
+  if (!playerRole) {
+    res.status(400).json({ error: "No role assignment found for this player on this set piece" });
+    return;
+  }
 
-  const { score, total, passed, gradedAnswers } = scoreAnswers(answers, canonicalQuestions);
+  const canonicalQuestions = generateQuizQuestions(playerRole, setPiece.title);
+
+  const { score, correct, total, passed, gradedAnswers } = scoreAnswers(answers, canonicalQuestions);
 
   const [attempt] = await db
     .insert(quizAttemptsTable)
@@ -305,7 +298,7 @@ router.post("/p/:shareToken/quiz", async (req, res): Promise<void> => {
     metadata: { playerId, setPieceId, passed, score },
   });
 
-  res.json({ passed, score, total });
+  res.json({ passed, score, correct, total });
 });
 
 export default router;

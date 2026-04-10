@@ -59,6 +59,7 @@ import type {
   MobileTokenExchangeSuccess,
   Player,
   PlayerReadinessStatus,
+  PlayerSpecificViewData,
   PlayerViewData,
   PricingData,
   QuizData,
@@ -4641,6 +4642,112 @@ export function useGetPlayerView<
   },
 ): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
   const queryOptions = getGetPlayerViewQueryOptions(shareToken, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Get player-specific view for a share token
+ */
+export const getGetPlayerSpecificViewUrl = (
+  shareToken: string,
+  playerId: string,
+) => {
+  return `/api/p/${shareToken}/player/${playerId}`;
+};
+
+export const getPlayerSpecificView = async (
+  shareToken: string,
+  playerId: string,
+  options?: RequestInit,
+): Promise<PlayerSpecificViewData> => {
+  return customFetch<PlayerSpecificViewData>(
+    getGetPlayerSpecificViewUrl(shareToken, playerId),
+    {
+      ...options,
+      method: "GET",
+    },
+  );
+};
+
+export const getGetPlayerSpecificViewQueryKey = (
+  shareToken: string,
+  playerId: string,
+) => {
+  return [`/api/p/${shareToken}/player/${playerId}`] as const;
+};
+
+export const getGetPlayerSpecificViewQueryOptions = <
+  TData = Awaited<ReturnType<typeof getPlayerSpecificView>>,
+  TError = ErrorType<ErrorEnvelope>,
+>(
+  shareToken: string,
+  playerId: string,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getPlayerSpecificView>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ??
+    getGetPlayerSpecificViewQueryKey(shareToken, playerId);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getPlayerSpecificView>>
+  > = ({ signal }) =>
+    getPlayerSpecificView(shareToken, playerId, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!(shareToken && playerId),
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof getPlayerSpecificView>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetPlayerSpecificViewQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getPlayerSpecificView>>
+>;
+export type GetPlayerSpecificViewQueryError = ErrorType<ErrorEnvelope>;
+
+/**
+ * @summary Get player-specific view for a share token
+ */
+
+export function useGetPlayerSpecificView<
+  TData = Awaited<ReturnType<typeof getPlayerSpecificView>>,
+  TError = ErrorType<ErrorEnvelope>,
+>(
+  shareToken: string,
+  playerId: string,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getPlayerSpecificView>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetPlayerSpecificViewQueryOptions(
+    shareToken,
+    playerId,
+    options,
+  );
 
   const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
     queryKey: QueryKey;

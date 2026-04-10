@@ -11,6 +11,5 @@ export type QuizDataQuestionsItem = {
   id: string;
   type: QuizDataQuestionsItemType;
   prompt: string;
-  options?: string[];
   correctAnswer?: unknown;
 };

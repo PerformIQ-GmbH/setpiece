@@ -5,8 +5,8 @@
  * SETPIECE by PerformIQ API
  * OpenAPI spec version: 0.1.0
  */
-import type { PlayerReadinessStatus } from "./playerReadinessStatus";
 import type { PlayerViewDataSetPiecesItemBoardData } from "./playerViewDataSetPiecesItemBoardData";
+import type { RoleAssignment } from "./roleAssignment";
 import type { SetPieceRole } from "./setPieceRole";
 
 export type PlayerViewDataSetPiecesItem = {
@@ -21,6 +21,5 @@ export type PlayerViewDataSetPiecesItem = {
   /** @nullable */
   coachingNotes?: string | null;
   roles?: SetPieceRole[];
-  playerRole?: SetPieceRole | null;
-  readiness?: PlayerReadinessStatus | null;
+  assignments?: RoleAssignment[];
 };

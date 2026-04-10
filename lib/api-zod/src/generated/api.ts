@@ -1099,6 +1099,17 @@ export const GetPlayerViewResponse = zod.object({
     logoUrl: zod.string().nullish(),
     teamColors: zod.object({}).passthrough().nullish(),
   }),
+  players: zod
+    .array(
+      zod.object({
+        id: zod.string(),
+        firstName: zod.string(),
+        lastName: zod.string(),
+        shirtNumber: zod.number().nullish(),
+      }),
+    )
+    .optional(),
+  shareScope: zod.string().optional(),
   setPieces: zod.array(
     zod.object({
       id: zod.string(),
@@ -1131,6 +1142,88 @@ export const GetPlayerViewResponse = zod.object({
               .nullish(),
             coachingPoint: zod.string().nullish(),
             sortOrder: zod.number(),
+            createdAt: zod.coerce.date(),
+            updatedAt: zod.coerce.date(),
+          }),
+        )
+        .optional(),
+      assignments: zod
+        .array(
+          zod.object({
+            id: zod.string(),
+            roleId: zod.string(),
+            playerId: zod.string(),
+            backupPlayerId: zod.string().nullish(),
+            notes: zod.string().nullish(),
+            createdAt: zod.coerce.date(),
+            updatedAt: zod.coerce.date(),
+          }),
+        )
+        .optional(),
+    }),
+  ),
+});
+
+/**
+ * @summary Get player-specific view for a share token
+ */
+export const GetPlayerSpecificViewParams = zod.object({
+  shareToken: zod.coerce.string(),
+  playerId: zod.coerce.string(),
+});
+
+export const GetPlayerSpecificViewResponse = zod.object({
+  player: zod.object({
+    id: zod.string(),
+    firstName: zod.string(),
+    lastName: zod.string(),
+    shirtNumber: zod.number().nullish(),
+  }),
+  setPieces: zod.array(
+    zod.object({
+      id: zod.string(),
+      title: zod.string(),
+      category: zod.string(),
+      status: zod.string(),
+      previewImageUrl: zod.string().nullish(),
+      boardData: zod.object({}).passthrough().nullish(),
+      coachingNotes: zod.string().nullish(),
+      roles: zod
+        .array(
+          zod.object({
+            id: zod.string(),
+            setPieceId: zod.string(),
+            name: zod.string(),
+            description: zod.string().nullish(),
+            startPosition: zod
+              .object({
+                x: zod.number().optional(),
+                y: zod.number().optional(),
+              })
+              .nullish(),
+            movementPath: zod
+              .array(
+                zod.object({
+                  x: zod.number().optional(),
+                  y: zod.number().optional(),
+                }),
+              )
+              .nullish(),
+            coachingPoint: zod.string().nullish(),
+            sortOrder: zod.number(),
+            createdAt: zod.coerce.date(),
+            updatedAt: zod.coerce.date(),
+          }),
+        )
+        .optional(),
+      assignments: zod
+        .array(
+          zod.object({
+            id: zod.string(),
+            roleId: zod.string(),
+            playerId: zod.string(),
+            backupPlayerId: zod.string().nullish(),
+            notes: zod.string().nullish(),
             createdAt: zod.coerce.date(),
             updatedAt: zod.coerce.date(),
           }),
@@ -1223,6 +1316,7 @@ export const GetQuizQuestionsParams = zod.object({
 
 export const GetQuizQuestionsQueryParams = zod.object({
   setPieceId: zod.coerce.string(),
+  playerId: zod.coerce.string().optional(),
 });
 
 export const GetQuizQuestionsResponse = zod.object({
@@ -1231,9 +1325,8 @@ export const GetQuizQuestionsResponse = zod.object({
   questions: zod.array(
     zod.object({
       id: zod.string(),
-      type: zod.enum(["tap_zone", "multiple_choice", "yes_no"]),
+      type: zod.enum(["tap_zone", "yes_no"]),
       prompt: zod.string(),
-      options: zod.array(zod.string()).optional(),
       correctAnswer: zod.unknown().optional(),
     }),
   ),
@@ -1261,6 +1354,7 @@ export const SubmitQuizBody = zod.object({
 export const SubmitQuizResponse = zod.object({
   passed: zod.boolean(),
   score: zod.number(),
+  correct: zod.number().optional(),
   total: zod.number(),
 });
 

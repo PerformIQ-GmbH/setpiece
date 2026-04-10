@@ -391,6 +391,17 @@ export default function SetPieceEditor() {
     }
   };
 
+  const handleUpdateRoleField = async (roleId: string, field: string, value: string) => {
+    setSaveState('saving');
+    try {
+      await updateRole.mutateAsync({ teamId, setPieceId, roleId, data: { [field]: value } });
+      await refetch();
+      setSaveState('saved');
+    } catch {
+      setSaveState('error');
+    }
+  };
+
   const handleRenameRole = async (roleId: string, newName: string) => {
     setSaveState('saving');
     try {
@@ -890,6 +901,7 @@ export default function SetPieceEditor() {
                 onDeleteRole={handleDeleteRole}
                 onDuplicateRole={handleDuplicateRole}
                 onRenameRole={handleRenameRole}
+                onUpdateRoleField={handleUpdateRoleField}
                 onAddRole={() => { setPendingPos(null); setNewRoleName(''); setRoleFormOpen(true); }}
               />
             </div>
@@ -926,6 +938,7 @@ export default function SetPieceEditor() {
               onDeleteRole={handleDeleteRole}
               onDuplicateRole={handleDuplicateRole}
               onRenameRole={handleRenameRole}
+              onUpdateRoleField={handleUpdateRoleField}
               onAddRole={() => { setPendingPos(null); setNewRoleName(''); setRoleFormOpen(true); setMobileInspectorOpen(false); }}
               forceVisible
             />

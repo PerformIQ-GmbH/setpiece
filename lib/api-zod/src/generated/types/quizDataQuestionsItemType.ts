@@ -11,6 +11,5 @@ export type QuizDataQuestionsItemType =
 
 export const QuizDataQuestionsItemType = {
   tap_zone: "tap_zone",
-  multiple_choice: "multiple_choice",
   yes_no: "yes_no",
 } as const;

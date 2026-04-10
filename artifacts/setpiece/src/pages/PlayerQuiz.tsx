@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { useRoute } from 'wouter';
 import { useGetQuizQuestions, useSubmitQuiz } from '@workspace/api-client-react';
 import { Loader2, CheckCircle2, XCircle, ChevronRight, ArrowLeft } from 'lucide-react';
@@ -15,12 +15,12 @@ export default function PlayerQuiz() {
   const playerId = urlParams.get('playerId') || '';
   const roleId = urlParams.get('roleId') || '';
 
-  const { data: quizData, isLoading, error } = useGetQuizQuestions(shareToken, { setPieceId });
+  const { data: quizData, isLoading, error } = useGetQuizQuestions(shareToken, { setPieceId, playerId: playerId || undefined });
   const submitQuiz = useSubmitQuiz();
 
   const [currentIdx, setCurrentIdx] = useState(0);
   const [answers, setAnswers] = useState<Record<string, unknown>>({});
-  const [result, setResult] = useState<{ passed: boolean; score: number; total: number } | null>(null);
+  const [result, setResult] = useState<{ passed: boolean; score: number; correct?: number; total: number } | null>(null);
 
   if (isLoading) {
     return <div className="min-h-screen bg-[#0A0A0A] flex items-center justify-center"><Loader2 className="w-8 h-8 text-primary animate-spin" /></div>;
@@ -57,10 +57,12 @@ export default function PlayerQuiz() {
   };
 
   const handleSubmit = async () => {
-    const formattedAnswers = Object.entries(answers).map(([questionId, answer]) => ({
-      questionId,
-      answer,
-    }));
+    const formattedAnswers = Object.entries(answers).map(([questionId, answer]) => {
+      let normalised = answer;
+      if (answer === 'yes') normalised = true;
+      if (answer === 'no') normalised = false;
+      return { questionId, answer: normalised };
+    });
     try {
       const res = await submitQuiz.mutateAsync({
         shareToken,
@@ -78,6 +80,8 @@ export default function PlayerQuiz() {
   };
 
   if (result) {
+    const correctCount = result.correct ?? Math.round((result.score / 100) * result.total);
+
     return (
       <div className="min-h-screen bg-[#0A0A0A] text-white">
         <div className="max-w-md mx-auto min-h-screen bg-[#111111] flex flex-col items-center justify-center p-8 text-center">
@@ -89,11 +93,14 @@ export default function PlayerQuiz() {
             )}
           </motion.div>
           <h1 className="text-3xl font-bold mb-2">{result.passed ? 'Quiz Passed!' : 'Not Quite...'}</h1>
-          <p className="text-xl text-muted-foreground mb-2">
-            Score: <span className="text-white font-bold">{result.score}/{result.total}</span>
+          <p className="text-xl text-muted-foreground mb-1">
+            Score: <span className="text-white font-bold">{result.score}%</span>
+          </p>
+          <p className="text-sm text-muted-foreground mb-2">
+            {correctCount} of {result.total} correct
           </p>
           <p className="text-sm text-muted-foreground mb-8">
-            {result.passed ? 'Great work! You are now marked as quiz-ready.' : 'Review the set piece and try again.'}
+            {result.passed ? 'Great work! You are marked as quiz-ready.' : 'Review the set piece and try again.'}
           </p>
           <Link href={`/p/${shareToken}`}>
             <Button className="rounded-2xl px-8 py-6 text-lg">Back to Set Pieces</Button>
@@ -132,27 +139,9 @@ export default function PlayerQuiz() {
               className="flex-1 flex flex-col"
             >
               <span className="text-xs font-bold uppercase tracking-widest text-primary mb-4">
-                {currentQ.type.replace('_', ' ')}
+                {currentQ.type === 'tap_zone' ? 'Tap Zone' : 'Yes / No'}
               </span>
               <h3 className="text-xl font-bold mb-8">{currentQ.prompt}</h3>
-
-              {currentQ.type === 'multiple_choice' && currentQ.options && (
-                <div className="space-y-3">
-                  {currentQ.options.map((option, idx) => (
-                    <button
-                      key={idx}
-                      onClick={() => handleAnswer(option)}
-                      className={`w-full text-left p-4 rounded-xl border transition-all ${
-                        answers[currentQ.id] === option
-                          ? 'bg-primary/20 border-primary text-white'
-                          : 'bg-[#1A1A1A] border-white/10 hover:border-white/30 text-white/90'
-                      }`}
-                    >
-                      {option}
-                    </button>
-                  ))}
-                </div>
-              )}
 
               {currentQ.type === 'yes_no' && (
                 <div className="grid grid-cols-2 gap-4">

@@ -5,10 +5,13 @@
  * SETPIECE by PerformIQ API
  * OpenAPI spec version: 0.1.0
  */
+import type { PlayerViewDataPlayersItem } from "./playerViewDataPlayersItem";
 import type { PlayerViewDataSetPiecesItem } from "./playerViewDataSetPiecesItem";
 import type { PlayerViewDataTeam } from "./playerViewDataTeam";
 
 export interface PlayerViewData {
   team: PlayerViewDataTeam;
+  players?: PlayerViewDataPlayersItem[];
+  shareScope?: string;
   setPieces: PlayerViewDataSetPiecesItem[];
 }

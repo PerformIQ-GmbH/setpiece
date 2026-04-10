@@ -116,6 +116,11 @@ router.get("/p/:shareToken", async (req, res): Promise<void> => {
     return;
   }
 
+  const teamPlayers = await db
+    .select()
+    .from(playersTable)
+    .where(eq(playersTable.teamId, link.teamId));
+
   let setPieceIds: string[] = [];
 
   if (link.allowedSetPieceIds && link.allowedSetPieceIds.length > 0) {
@@ -149,32 +154,13 @@ router.get("/p/:shareToken", async (req, res): Promise<void> => {
       .from(setPieceRolesTable)
       .where(eq(setPieceRolesTable.setPieceId, spId));
 
-    let playerRole = null;
-    if (link.playerScope && link.playerScope.length > 0) {
-      for (const role of roles) {
-        const [assignment] = await db
-          .select()
-          .from(roleAssignmentsTable)
-          .where(eq(roleAssignmentsTable.roleId, role.id));
-        if (assignment && link.playerScope.includes(assignment.playerId)) {
-          playerRole = role;
-          break;
-        }
-      }
-    }
-
-    let readiness = null;
-    if (link.playerScope && link.playerScope.length > 0) {
-      const [r] = await db
+    const allAssignments = [];
+    for (const role of roles) {
+      const assigns = await db
         .select()
-        .from(playerReadinessTable)
-        .where(
-          and(
-            eq(playerReadinessTable.playerId, link.playerScope[0]),
-            eq(playerReadinessTable.setPieceId, spId),
-          ),
-        );
-      readiness = r || null;
+        .from(roleAssignmentsTable)
+        .where(eq(roleAssignmentsTable.roleId, role.id));
+      allAssignments.push(...assigns);
     }
 
     setPiecesResult.push({
@@ -186,10 +172,13 @@ router.get("/p/:shareToken", async (req, res): Promise<void> => {
       boardData: sp.boardData,
       coachingNotes: sp.coachingNotes,
       roles,
-      playerRole,
-      readiness,
+      assignments: allAssignments,
     });
   }
+
+  const eligiblePlayers = link.playerScope && link.playerScope.length > 0
+    ? teamPlayers.filter((p) => link.playerScope!.includes(p.id))
+    : teamPlayers;
 
   res.json({
     team: {
@@ -198,6 +187,122 @@ router.get("/p/:shareToken", async (req, res): Promise<void> => {
       clubName: team.clubName,
       logoUrl: team.logoUrl,
       teamColors: team.teamColors,
+    },
+    players: eligiblePlayers.map((p) => ({
+      id: p.id,
+      firstName: p.firstName,
+      lastName: p.lastName,
+      shirtNumber: p.shirtNumber,
+    })),
+    setPieces: setPiecesResult,
+    shareScope: link.playerScope && link.playerScope.length > 0 ? "selected" : "all",
+  });
+});
+
+router.get("/p/:shareToken/player/:playerId", async (req, res): Promise<void> => {
+  const link = await requireShareToken(req, res);
+  if (!link) return;
+
+  const playerId = req.params.playerId;
+
+  if (link.playerScope && link.playerScope.length > 0 && !link.playerScope.includes(playerId)) {
+    res.status(403).json({ error: "Player not in scope for this link" });
+    return;
+  }
+
+  const [player] = await db
+    .select()
+    .from(playersTable)
+    .where(and(eq(playersTable.id, playerId), eq(playersTable.teamId, link.teamId)));
+  if (!player) {
+    res.status(404).json({ error: "Player not found in this team" });
+    return;
+  }
+
+  let setPieceIds: string[] = [];
+  if (link.allowedSetPieceIds && link.allowedSetPieceIds.length > 0) {
+    setPieceIds = link.allowedSetPieceIds;
+  } else if (link.matchdayScope) {
+    const mdSps = await db
+      .select()
+      .from(matchdaySetPiecesTable)
+      .where(eq(matchdaySetPiecesTable.matchdayId, link.matchdayScope));
+    setPieceIds = mdSps.map((m) => m.setPieceId);
+  } else {
+    const allPieces = await db
+      .select()
+      .from(setPiecesTable)
+      .where(eq(setPiecesTable.teamId, link.teamId));
+    setPieceIds = allPieces
+      .filter((p) => p.status === "ready" || p.status === "active_matchday")
+      .map((p) => p.id);
+  }
+
+  const setPiecesResult = [];
+  for (const spId of setPieceIds) {
+    const [sp] = await db
+      .select()
+      .from(setPiecesTable)
+      .where(and(eq(setPiecesTable.id, spId), eq(setPiecesTable.teamId, link.teamId)));
+    if (!sp) continue;
+
+    const roles = await db
+      .select()
+      .from(setPieceRolesTable)
+      .where(eq(setPieceRolesTable.setPieceId, spId));
+
+    let playerRole = null;
+    for (const role of roles) {
+      const [assignment] = await db
+        .select()
+        .from(roleAssignmentsTable)
+        .where(eq(roleAssignmentsTable.roleId, role.id));
+      if (assignment && assignment.playerId === playerId) {
+        playerRole = role;
+        break;
+      }
+    }
+
+    const [readiness] = await db
+      .select()
+      .from(playerReadinessTable)
+      .where(
+        and(
+          eq(playerReadinessTable.playerId, playerId),
+          eq(playerReadinessTable.setPieceId, spId),
+        ),
+      );
+
+    const allAssignments = [];
+    for (const role of roles) {
+      const assigns = await db
+        .select()
+        .from(roleAssignmentsTable)
+        .where(eq(roleAssignmentsTable.roleId, role.id));
+      allAssignments.push(...assigns);
+    }
+
+    setPiecesResult.push({
+      id: sp.id,
+      title: sp.title,
+      category: sp.category,
+      status: sp.status,
+      previewImageUrl: sp.previewImageUrl,
+      boardData: sp.boardData,
+      coachingNotes: sp.coachingNotes,
+      roles,
+      assignments: allAssignments,
+      playerRole,
+      readiness: readiness || null,
+    });
+  }
+
+  res.json({
+    player: {
+      id: player.id,
+      firstName: player.firstName,
+      lastName: player.lastName,
+      shirtNumber: player.shirtNumber,
     },
     setPieces: setPiecesResult,
   });
@@ -215,12 +320,7 @@ router.post("/p/:shareToken/ready", async (req, res): Promise<void> => {
 
   const { playerId, setPieceId, roleId } = parsed.data;
 
-  if (!link.playerScope || link.playerScope.length === 0) {
-    res.status(403).json({ error: "Player-scoped share link required for write actions" });
-    return;
-  }
-
-  if (!link.playerScope.includes(playerId)) {
+  if (link.playerScope && link.playerScope.length > 0 && !link.playerScope.includes(playerId)) {
     res.status(403).json({ error: "Player not in scope for this link" });
     return;
   }
