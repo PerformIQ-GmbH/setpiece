@@ -355,134 +355,110 @@ export function MobileToolDrawer({ onUndo, onRedo, canUndo, canRedo, onMirror }:
   };
 
   return (
-    <>
-      <div className="fixed bottom-[calc(96px+env(safe-area-inset-bottom))] left-3 z-30 flex flex-col gap-2">
-        <Drawer open={open} onOpenChange={setOpen}>
-          <DrawerTrigger asChild>
-            <button
-              className={cn(
-                "w-12 h-12 rounded-2xl shadow-xl flex items-center justify-center transition-all border",
-                "bg-card/90 backdrop-blur-md border-border text-white active:scale-95"
-              )}
-            >
-              {activeIcon ? <activeIcon.icon className="w-5 h-5" /> : <Wrench className="w-5 h-5" />}
-            </button>
-          </DrawerTrigger>
-          <DrawerContent className="bg-card border-border max-h-[70vh]">
-            <DrawerTitle className="sr-only">Tools</DrawerTitle>
-            <div className="p-4 pb-6 overflow-y-auto">
-              <div className="grid grid-cols-1 gap-1">
-                <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider px-3 mb-1">Select</p>
-                {SELECT_TOOLS.map(t => <MobileToolBtn key={t.tool} {...t} />)}
-
-                <div className="h-px bg-border my-2" />
-                <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider px-3 mb-1">Place</p>
-                {ENTITY_TOOLS.map(t => <MobileToolBtn key={t.tool} {...t} />)}
-                {isAdvanced && ADVANCED_ENTITY_TOOLS.map(t => <MobileToolBtn key={t.tool} {...t} />)}
-
-                <div className="h-px bg-border my-2" />
-                <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider px-3 mb-1">Draw</p>
-                {ACTION_TOOLS.map(t => <MobileToolBtn key={t.tool} {...t} />)}
-                {isAdvanced && ADVANCED_ACTION_TOOLS.map(t => <MobileToolBtn key={t.tool} {...t} />)}
-
-                <div className="h-px bg-border my-2" />
-
-                <div className="flex flex-wrap gap-2 px-1">
-                  <button
-                    onClick={() => setEditorMode(isAdvanced ? 'basic' : 'advanced')}
-                    className={cn(
-                      "flex-1 min-w-[100px] py-2 rounded-xl text-xs font-semibold transition-all border",
-                      isAdvanced
-                        ? "bg-primary/15 text-primary border-primary/30"
-                        : "border-border text-muted-foreground hover:bg-secondary"
-                    )}
-                  >
-                    {isAdvanced ? 'Basic Mode' : 'Advanced Mode'}
-                  </button>
-                  <button
-                    onClick={() => { setSnapEnabled(!snapEnabled); }}
-                    className={cn(
-                      "py-2 px-4 rounded-xl text-xs font-semibold transition-all border flex items-center gap-2",
-                      snapEnabled ? "bg-primary/15 text-primary border-primary/30" : "border-border text-muted-foreground"
-                    )}
-                  >
-                    <Magnet className="w-4 h-4" /> Snap
-                  </button>
-                  <button
-                    onClick={() => { setShowGrid(!showGrid); }}
-                    className={cn(
-                      "py-2 px-4 rounded-xl text-xs font-semibold transition-all border flex items-center gap-2",
-                      showGrid ? "bg-primary/15 text-primary border-primary/30" : "border-border text-muted-foreground"
-                    )}
-                  >
-                    <Grid3x3 className="w-4 h-4" /> Grid
-                  </button>
-                  <button
-                    onClick={() => { onMirror?.(); setOpen(false); }}
-                    className="py-2 px-4 rounded-xl text-xs font-semibold transition-all border border-border text-muted-foreground flex items-center gap-2"
-                  >
-                    <FlipHorizontal2 className="w-4 h-4" /> Mirror
-                  </button>
-                  <button
-                    onClick={() => { setShowLayers(!showLayers); }}
-                    className={cn(
-                      "py-2 px-4 rounded-xl text-xs font-semibold transition-all border flex items-center gap-2",
-                      showLayers ? "bg-primary/15 text-primary border-primary/30" : "border-border text-muted-foreground"
-                    )}
-                  >
-                    <Layers className="w-4 h-4" /> Layers
-                  </button>
-                </div>
-
-                {showLayers && (
-                  <div className="mt-2 p-3 bg-background rounded-xl border border-border">
-                    <LayerPanel />
-                  </div>
-                )}
-
-                <div className="h-px bg-border my-2" />
-
-                <div className="flex gap-2 px-1">
-                  <button
-                    onClick={onUndo}
-                    disabled={!canUndo}
-                    className="flex-1 py-2.5 rounded-xl text-xs font-semibold border border-border text-muted-foreground disabled:opacity-25 flex items-center justify-center gap-2"
-                  >
-                    <Undo2 className="w-4 h-4" /> Undo
-                  </button>
-                  <button
-                    onClick={onRedo}
-                    disabled={!canRedo}
-                    className="flex-1 py-2.5 rounded-xl text-xs font-semibold border border-border text-muted-foreground disabled:opacity-25 flex items-center justify-center gap-2"
-                  >
-                    <Redo2 className="w-4 h-4" /> Redo
-                  </button>
-                </div>
-              </div>
-            </div>
-          </DrawerContent>
-        </Drawer>
-      </div>
-
-      <div className="fixed bottom-[calc(96px+env(safe-area-inset-bottom))] right-3 z-30 flex flex-col gap-2">
+    <Drawer open={open} onOpenChange={setOpen}>
+      <DrawerTrigger asChild>
         <button
-          onClick={() => setPresentationMode(true)}
-          className="w-12 h-12 rounded-2xl shadow-xl bg-card/90 backdrop-blur-md border border-border text-muted-foreground flex items-center justify-center active:scale-95"
-        >
-          <Presentation className="w-5 h-5" />
-        </button>
-        <button
-          onClick={() => setPlaying(!animation.playing)}
           className={cn(
-            "w-12 h-12 rounded-2xl shadow-xl backdrop-blur-md border flex items-center justify-center active:scale-95",
-            animation.playing
-              ? "bg-amber-500/20 border-amber-500/30 text-amber-400"
-              : "bg-card/90 border-border text-muted-foreground"
+            "w-10 h-10 rounded-xl flex items-center justify-center transition-all border",
+            "bg-white/[0.06] border-white/[0.1] text-white active:scale-95"
           )}
         >
-          {animation.playing ? <Pause className="w-5 h-5" /> : <Play className="w-5 h-5" />}
+          {activeIcon ? <activeIcon.icon className="w-4 h-4" /> : <Wrench className="w-4 h-4" />}
         </button>
-      </div>
-    </>
+      </DrawerTrigger>
+      <DrawerContent className="bg-card border-border max-h-[70vh]">
+        <DrawerTitle className="sr-only">Tools</DrawerTitle>
+        <div className="p-4 pb-6 overflow-y-auto">
+          <div className="grid grid-cols-1 gap-1">
+            <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider px-3 mb-1">Select</p>
+            {SELECT_TOOLS.map(t => <MobileToolBtn key={t.tool} {...t} />)}
+
+            <div className="h-px bg-border my-2" />
+            <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider px-3 mb-1">Place</p>
+            {ENTITY_TOOLS.map(t => <MobileToolBtn key={t.tool} {...t} />)}
+            {isAdvanced && ADVANCED_ENTITY_TOOLS.map(t => <MobileToolBtn key={t.tool} {...t} />)}
+
+            <div className="h-px bg-border my-2" />
+            <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider px-3 mb-1">Draw</p>
+            {ACTION_TOOLS.map(t => <MobileToolBtn key={t.tool} {...t} />)}
+            {isAdvanced && ADVANCED_ACTION_TOOLS.map(t => <MobileToolBtn key={t.tool} {...t} />)}
+
+            <div className="h-px bg-border my-2" />
+
+            <div className="flex flex-wrap gap-2 px-1">
+              <button
+                onClick={() => setEditorMode(isAdvanced ? 'basic' : 'advanced')}
+                className={cn(
+                  "flex-1 min-w-[100px] py-2 rounded-xl text-xs font-semibold transition-all border",
+                  isAdvanced
+                    ? "bg-primary/15 text-primary border-primary/30"
+                    : "border-border text-muted-foreground hover:bg-secondary"
+                )}
+              >
+                {isAdvanced ? 'Basic Mode' : 'Advanced Mode'}
+              </button>
+              <button
+                onClick={() => { setSnapEnabled(!snapEnabled); }}
+                className={cn(
+                  "py-2 px-4 rounded-xl text-xs font-semibold transition-all border flex items-center gap-2",
+                  snapEnabled ? "bg-primary/15 text-primary border-primary/30" : "border-border text-muted-foreground"
+                )}
+              >
+                <Magnet className="w-4 h-4" /> Snap
+              </button>
+              <button
+                onClick={() => { setShowGrid(!showGrid); }}
+                className={cn(
+                  "py-2 px-4 rounded-xl text-xs font-semibold transition-all border flex items-center gap-2",
+                  showGrid ? "bg-primary/15 text-primary border-primary/30" : "border-border text-muted-foreground"
+                )}
+              >
+                <Grid3x3 className="w-4 h-4" /> Grid
+              </button>
+              <button
+                onClick={() => { onMirror?.(); setOpen(false); }}
+                className="py-2 px-4 rounded-xl text-xs font-semibold transition-all border border-border text-muted-foreground flex items-center gap-2"
+              >
+                <FlipHorizontal2 className="w-4 h-4" /> Mirror
+              </button>
+              <button
+                onClick={() => { setShowLayers(!showLayers); }}
+                className={cn(
+                  "py-2 px-4 rounded-xl text-xs font-semibold transition-all border flex items-center gap-2",
+                  showLayers ? "bg-primary/15 text-primary border-primary/30" : "border-border text-muted-foreground"
+                )}
+              >
+                <Layers className="w-4 h-4" /> Layers
+              </button>
+            </div>
+
+            {showLayers && (
+              <div className="mt-2 p-3 bg-background rounded-xl border border-border">
+                <LayerPanel />
+              </div>
+            )}
+
+            <div className="h-px bg-border my-2" />
+
+            <div className="flex gap-2 px-1">
+              <button
+                onClick={onUndo}
+                disabled={!canUndo}
+                className="flex-1 py-2.5 rounded-xl text-xs font-semibold border border-border text-muted-foreground disabled:opacity-25 flex items-center justify-center gap-2"
+              >
+                <Undo2 className="w-4 h-4" /> Undo
+              </button>
+              <button
+                onClick={onRedo}
+                disabled={!canRedo}
+                className="flex-1 py-2.5 rounded-xl text-xs font-semibold border border-border text-muted-foreground disabled:opacity-25 flex items-center justify-center gap-2"
+              >
+                <Redo2 className="w-4 h-4" /> Redo
+              </button>
+            </div>
+          </div>
+        </div>
+      </DrawerContent>
+    </Drawer>
   );
 }

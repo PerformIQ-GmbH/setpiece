@@ -1,8 +1,8 @@
-import { useState } from 'react';
+import React, { useState } from 'react';
 import { useEditorStore } from './editorStore';
 import { ANNOTATION_COLORS, ACTION_SEMANTICS } from './types';
 import { cn } from '@/lib/utils';
-import { Play, Pause, RotateCcw, Trash2, ArrowRight, Minus, ChevronLeft, ChevronRight, ChevronUp, ChevronDown as ChevronDownIcon, Plus, Check, X, Users } from 'lucide-react';
+import { Play, Pause, RotateCcw, Trash2, ArrowRight, Minus, ChevronLeft, ChevronRight, ChevronUp, ChevronDown as ChevronDownIcon, Plus, Check, X, Users, Presentation } from 'lucide-react';
 
 const WIDTHS = [1.5, 2.5, 4, 6];
 
@@ -48,9 +48,10 @@ interface BottomBarProps {
   canRedo?: boolean;
   onMirror?: () => void;
   onOpenInspector?: () => void;
+  toolDrawer?: React.ReactNode;
 }
 
-export function BottomBar({ mobile = false, onUndo, onRedo, canUndo, canRedo, onMirror, onOpenInspector }: BottomBarProps) {
+export function BottomBar({ mobile = false, onUndo, onRedo, canUndo, canRedo, onMirror, onOpenInspector, toolDrawer }: BottomBarProps) {
   const activeTool = useEditorStore((s) => s.activeTool);
   const editorMode = useEditorStore((s) => s.editorMode);
   const strokeColor = useEditorStore((s) => s.strokeColor);
@@ -108,6 +109,8 @@ export function BottomBar({ mobile = false, onUndo, onRedo, canUndo, canRedo, on
     : isSemanticSelection
     ? ACTION_SEMANTICS[selectedAnn!.type]
     : null;
+
+  const setPresentationMode = useEditorStore((s) => s.setPresentationMode);
 
   const handleReset = () => {
     setPlaying(false);
@@ -170,13 +173,21 @@ export function BottomBar({ mobile = false, onUndo, onRedo, canUndo, canRedo, on
           </button>
         </div>
 
-        {/* Controls row: play + inspector */}
-        <div className="h-11 flex items-center px-2 gap-1 border-t border-white/[0.04]">
-          <div className="flex items-center gap-1">
+        {/* Controls row: tool select (left), play (center), inspector + present (right) */}
+        <div className="h-12 flex items-center px-2 gap-1.5 border-t border-white/[0.04]">
+          {/* Left: Tool drawer trigger */}
+          <div className="shrink-0">
+            {toolDrawer}
+          </div>
+
+          <div className="w-px h-6 bg-border shrink-0" />
+
+          {/* Center: Playback controls */}
+          <div className="flex items-center gap-1 flex-1 justify-center">
             <button
               onClick={() => setPlaying(!animation.playing)}
               className={cn(
-                "w-10 h-9 rounded-xl flex items-center justify-center transition-all active:scale-95",
+                "w-10 h-10 rounded-xl flex items-center justify-center transition-all active:scale-95",
                 animation.playing
                   ? "bg-amber-500/20 text-amber-400"
                   : "text-muted-foreground hover:text-white"
@@ -190,55 +201,49 @@ export function BottomBar({ mobile = false, onUndo, onRedo, canUndo, canRedo, on
             >
               <RotateCcw className="w-3.5 h-3.5" />
             </button>
-          </div>
 
-          <div className="flex items-center gap-1 shrink-0 ml-1">
-            <button
-              onClick={() => setPlayMode('step')}
-              className={cn(
-                "px-2 py-1 rounded-lg text-[10px] font-semibold transition-all",
-                animation.playMode === 'step' ? "bg-primary/20 text-primary" : "text-muted-foreground"
-              )}
-            >
-              Step
-            </button>
-            <button
-              onClick={() => setPlayMode('all')}
-              className={cn(
-                "px-2 py-1 rounded-lg text-[10px] font-semibold transition-all",
-                animation.playMode === 'all' ? "bg-primary/20 text-primary" : "text-muted-foreground"
-              )}
-            >
-              All
-            </button>
-          </div>
-
-          <div className="flex-1" />
-
-          {showStyleControls && (
             <div className="flex items-center gap-0.5 shrink-0">
-              {ANNOTATION_COLORS.map((c) => (
-                <button
-                  key={c}
-                  onClick={() => setStrokeColor(c)}
-                  className={cn(
-                    "w-6 h-6 rounded-full border-2 transition-all",
-                    strokeColor === c ? "border-white scale-110" : "border-transparent hover:border-white/40"
-                  )}
-                  style={{ backgroundColor: c }}
-                />
-              ))}
+              <button
+                onClick={() => setPlayMode('step')}
+                className={cn(
+                  "px-2 py-1 rounded-lg text-[10px] font-semibold transition-all",
+                  animation.playMode === 'step' ? "bg-primary/20 text-primary" : "text-muted-foreground"
+                )}
+              >
+                Step
+              </button>
+              <button
+                onClick={() => setPlayMode('all')}
+                className={cn(
+                  "px-2 py-1 rounded-lg text-[10px] font-semibold transition-all",
+                  animation.playMode === 'all' ? "bg-primary/20 text-primary" : "text-muted-foreground"
+                )}
+              >
+                All
+              </button>
             </div>
-          )}
+          </div>
 
-          {onOpenInspector && (
+          <div className="w-px h-6 bg-border shrink-0" />
+
+          {/* Right: Presentation + Inspector */}
+          <div className="flex items-center gap-1 shrink-0">
             <button
-              onClick={onOpenInspector}
-              className="w-9 h-9 rounded-xl flex items-center justify-center text-muted-foreground hover:text-white active:scale-95 shrink-0"
+              onClick={() => setPresentationMode(true)}
+              className="w-10 h-10 rounded-xl flex items-center justify-center text-muted-foreground hover:text-white active:scale-95"
             >
-              <Users className="w-4 h-4" />
+              <Presentation className="w-4 h-4" />
             </button>
-          )}
+
+            {onOpenInspector && (
+              <button
+                onClick={onOpenInspector}
+                className="w-10 h-10 rounded-xl flex items-center justify-center text-muted-foreground hover:text-white active:scale-95"
+              >
+                <Users className="w-4 h-4" />
+              </button>
+            )}
+          </div>
         </div>
 
         <div className="pb-[env(safe-area-inset-bottom)]" />

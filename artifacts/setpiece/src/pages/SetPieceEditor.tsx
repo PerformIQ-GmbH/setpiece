@@ -11,9 +11,8 @@ import { resetAllTips } from '@/components/editor/ContextualTip';
 import { StatusBadge } from '@/components/StatusBadge';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Sheet, SheetContent, SheetTitle } from '@/components/ui/sheet';
 import { Drawer, DrawerContent, DrawerTitle } from '@/components/ui/drawer';
-import { ArrowLeft, ShieldCheck, Ghost, FileDown, Loader2, Cloud, CloudOff, HelpCircle, Info, Sun, Trees, Moon, MoreVertical, Settings2, Check } from 'lucide-react';
+import { ArrowLeft, ShieldCheck, Ghost, FileDown, Loader2, Cloud, CloudOff, HelpCircle, Info, Sun, Trees, Moon, MoreVertical, Check } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Link } from 'wouter';
 import { useBreakpoint } from '@/hooks/use-mobile';
@@ -755,16 +754,9 @@ export default function SetPieceEditor() {
             </>
           )}
 
-          {/* Mobile: inspector + overflow menu */}
+          {/* Mobile: overflow menu */}
           {isMobile && (
             <>
-              <button
-                onClick={() => setMobileInspectorOpen(true)}
-                className="w-9 h-9 rounded-xl flex items-center justify-center text-muted-foreground hover:text-white active:scale-95 transition-all"
-              >
-                <Settings2 className="w-4 h-4" />
-              </button>
-
               <div className="relative">
                 <button
                   onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
@@ -936,8 +928,6 @@ export default function SetPieceEditor() {
                   canUndo={undoStack.length > 0}
                   canRedo={redoStack.length > 0}
                   onMirror={handleMirror}
-                  useSheetInspector
-                  onOpenInspectorSheet={() => setMobileInspectorOpen(true)}
                 />
               </div>
             )}
@@ -977,6 +967,15 @@ export default function SetPieceEditor() {
               canRedo={redoStack.length > 0}
               onMirror={handleMirror}
               onOpenInspector={() => setMobileInspectorOpen(true)}
+              toolDrawer={isMobile ? (
+                <MobileToolDrawer
+                  onUndo={handleUndo}
+                  onRedo={handleRedo}
+                  canUndo={undoStack.length > 0}
+                  canRedo={redoStack.length > 0}
+                  onMirror={handleMirror}
+                />
+              ) : undefined}
             />
           </div>
         </div>
@@ -987,18 +986,14 @@ export default function SetPieceEditor() {
             {inspectorPanel}
           </aside>
         )}
-      </div>
 
-      {/* ─── MOBILE TOOL DRAWER (floating tool select button) ─── */}
-      {isMobile && (
-        <MobileToolDrawer
-          onUndo={handleUndo}
-          onRedo={handleRedo}
-          canUndo={undoStack.length > 0}
-          canRedo={redoStack.length > 0}
-          onMirror={handleMirror}
-        />
-      )}
+        {/* ─── TABLET INSPECTOR: Persistent compact side panel ─── */}
+        {isTablet && (
+          <aside className="w-[260px] shrink-0 border-l border-white/[0.06] bg-card/95 backdrop-blur-xl overflow-y-auto scrollbar-none">
+            {inspectorPanel}
+          </aside>
+        )}
+      </div>
 
       {/* ─── MOBILE INSPECTOR: Bottom sheet ─── */}
       {isMobile && (
@@ -1010,16 +1005,6 @@ export default function SetPieceEditor() {
             </div>
           </DrawerContent>
         </Drawer>
-      )}
-
-      {/* ─── TABLET INSPECTOR: Side sheet ─── */}
-      {isTablet && (
-        <Sheet open={mobileInspectorOpen} onOpenChange={setMobileInspectorOpen}>
-          <SheetContent side="right" className="bg-card border-l border-white/[0.06] w-[320px] p-0">
-            <SheetTitle className="sr-only">Inspector</SheetTitle>
-            {inspectorPanel}
-          </SheetContent>
-        </Sheet>
       )}
 
       <TutorialOverlay
