@@ -204,4 +204,39 @@ router.post("/billing/portal", async (req: Request, res: Response): Promise<void
   }
 });
 
+router.post("/billing/admin/set-tier", async (req: Request, res: Response): Promise<void> => {
+  const adminSecret = process.env.ADMIN_SECRET;
+  const provided = req.headers["x-admin-secret"] as string | undefined;
+
+  if (!adminSecret || !provided || provided !== adminSecret) {
+    res.status(403).json({ error: "Forbidden" });
+    return;
+  }
+
+  const { teamId, tier } = req.body as { teamId?: string; tier?: string };
+  const ALL_TIERS = new Set(["free", "solo_coach", "team"]);
+
+  if (!teamId || !tier || !ALL_TIERS.has(tier)) {
+    res.status(400).json({ error: "teamId and valid tier (free|solo_coach|team) required" });
+    return;
+  }
+
+  const [team] = await db
+    .select({ id: teamsTable.id, name: teamsTable.name, tier: teamsTable.tier })
+    .from(teamsTable)
+    .where(eq(teamsTable.id, teamId));
+
+  if (!team) {
+    res.status(404).json({ error: "Team not found" });
+    return;
+  }
+
+  await db
+    .update(teamsTable)
+    .set({ tier })
+    .where(eq(teamsTable.id, teamId));
+
+  res.json({ ok: true, team: team.name, previousTier: team.tier, newTier: tier });
+});
+
 export default router;
