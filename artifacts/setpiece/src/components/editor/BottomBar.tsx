@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useEditorStore } from './editorStore';
 import { ANNOTATION_COLORS, ACTION_SEMANTICS } from './types';
 import { cn } from '@/lib/utils';
-import { Play, Pause, RotateCcw, Trash2, ArrowRight, Minus, ChevronLeft, ChevronRight, ChevronUp, ChevronDown as ChevronDownIcon, Plus, Check, X } from 'lucide-react';
+import { Play, Pause, RotateCcw, Trash2, ArrowRight, Minus, ChevronLeft, ChevronRight, ChevronUp, ChevronDown as ChevronDownIcon, Plus, Check, X, Users } from 'lucide-react';
 
 const WIDTHS = [1.5, 2.5, 4, 6];
 
@@ -40,7 +40,17 @@ const ENTITY_TYPE_LABELS: Record<string, string> = {
 
 const SEMANTIC_TOOLS = new Set(['run_path', 'curved_run', 'pass_line', 'curved_cross']);
 
-export function BottomBar({ mobile = false }: { mobile?: boolean }) {
+interface BottomBarProps {
+  mobile?: boolean;
+  onUndo?: () => void;
+  onRedo?: () => void;
+  canUndo?: boolean;
+  canRedo?: boolean;
+  onMirror?: () => void;
+  onOpenInspector?: () => void;
+}
+
+export function BottomBar({ mobile = false, onUndo, onRedo, canUndo, canRedo, onMirror, onOpenInspector }: BottomBarProps) {
   const activeTool = useEditorStore((s) => s.activeTool);
   const editorMode = useEditorStore((s) => s.editorMode);
   const strokeColor = useEditorStore((s) => s.strokeColor);
@@ -107,26 +117,27 @@ export function BottomBar({ mobile = false }: { mobile?: boolean }) {
 
   if (mobile) {
     return (
-      <div className="mx-2 mb-2 bg-card/95 backdrop-blur-xl rounded-2xl shadow-2xl border border-white/[0.08] shrink-0 pb-[env(safe-area-inset-bottom)]">
-        <div className="h-10 flex items-center px-2 gap-1 overflow-x-auto">
+      <div className="bg-card/95 backdrop-blur-xl border-t border-white/[0.08] shrink-0">
+        {/* Step navigation row */}
+        <div className="h-11 flex items-center px-2 gap-1">
           <button
             onClick={goToPrevStep}
             disabled={animation.activeStepIndex === 0}
-            className="w-8 h-8 rounded flex items-center justify-center text-muted-foreground hover:text-white disabled:opacity-30 transition-colors shrink-0"
+            className="w-9 h-9 rounded-xl flex items-center justify-center text-muted-foreground hover:text-white disabled:opacity-30 transition-colors shrink-0 active:scale-95"
           >
             <ChevronLeft className="w-4 h-4" />
           </button>
 
-          <div className="flex items-center gap-1 overflow-x-auto flex-1">
+          <div className="flex items-center gap-1 overflow-x-auto flex-1 scrollbar-none">
             {steps.map((step, idx) => (
               <button
                 key={step.id}
                 onClick={() => setActiveStepIndex(idx)}
                 className={cn(
-                  "px-2 py-1.5 rounded-lg text-[11px] font-semibold transition-all flex items-center gap-1 shrink-0",
+                  "px-2.5 py-1.5 rounded-xl text-[11px] font-semibold transition-all flex items-center gap-1.5 shrink-0",
                   idx === animation.activeStepIndex
                     ? "bg-primary/20 text-primary border border-primary/30"
-                    : "text-muted-foreground"
+                    : "text-muted-foreground active:bg-secondary"
                 )}
               >
                 <span className={cn(
@@ -143,7 +154,7 @@ export function BottomBar({ mobile = false }: { mobile?: boolean }) {
           <button
             onClick={goToNextStep}
             disabled={animation.activeStepIndex >= steps.length - 1}
-            className="w-8 h-8 rounded flex items-center justify-center text-muted-foreground hover:text-white disabled:opacity-30 transition-colors shrink-0"
+            className="w-9 h-9 rounded-xl flex items-center justify-center text-muted-foreground hover:text-white disabled:opacity-30 transition-colors shrink-0 active:scale-95"
           >
             <ChevronRight className="w-4 h-4" />
           </button>
@@ -153,39 +164,90 @@ export function BottomBar({ mobile = false }: { mobile?: boolean }) {
           <button
             onClick={addStep}
             title="Add Step"
-            className="w-8 h-8 rounded flex items-center justify-center text-muted-foreground hover:text-primary shrink-0"
+            className="w-9 h-9 rounded-xl flex items-center justify-center text-muted-foreground hover:text-primary shrink-0 active:scale-95"
           >
             <Plus className="w-4 h-4" />
           </button>
         </div>
 
-        {showStyleControls && (
-          <div className="h-10 flex items-center px-2 gap-2 border-t border-border/40 overflow-x-auto">
-            <div className="flex items-center gap-1 shrink-0">
+        {/* Controls row: play + inspector */}
+        <div className="h-11 flex items-center px-2 gap-1 border-t border-white/[0.04]">
+          <div className="flex items-center gap-1">
+            <button
+              onClick={() => setPlaying(!animation.playing)}
+              className={cn(
+                "w-10 h-9 rounded-xl flex items-center justify-center transition-all active:scale-95",
+                animation.playing
+                  ? "bg-amber-500/20 text-amber-400"
+                  : "text-muted-foreground hover:text-white"
+              )}
+            >
+              {animation.playing ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
+            </button>
+            <button
+              onClick={handleReset}
+              className="w-9 h-9 rounded-xl flex items-center justify-center text-muted-foreground hover:text-white active:scale-95"
+            >
+              <RotateCcw className="w-3.5 h-3.5" />
+            </button>
+          </div>
+
+          <div className="flex items-center gap-1 shrink-0 ml-1">
+            <button
+              onClick={() => setPlayMode('step')}
+              className={cn(
+                "px-2 py-1 rounded-lg text-[10px] font-semibold transition-all",
+                animation.playMode === 'step' ? "bg-primary/20 text-primary" : "text-muted-foreground"
+              )}
+            >
+              Step
+            </button>
+            <button
+              onClick={() => setPlayMode('all')}
+              className={cn(
+                "px-2 py-1 rounded-lg text-[10px] font-semibold transition-all",
+                animation.playMode === 'all' ? "bg-primary/20 text-primary" : "text-muted-foreground"
+              )}
+            >
+              All
+            </button>
+          </div>
+
+          <div className="flex-1" />
+
+          {showStyleControls && (
+            <div className="flex items-center gap-0.5 shrink-0">
               {ANNOTATION_COLORS.map((c) => (
                 <button
                   key={c}
                   onClick={() => setStrokeColor(c)}
                   className={cn(
-                    "w-7 h-7 rounded-full border-2 transition-all",
+                    "w-6 h-6 rounded-full border-2 transition-all",
                     strokeColor === c ? "border-white scale-110" : "border-transparent hover:border-white/40"
                   )}
                   style={{ backgroundColor: c }}
                 />
               ))}
             </div>
+          )}
 
-            {semanticLocked && (
-              <span className="text-[9px] text-muted-foreground/60 italic shrink-0">Style locked</span>
-            )}
-          </div>
-        )}
+          {onOpenInspector && (
+            <button
+              onClick={onOpenInspector}
+              className="w-9 h-9 rounded-xl flex items-center justify-center text-muted-foreground hover:text-white active:scale-95 shrink-0"
+            >
+              <Users className="w-4 h-4" />
+            </button>
+          )}
+        </div>
+
+        <div className="pb-[env(safe-area-inset-bottom)]" />
       </div>
     );
   }
 
   return (
-    <div className="mx-3 mb-2 bg-card/95 backdrop-blur-xl rounded-2xl shadow-2xl border border-white/[0.08] shrink-0">
+    <div className="bg-card/95 backdrop-blur-xl rounded-2xl shadow-2xl border border-white/[0.08] shrink-0">
       <div className="h-9 flex items-center px-2 gap-1 border-b border-white/[0.06] overflow-x-auto rounded-t-2xl">
         <button
           onClick={goToPrevStep}

@@ -356,7 +356,7 @@ export function MobileToolDrawer({ onUndo, onRedo, canUndo, canRedo, onMirror }:
 
   return (
     <>
-      <div className="fixed bottom-[calc(theme(spacing.20)+env(safe-area-inset-bottom))] left-3 z-30 flex flex-col gap-2">
+      <div className="fixed bottom-[calc(96px+env(safe-area-inset-bottom))] left-3 z-30 flex flex-col gap-2">
         <Drawer open={open} onOpenChange={setOpen}>
           <DrawerTrigger asChild>
             <button
@@ -464,7 +464,7 @@ export function MobileToolDrawer({ onUndo, onRedo, canUndo, canRedo, onMirror }:
         </Drawer>
       </div>
 
-      <div className="fixed bottom-[calc(theme(spacing.20)+env(safe-area-inset-bottom))] right-3 z-30 flex flex-col gap-2">
+      <div className="fixed bottom-[calc(96px+env(safe-area-inset-bottom))] right-3 z-30 flex flex-col gap-2">
         <button
           onClick={() => setPresentationMode(true)}
           className="w-12 h-12 rounded-2xl shadow-xl bg-card/90 backdrop-blur-md border border-border text-muted-foreground flex items-center justify-center active:scale-95"

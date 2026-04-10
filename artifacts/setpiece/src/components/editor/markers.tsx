@@ -121,6 +121,9 @@ export function TeamPlayerMarker({
             width={80}
             x={-40}
             y={0}
+            shadowColor={lightPitch ? '#ffffff' : '#000000'}
+            shadowBlur={lightPitch ? 3 : 4}
+            shadowOpacity={lightPitch ? 0.8 : 0.6}
           />
           {label && (
             <Text
@@ -134,6 +137,9 @@ export function TeamPlayerMarker({
               width={70}
               x={-35}
               y={12}
+              shadowColor={lightPitch ? '#ffffff' : '#000000'}
+              shadowBlur={lightPitch ? 2 : 3}
+              shadowOpacity={lightPitch ? 0.6 : 0.5}
             />
           )}
         </Group>
@@ -178,6 +184,9 @@ export function TeamPlayerMarker({
           width={70}
           x={-35}
           y={R + 5}
+          shadowColor={lightPitch ? '#ffffff' : '#000000'}
+          shadowBlur={lightPitch ? 3 : 4}
+          shadowOpacity={lightPitch ? 0.8 : 0.6}
         />
       ) : null}
     </Group>

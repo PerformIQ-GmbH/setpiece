@@ -11,11 +11,13 @@ import { resetAllTips } from '@/components/editor/ContextualTip';
 import { StatusBadge } from '@/components/StatusBadge';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Sheet, SheetContent, SheetTrigger, SheetTitle } from '@/components/ui/sheet';
-import { ArrowLeft, ShieldCheck, Ghost, FileDown, Loader2, Cloud, CloudOff, HelpCircle, Info, PanelRightClose, PanelRight, Sun, Trees, Moon, MoreVertical, Settings2, Check } from 'lucide-react';
+import { Sheet, SheetContent, SheetTitle } from '@/components/ui/sheet';
+import { Drawer, DrawerContent, DrawerTitle } from '@/components/ui/drawer';
+import { ArrowLeft, ShieldCheck, Ghost, FileDown, Loader2, Cloud, CloudOff, HelpCircle, Info, Sun, Trees, Moon, MoreVertical, Settings2, Check } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Link } from 'wouter';
-import { useIsMobile } from '@/hooks/use-mobile';
+import { useBreakpoint } from '@/hooks/use-mobile';
+import type { Breakpoint } from '@/hooks/use-mobile';
 
 type SaveState = 'saved' | 'saving' | 'unsaved' | 'error';
 
@@ -65,17 +67,12 @@ export default function SetPieceEditor() {
   const setInspectorCollapsed = useEditorStore((s) => s.setInspectorCollapsed);
   const mirrorBoard = useEditorStore((s) => s.mirrorBoard);
   const presentationMode = useEditorStore((s) => s.presentationMode);
-  const isMobile = useIsMobile();
-  const [isTablet, setIsTablet] = useState(() =>
-    typeof window !== 'undefined' ? window.matchMedia('(min-width: 768px) and (max-width: 1023px)').matches : false
-  );
-  useEffect(() => {
-    const mql = window.matchMedia('(min-width: 768px) and (max-width: 1023px)');
-    const onChange = () => setIsTablet(mql.matches);
-    mql.addEventListener('change', onChange);
-    return () => mql.removeEventListener('change', onChange);
-  }, []);
-  const useSheetInspector = isMobile || isTablet;
+
+  const bp: Breakpoint = useBreakpoint();
+  const isMobile = bp === 'mobile';
+  const isTablet = bp === 'tablet';
+  const isDesktop = bp === 'desktop';
+
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [mobileInspectorOpen, setMobileInspectorOpen] = useState(false);
 
@@ -537,6 +534,14 @@ export default function SetPieceEditor() {
     setEditingTitle(false);
   };
 
+  const handleRoleClick = useCallback((id: string) => {
+    const newId = id === activeRoleId ? null : id;
+    setActiveRoleId(newId);
+    if (newId && isMobile) {
+      setMobileInspectorOpen(true);
+    }
+  }, [activeRoleId, isMobile]);
+
   if (isLoading) {
     return (
       <div className="min-h-screen bg-background text-foreground flex items-center justify-center">
@@ -555,12 +560,39 @@ export default function SetPieceEditor() {
     );
   }
 
+  const inspectorPanel = (
+    <InspectorPanel
+      roles={setPiece.roles}
+      assignments={setPiece.assignments || []}
+      players={players}
+      activeRoleId={activeRoleId}
+      onRoleClick={handleRoleClick}
+      onAssignPlayer={assignPlayer}
+      onAssignBackup={assignBackupPlayer}
+      onDeleteRole={handleDeleteRole}
+      onDuplicateRole={handleDuplicateRole}
+      onRenameRole={handleRenameRole}
+      onUpdateRoleField={handleUpdateRoleField}
+      onAddRole={() => { setPendingPos(null); setNewRoleName(''); setRoleFormOpen(true); if (isMobile) setMobileInspectorOpen(false); }}
+      forceVisible
+    />
+  );
+
+  const HEADER_HEIGHT = isMobile ? 44 : 48;
+
   return (
     <div className="min-h-screen bg-background text-foreground flex flex-col h-screen overflow-hidden">
-      <header data-tutorial="header" className="h-12 border-b border-white/[0.06] bg-card/80 backdrop-blur-xl flex items-center justify-between px-3 md:px-4 shrink-0 z-10">
+      {/* ─── HEADER ─── */}
+      <header
+        data-tutorial="header"
+        className={cn(
+          "border-b border-white/[0.06] bg-card/80 backdrop-blur-xl flex items-center justify-between shrink-0 z-10",
+          isMobile ? "h-11 px-2" : "h-12 px-3 md:px-4"
+        )}
+      >
         <div className="flex items-center gap-2 min-w-0">
           <Link href={`/teams/${teamId}/templates`}>
-            <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-white rounded-full h-8 w-8 md:h-7 md:w-7 shrink-0">
+            <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-white rounded-full h-8 w-8 shrink-0">
               <ArrowLeft className="h-4 w-4" />
             </Button>
           </Link>
@@ -573,34 +605,52 @@ export default function SetPieceEditor() {
                 onChange={e => setTitleDraft(e.target.value)}
                 onBlur={handleTitleSave}
                 onKeyDown={e => { if (e.key === 'Enter') handleTitleSave(); if (e.key === 'Escape') setEditingTitle(false); }}
-                className="bg-transparent border-b border-primary text-white font-display font-bold text-sm outline-none px-0 max-w-[140px] md:max-w-[200px]"
+                className={cn(
+                  "bg-transparent border-b border-primary text-white font-display font-bold outline-none px-0",
+                  isMobile ? "text-xs max-w-[120px]" : "text-sm max-w-[200px]"
+                )}
               />
             ) : (
               <h1
-                className="font-display font-bold text-sm leading-none text-white cursor-pointer hover:text-primary transition-colors truncate max-w-[140px] md:max-w-[200px]"
+                className={cn(
+                  "font-display font-bold leading-none text-white cursor-pointer hover:text-primary transition-colors truncate",
+                  isMobile ? "text-xs max-w-[120px]" : "text-sm max-w-[200px]"
+                )}
                 onClick={() => { setTitleDraft(setPiece.title); setEditingTitle(true); }}
                 title="Click to rename"
               >
                 {setPiece.title}
               </h1>
             )}
-            <p className="text-[9px] text-muted-foreground uppercase tracking-wider font-semibold">{setPiece.category.replace(/_/g, ' ')}</p>
+            {!isMobile && (
+              <p className="text-[9px] text-muted-foreground uppercase tracking-wider font-semibold">{setPiece.category.replace(/_/g, ' ')}</p>
+            )}
           </div>
         </div>
 
-        <div className="flex items-center gap-1.5">
+        <div className="flex items-center gap-1">
+          {/* Save state badge */}
           <div className={cn(
-            "flex items-center gap-1 px-2 py-0.5 rounded text-[9px] font-bold uppercase tracking-wide transition-colors border",
+            "flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-wide transition-colors border",
             saveState === 'saved' && "bg-emerald-500/10 text-emerald-400 border-emerald-500/20",
             saveState === 'saving' && "bg-blue-500/10 text-blue-400 border-blue-500/20",
             saveState === 'error' && "bg-red-500/10 text-red-400 border-red-500/20",
           )}>
-            {saveState === 'saved' && <><Cloud className="h-3 w-3" /> <span className="hidden sm:inline">Saved</span></>}
-            {saveState === 'saving' && <><Loader2 className="h-3 w-3 animate-spin" /> <span className="hidden sm:inline">Saving</span></>}
-            {saveState === 'unsaved' && <><CloudOff className="h-3 w-3" /> <span className="hidden sm:inline">Unsaved</span></>}
-            {saveState === 'error' && <><CloudOff className="h-3 w-3" /> <span className="hidden sm:inline">Error</span></>}
+            {saveState === 'saved' && <Cloud className="h-3 w-3" />}
+            {saveState === 'saving' && <Loader2 className="h-3 w-3 animate-spin" />}
+            {saveState === 'unsaved' && <CloudOff className="h-3 w-3" />}
+            {saveState === 'error' && <CloudOff className="h-3 w-3" />}
+            {!isMobile && (
+              <span>
+                {saveState === 'saved' && 'Saved'}
+                {saveState === 'saving' && 'Saving'}
+                {saveState === 'unsaved' && 'Unsaved'}
+                {saveState === 'error' && 'Error'}
+              </span>
+            )}
           </div>
 
+          {/* Desktop/Tablet: full header controls */}
           {!isMobile && (
             <>
               <div className="flex items-center bg-secondary/50 rounded-lg border border-border p-0.5 gap-0.5">
@@ -702,16 +752,15 @@ export default function SetPieceEditor() {
                   <ShieldCheck className="w-3 h-3 mr-1" /> Ready
                 </Button>
               )}
-
-              
             </>
           )}
 
+          {/* Mobile: inspector + overflow menu */}
           {isMobile && (
             <>
               <button
                 onClick={() => setMobileInspectorOpen(true)}
-                className="w-8 h-8 rounded-lg flex items-center justify-center text-muted-foreground hover:text-white transition-colors"
+                className="w-9 h-9 rounded-xl flex items-center justify-center text-muted-foreground hover:text-white active:scale-95 transition-all"
               >
                 <Settings2 className="w-4 h-4" />
               </button>
@@ -719,14 +768,14 @@ export default function SetPieceEditor() {
               <div className="relative">
                 <button
                   onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-                  className="w-8 h-8 rounded-lg flex items-center justify-center text-muted-foreground hover:text-white transition-colors"
+                  className="w-9 h-9 rounded-xl flex items-center justify-center text-muted-foreground hover:text-white active:scale-95 transition-all"
                 >
                   <MoreVertical className="w-4 h-4" />
                 </button>
                 {mobileMenuOpen && (
                   <>
                     <div className="fixed inset-0 z-40" onClick={() => setMobileMenuOpen(false)} />
-                    <div className="absolute right-0 top-full mt-1 w-52 bg-card border border-border rounded-xl shadow-xl z-50 py-1.5">
+                    <div className="absolute right-0 top-full mt-1 w-52 bg-card border border-border rounded-2xl shadow-xl z-50 py-1.5 overflow-hidden">
                       <div className="px-3 py-2 border-b border-border/50">
                         <StatusBadge status={setPiece.status} />
                       </div>
@@ -812,107 +861,135 @@ export default function SetPieceEditor() {
         </div>
       </header>
 
-      <div className="flex-1 relative overflow-hidden">
-        <main data-tutorial="pitch" className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-background via-card to-background flex items-center justify-center">
-          <div ref={canvasRef} className="w-full h-full p-1 sm:p-2 md:p-3 lg:p-4 flex items-center justify-center relative" data-pitch-container>
-            {!presentationMode && (
-              <ErrorBoundary>
-                <EditorCanvas
-                  ref={canvasHandleRef}
-                  width={canvasSize.width}
-                  height={canvasSize.height}
-                  roles={setPiece.roles}
-                  assignments={setPiece.assignments || []}
-                  players={players}
-                  activeRoleId={activeRoleId}
-                  category={setPiece.category}
-                  onRoleClick={(id) => setActiveRoleId(id === activeRoleId ? null : id)}
-                  onRoleDragEnd={handleRoleDragEnd}
-                  onPitchClick={handlePitchClick}
-                  onLabelPrompt={handleLabelPrompt}
-                />
-              </ErrorBoundary>
-            )}
-            {setPiece.roles.length === 0 && entities.length === 0 && annotations.length === 0 && (
-              <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-10">
-                <div className="bg-card/80 backdrop-blur-sm border border-border/50 rounded-2xl px-4 md:px-6 py-3 md:py-4 text-center max-w-[220px] md:max-w-[260px]">
-                  <p className="text-sm font-display font-bold text-white mb-1">Empty Board</p>
-                  <p className="text-[11px] text-muted-foreground leading-relaxed">
-                    {isMobile
-                      ? 'Tap the tool button to place players and draw movements.'
-                      : 'Use the toolbar to place players and draw movements. Start with the Team Player tool to add your first role.'
-                    }
-                  </p>
+      {/* ─── MAIN BODY ─── */}
+      <div className="flex-1 flex overflow-hidden min-h-0">
+        {/* ─── PITCH AREA ─── */}
+        <div className="flex-1 relative flex flex-col min-w-0 min-h-0">
+          <main data-tutorial="pitch" className="flex-1 min-h-0 relative">
+            <div
+              ref={canvasRef}
+              className={cn(
+                "absolute inset-0 flex items-center justify-center",
+                isMobile ? "p-0" : isTablet ? "p-1" : "p-2 lg:p-3"
+              )}
+              data-pitch-container
+            >
+              {!presentationMode && (
+                <ErrorBoundary>
+                  <EditorCanvas
+                    ref={canvasHandleRef}
+                    width={canvasSize.width}
+                    height={canvasSize.height}
+                    roles={setPiece.roles}
+                    assignments={setPiece.assignments || []}
+                    players={players}
+                    activeRoleId={activeRoleId}
+                    category={setPiece.category}
+                    onRoleClick={handleRoleClick}
+                    onRoleDragEnd={handleRoleDragEnd}
+                    onPitchClick={handlePitchClick}
+                    onLabelPrompt={handleLabelPrompt}
+                    compact={isMobile}
+                  />
+                </ErrorBoundary>
+              )}
+              {setPiece.roles.length === 0 && entities.length === 0 && annotations.length === 0 && (
+                <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-10">
+                  <div className={cn(
+                    "bg-card/80 backdrop-blur-sm border border-border/50 rounded-2xl text-center",
+                    isMobile ? "px-4 py-3 max-w-[200px]" : "px-6 py-4 max-w-[260px]"
+                  )}>
+                    <p className="text-sm font-display font-bold text-white mb-1">Empty Board</p>
+                    <p className="text-[11px] text-muted-foreground leading-relaxed">
+                      {isMobile
+                        ? 'Tap the tool button to place players and draw movements.'
+                        : 'Use the toolbar to place players and draw movements. Start with the Team Player tool to add your first role.'
+                      }
+                    </p>
+                  </div>
                 </div>
+              )}
+            </div>
+
+            <QuickLegend />
+            {!isMobile && <ContextualTip />}
+
+            {/* Desktop sidebar toolbar */}
+            {isDesktop && (
+              <div className="absolute left-3 top-3 z-20 overflow-y-auto scrollbar-none" style={{ maxHeight: 'calc(100% - 24px)' }}>
+                <EditorToolbar
+                  onUndo={handleUndo}
+                  onRedo={handleRedo}
+                  canUndo={undoStack.length > 0}
+                  canRedo={redoStack.length > 0}
+                  onMirror={handleMirror}
+                />
               </div>
             )}
-          </div>
 
-          <QuickLegend />
-          {!isMobile && <ContextualTip />}
-        </main>
+            {/* Tablet sidebar toolbar (compact) */}
+            {isTablet && (
+              <div className="absolute left-2 top-2 z-20 overflow-y-auto scrollbar-none" style={{ maxHeight: 'calc(100% - 16px)' }}>
+                <EditorToolbar
+                  onUndo={handleUndo}
+                  onRedo={handleRedo}
+                  canUndo={undoStack.length > 0}
+                  canRedo={redoStack.length > 0}
+                  onMirror={handleMirror}
+                  useSheetInspector
+                  onOpenInspectorSheet={() => setMobileInspectorOpen(true)}
+                />
+              </div>
+            )}
 
-        {!isMobile && (
-          <div className="absolute left-3 top-3 z-20 overflow-y-auto scrollbar-none" style={{ maxHeight: 'calc(100% - 120px)' }}>
-            <EditorToolbar
+            <ContextualMiniBar canvasRef={canvasRef} />
+
+            {['run_path', 'curved_run', 'pass_line', 'curved_cross'].includes(activeTool) && drawingPoints.length >= 2 && canvasHandleRef.current && (() => {
+              const screenPos = canvasHandleRef.current?.getLastDrawingPointScreen();
+              if (!screenPos) return null;
+              const containerRect = canvasRef.current?.getBoundingClientRect();
+              if (!containerRect) return null;
+              const relX = screenPos.x - containerRect.left + 16;
+              const relY = screenPos.y - containerRect.top - 16;
+              return (
+                <button
+                  onClick={() => canvasHandleRef.current?.finishDrawing()}
+                  className="absolute z-30 w-10 h-10 rounded-full bg-emerald-500 text-white shadow-lg flex items-center justify-center hover:bg-emerald-400 active:scale-90 transition-all"
+                  style={{ left: relX, top: relY }}
+                  title="Confirm drawing (Enter)"
+                >
+                  <Check className="w-4 h-4" />
+                </button>
+              );
+            })()}
+          </main>
+
+          {/* ─── BOTTOM BAR (step nav + controls) ─── */}
+          <div className={cn(
+            "shrink-0 z-20",
+            isMobile ? "px-0 pb-0" : "px-3 pb-2"
+          )}>
+            <BottomBar
+              mobile={isMobile}
               onUndo={handleUndo}
               onRedo={handleRedo}
               canUndo={undoStack.length > 0}
               canRedo={redoStack.length > 0}
               onMirror={handleMirror}
-              useSheetInspector={useSheetInspector}
-              onOpenInspectorSheet={() => setMobileInspectorOpen(true)}
+              onOpenInspector={() => setMobileInspectorOpen(true)}
             />
           </div>
-        )}
-
-        <ContextualMiniBar canvasRef={canvasRef} />
-
-        {['run_path', 'curved_run', 'pass_line', 'curved_cross'].includes(activeTool) && drawingPoints.length >= 2 && canvasHandleRef.current && (() => {
-          const screenPos = canvasHandleRef.current?.getLastDrawingPointScreen();
-          if (!screenPos) return null;
-          const containerRect = canvasRef.current?.getBoundingClientRect();
-          if (!containerRect) return null;
-          const relX = screenPos.x - containerRect.left + 16;
-          const relY = screenPos.y - containerRect.top - 16;
-          return (
-            <button
-              onClick={() => canvasHandleRef.current?.finishDrawing()}
-              className="absolute z-30 w-8 h-8 rounded-full bg-emerald-500 text-white shadow-lg flex items-center justify-center hover:bg-emerald-400 active:scale-90 transition-all"
-              style={{ left: relX, top: relY }}
-              title="Confirm drawing (Enter)"
-            >
-              <Check className="w-4 h-4" />
-            </button>
-          );
-        })()}
-
-        {!useSheetInspector && !inspectorCollapsed && (
-          <div className="absolute right-3 top-3 z-20 w-72 lg:w-80 xl:w-[340px]" style={{ maxHeight: 'calc(100% - 120px)' }}>
-            <div className="h-full bg-card/95 backdrop-blur-xl rounded-2xl shadow-2xl shadow-black/30 border border-white/[0.08] overflow-y-auto scrollbar-none">
-              <InspectorPanel
-                roles={setPiece.roles}
-                assignments={setPiece.assignments || []}
-                players={players}
-                activeRoleId={activeRoleId}
-                onRoleClick={(id) => setActiveRoleId(id === activeRoleId ? null : id)}
-                onAssignPlayer={assignPlayer}
-                onAssignBackup={assignBackupPlayer}
-                onDeleteRole={handleDeleteRole}
-                onDuplicateRole={handleDuplicateRole}
-                onRenameRole={handleRenameRole}
-                onUpdateRoleField={handleUpdateRoleField}
-                onAddRole={() => { setPendingPos(null); setNewRoleName(''); setRoleFormOpen(true); }}
-              />
-            </div>
-          </div>
-        )}
-
-        <div className="absolute bottom-3 left-0 right-0 z-20">
-          <BottomBar mobile={isMobile || isTablet} />
         </div>
+
+        {/* ─── DESKTOP INSPECTOR SIDEBAR ─── */}
+        {isDesktop && !inspectorCollapsed && (
+          <aside className="w-80 xl:w-[340px] shrink-0 border-l border-white/[0.06] bg-card/95 backdrop-blur-xl overflow-y-auto scrollbar-none">
+            {inspectorPanel}
+          </aside>
+        )}
       </div>
 
+      {/* ─── MOBILE TOOL DRAWER (floating tool select button) ─── */}
       {isMobile && (
         <MobileToolDrawer
           onUndo={handleUndo}
@@ -923,25 +1000,24 @@ export default function SetPieceEditor() {
         />
       )}
 
-      {useSheetInspector && (
+      {/* ─── MOBILE INSPECTOR: Bottom sheet ─── */}
+      {isMobile && (
+        <Drawer open={mobileInspectorOpen} onOpenChange={setMobileInspectorOpen}>
+          <DrawerContent className="bg-card border-white/[0.08] max-h-[80vh]">
+            <DrawerTitle className="sr-only">Inspector</DrawerTitle>
+            <div className="overflow-y-auto max-h-[70vh]">
+              {inspectorPanel}
+            </div>
+          </DrawerContent>
+        </Drawer>
+      )}
+
+      {/* ─── TABLET INSPECTOR: Side sheet ─── */}
+      {isTablet && (
         <Sheet open={mobileInspectorOpen} onOpenChange={setMobileInspectorOpen}>
-          <SheetContent side="right" className="bg-card border-l border-white/[0.06] w-[300px] sm:w-[320px] p-0">
+          <SheetContent side="right" className="bg-card border-l border-white/[0.06] w-[320px] p-0">
             <SheetTitle className="sr-only">Inspector</SheetTitle>
-            <InspectorPanel
-              roles={setPiece.roles}
-              assignments={setPiece.assignments || []}
-              players={players}
-              activeRoleId={activeRoleId}
-              onRoleClick={(id) => setActiveRoleId(id === activeRoleId ? null : id)}
-              onAssignPlayer={assignPlayer}
-              onAssignBackup={assignBackupPlayer}
-              onDeleteRole={handleDeleteRole}
-              onDuplicateRole={handleDuplicateRole}
-              onRenameRole={handleRenameRole}
-              onUpdateRoleField={handleUpdateRoleField}
-              onAddRole={() => { setPendingPos(null); setNewRoleName(''); setRoleFormOpen(true); setMobileInspectorOpen(false); }}
-              forceVisible
-            />
+            {inspectorPanel}
           </SheetContent>
         </Sheet>
       )}

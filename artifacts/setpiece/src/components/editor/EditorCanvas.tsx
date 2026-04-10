@@ -37,6 +37,7 @@ interface EditorCanvasProps {
   activeRoleId: string | null;
   category?: string;
   readOnly?: boolean;
+  compact?: boolean;
   onRoleClick: (roleId: string) => void;
   onRoleDragEnd: (roleId: string, pos: { x: number; y: number }) => void;
   onPitchClick: (pos: { x: number; y: number }) => void;
@@ -57,7 +58,7 @@ function computePad(width: number): number {
 
 export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(function EditorCanvas({
   width, height, roles, assignments, players,
-  activeRoleId, category = '', readOnly = false, onRoleClick, onRoleDragEnd, onPitchClick, onLabelPrompt,
+  activeRoleId, category = '', readOnly = false, compact = false, onRoleClick, onRoleDragEnd, onPitchClick, onLabelPrompt,
 }, ref) {
   const PAD = computePad(width);
   const isCornerKick = category.includes('corner');
@@ -828,6 +829,11 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
           const isLocked = layerLocked.team;
           const roleInteractive = !readOnly && !isLocked;
 
+          const compactLabel = compact ? undefined : role.name;
+          const compactLastName = compact
+            ? (player ? (player.lastName.length > 6 ? player.lastName.slice(0, 5) + '.' : player.lastName) : undefined)
+            : player?.lastName;
+
           return (
             <TeamPlayerMarker
               key={role.id}
@@ -838,8 +844,8 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
               isDimmed={isDimmed}
               isUnassigned={isUnassigned}
               shirtNumber={player?.shirtNumber ?? undefined}
-              lastName={player?.lastName}
-              label={role.name}
+              lastName={compactLastName}
+              label={compactLabel}
               lightPitch={lightPitch}
               draggable={roleInteractive}
               onDragMove={roleInteractive ? (pos) => {

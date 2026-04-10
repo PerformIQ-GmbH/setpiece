@@ -7,9 +7,11 @@ import type { BoardData } from '@/components/editor';
 import { migrateLegacyBoardData } from '@/components/editor/types';
 import { StatusBadge } from '@/components/StatusBadge';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, Loader2, Lock, Moon, Trees, Sun, Info } from 'lucide-react';
+import { Drawer, DrawerContent, DrawerTitle } from '@/components/ui/drawer';
+import { ArrowLeft, Loader2, Lock, Moon, Trees, Sun, Info, MoreVertical, Users } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { DemoBanner } from '@/components/DemoBanner';
+import { useBreakpoint } from '@/hooks/use-mobile';
 import type { PitchTheme } from '@/components/editor';
 
 const THEME_OPTIONS: { value: PitchTheme; label: string; icon: React.ElementType }[] = [
@@ -38,6 +40,12 @@ export default function DemoSetPieceViewer() {
   const steps = useEditorStore((s) => s.steps);
   const setSteps = useEditorStore((s) => s.setSteps);
   const resetStore = useEditorStore((s) => s.resetStore);
+
+  const bp = useBreakpoint();
+  const isMobile = bp === 'mobile';
+
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [mobileRolesOpen, setMobileRolesOpen] = useState(false);
 
   const canvasRef = useRef<HTMLDivElement>(null);
   const [canvasSize, setCanvasSize] = useState({ width: 600, height: 500 });
@@ -106,66 +114,173 @@ export default function DemoSetPieceViewer() {
     );
   }
 
+  const rolesPanel = (
+    <div className="p-4">
+      <h2 className="font-display font-bold text-sm text-white mb-3">Roles & Assignments</h2>
+      <div className="space-y-2">
+        {(setPiece.roles || []).map((role: any) => {
+          const assignment = setPiece.assignments?.find((a: any) => a.roleId === role.id);
+          const player = assignment ? players?.find((p: any) => p.id === assignment.playerId) : null;
+          return (
+            <div key={role.id} className="p-3 rounded-lg bg-secondary/30 border border-border">
+              <p className="font-semibold text-xs text-primary">{role.name}</p>
+              {role.description && <p className="text-[10px] text-muted-foreground mt-0.5">{role.description}</p>}
+              <div className="mt-2 flex items-center gap-2">
+                <div className="h-6 w-6 rounded-full bg-secondary flex items-center justify-center border border-border text-[9px] font-bold text-primary">
+                  {player?.shirtNumber || '?'}
+                </div>
+                <span className="text-xs text-foreground">
+                  {player ? `${player.firstName} ${player.lastName}` : 'Unassigned'}
+                </span>
+              </div>
+              {role.coachingPoint && (
+                <p className="text-[10px] text-muted-foreground mt-2 italic">"{role.coachingPoint}"</p>
+              )}
+            </div>
+          );
+        })}
+      </div>
+
+      {setPiece.coachingNotes && (
+        <div className="mt-4 p-3 rounded-lg bg-primary/5 border border-primary/20">
+          <p className="text-xs font-semibold text-primary mb-1">Coaching Notes</p>
+          <p className="text-xs text-muted-foreground">{setPiece.coachingNotes}</p>
+        </div>
+      )}
+    </div>
+  );
+
   return (
     <div className="min-h-screen bg-background text-foreground flex flex-col h-screen overflow-hidden">
       <DemoBanner />
-      <header className="h-12 border-b border-border bg-card/80 backdrop-blur-md flex items-center justify-between px-3 md:px-4 shrink-0 z-10">
+
+      <header className={cn(
+        "border-b border-border bg-card/80 backdrop-blur-md flex items-center justify-between shrink-0 z-10",
+        isMobile ? "h-11 px-2" : "h-12 px-3 md:px-4"
+      )}>
         <div className="flex items-center gap-2 min-w-0">
           <Link href={`/demo/teams/${teamId}/templates`}>
-            <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-white rounded-full h-8 w-8 md:h-7 md:w-7 shrink-0">
+            <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-white rounded-full h-8 w-8 shrink-0">
               <ArrowLeft className="h-4 w-4" />
             </Button>
           </Link>
           <div className="h-5 w-px bg-border shrink-0" />
           <div className="min-w-0">
-            <h1 className="font-display font-bold text-sm leading-none text-white truncate max-w-[140px] md:max-w-[200px]">
+            <h1 className={cn(
+              "font-display font-bold leading-none text-white truncate",
+              isMobile ? "text-xs max-w-[120px]" : "text-sm max-w-[200px]"
+            )}>
               {setPiece.title}
             </h1>
-            <p className="text-[9px] text-muted-foreground uppercase tracking-wider font-semibold">{setPiece.category.replace(/_/g, ' ')}</p>
+            {!isMobile && (
+              <p className="text-[9px] text-muted-foreground uppercase tracking-wider font-semibold">{setPiece.category.replace(/_/g, ' ')}</p>
+            )}
           </div>
         </div>
 
         <div className="flex items-center gap-1.5">
           <div className="flex items-center gap-1 px-2 py-0.5 rounded text-[9px] font-bold uppercase tracking-wide bg-amber-500/10 text-amber-400 border border-amber-500/20">
             <Lock className="h-3 w-3" />
-            <span className="hidden sm:inline">Read Only</span>
+            {!isMobile && <span>Read Only</span>}
           </div>
 
-          <div className="flex items-center bg-secondary/50 rounded-lg border border-border p-0.5 gap-0.5">
-            {THEME_OPTIONS.map(opt => (
+          {!isMobile && (
+            <>
+              <div className="flex items-center bg-secondary/50 rounded-lg border border-border p-0.5 gap-0.5">
+                {THEME_OPTIONS.map(opt => (
+                  <button
+                    key={opt.value}
+                    onClick={() => setPitchTheme(opt.value)}
+                    title={`${opt.label} Pitch`}
+                    className={cn(
+                      "w-7 h-6 rounded-md flex items-center justify-center transition-all",
+                      pitchTheme === opt.value
+                        ? "bg-primary/20 text-primary shadow-sm"
+                        : "text-muted-foreground hover:text-white"
+                    )}
+                  >
+                    <opt.icon className="w-3.5 h-3.5" />
+                  </button>
+                ))}
+              </div>
+
               <button
-                key={opt.value}
-                onClick={() => setPitchTheme(opt.value)}
-                title={`${opt.label} Pitch`}
+                onClick={() => setShowLegend(!showLegend)}
+                title="Toggle Legend"
                 className={cn(
-                  "w-7 h-6 rounded-md flex items-center justify-center transition-all",
-                  pitchTheme === opt.value
-                    ? "bg-primary/20 text-primary shadow-sm"
-                    : "text-muted-foreground hover:text-white"
+                  "w-7 h-7 rounded flex items-center justify-center transition-colors",
+                  showLegend ? "text-primary" : "text-muted-foreground hover:text-white"
                 )}
               >
-                <opt.icon className="w-3.5 h-3.5" />
+                <Info className="w-3.5 h-3.5" />
               </button>
-            ))}
-          </div>
 
-          <button
-            onClick={() => setShowLegend(!showLegend)}
-            title="Toggle Legend"
-            className={cn(
-              "w-7 h-7 rounded flex items-center justify-center transition-colors",
-              showLegend ? "text-primary" : "text-muted-foreground hover:text-white"
-            )}
-          >
-            <Info className="w-3.5 h-3.5" />
-          </button>
+              <StatusBadge status={setPiece.status} />
+            </>
+          )}
 
-          <StatusBadge status={setPiece.status} />
+          {isMobile && (
+            <>
+              <button
+                onClick={() => setMobileRolesOpen(true)}
+                className="w-9 h-9 rounded-xl flex items-center justify-center text-muted-foreground hover:text-white active:scale-95 transition-all"
+              >
+                <Users className="w-4 h-4" />
+              </button>
+
+              <div className="relative">
+                <button
+                  onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+                  className="w-9 h-9 rounded-xl flex items-center justify-center text-muted-foreground hover:text-white active:scale-95 transition-all"
+                >
+                  <MoreVertical className="w-4 h-4" />
+                </button>
+                {mobileMenuOpen && (
+                  <>
+                    <div className="fixed inset-0 z-40" onClick={() => setMobileMenuOpen(false)} />
+                    <div className="absolute right-0 top-full mt-1 w-52 bg-card border border-border rounded-2xl shadow-xl z-50 py-1.5">
+                      <div className="px-3 py-2 border-b border-border/50">
+                        <StatusBadge status={setPiece.status} />
+                      </div>
+                      <div className="px-3 py-2 border-b border-border/50">
+                        <p className="text-[9px] text-muted-foreground uppercase tracking-wider mb-1.5">Pitch Theme</p>
+                        <div className="flex gap-1">
+                          {THEME_OPTIONS.map(opt => (
+                            <button
+                              key={opt.value}
+                              onClick={() => setPitchTheme(opt.value)}
+                              className={cn(
+                                "flex-1 py-1.5 rounded-lg flex items-center justify-center gap-1 text-[10px] font-medium transition-all",
+                                pitchTheme === opt.value ? "bg-primary/20 text-primary" : "text-muted-foreground hover:text-white"
+                              )}
+                            >
+                              <opt.icon className="w-3 h-3" />
+                              {opt.label}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => { setShowLegend(!showLegend); setMobileMenuOpen(false); }}
+                        className="w-full text-left px-3 py-2.5 text-[11px] text-muted-foreground hover:text-white hover:bg-secondary transition-colors flex items-center gap-2"
+                      >
+                        <Info className="w-3.5 h-3.5" />
+                        {showLegend ? 'Hide Legend' : 'Show Legend'}
+                      </button>
+                    </div>
+                  </>
+                )}
+              </div>
+            </>
+          )}
         </div>
       </header>
 
       <div className="flex flex-1 overflow-hidden">
-        <div ref={canvasRef} className="flex-1 relative overflow-hidden flex items-center justify-center bg-background">
+        <div ref={canvasRef} className={cn(
+          "flex-1 relative overflow-hidden flex items-center justify-center bg-background",
+          isMobile ? "p-0" : "p-2"
+        )}>
           <EditorCanvas
             width={canvasSize.width}
             height={canvasSize.height}
@@ -175,63 +290,34 @@ export default function DemoSetPieceViewer() {
             activeRoleId={null}
             onRoleClick={() => {}}
             onRoleDragEnd={() => {}}
-            activeTool="select"
-            annotations={annotations}
-            onAnnotationComplete={() => {}}
-            entities={entities}
-            strokeColor="#10b981"
-            strokeWidth={2}
-            showArrowhead={false}
             onPitchClick={() => {}}
             onLabelPrompt={() => {}}
             category={setPiece.category}
-            pitchTheme={pitchTheme}
-            steps={steps}
+            compact={isMobile}
             readOnly
           />
           {showLegend && (
             <div className="absolute bottom-4 left-4 z-10">
-              <QuickLegend onClose={() => setShowLegend(false)} />
+              <QuickLegend />
             </div>
           )}
         </div>
 
         <aside className="hidden lg:block w-[280px] border-l border-border bg-card/30 backdrop-blur-xl overflow-y-auto">
-          <div className="p-4">
-            <h2 className="font-display font-bold text-sm text-white mb-3">Roles & Assignments</h2>
-            <div className="space-y-2">
-              {(setPiece.roles || []).map((role: any) => {
-                const assignment = setPiece.assignments?.find((a: any) => a.roleId === role.id);
-                const player = assignment ? players?.find((p: any) => p.id === assignment.playerId) : null;
-                return (
-                  <div key={role.id} className="p-3 rounded-lg bg-secondary/30 border border-border">
-                    <p className="font-semibold text-xs text-primary">{role.name}</p>
-                    {role.description && <p className="text-[10px] text-muted-foreground mt-0.5">{role.description}</p>}
-                    <div className="mt-2 flex items-center gap-2">
-                      <div className="h-6 w-6 rounded-full bg-secondary flex items-center justify-center border border-border text-[9px] font-bold text-primary">
-                        {player?.shirtNumber || '?'}
-                      </div>
-                      <span className="text-xs text-foreground">
-                        {player ? `${player.firstName} ${player.lastName}` : 'Unassigned'}
-                      </span>
-                    </div>
-                    {role.coachingPoint && (
-                      <p className="text-[10px] text-muted-foreground mt-2 italic">"{role.coachingPoint}"</p>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-
-            {setPiece.coachingNotes && (
-              <div className="mt-4 p-3 rounded-lg bg-primary/5 border border-primary/20">
-                <p className="text-xs font-semibold text-primary mb-1">Coaching Notes</p>
-                <p className="text-xs text-muted-foreground">{setPiece.coachingNotes}</p>
-              </div>
-            )}
-          </div>
+          {rolesPanel}
         </aside>
       </div>
+
+      {isMobile && (
+        <Drawer open={mobileRolesOpen} onOpenChange={setMobileRolesOpen}>
+          <DrawerContent className="bg-card border-white/[0.08] max-h-[80vh]">
+            <DrawerTitle className="sr-only">Roles & Assignments</DrawerTitle>
+            <div className="overflow-y-auto max-h-[70vh]">
+              {rolesPanel}
+            </div>
+          </DrawerContent>
+        </Drawer>
+      )}
     </div>
   );
 }
