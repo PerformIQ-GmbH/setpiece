@@ -1,0 +1,270 @@
+You are working inside the existing SETPIECE by PerformIQ monorepo. This is a production-priority refactor focused on the PLAYER EXPERIENCE for today. Do not give generic ideas. Inspect the existing codebase and implement the changes directly.
+
+Core objective:
+Build a polished, mobile-first Player View that is actually usable today for squad sharing. The coach must be able to send ONE shared team link for a matchday pack, each player identifies himself on entry, then sees ONLY his own role, own instructions, own readiness state, and own quiz flow.
+
+This refactor must solve 5 things at once:
+1. One team share link instead of one link per player
+2. Correct player identification after opening the shared link
+3. Player board must visually match the coach board (same pitch dimensions, same geometry, same feel)
+4. Role instructions from coach -> player must be properly editable and visible
+5. Quiz must work correctly and look clean on mobile
+
+Existing files to inspect and modify:
+- artifacts/setpiece/src/pages/PlayerPWA.tsx
+- artifacts/setpiece/src/pages/PlayerQuiz.tsx
+- artifacts/setpiece/src/pages/MatchdayDetail.tsx
+- artifacts/setpiece/src/components/Pitch.tsx
+- artifacts/setpiece/src/components/editor/EditorCanvas.tsx
+- artifacts/setpiece/src/components/editor/PremiumPitch.tsx
+- artifacts/setpiece/src/components/editor/OffensiveCornerPitch.tsx
+- artifacts/setpiece/src/components/editor/InspectorPanel.tsx
+- artifacts/api-server/src/routes/sharing.ts
+- artifacts/api-server/src/routes/quiz.ts
+- artifacts/api-server/src/routes/roles.ts
+- lib/db/src/schema/playerReadiness.ts
+
+Important known problems in the current implementation:
+- PlayerPWA currently uses a simplified Pitch component instead of the same board language as the coach editor
+- Pitch proportions do not match the coach editor
+- Share link logic is currently effectively built around playerScope and often assumes link.playerScope[0]
+- The current player flow is not suitable for one common squad link
+- PlayerPWA wrongly checks readiness states like "ready" and "quiz_passed", but the real DB enum is:
+  not_opened, opened, passed, needs_review
+- Acknowledge and Quiz actions currently depend on readiness.playerId, which may not exist on first open
+- Quiz yes/no answers currently mismatch because frontend sends strings like "yes"/"no" while backend expects booleans
+- Quiz score display is misleading
+- Current multiple-choice movement logic is too fake and should not stay if not truly derived from stored tactical data
+- Coach-side role metadata exists in backend but is not exposed cleanly enough in the UI for editing
+- Player currently sees too little useful instruction detail
+
+You must build the following final solution.
+
+PART 1 — SHARED TEAM LINK WITH PLAYER IDENTIFICATION
+
+Goal:
+The coach should generate one shared matchday player link. Every player opens the same link. The app first asks “Who are you?” and then loads the player-specific experience.
+
+Requirements:
+- Do NOT require one unique link per player
+- Keep the existing share flow in MatchdayDetail, but change the meaning:
+  - “All Players” becomes the default and preferred mode
+  - if selected players are chosen, that means “only these players may enter this shared link”
+- The shared link must support player identification before rendering the personal view
+- On first entry screen, show a clean mobile selector:
+  - title: “Who are you?”
+  - searchable player list
+  - optionally show shirt number next to player name if available
+- After the player picks himself, store selected playerId in local state and session/localStorage for that share token
+- All later actions (viewing, acknowledge, quiz submit) must use this resolved selected playerId
+- Never rely on readiness.playerId to determine identity
+
+Backend requirements:
+- Update GET /p/:shareToken so it can return enough information for player identification on a shared link
+- It should return:
+  - team info
+  - players in share scope or squad scope
+  - matchday/set pieces in scope
+- Add or adapt a player-specific resolution mechanism:
+  - either a dedicated endpoint like GET /p/:shareToken/player/:playerId
+  - or allow GET /p/:shareToken?playerId=...
+  - choose the cleanest architecture in this codebase
+- After player selection, the returned payload must contain ONLY that player’s role, readiness and relevant data
+- Readiness and quiz writes must validate that playerId belongs to allowed scope
+
+PART 2 — PLAYER VIEW MUST MATCH THE COACH BOARD
+
+This is critical:
+The player must see the SAME pitch proportions, SAME geometry logic, SAME visual language and SAME board feeling as the coach editor. Do not keep a simplified alternative pitch for the player detail screen.
+
+Requirements:
+- Do NOT use the current simplified Pitch.tsx for the player detail routine screen
+- Create a new component for example:
+  - PlayerBoardViewer
+- This component must reuse the same rendering logic and pitch rules as the coach experience wherever possible
+- Use the same category logic as the editor:
+  - corner -> use the same corner pitch geometry as the coach editor
+  - free_kick -> use the same half-pitch logic as the coach editor
+  - otherwise -> same full pitch logic
+- Do NOT use category.includes("freekick"); use the actual naming convention with "free_kick"
+- Preserve the same coordinate system and interpretation of boardData
+- Reuse existing pitch components and board rendering logic instead of inventing a second visual system
+- If needed, extract shared rendering helpers from the editor into reusable components for both coach and player view
+- The player board must feel like “the same tactical board, only focused on me”
+
+Visual focus rules on the player board:
+- The active player’s role marker must be highlighted strongly in PerformIQ green
+- The active player’s path must be the most visually dominant path
+- Teammates remain visible but quieter
+- Opponents are muted
+- Labels stay readable on mobile
+- No noisy gimmicks, no arcade animation, no fake game look
+- Clean premium dark presentation
+
+PART 3 — MOBILE PLAYER VIEW UX
+
+Redesign PlayerPWA into a premium mobile-first experience.
+
+Overview screen requirements:
+- Top header with team identity
+- Matchday pack title/subtitle
+- progress indicator
+- set piece cards
+- each card should show:
+  - category
+  - title
+  - this player’s role
+  - one-line task summary
+  - readiness status
+  - small board thumbnail based on real board/preview image, not a fake placeholder if possible
+- make the cards feel professional, compact, athletic and modern
+- strong hierarchy, not cluttered
+
+Detail screen requirements:
+- full-screen mobile routine detail view
+- sticky top header with back button, title, category and status
+- large hero pitch section above the fold
+- role card below pitch with:
+  - role name
+  - role description if available
+  - main task
+  - trigger / signal if available
+  - coaching point
+  - assignment notes if available
+  - backup/secondary info if relevant
+- sticky bottom action bar with:
+  - primary action: Acknowledge / Mark understood
+  - secondary action: Start quiz / Retake quiz
+- keep spacing premium and readable
+- dark UI, subtle borders, strong typography, no heavy clutter
+
+The player must be able to understand immediately:
+- what the set piece is
+- where he stands
+- what he must do
+- when he starts
+- what the main coaching point is
+
+PART 4 — ROLE DATA FROM COACH TO PLAYER
+
+The backend already supports role metadata. Now make it actually usable in the coach UI and visible in the player UI.
+
+Coach-side requirements:
+- In InspectorPanel.tsx expose clean editable fields for:
+  - role name
+  - role description
+  - coaching point
+- If assignment notes already exist in role assignments, surface them in a useful place too
+- Persist all changes using the existing roles/assignments APIs
+- Keep the editor UI clean and not overloaded
+
+Player-side requirements:
+- The player routine screen must display:
+  - role name
+  - role description if available
+  - coaching point if available
+  - set piece coaching notes if available
+  - assignment notes if available
+- Prioritize role-specific instruction over generic coaching notes
+
+PART 5 — FIX READINESS FLOW
+
+The current readiness flow is broken or inconsistent. Fix it fully.
+
+Rules:
+- Standardize on the actual readiness states:
+  - not_opened
+  - opened
+  - passed
+  - needs_review
+- Remove frontend logic that checks "ready" or "quiz_passed"
+- On first open of a set piece by a selected player:
+  - create readiness row if none exists
+  - or update it
+  - status should become opened
+  - increment view count and track timestamps properly
+- “Acknowledge” should work even before a readiness row exists
+- Readiness writes must use selected playerId from the identification flow
+- The player should have a visible and understandable status
+
+PART 6 — FIX QUIZ COMPLETELY
+
+Do not leave the current broken quiz logic.
+
+Requirements:
+- yes/no answers must be booleans end-to-end
+  - frontend sends true/false
+  - backend grades true/false
+- fix score display:
+  - show percentage, e.g. 75%
+  - also show count, e.g. 3/4 correct
+- if multiple-choice movement questions cannot be reliably generated from real tactical data, remove or disable them for now
+- do not keep fake logic where the first option is always the correct answer
+- only include questions that can genuinely be derived from stored data, such as:
+  - start position if available
+  - role understanding
+  - coaching point confirmation
+  - maybe role description understanding if you can derive a clear prompt
+- keep the quiz short and mobile-friendly
+- make the quiz UI polished:
+  - big tap targets
+  - clear progress indicator
+  - one question at a time
+  - clean result state
+- after submit:
+  - if passed -> readiness becomes passed
+  - if failed -> readiness becomes needs_review
+
+PART 7 — MATCHDAY SHARE UX
+
+Improve the share flow in MatchdayDetail.tsx:
+- Keep QR/share creation simple
+- Default to one shared squad link
+- Clarify in the UI that players will identify themselves after opening the link
+- If “selected players” is used, it means the shared link is restricted to only those players
+- Do not present the feature as “generate one link per player”
+- After creating the link, clearly show that it is a shared team access link
+
+PART 8 — IMPLEMENTATION STYLE
+
+Important constraints:
+- Do not rewrite the whole app
+- Work with the existing architecture
+- Reuse existing editor rendering logic as much as possible
+- Keep this shippable today
+- Prefer targeted refactor over theoretical redesign
+- Make the result feel premium, not experimental
+- Avoid introducing brittle hacks
+- If you need a new lightweight player resolution endpoint or hook, add it cleanly
+- Keep TypeScript types aligned across frontend and backend
+- Update generated API hooks/types if needed based on the monorepo setup
+
+PART 9 — ACCEPTANCE CRITERIA
+
+The work is only done if all of these are true:
+
+1. Coach can generate one shared player link for a matchday
+2. Player opens the link and first sees a clean “Who are you?” screen
+3. Player selects himself and only then enters his personal view
+4. Player sees only his own role/instructions/readiness
+5. The pitch in player detail visually matches the coach board geometry and proportions
+6. The player board does not look like a different simplified product
+7. Acknowledge works on first use
+8. Readiness statuses are consistent with the DB enum
+9. Quiz works with boolean yes/no logic
+10. Score/result UI is correct and polished
+11. Coach can edit role name, role description and coaching point in the UI
+12. Player can actually read those role instructions in the mobile detail view
+13. The result is polished enough to send to players today
+
+PART 10 — OUTPUT FORMAT
+
+Do not reply with a generic summary only.
+Implement the changes.
+Then provide:
+- a concise list of changed files
+- a concise explanation of what was fixed
+- any follow-up manual test steps
+- note any small remaining limitations honestly
+
+Start by inspecting the current code paths and then implement the full refactor described above.

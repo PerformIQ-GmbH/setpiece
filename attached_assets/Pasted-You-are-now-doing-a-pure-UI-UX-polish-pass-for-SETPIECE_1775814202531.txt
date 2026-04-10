@@ -1,0 +1,297 @@
+You are now doing a pure UI/UX polish pass for SETPIECE by PerformIQ after the player-link / player-identification / readiness / quiz refactor is working.
+
+This is not a logic rewrite. This is a premium responsive design and UX refinement pass.
+
+Core design principle:
+The app must feel elite, modern, athletic, and coach-trusted.
+It must be strongest on:
+- mobile for players
+- mobile + tablet + desktop for coaches
+
+The player experience must feel extremely clear, focused and premium on phone.
+The coach experience must feel highly usable and efficient on tablet and desktop, while still remaining good on mobile.
+
+Do not add gimmicks.
+Do not make it look like a generic startup demo.
+Do not make it playful or childish.
+This should feel like a serious high-performance football product.
+
+DESIGN SYSTEM GOALS
+
+Create a consistent design system across player and coach UI:
+- premium dark mode foundation
+- PerformIQ green as accent color
+- clear hierarchy
+- strong legibility
+- compact but not cramped
+- subtle borders
+- soft depth, not heavy shadows
+- rounded corners around 18-20px
+- consistent spacing system
+- responsive behavior by intent, not random stacking
+
+Use one visual language across:
+- player overview
+- player detail screen
+- quiz
+- coach share flow
+- coach editor side panels / sheets
+- coach matchday detail pages
+
+TYPOGRAPHY
+- Strong, clean, athletic typography
+- High readability on mobile
+- Clear hierarchy:
+  - page titles
+  - section labels
+  - card titles
+  - support text
+- Avoid tiny text in important workflows
+- Avoid overly light gray text on dark backgrounds
+- Important role/action info must be readable at a glance
+
+COLOR / SURFACE RULES
+- Background should be dark and premium
+- Cards should be slightly elevated from background using subtle contrast, not large shadows
+- Borders should be subtle and crisp
+- PerformIQ green is reserved for:
+  - active player
+  - key states
+  - main CTA
+  - progress highlights
+- Success, warning and review states should be visually distinct but still elegant
+- Avoid color overload
+
+RESPONSIVE STRATEGY
+
+PLAYER
+- mobile-first is the priority
+- tablet should still look clean
+- desktop may be simple but must not feel broken
+- the player should never be overwhelmed
+- every player screen should answer quickly:
+  - what is this?
+  - what is my role?
+  - what do I do?
+  - am I done?
+
+COACH
+- primary design target is tablet and desktop
+- mobile should remain functional but is secondary
+- coach workflows should feel faster and more structured on larger screens
+- use available width intelligently
+- avoid huge empty areas
+- avoid over-compressed sidebars on tablet
+
+PLAYER UI POLISH REQUIREMENTS
+
+1) Player Overview Screen
+Redesign the player overview into a premium mobile dashboard:
+- clean top section with team identity and matchday context
+- compact progress module
+- clear list of set piece cards
+- each card should feel tap-friendly and modern
+- each card must show:
+  - category
+  - set piece title
+  - player role
+  - one-line task summary
+  - status chip
+  - small board preview thumbnail if available
+- cards should have strong hierarchy and excellent spacing
+- do not make the card feel busy
+- status should be visible without dominating
+
+2) Player Detail Screen
+This screen must feel like the key “learning” screen for the player.
+Requirements:
+- sticky top header
+- large pitch hero section above the fold
+- role card immediately below
+- bottom sticky action bar
+- smooth visual rhythm between sections
+- enough breathing room around pitch and cards
+- no clunky modal feel
+- no cramped text blocks
+
+3) Pitch Presentation
+The board is the hero.
+- It must feel premium and central
+- Use the same tactical board language as the coach view
+- Container should look polished but not overframed
+- The active player highlight should be immediately obvious
+- Ensure marker labels are readable on phone
+- Movement paths must remain clear on smaller screens
+- Avoid making the pitch too small just to fit more text above the fold
+
+4) Role Card
+Create a stronger instruction card:
+- label sections clearly
+- separate role / task / trigger / coaching point visually
+- keep it quick to scan
+- use micro-hierarchy instead of long paragraphs
+- if text is missing, collapse unused rows elegantly
+- role-specific info should feel more important than generic notes
+
+5) Sticky Bottom CTA Bar
+The bottom action area should look native and premium:
+- strong primary action
+- quieter secondary action
+- safe spacing from bottom inset
+- subtle blur or elevated surface if appropriate
+- must feel excellent on iPhone-sized screens
+
+6) Quiz UI Polish
+The quiz must feel clean and serious:
+- one question per screen/card
+- strong progress indicator
+- large tap targets
+- clear selected states
+- no confusing answer layout
+- result screen should feel rewarding but professional
+- clearly show:
+  - percentage
+  - correct answers count
+  - pass / review state
+- if failed, guide player back clearly
+
+COACH UI POLISH REQUIREMENTS
+
+1) Matchday Detail / Share Flow
+Polish the share area so it feels simple and professional:
+- clearer structure
+- better spacing
+- stronger CTA hierarchy
+- clarify shared team link behavior visually
+- make QR / share output feel polished and “ready to send”
+- improve form controls and sections
+- avoid cluttered modal stacking
+
+2) Role Editing / Inspector
+The coach must be able to edit role info quickly.
+Polish the inspector / role editing area:
+- better grouping of fields
+- clearer section headings
+- cleaner input spacing
+- strong tablet usability
+- avoid a long intimidating wall of fields
+- if possible, group into:
+  - Assignment
+  - Role details
+  - Tactical notes
+- preserve focus on speed and clarity
+
+3) Editor Layout on Tablet/Desktop
+The coach editor should feel premium on larger screens:
+- better panel proportions
+- stronger board-to-sidebar balance
+- avoid tiny editing panels on tablet
+- avoid excessive empty areas on large desktop
+- keep the board dominant but allow efficient editing
+- improve layout responsiveness between:
+  - mobile
+  - tablet portrait
+  - tablet landscape
+  - desktop
+
+4) Drawer / Sheet Behavior
+For coach flows:
+- mobile should use bottom sheets where appropriate
+- tablet may use larger side sheets or split layouts
+- desktop should prefer stable side panels where useful
+- avoid using the exact same drawer behavior for all screen sizes if it hurts UX
+
+RESPONSIVE BREAKPOINT INTENT
+
+Use responsive design intentionally:
+- Mobile: player-first clarity, stacked layout, sticky bottom actions, compact cards
+- Tablet: best mixed mode for coaches, comfortable editor + forms, larger pitch + usable side panel
+- Desktop: broader layout, better use of horizontal space, no oversized whitespace, no cramped sidebars
+
+Do not just stack everything blindly.
+Make each breakpoint feel designed.
+
+COMPONENT QUALITY STANDARDS
+
+Refine the visual quality of:
+- buttons
+- chips / status pills
+- input fields
+- cards
+- tabs
+- accordions
+- sheets / dialogs
+- progress bars
+- empty states
+- loading states
+- error states
+
+Buttons:
+- clearer hierarchy between primary, secondary, ghost
+- consistent heights
+- better touch targets on mobile
+- stronger states for hover / active / disabled
+
+Inputs:
+- cleaner dark styling
+- better focus states
+- better spacing around labels and help text
+- remove any awkward density
+
+Cards:
+- consistent radius
+- consistent padding
+- subtle border treatment
+- strong vertical rhythm
+
+Status chips:
+- compact
+- readable
+- elegant
+- not too saturated
+
+MICRO-UX REQUIREMENTS
+
+Polish interaction details:
+- better section spacing
+- cleaner transitions
+- subtle motion only where useful
+- preserve context when moving between overview and detail
+- loading skeletons should match final layout
+- empty states should be helpful and visually polished
+- avoid harsh layout jumps
+
+ACCESSIBILITY / CLARITY
+- maintain strong contrast
+- avoid tiny tap targets
+- avoid relying on color alone for status
+- preserve readability on smaller mobile devices
+- make important actions obvious
+
+IMPLEMENTATION CONSTRAINTS
+- Do not rewrite working logic
+- Do not introduce unnecessary dependencies
+- Work within the current design stack
+- Reuse existing components where possible, but improve them significantly
+- Keep code maintainable
+- Prefer design consistency over one-off special styling hacks
+
+FINAL DELIVERABLE
+Apply a premium UI/UX polish pass to:
+- player overview
+- player detail
+- player quiz
+- coach matchday detail/share flow
+- coach role editing / inspector
+- responsive editor layout
+
+When finished, provide:
+- concise list of changed files
+- concise explanation of visual/UX improvements
+- any remaining UI limitations honestly
+- note the most improved areas for:
+  - mobile player
+  - tablet coach
+  - desktop coach
+
+Focus on making this feel ready for real players and real coaches, not like an unfinished prototype.
