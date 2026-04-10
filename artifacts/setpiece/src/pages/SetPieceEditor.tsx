@@ -63,7 +63,6 @@ export default function SetPieceEditor() {
   const showTips = useEditorStore((s) => s.showTips);
   const setShowTips = useEditorStore((s) => s.setShowTips);
   const inspectorCollapsed = useEditorStore((s) => s.inspectorCollapsed);
-  const setInspectorCollapsed = useEditorStore((s) => s.setInspectorCollapsed);
   const mirrorBoard = useEditorStore((s) => s.mirrorBoard);
   const presentationMode = useEditorStore((s) => s.presentationMode);
 
@@ -577,8 +576,6 @@ export default function SetPieceEditor() {
     />
   );
 
-  const HEADER_HEIGHT = isMobile ? 44 : 48;
-
   return (
     <div className="min-h-screen bg-background text-foreground flex flex-col h-screen overflow-hidden">
       {/* ─── HEADER ─── */}
@@ -903,7 +900,7 @@ export default function SetPieceEditor() {
               )}
             </div>
 
-            <QuickLegend />
+            {!isMobile && <QuickLegend />}
             {!isMobile && <ContextualTip />}
 
             {/* Desktop sidebar toolbar */}
