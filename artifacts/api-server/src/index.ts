@@ -1,4 +1,6 @@
 import { runMigrations } from "stripe-replit-sync";
+import { sql } from "drizzle-orm";
+import { db } from "@workspace/db";
 import app from "./app";
 import { logger } from "./lib/logger";
 import { seedTemplates } from "./lib/seedTemplates";
@@ -48,6 +50,26 @@ async function initStripe() {
 }
 
 await initStripe();
+
+async function runEnumMigrations() {
+  const newValues = [
+    "direct_free_kick_left",
+    "direct_free_kick_right",
+    "indirect_free_kick_left",
+    "indirect_free_kick_right",
+  ];
+  for (const val of newValues) {
+    try {
+      await db.execute(sql.raw(
+        `DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_enum WHERE enumlabel = '${val}' AND enumtypid = (SELECT oid FROM pg_type WHERE typname = 'set_piece_category')) THEN ALTER TYPE set_piece_category ADD VALUE '${val}'; END IF; END $$;`
+      ));
+    } catch {
+    }
+  }
+  logger.info("Enum migrations complete");
+}
+
+await runEnumMigrations();
 
 app.listen(port, async (err) => {
   if (err) {

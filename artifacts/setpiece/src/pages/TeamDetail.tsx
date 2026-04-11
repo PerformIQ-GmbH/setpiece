@@ -214,7 +214,11 @@ function SetPiecesTab({ teamId }: { teamId: string }) {
                   <option value="defensive_corner_left">Defensive Corner Left</option>
                   <option value="defensive_corner_right">Defensive Corner Right</option>
                   <option value="direct_free_kick_central">Direct Free Kick Central</option>
+                  <option value="direct_free_kick_left">Direct Free Kick Left</option>
+                  <option value="direct_free_kick_right">Direct Free Kick Right</option>
                   <option value="indirect_free_kick_wide">Indirect Free Kick Wide</option>
+                  <option value="indirect_free_kick_left">Indirect Free Kick Left</option>
+                  <option value="indirect_free_kick_right">Indirect Free Kick Right</option>
                   <option value="attacking_throw_in">Attacking Throw In</option>
                   <option value="defensive_throw_in">Defensive Throw In</option>
                 </select>

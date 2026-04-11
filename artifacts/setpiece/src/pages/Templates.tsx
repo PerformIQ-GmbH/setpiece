@@ -18,7 +18,11 @@ const CATEGORIES = [
   'defensive_corner_left',
   'defensive_corner_right',
   'direct_free_kick_central',
+  'direct_free_kick_left',
+  'direct_free_kick_right',
   'indirect_free_kick_wide',
+  'indirect_free_kick_left',
+  'indirect_free_kick_right',
   'attacking_throw_in',
   'defensive_throw_in',
 ];
