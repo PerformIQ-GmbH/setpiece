@@ -525,6 +525,12 @@ export interface RoleEvaluation {
   currentBadge: SuitabilityBadge | null;
   currentReasons: string[];
   currentCautions: string[];
+  /**
+   * True when there is a currently assigned player but their profile lacks
+   * the inputs (tags, attributes) required to confidently assess fit.
+   * BoardHealth uses this to surface a "missing profile data" warning.
+   */
+  currentMissingProfileData: boolean;
   /** Top N candidates ordered by score desc — includes the current player if present. */
   candidates: RoleCandidate[];
 }
@@ -576,6 +582,7 @@ export function evaluateRolesForPlayers(args: {
       currentBadge: currentFit?.badge ?? null,
       currentReasons: currentFit?.reasons ?? [],
       currentCautions: currentFit?.cautions ?? [],
+      currentMissingProfileData: currentPlayer ? !hasProfileData(currentPlayer) : false,
       candidates: ranked,
     };
   });

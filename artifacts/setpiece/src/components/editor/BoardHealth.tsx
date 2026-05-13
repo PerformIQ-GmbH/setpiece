@@ -125,9 +125,9 @@ function computeFitIssues(
     const curScore = evaluation.currentScore;
     const curBadge = evaluation.currentBadge;
 
-    // Missing profile data heuristic: server returns null score for the
-    // current player when its profile lacks the inputs needed to evaluate fit.
-    if (evaluation.currentPlayerId && curScore == null) {
+    // Server-emitted flag: true when the assigned player exists but lacks
+    // tags/attributes required to confidently assess fit.
+    if (evaluation.currentMissingProfileData) {
       issues.push({
         severity: 'amber',
         message: `"${role.name}" — ${playerLabel} is missing profile data needed to assess fit`,

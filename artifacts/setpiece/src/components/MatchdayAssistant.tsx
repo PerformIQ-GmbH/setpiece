@@ -92,10 +92,14 @@ export function MatchdayAssistant({ teamId, matchdayId, players, setPieces, onAp
   };
 
   const fillStartersFromAvailable = () => {
-    setStarterIds(new Set(players.filter(p => (p.status ?? 'active') === 'active').slice(0, 11).map(p => p.id)));
+    const newStarterIds = players
+      .filter(p => (p.status ?? 'active') === 'active')
+      .slice(0, 11)
+      .map(p => p.id);
+    setStarterIds(new Set(newStarterIds));
     setBenchIds(prev => {
       const next = new Set(prev);
-      for (const p of players.slice(0, 11)) next.delete(p.id);
+      for (const id of newStarterIds) next.delete(id);
       return next;
     });
   };
@@ -357,7 +361,7 @@ export function MatchdayAssistant({ teamId, matchdayId, players, setPieces, onAp
             {suggestions && totalApplicable === 0 && suggestions.setPieces.length > 0 && (
               <div className="flex items-start gap-2 p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-xs text-amber-300">
                 <Info className="w-3.5 h-3.5 mt-0.5 shrink-0" />
-                <span>No applicable suggestions — every role already has a player and you're in "Fill empty" mode. Switch to "Replace all" to get suggestions for every role.</span>
+                <span>No applicable suggestions — every role already has a player. Clear an assignment in the editor to receive a suggestion for it.</span>
               </div>
             )}
           </div>

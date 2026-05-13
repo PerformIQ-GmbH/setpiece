@@ -1787,6 +1787,11 @@ export const GetSetPieceRoleSuggestionsResponse = zod.object({
         .optional(),
       currentReasons: zod.array(zod.string()),
       currentCautions: zod.array(zod.string()),
+      currentMissingProfileData: zod
+        .boolean()
+        .describe(
+          "True when the currently assigned player exists but lacks profile data needed to assess role fit.",
+        ),
       candidates: zod.array(
         zod.object({
           playerId: zod.string(),

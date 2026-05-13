@@ -604,6 +604,8 @@ export interface RoleEvaluation {
   currentBadge?: SuitabilityBadge | null;
   currentReasons: string[];
   currentCautions: string[];
+  /** True when the currently assigned player exists but lacks profile data needed to assess role fit. */
+  currentMissingProfileData: boolean;
   candidates: RoleCandidate[];
 }
 

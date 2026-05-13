@@ -2250,7 +2250,7 @@ components:
 
     RoleEvaluation:
       type: object
-      required: [roleId, roleName, primaryClass, candidates, currentReasons, currentCautions]
+      required: [roleId, roleName, primaryClass, candidates, currentReasons, currentCautions, currentMissingProfileData]
       properties:
         roleId:
           type: string
@@ -2276,6 +2276,9 @@ components:
           type: array
           items:
             type: string
+        currentMissingProfileData:
+          type: boolean
+          description: True when the currently assigned player exists but lacks profile data needed to assess role fit.
         candidates:
           type: array
           items:
