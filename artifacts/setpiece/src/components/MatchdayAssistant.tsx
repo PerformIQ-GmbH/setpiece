@@ -49,7 +49,7 @@ export function MatchdayAssistant({ teamId, matchdayId, players, setPieces, onAp
   const [open, setOpen] = useState(false);
   const [starterIds, setStarterIds] = useState<Set<string>>(new Set());
   const [benchIds, setBenchIds] = useState<Set<string>>(new Set());
-  const [mode, setMode] = useState<'fill_empty' | 'replace_all'>('fill_empty');
+  const mode: 'fill_empty' | 'replace_all' = 'fill_empty';
   const [suggestions, setSuggestions] = useState<AssignmentSuggestionsResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
@@ -265,34 +265,8 @@ export function MatchdayAssistant({ teamId, matchdayId, players, setPieces, onAp
               <Info className="w-3 h-3" /> Starters get a small priority bias when scores are close. A player can only be on one list.
             </p>
 
-            {/* Mode toggle */}
-            <div>
-              <label className="section-label mb-2 block">Mode</label>
-              <div className="flex gap-2">
-                <button
-                  onClick={() => setMode('fill_empty')}
-                  className={cn(
-                    'flex-1 px-3 py-2 rounded-xl border text-[11px] text-left transition-all',
-                    mode === 'fill_empty' ? 'bg-primary/15 border-primary/40 text-white' : 'bg-white/[0.02] border-white/[0.06] text-muted-foreground hover:border-white/[0.12]',
-                  )}
-                  data-testid="mode-fill-empty"
-                >
-                  <p className="font-semibold">Fill empty roles only</p>
-                  <p className="text-[10px] opacity-70 mt-0.5">Never overwrite existing picks</p>
-                </button>
-                <button
-                  onClick={() => setMode('replace_all')}
-                  className={cn(
-                    'flex-1 px-3 py-2 rounded-xl border text-[11px] text-left transition-all',
-                    mode === 'replace_all' ? 'bg-primary/15 border-primary/40 text-white' : 'bg-white/[0.02] border-white/[0.06] text-muted-foreground hover:border-white/[0.12]',
-                  )}
-                  data-testid="mode-replace-all"
-                >
-                  <p className="font-semibold">Replace all</p>
-                  <p className="text-[10px] opacity-70 mt-0.5">Suggest a player for every role</p>
-                </button>
-              </div>
-            </div>
+            {/* Mode is fixed to fill_empty for MVP — backend supports
+                replace_all but the UI keeps existing picks safe. */}
 
             <div className="flex items-center gap-2 flex-wrap">
               <Button
