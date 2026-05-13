@@ -12,6 +12,8 @@ import {
 } from "@workspace/db";
 import { requireTeamAccess, requireCoachAccess, requireHeadCoachAccess, parseParam } from "../lib/authorization";
 import { checkEntitlement } from "../lib/entitlements";
+import { evaluateRolesForPlayers } from "../lib/roleSuitability";
+import { inArray } from "drizzle-orm";
 import { z } from "zod/v4";
 
 const router: IRouter = Router();
@@ -440,6 +442,84 @@ router.post("/teams/:teamId/set-pieces/:setPieceId/clone", async (req, res): Pro
 
   res.status(201).json(result);
 });
+
+const roleSuggestionsSchema = z.object({
+  playerIds: z.array(z.string().min(1)).max(100).optional(),
+});
+
+router.post(
+  "/teams/:teamId/set-pieces/:setPieceId/role-suggestions",
+  async (req, res): Promise<void> => {
+    const teamId = await requireCoachAccess(req, res);
+    if (!teamId) return;
+
+    const setPieceId = parseParam(req.params.setPieceId);
+
+    const parsed = roleSuggestionsSchema.safeParse(req.body ?? {});
+    if (!parsed.success) {
+      res.status(400).json({ error: "Validation failed", details: parsed.error.issues });
+      return;
+    }
+
+    // Verify set piece belongs to team.
+    const [piece] = await db
+      .select({ id: setPiecesTable.id })
+      .from(setPiecesTable)
+      .where(and(eq(setPiecesTable.id, setPieceId), eq(setPiecesTable.teamId, teamId)));
+    if (!piece) {
+      res.status(404).json({ error: "Set piece not found" });
+      return;
+    }
+
+    // Load roles + current assignments for this set piece.
+    const roles = await db
+      .select()
+      .from(setPieceRolesTable)
+      .where(eq(setPieceRolesTable.setPieceId, setPieceId));
+    const roleIds = roles.map(r => r.id);
+    const assignments = roleIds.length
+      ? await db
+          .select()
+          .from(roleAssignmentsTable)
+          .where(inArray(roleAssignmentsTable.roleId, roleIds))
+      : [];
+
+    // Candidate players: requested ids (filtered to team) or all team players.
+    const requestedIds = parsed.data.playerIds;
+    const candidatePlayers = requestedIds && requestedIds.length > 0
+      ? await db
+          .select()
+          .from(playersTable)
+          .where(and(eq(playersTable.teamId, teamId), inArray(playersTable.id, requestedIds)))
+      : await db.select().from(playersTable).where(eq(playersTable.teamId, teamId));
+
+    const evaluations = evaluateRolesForPlayers({
+      roles: roles.map(r => ({
+        id: r.id,
+        name: r.name,
+        description: r.description,
+        coachingPoint: r.coachingPoint,
+        startPosition: r.startPosition as { x?: number | null; y?: number | null } | null,
+      })),
+      assignments: assignments.map(a => ({ roleId: a.roleId, playerId: a.playerId })),
+      candidatePlayers: candidatePlayers.map(p => ({
+        id: p.id,
+        firstName: p.firstName,
+        lastName: p.lastName,
+        shirtNumber: p.shirtNumber,
+        dominantFoot: p.dominantFoot,
+        height: p.height,
+        status: p.status,
+        tags: p.tags,
+        headingStrength: p.headingStrength,
+        speed: p.speed,
+      })),
+      topN: 5,
+    });
+
+    res.json({ setPieceId, roles: evaluations });
+  },
+);
 
 router.get("/teams/:teamId/set-pieces/:setPieceId/preview", async (req, res): Promise<void> => {
   const teamId = await requireTeamAccess(req, res);

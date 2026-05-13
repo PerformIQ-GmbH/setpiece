@@ -1012,15 +1012,27 @@ export const SuggestMatchdayAssignmentsParams = zod.object({
   matchdayId: zod.coerce.string(),
 });
 
-export const suggestMatchdayAssignmentsBodyAvailablePlayerIdsMax = 50;
+export const suggestMatchdayAssignmentsBodyStarterPlayerIdsMax = 50;
+
+export const suggestMatchdayAssignmentsBodyBenchPlayerIdsMax = 50;
+
+export const suggestMatchdayAssignmentsBodySetPieceIdsMax = 100;
 
 export const suggestMatchdayAssignmentsBodyModeDefault = `fill_empty`;
 
 export const SuggestMatchdayAssignmentsBody = zod.object({
-  availablePlayerIds: zod
+  starterPlayerIds: zod
     .array(zod.string())
     .min(1)
-    .max(suggestMatchdayAssignmentsBodyAvailablePlayerIdsMax),
+    .max(suggestMatchdayAssignmentsBodyStarterPlayerIdsMax),
+  benchPlayerIds: zod
+    .array(zod.string())
+    .max(suggestMatchdayAssignmentsBodyBenchPlayerIdsMax)
+    .optional(),
+  setPieceIds: zod
+    .array(zod.string())
+    .max(suggestMatchdayAssignmentsBodySetPieceIdsMax)
+    .optional(),
   mode: zod
     .enum(["fill_empty", "replace_all"])
     .default(suggestMatchdayAssignmentsBodyModeDefault),
@@ -1036,6 +1048,8 @@ export const SuggestMatchdayAssignmentsResponse = zod.object({
   matchdayId: zod.string(),
   mode: zod.enum(["fill_empty", "replace_all"]),
   playersConsidered: zod.number(),
+  starterCount: zod.number().optional(),
+  benchCount: zod.number().optional(),
   setPieces: zod.array(
     zod.object({
       setPieceId: zod.string(),
@@ -1056,6 +1070,7 @@ export const SuggestMatchdayAssignmentsResponse = zod.object({
             "generic",
           ]),
           suggestedPlayerId: zod.string().nullish(),
+          suggestedBackupPlayerId: zod.string().nullish(),
           existingPlayerId: zod.string().nullish(),
           score: zod
             .number()
@@ -1080,9 +1095,12 @@ export const SuggestMatchdayAssignmentsResponse = zod.object({
                   suggestMatchdayAssignmentsResponseSetPiecesItemRolesItemAlternativesItemScoreMax,
                 ),
               badge: zod.enum(["best", "good", "review", "problem"]),
+              reasons: zod.array(zod.string()),
+              cautions: zod.array(zod.string()),
             }),
           ),
           skipped: zod.boolean().optional(),
+          missingProfileData: zod.boolean().optional(),
         }),
       ),
     }),
@@ -1705,6 +1723,86 @@ export const GetMatchPackDataResponse = zod.object({
           zod.null(),
         ])
         .optional(),
+    }),
+  ),
+});
+
+/**
+ * Returns, for each role in the set piece, the current player's fit
+(if assigned) and the top-N alternatives ordered by fit score.
+Used by the Inspector to show "Top 3 alternatives" + "Assign best"
+for the currently selected role. Read-only — no assignments are
+changed.
+
+ * @summary Score a candidate pool against every role in a set piece
+ */
+export const GetSetPieceRoleSuggestionsParams = zod.object({
+  teamId: zod.coerce.string(),
+  setPieceId: zod.coerce.string(),
+});
+
+export const getSetPieceRoleSuggestionsBodyPlayerIdsMax = 100;
+
+export const GetSetPieceRoleSuggestionsBody = zod.object({
+  playerIds: zod
+    .array(zod.string())
+    .max(getSetPieceRoleSuggestionsBodyPlayerIdsMax)
+    .optional()
+    .describe(
+      "Optional restricted candidate pool. When omitted, all team players\nare considered.\n",
+    ),
+});
+
+export const getSetPieceRoleSuggestionsResponseRolesItemCurrentScoreMin = 0;
+export const getSetPieceRoleSuggestionsResponseRolesItemCurrentScoreMax = 100;
+
+export const getSetPieceRoleSuggestionsResponseRolesItemCandidatesItemScoreMin = 0;
+export const getSetPieceRoleSuggestionsResponseRolesItemCandidatesItemScoreMax = 100;
+
+export const GetSetPieceRoleSuggestionsResponse = zod.object({
+  setPieceId: zod.string(),
+  roles: zod.array(
+    zod.object({
+      roleId: zod.string(),
+      roleName: zod.string(),
+      primaryClass: zod.enum([
+        "delivery",
+        "aerial_target",
+        "defensive_marker",
+        "rest_defense",
+        "blocker",
+        "runner",
+        "rebound",
+        "counter_outlet",
+        "generic",
+      ]),
+      currentPlayerId: zod.string().nullish(),
+      currentScore: zod
+        .number()
+        .min(getSetPieceRoleSuggestionsResponseRolesItemCurrentScoreMin)
+        .max(getSetPieceRoleSuggestionsResponseRolesItemCurrentScoreMax)
+        .nullish(),
+      currentBadge: zod
+        .union([zod.enum(["best", "good", "review", "problem"]), zod.null()])
+        .optional(),
+      currentReasons: zod.array(zod.string()),
+      currentCautions: zod.array(zod.string()),
+      candidates: zod.array(
+        zod.object({
+          playerId: zod.string(),
+          score: zod
+            .number()
+            .min(
+              getSetPieceRoleSuggestionsResponseRolesItemCandidatesItemScoreMin,
+            )
+            .max(
+              getSetPieceRoleSuggestionsResponseRolesItemCandidatesItemScoreMax,
+            ),
+          badge: zod.enum(["best", "good", "review", "problem"]),
+          reasons: zod.array(zod.string()),
+          cautions: zod.array(zod.string()),
+        }),
+      ),
     }),
   ),
 });

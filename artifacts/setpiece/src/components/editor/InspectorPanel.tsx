@@ -4,10 +4,11 @@ import { useEditorStore } from './editorStore';
 import { ANNOTATION_COLORS } from './types';
 import type { Annotation, EntityMarker } from './types';
 import { cn } from '@/lib/utils';
-import { Users, Layers, Trash2, Copy, Plus, ChevronDown, ChevronRight, ArrowLeft, UserRound, Info, Search, X, Sparkles } from 'lucide-react';
+import { Users, Layers, Trash2, Copy, Plus, ChevronDown, ChevronRight, ArrowLeft, UserRound, Info, Search, X, Sparkles, Loader2, Wand2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { BoardHealth } from './BoardHealth';
-import { scorePlayerForRole, BADGE_STYLES, ROLE_CLASS_LABELS } from '@/lib/roleSuitability';
+import { BADGE_STYLES, ROLE_CLASS_LABELS } from '@/lib/roleSuitability';
+import { useGetSetPieceRoleSuggestions, type RoleEvaluation } from '@workspace/api-client-react';
 
 interface RoleData {
   id: string;
@@ -50,6 +51,9 @@ interface InspectorPanelProps {
   onUpdateRoleField?: (roleId: string, field: string, value: string) => void;
   onAddRole: () => void;
   forceVisible?: boolean;
+  /** Optional — when provided, the Inspector can fetch server-side role-fit. */
+  teamId?: string;
+  setPieceId?: string;
 }
 
 function CollapsibleSection({ title, icon: Icon, defaultOpen = true, children }: {
@@ -232,7 +236,7 @@ function PlayerCombobox({ players, assignments, roles, currentRoleId, value, onC
 export function InspectorPanel({
   roles, assignments, players, activeRoleId,
   onRoleClick, onAssignPlayer, onAssignBackup, onDeleteRole, onDuplicateRole, onRenameRole, onUpdateRoleField, onAddRole,
-  forceVisible,
+  forceVisible, teamId, setPieceId,
 }: InspectorPanelProps) {
   const selectedAnnotationId = useEditorStore((s) => s.selectedAnnotationId);
   const annotations = useEditorStore((s) => s.annotations);
@@ -282,6 +286,8 @@ export function InspectorPanel({
           onRenameRole={(newName) => onRenameRole(activeRoleId, newName)}
           onUpdateRoleField={onUpdateRoleField ? (field, value) => onUpdateRoleField(activeRoleId, field, value) : undefined}
           onBack={() => onRoleClick(activeRoleId)}
+          teamId={teamId}
+          setPieceId={setPieceId}
         />
       ) : (
         <RolesPanel
@@ -485,7 +491,7 @@ function AnnotationInspector({ annotation, onUpdate, onDelete, roles }: {
   );
 }
 
-function RoleMarkerInspector({ role, assignment, player, linkedAnnotations, players, assignments, roles, activeRoleId, onAssignPlayer, onAssignBackup, onDeleteRole, onDuplicateRole, onRenameRole, onUpdateRoleField, onBack }: {
+function RoleMarkerInspector({ role, assignment, player, linkedAnnotations, players, assignments, roles, activeRoleId, onAssignPlayer, onAssignBackup, onDeleteRole, onDuplicateRole, onRenameRole, onUpdateRoleField, onBack, teamId, setPieceId }: {
   role: RoleData;
   assignment?: AssignmentData;
   player?: PlayerData;
@@ -501,6 +507,8 @@ function RoleMarkerInspector({ role, assignment, player, linkedAnnotations, play
   onRenameRole: (newName: string) => void;
   onUpdateRoleField?: (field: string, value: string) => void;
   onBack: () => void;
+  teamId?: string;
+  setPieceId?: string;
 }) {
   const [editing, setEditing] = useState(false);
   const [editName, setEditName] = useState(role.name);
@@ -687,40 +695,16 @@ function RoleMarkerInspector({ role, assignment, player, linkedAnnotations, play
           </CollapsibleSection>
         )}
 
-        {player && (() => {
-          const fit = scorePlayerForRole(player, role);
-          const style = BADGE_STYLES[fit.badge];
-          return (
-            <CollapsibleSection title="Role Fit" icon={Sparkles} defaultOpen={fit.badge !== 'best'}>
-              <div className="space-y-2.5 p-2.5 rounded-xl bg-background border border-border">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <span className={cn('flex items-center gap-1.5 px-2 py-1 rounded-full border text-[10px] font-bold uppercase tracking-wider', style.bg, style.text, style.ring)}>
-                    <span className={cn('w-1.5 h-1.5 rounded-full', style.dot)} />
-                    {style.label} · {fit.score}
-                  </span>
-                  <span className="text-[9px] uppercase tracking-wider text-muted-foreground">{ROLE_CLASS_LABELS[fit.primaryClass]}</span>
-                </div>
-                {fit.reasons.length > 0 && (
-                  <div className="space-y-1">
-                    {fit.reasons.map((r, i) => (
-                      <p key={`r-${i}`} className="text-[10px] text-emerald-400/90 leading-snug">+ {r}</p>
-                    ))}
-                  </div>
-                )}
-                {fit.cautions.length > 0 && (
-                  <div className="space-y-1">
-                    {fit.cautions.map((c, i) => (
-                      <p key={`c-${i}`} className="text-[10px] text-amber-300/90 leading-snug">! {c}</p>
-                    ))}
-                  </div>
-                )}
-                {fit.reasons.length === 0 && fit.cautions.length === 0 && (
-                  <p className="text-[10px] text-muted-foreground">Add player tags or attributes (speed, heading, foot, height) for sharper suggestions.</p>
-                )}
-              </div>
-            </CollapsibleSection>
-          );
-        })()}
+        {teamId && setPieceId && (
+          <RoleFitSection
+            teamId={teamId}
+            setPieceId={setPieceId}
+            roleId={role.id}
+            currentPlayerId={assignment?.playerId ?? null}
+            players={players}
+            onAssignPlayer={onAssignPlayer}
+          />
+        )}
 
         <CollapsibleSection title="Position" defaultOpen={false}>
           <p className="text-[11px] text-white">x: {(role.startPosition?.x ?? 50).toFixed(1)}% &nbsp; y: {(role.startPosition?.y ?? 50).toFixed(1)}%</p>
@@ -790,6 +774,156 @@ function EntityInspector({ entity, onUpdate, onDelete }: {
         )}
       </div>
     </div>
+  );
+}
+
+/**
+ * Server-driven role-fit panel. Calls
+ * POST /teams/:teamId/set-pieces/:setPieceId/role-suggestions and shows the
+ * current player's fit + Top 3 alternative players for this role. The server
+ * is the single source of truth for scoring — no client-side engine.
+ */
+function RoleFitSection({
+  teamId, setPieceId, roleId, currentPlayerId, players, onAssignPlayer,
+}: {
+  teamId: string;
+  setPieceId: string;
+  roleId: string;
+  currentPlayerId: string | null;
+  players?: PlayerData[];
+  onAssignPlayer: (playerId: string) => void;
+}) {
+  const playersById = useMemo(() => new Map((players ?? []).map(p => [p.id, p])), [players]);
+  const suggest = useGetSetPieceRoleSuggestions();
+  const [data, setData] = useState<RoleEvaluation | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  // Re-fetch whenever the role, set piece, or current assignment changes.
+  // playerIds is omitted so the server uses the full active squad.
+  useEffect(() => {
+    let cancelled = false;
+    setError(null);
+    setData(null);
+    suggest.mutate(
+      { teamId, setPieceId, data: {} },
+      {
+        onSuccess: (res) => {
+          if (cancelled) return;
+          const r = res.roles.find(x => x.roleId === roleId) ?? null;
+          setData(r);
+        },
+        onError: (err) => {
+          if (cancelled) return;
+          setError(err instanceof Error ? err.message : 'Could not load suggestions');
+        },
+      },
+    );
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [teamId, setPieceId, roleId, currentPlayerId]);
+
+  const currentBadge = data?.currentBadge ? BADGE_STYLES[data.currentBadge] : null;
+  const classLabel = data ? (ROLE_CLASS_LABELS[data.primaryClass] ?? data.primaryClass) : '';
+
+  // Top alternatives: exclude the current player; cap at 3.
+  const alternatives = useMemo(() => {
+    if (!data) return [];
+    return data.candidates
+      .filter(c => c.playerId !== currentPlayerId)
+      .slice(0, 3);
+  }, [data, currentPlayerId]);
+
+  const bestAlternative = alternatives[0] ?? null;
+  const isLoading = suggest.isPending && !data;
+
+  return (
+    <CollapsibleSection title="Role Fit" icon={Sparkles} defaultOpen>
+      <div className="space-y-3 p-2.5 rounded-xl bg-background border border-border" data-testid={`role-fit-${roleId}`}>
+        {isLoading && (
+          <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
+            <Loader2 className="w-3.5 h-3.5 animate-spin" /> Scoring this role…
+          </div>
+        )}
+        {error && !isLoading && (
+          <p className="text-[11px] text-red-300">{error}</p>
+        )}
+
+        {data && !isLoading && (
+          <>
+            {/* Current assignment fit */}
+            <div className="space-y-2">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Current</span>
+                <span className="text-[9px] uppercase tracking-wider text-muted-foreground">{classLabel}</span>
+              </div>
+              {currentPlayerId && currentBadge && data.currentScore != null ? (
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className={cn('flex items-center gap-1.5 px-2 py-1 rounded-full border text-[10px] font-bold uppercase tracking-wider', currentBadge.bg, currentBadge.text, currentBadge.ring)}>
+                    <span className={cn('w-1.5 h-1.5 rounded-full', currentBadge.dot)} />
+                    {currentBadge.label} · {data.currentScore}
+                  </span>
+                </div>
+              ) : (
+                <p className="text-[11px] text-muted-foreground">No player assigned yet.</p>
+              )}
+              {data.currentReasons.slice(0, 2).map((r, i) => (
+                <p key={`r-${i}`} className="text-[10px] text-emerald-400/90 leading-snug">+ {r}</p>
+              ))}
+              {data.currentCautions.slice(0, 2).map((c, i) => (
+                <p key={`c-${i}`} className="text-[10px] text-amber-300/90 leading-snug">! {c}</p>
+              ))}
+            </div>
+
+            {/* Top 3 alternatives */}
+            {alternatives.length > 0 && (
+              <div className="space-y-2 pt-2 border-t border-white/[0.05]">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Top alternatives</span>
+                  {bestAlternative && bestAlternative.playerId !== currentPlayerId && (
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => onAssignPlayer(bestAlternative.playerId)}
+                      className="h-6 px-2 text-[10px] text-emerald-300 hover:text-emerald-200 hover:bg-emerald-500/10"
+                      data-testid={`assign-best-${roleId}`}
+                    >
+                      <Wand2 className="w-3 h-3 mr-1" /> Assign best
+                    </Button>
+                  )}
+                </div>
+                <div className="space-y-1.5">
+                  {alternatives.map(c => {
+                    const p = playersById.get(c.playerId);
+                    const style = BADGE_STYLES[c.badge];
+                    return (
+                      <button
+                        key={c.playerId}
+                        onClick={() => onAssignPlayer(c.playerId)}
+                        className="w-full flex items-center gap-2 px-2 py-1.5 rounded-lg border border-white/[0.06] bg-white/[0.02] hover:bg-white/[0.06] hover:border-white/[0.12] transition-all text-left"
+                        data-testid={`alt-${roleId}-${c.playerId}`}
+                      >
+                        {p?.shirtNumber && <span className="font-mono text-[10px] text-muted-foreground">#{p.shirtNumber}</span>}
+                        <span className="text-[11px] text-white truncate flex-1 min-w-0">
+                          {p ? `${p.firstName} ${p.lastName}` : 'Unknown player'}
+                        </span>
+                        <span className={cn('flex items-center gap-1 px-1.5 py-0.5 rounded-full border text-[9px] font-bold uppercase tracking-wider shrink-0', style.bg, style.text, style.ring)}>
+                          <span className={cn('w-1.5 h-1.5 rounded-full', style.dot)} />
+                          {c.score}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {alternatives.length === 0 && currentPlayerId && (
+              <p className="text-[10px] text-muted-foreground pt-1">No stronger alternatives in the squad.</p>
+            )}
+          </>
+        )}
+      </div>
+    </CollapsibleSection>
   );
 }
 

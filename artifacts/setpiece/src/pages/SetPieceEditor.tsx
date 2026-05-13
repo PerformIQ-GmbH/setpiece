@@ -560,6 +560,8 @@ export default function SetPieceEditor() {
 
   const inspectorPanel = (
     <InspectorPanel
+      teamId={teamId}
+      setPieceId={setPieceId}
       roles={setPiece.roles}
       assignments={setPiece.assignments || []}
       players={players}

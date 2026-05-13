@@ -477,34 +477,27 @@ export interface AssignmentSuggestionsBody {
    * @minItems 1
    * @maxItems 50
    */
-  availablePlayerIds: string[];
+  starterPlayerIds: string[];
+  /** @maxItems 50 */
+  benchPlayerIds?: string[];
+  /** @maxItems 100 */
+  setPieceIds?: string[];
   mode?: AssignmentSuggestionsBodyMode;
 }
 
-export type SuggestionAlternativeBadge =
-  (typeof SuggestionAlternativeBadge)[keyof typeof SuggestionAlternativeBadge];
+export type SuitabilityBadge =
+  (typeof SuitabilityBadge)[keyof typeof SuitabilityBadge];
 
-export const SuggestionAlternativeBadge = {
+export const SuitabilityBadge = {
   best: "best",
   good: "good",
   review: "review",
   problem: "problem",
 } as const;
 
-export interface SuggestionAlternative {
-  playerId: string;
-  /**
-   * @minimum 0
-   * @maximum 100
-   */
-  score: number;
-  badge: SuggestionAlternativeBadge;
-}
+export type RoleClass = (typeof RoleClass)[keyof typeof RoleClass];
 
-export type RoleAssignmentSuggestionPrimaryClass =
-  (typeof RoleAssignmentSuggestionPrimaryClass)[keyof typeof RoleAssignmentSuggestionPrimaryClass];
-
-export const RoleAssignmentSuggestionPrimaryClass = {
+export const RoleClass = {
   delivery: "delivery",
   aerial_target: "aerial_target",
   defensive_marker: "defensive_marker",
@@ -516,22 +509,26 @@ export const RoleAssignmentSuggestionPrimaryClass = {
   generic: "generic",
 } as const;
 
-export type RoleAssignmentSuggestionBadge =
-  (typeof RoleAssignmentSuggestionBadge)[keyof typeof RoleAssignmentSuggestionBadge];
-
-export const RoleAssignmentSuggestionBadge = {
-  best: "best",
-  good: "good",
-  review: "review",
-  problem: "problem",
-} as const;
+export interface SuggestionAlternative {
+  playerId: string;
+  /**
+   * @minimum 0
+   * @maximum 100
+   */
+  score: number;
+  badge: SuitabilityBadge;
+  reasons: string[];
+  cautions: string[];
+}
 
 export interface RoleAssignmentSuggestion {
   roleId: string;
   roleName: string;
-  primaryClass: RoleAssignmentSuggestionPrimaryClass;
+  primaryClass: RoleClass;
   /** @nullable */
   suggestedPlayerId?: string | null;
+  /** @nullable */
+  suggestedBackupPlayerId?: string | null;
   /** @nullable */
   existingPlayerId?: string | null;
   /**
@@ -539,11 +536,12 @@ export interface RoleAssignmentSuggestion {
    * @maximum 100
    */
   score: number;
-  badge: RoleAssignmentSuggestionBadge;
+  badge: SuitabilityBadge;
   reasons: string[];
   cautions: string[];
   alternatives: SuggestionAlternative[];
   skipped?: boolean;
+  missingProfileData?: boolean;
 }
 
 export interface SetPieceSuggestionGroup {
@@ -564,7 +562,54 @@ export interface AssignmentSuggestionsResponse {
   matchdayId: string;
   mode: AssignmentSuggestionsResponseMode;
   playersConsidered: number;
+  starterCount?: number;
+  benchCount?: number;
   setPieces: SetPieceSuggestionGroup[];
+}
+
+export interface RoleSuggestionsBody {
+  /**
+   * Optional restricted candidate pool. When omitted, all team players
+are considered.
+
+   * @maxItems 100
+   */
+  playerIds?: string[];
+}
+
+export interface RoleCandidate {
+  playerId: string;
+  /**
+   * @minimum 0
+   * @maximum 100
+   */
+  score: number;
+  badge: SuitabilityBadge;
+  reasons: string[];
+  cautions: string[];
+}
+
+export interface RoleEvaluation {
+  roleId: string;
+  roleName: string;
+  primaryClass: RoleClass;
+  /** @nullable */
+  currentPlayerId?: string | null;
+  /**
+   * @minimum 0
+   * @maximum 100
+   * @nullable
+   */
+  currentScore?: number | null;
+  currentBadge?: SuitabilityBadge | null;
+  currentReasons: string[];
+  currentCautions: string[];
+  candidates: RoleCandidate[];
+}
+
+export interface RoleSuggestionsResponse {
+  setPieceId: string;
+  roles: RoleEvaluation[];
 }
 
 export interface ShareLink {

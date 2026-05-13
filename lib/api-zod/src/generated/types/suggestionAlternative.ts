@@ -5,7 +5,7 @@
  * SETPIECE by PerformIQ API
  * OpenAPI spec version: 0.1.0
  */
-import type { SuggestionAlternativeBadge } from "./suggestionAlternativeBadge";
+import type { SuitabilityBadge } from "./suitabilityBadge";
 
 export interface SuggestionAlternative {
   playerId: string;
@@ -14,5 +14,7 @@ export interface SuggestionAlternative {
    * @maximum 100
    */
   score: number;
-  badge: SuggestionAlternativeBadge;
+  badge: SuitabilityBadge;
+  reasons: string[];
+  cautions: string[];
 }

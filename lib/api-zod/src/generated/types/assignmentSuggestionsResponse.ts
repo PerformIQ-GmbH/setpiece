@@ -12,5 +12,7 @@ export interface AssignmentSuggestionsResponse {
   matchdayId: string;
   mode: AssignmentSuggestionsResponseMode;
   playersConsidered: number;
+  starterCount?: number;
+  benchCount?: number;
   setPieces: SetPieceSuggestionGroup[];
 }

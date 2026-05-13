@@ -69,6 +69,8 @@ import type {
   ReadinessDashboard,
   RemoveSetPieceFromMatchdayBody,
   RoleAssignment,
+  RoleSuggestionsBody,
+  RoleSuggestionsResponse,
   SetPiece,
   SetPieceDetail,
   SetPieceRole,
@@ -5502,6 +5504,107 @@ export function useGetMatchPackData<
 
   return { ...query, queryKey: queryOptions.queryKey };
 }
+
+/**
+ * Returns, for each role in the set piece, the current player's fit
+(if assigned) and the top-N alternatives ordered by fit score.
+Used by the Inspector to show "Top 3 alternatives" + "Assign best"
+for the currently selected role. Read-only — no assignments are
+changed.
+
+ * @summary Score a candidate pool against every role in a set piece
+ */
+export const getGetSetPieceRoleSuggestionsUrl = (
+  teamId: string,
+  setPieceId: string,
+) => {
+  return `/api/teams/${teamId}/set-pieces/${setPieceId}/role-suggestions`;
+};
+
+export const getSetPieceRoleSuggestions = async (
+  teamId: string,
+  setPieceId: string,
+  roleSuggestionsBody?: RoleSuggestionsBody,
+  options?: RequestInit,
+): Promise<RoleSuggestionsResponse> => {
+  return customFetch<RoleSuggestionsResponse>(
+    getGetSetPieceRoleSuggestionsUrl(teamId, setPieceId),
+    {
+      ...options,
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...options?.headers },
+      body: JSON.stringify(roleSuggestionsBody),
+    },
+  );
+};
+
+export const getGetSetPieceRoleSuggestionsMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof getSetPieceRoleSuggestions>>,
+    TError,
+    { teamId: string; setPieceId: string; data: BodyType<RoleSuggestionsBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof getSetPieceRoleSuggestions>>,
+  TError,
+  { teamId: string; setPieceId: string; data: BodyType<RoleSuggestionsBody> },
+  TContext
+> => {
+  const mutationKey = ["getSetPieceRoleSuggestions"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof getSetPieceRoleSuggestions>>,
+    { teamId: string; setPieceId: string; data: BodyType<RoleSuggestionsBody> }
+  > = (props) => {
+    const { teamId, setPieceId, data } = props ?? {};
+
+    return getSetPieceRoleSuggestions(teamId, setPieceId, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type GetSetPieceRoleSuggestionsMutationResult = NonNullable<
+  Awaited<ReturnType<typeof getSetPieceRoleSuggestions>>
+>;
+export type GetSetPieceRoleSuggestionsMutationBody =
+  BodyType<RoleSuggestionsBody>;
+export type GetSetPieceRoleSuggestionsMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Score a candidate pool against every role in a set piece
+ */
+export const useGetSetPieceRoleSuggestions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof getSetPieceRoleSuggestions>>,
+    TError,
+    { teamId: string; setPieceId: string; data: BodyType<RoleSuggestionsBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof getSetPieceRoleSuggestions>>,
+  TError,
+  { teamId: string; setPieceId: string; data: BodyType<RoleSuggestionsBody> },
+  TContext
+> => {
+  return useMutation(getGetSetPieceRoleSuggestionsMutationOptions(options));
+};
 
 /**
  * @summary Upload board preview image URL

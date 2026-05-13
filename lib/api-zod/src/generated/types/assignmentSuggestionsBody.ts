@@ -12,6 +12,10 @@ export interface AssignmentSuggestionsBody {
    * @minItems 1
    * @maxItems 50
    */
-  availablePlayerIds: string[];
+  starterPlayerIds: string[];
+  /** @maxItems 50 */
+  benchPlayerIds?: string[];
+  /** @maxItems 100 */
+  setPieceIds?: string[];
   mode?: AssignmentSuggestionsBodyMode;
 }

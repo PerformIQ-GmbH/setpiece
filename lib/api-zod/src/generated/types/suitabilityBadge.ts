@@ -6,10 +6,10 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export type SuggestionAlternativeBadge =
-  (typeof SuggestionAlternativeBadge)[keyof typeof SuggestionAlternativeBadge];
+export type SuitabilityBadge =
+  (typeof SuitabilityBadge)[keyof typeof SuitabilityBadge];
 
-export const SuggestionAlternativeBadge = {
+export const SuitabilityBadge = {
   best: "best",
   good: "good",
   review: "review",

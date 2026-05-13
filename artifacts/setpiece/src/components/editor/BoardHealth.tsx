@@ -2,7 +2,6 @@ import { useMemo, useState } from 'react';
 import { useEditorStore } from './editorStore';
 import { cn } from '@/lib/utils';
 import { CheckCircle2, AlertTriangle, XCircle, ChevronDown, ChevronRight } from 'lucide-react';
-import { scorePlayerForRole } from '@/lib/roleSuitability';
 
 interface RoleData {
   id: string;
@@ -23,12 +22,7 @@ interface PlayerData {
   firstName: string;
   lastName: string;
   shirtNumber?: number | null;
-  dominantFoot?: string | null;
-  height?: number | null;
   status?: string | null;
-  tags?: string[] | null;
-  speed?: number | null;
-  headingStrength?: number | null;
 }
 
 type Severity = 'green' | 'amber' | 'red';
@@ -45,6 +39,11 @@ interface BoardHealthProps {
   players?: PlayerData[];
 }
 
+/**
+ * Lightweight, structural board-health checks. Deliberately does NOT score
+ * role/player fit — that belongs to the server engine and surfaces in the
+ * Inspector's "Role Fit" panel via /set-pieces/:setPieceId/role-suggestions.
+ */
 function computeHealth(
   roles: RoleData[],
   assignments: AssignmentData[],
@@ -66,24 +65,15 @@ function computeHealth(
 
     const status = (player.status ?? '').toLowerCase();
     if (status === 'injured') {
-      issues.push({ severity: 'red', message: `"${role.name}" is assigned to ${player.firstName} ${player.lastName} who is injured`, roleId: role.id });
+      issues.push({ severity: 'red', message: `"${role.name}" is assigned to ${player.firstName} ${player.lastName} (injured)`, roleId: role.id });
       continue;
     }
     if (status === 'suspended') {
-      issues.push({ severity: 'red', message: `"${role.name}" is assigned to ${player.firstName} ${player.lastName} who is suspended`, roleId: role.id });
+      issues.push({ severity: 'red', message: `"${role.name}" is assigned to ${player.firstName} ${player.lastName} (suspended)`, roleId: role.id });
       continue;
     }
     if (status === 'inactive') {
       issues.push({ severity: 'amber', message: `"${role.name}" is assigned to ${player.firstName} ${player.lastName} (inactive)`, roleId: role.id });
-    }
-
-    const fit = scorePlayerForRole(player, role);
-    if (fit.badge === 'problem' && status !== 'injured' && status !== 'suspended') {
-      const top = fit.cautions[0] ? ` — ${fit.cautions[0]}` : '';
-      issues.push({ severity: 'red', message: `"${role.name}": ${player.firstName} ${player.lastName} is a poor fit (${fit.score}/100)${top}`, roleId: role.id });
-    } else if (fit.badge === 'review') {
-      const top = fit.cautions[0] ? ` — ${fit.cautions[0]}` : '';
-      issues.push({ severity: 'amber', message: `"${role.name}": review fit for ${player.firstName} ${player.lastName} (${fit.score}/100)${top}`, roleId: role.id });
     }
   }
 
@@ -178,7 +168,7 @@ export function BoardHealth({ roles, assignments, players }: BoardHealthProps) {
         <div className="px-3 pb-2.5">
           <div className="flex items-center gap-1.5 px-2 py-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-[10px] text-emerald-400">
             <CheckCircle2 className="w-3 h-3 shrink-0" />
-            All roles assigned with strong fit
+            All assigned roles have available players
           </div>
         </div>
       )}

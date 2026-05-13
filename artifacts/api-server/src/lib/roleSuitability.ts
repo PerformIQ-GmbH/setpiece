@@ -316,23 +316,32 @@ export function scorePlayerForRole(
 // ───────────────────────── Greedy assignment ─────────────────────────────
 export type SuggestionMode = "fill_empty" | "replace_all";
 
+export interface SuggestionAlternative {
+  playerId: string;
+  score: number;
+  badge: SuitabilityBadge;
+  reasons: string[];
+  cautions: string[];
+}
+
 export interface RoleSuggestion {
   roleId: string;
   roleName: string;
   primaryClass: RoleClass;
   suggestedPlayerId: string | null;
+  /** Recommended understudy — second best non-blocked candidate, distinct from primary. */
+  suggestedBackupPlayerId: string | null;
   score: number;
   badge: SuitabilityBadge;
   reasons: string[];
   cautions: string[];
-  alternatives: Array<{
-    playerId: string;
-    score: number;
-    badge: SuitabilityBadge;
-  }>;
+  /** Top 3 alternatives (excluding the primary pick), ordered by score desc. */
+  alternatives: SuggestionAlternative[];
   /** True when the role already has an assignment and mode === 'fill_empty'. */
   skipped?: boolean;
   existingPlayerId?: string | null;
+  /** True when the player has no profile data to score from (no tags, no attributes). */
+  missingProfileData?: boolean;
 }
 
 export interface SetPieceSuggestion {
@@ -348,27 +357,47 @@ export interface SuggestAssignmentsInput {
     roles: RoleLike[];
     existingAssignments: Array<{ roleId: string; playerId: string }>;
   }>;
-  availablePlayers: PlayerLike[];
+  /** Players the coach picked as starters. */
+  starterPlayers: PlayerLike[];
+  /** Players the coach picked as bench (no overlap with starters). */
+  benchPlayers: PlayerLike[];
   mode: SuggestionMode;
 }
 
+const STARTER_BIAS = 5;
+
+function hasProfileData(p: PlayerLike): boolean {
+  return Boolean(
+    (p.tags && p.tags.length > 0) ||
+    (p.headingStrength !== null && p.headingStrength !== undefined) ||
+    (p.speed !== null && p.speed !== undefined) ||
+    (p.height !== null && p.height !== undefined) ||
+    (p.dominantFoot && p.dominantFoot.length > 0)
+  );
+}
+
 /**
- * Greedy per-set-piece assignment.
+ * Greedy per-set-piece assignment with starter/bench awareness.
  *
  * For each set piece independently:
  *   1. Sort its roles by global priority (delivery first, generic last).
  *   2. For each role in priority order, pick the highest-scoring AVAILABLE
- *      player from the squad that hasn't been used yet IN THIS SET PIECE.
+ *      player from the combined squad. Starters get a small priority bias
+ *      so they are preferred over bench when scores are close.
  *   3. Players are NOT shared across set pieces — the same starter can take
  *      a role in every set piece (which is the realistic matchday case).
  *   4. In 'fill_empty' mode, roles with an existing assignment are skipped
- *      (no suggestion produced for them).
+ *      (no suggestion produced for them, but reported as `skipped: true`).
+ *   5. A backup is also suggested per role (the next best candidate that's
+ *      not the primary).
  *
  * Hard-blocked players (injured/suspended/inactive) are still scored but
  * always rank below available players.
  */
 export function suggestAssignments(input: SuggestAssignmentsInput): SetPieceSuggestion[] {
-  const { setPieces, availablePlayers, mode } = input;
+  const { setPieces, starterPlayers, benchPlayers, mode } = input;
+  const starterIds = new Set(starterPlayers.map(p => p.id));
+  const allPlayers = [...starterPlayers, ...benchPlayers];
   const out: SetPieceSuggestion[] = [];
 
   for (const sp of setPieces) {
@@ -395,6 +424,7 @@ export function suggestAssignments(input: SuggestAssignmentsInput): SetPieceSugg
           roleName: role.name,
           primaryClass: primary,
           suggestedPlayerId: null,
+          suggestedBackupPlayerId: null,
           score: 0,
           badge: "good",
           reasons: [],
@@ -403,43 +433,63 @@ export function suggestAssignments(input: SuggestAssignmentsInput): SetPieceSugg
           skipped: true,
           existingPlayerId,
         });
-        // Reserve the existing player so suggestions don't propose them again
-        // for another role in the same set piece.
         usedPlayers.add(existingPlayerId);
         continue;
       }
 
-      const scored = availablePlayers
-        .map(p => ({
-          player: p,
-          ...scorePlayerForRole(p, role),
-        }))
+      const scored = allPlayers
+        .map(p => {
+          const fit = scorePlayerForRole(p, role);
+          const blocked = fit.badge === "problem" && (p.status ?? "active").toLowerCase() !== "active";
+          const isStarter = starterIds.has(p.id);
+          // Bias only used for ranking; we report the raw fit.score in output.
+          const sortKey = fit.score + (isStarter ? STARTER_BIAS : 0);
+          return { player: p, fit, blocked, isStarter, sortKey };
+        })
         .sort((a, b) => {
-          // Available > hard-blocked, then by score desc.
-          const aBlocked = a.badge === "problem" && (a.player.status ?? "active").toLowerCase() !== "active";
-          const bBlocked = b.badge === "problem" && (b.player.status ?? "active").toLowerCase() !== "active";
-          if (aBlocked !== bBlocked) return aBlocked ? 1 : -1;
-          return b.score - a.score;
+          if (a.blocked !== b.blocked) return a.blocked ? 1 : -1;
+          if (a.isStarter !== b.isStarter && Math.abs(a.fit.score - b.fit.score) <= STARTER_BIAS) {
+            return a.isStarter ? -1 : 1;
+          }
+          return b.sortKey - a.sortKey;
         });
 
       const pick = scored.find(s => !usedPlayers.has(s.player.id)) ?? null;
-
       if (pick) usedPlayers.add(pick.player.id);
+
+      // Backup: next best non-blocked candidate that isn't the primary or
+      // already used in this set piece.
+      const backup = scored.find(
+        s => s.player.id !== pick?.player.id && !usedPlayers.has(s.player.id) && !s.blocked,
+      ) ?? null;
+
+      const missing = pick ? !hasProfileData(pick.player) : false;
+      const cautions = pick?.fit.cautions.slice() ?? [];
+      if (pick && missing) cautions.push("No player profile data — recommendation is generic");
+      if (!pick) cautions.push("No available players");
 
       roleSuggestions.push({
         roleId: role.id,
         roleName: role.name,
         primaryClass: primary,
         suggestedPlayerId: pick?.player.id ?? null,
-        score: pick?.score ?? 0,
-        badge: pick?.badge ?? "problem",
-        reasons: pick?.reasons ?? [],
-        cautions: pick?.cautions ?? (pick ? [] : ["No available players"]),
+        suggestedBackupPlayerId: backup?.player.id ?? null,
+        score: pick?.fit.score ?? 0,
+        badge: pick?.fit.badge ?? "problem",
+        reasons: pick?.fit.reasons ?? [],
+        cautions,
         alternatives: scored
           .filter(s => s.player.id !== pick?.player.id)
           .slice(0, 3)
-          .map(s => ({ playerId: s.player.id, score: s.score, badge: s.badge })),
+          .map(s => ({
+            playerId: s.player.id,
+            score: s.fit.score,
+            badge: s.fit.badge,
+            reasons: s.fit.reasons,
+            cautions: s.fit.cautions,
+          })),
         existingPlayerId,
+        missingProfileData: missing,
       });
     }
 
@@ -455,4 +505,78 @@ export function suggestAssignments(input: SuggestAssignmentsInput): SetPieceSugg
   }
 
   return out;
+}
+
+// ───────────────────────── Per-role evaluation (for Inspector) ────────────
+export interface RoleCandidate {
+  playerId: string;
+  score: number;
+  badge: SuitabilityBadge;
+  reasons: string[];
+  cautions: string[];
+}
+
+export interface RoleEvaluation {
+  roleId: string;
+  roleName: string;
+  primaryClass: RoleClass;
+  currentPlayerId: string | null;
+  currentScore: number | null;
+  currentBadge: SuitabilityBadge | null;
+  currentReasons: string[];
+  currentCautions: string[];
+  /** Top N candidates ordered by score desc — includes the current player if present. */
+  candidates: RoleCandidate[];
+}
+
+/**
+ * Evaluate each role against a set of candidate players, exposing per-player
+ * fit data the Inspector needs (current player fit + top alternatives).
+ * No mutation of assignments — purely advisory.
+ */
+export function evaluateRolesForPlayers(args: {
+  roles: RoleLike[];
+  assignments: Array<{ roleId: string; playerId: string }>;
+  candidatePlayers: PlayerLike[];
+  topN?: number;
+}): RoleEvaluation[] {
+  const { roles, assignments, candidatePlayers, topN = 5 } = args;
+  const assignmentByRole = new Map(assignments.map(a => [a.roleId, a.playerId]));
+  const playersById = new Map(candidatePlayers.map(p => [p.id, p]));
+
+  return roles.map(role => {
+    const primary = classifyRole(role)[0] ?? "generic";
+    const currentPlayerId = assignmentByRole.get(role.id) ?? null;
+    const currentPlayer = currentPlayerId ? playersById.get(currentPlayerId) ?? null : null;
+    const currentFit = currentPlayer ? scorePlayerForRole(currentPlayer, role) : null;
+
+    const ranked = candidatePlayers
+      .map(p => ({ p, fit: scorePlayerForRole(p, role) }))
+      .sort((a, b) => {
+        const aBlocked = (a.p.status ?? "active").toLowerCase() !== "active";
+        const bBlocked = (b.p.status ?? "active").toLowerCase() !== "active";
+        if (aBlocked !== bBlocked) return aBlocked ? 1 : -1;
+        return b.fit.score - a.fit.score;
+      })
+      .slice(0, topN)
+      .map(r => ({
+        playerId: r.p.id,
+        score: r.fit.score,
+        badge: r.fit.badge,
+        reasons: r.fit.reasons,
+        cautions: r.fit.cautions,
+      }));
+
+    return {
+      roleId: role.id,
+      roleName: role.name,
+      primaryClass: primary,
+      currentPlayerId,
+      currentScore: currentFit?.score ?? null,
+      currentBadge: currentFit?.badge ?? null,
+      currentReasons: currentFit?.reasons ?? [],
+      currentCautions: currentFit?.cautions ?? [],
+      candidates: ranked,
+    };
+  });
 }

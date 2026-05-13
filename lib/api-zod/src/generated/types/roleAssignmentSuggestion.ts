@@ -5,16 +5,18 @@
  * SETPIECE by PerformIQ API
  * OpenAPI spec version: 0.1.0
  */
-import type { RoleAssignmentSuggestionBadge } from "./roleAssignmentSuggestionBadge";
-import type { RoleAssignmentSuggestionPrimaryClass } from "./roleAssignmentSuggestionPrimaryClass";
+import type { RoleClass } from "./roleClass";
 import type { SuggestionAlternative } from "./suggestionAlternative";
+import type { SuitabilityBadge } from "./suitabilityBadge";
 
 export interface RoleAssignmentSuggestion {
   roleId: string;
   roleName: string;
-  primaryClass: RoleAssignmentSuggestionPrimaryClass;
+  primaryClass: RoleClass;
   /** @nullable */
   suggestedPlayerId?: string | null;
+  /** @nullable */
+  suggestedBackupPlayerId?: string | null;
   /** @nullable */
   existingPlayerId?: string | null;
   /**
@@ -22,9 +24,10 @@ export interface RoleAssignmentSuggestion {
    * @maximum 100
    */
   score: number;
-  badge: RoleAssignmentSuggestionBadge;
+  badge: SuitabilityBadge;
   reasons: string[];
   cautions: string[];
   alternatives: SuggestionAlternative[];
   skipped?: boolean;
+  missingProfileData?: boolean;
 }

@@ -244,7 +244,9 @@ router.delete("/teams/:teamId/matchdays/:matchdayId/set-pieces", async (req, res
 });
 
 const suggestionsSchema = z.object({
-  availablePlayerIds: z.array(z.string().min(1)).min(1).max(50),
+  starterPlayerIds: z.array(z.string().min(1)).min(1).max(50),
+  benchPlayerIds: z.array(z.string().min(1)).max(50).optional(),
+  setPieceIds: z.array(z.string().min(1)).max(100).optional(),
   mode: z.enum(["fill_empty", "replace_all"]).optional(),
 });
 
@@ -261,8 +263,21 @@ router.post(
     }
 
     const matchdayId = parseParam(req.params.matchdayId);
-    const { availablePlayerIds } = parsed.data;
+    const { starterPlayerIds } = parsed.data;
+    const benchPlayerIds = parsed.data.benchPlayerIds ?? [];
+    const setPieceFilter = parsed.data.setPieceIds;
     const mode: SuggestionMode = parsed.data.mode ?? "fill_empty";
+
+    // Reject overlap between starters and bench.
+    const starterSet = new Set(starterPlayerIds);
+    const overlap = benchPlayerIds.filter(id => starterSet.has(id));
+    if (overlap.length > 0) {
+      res.status(400).json({
+        error: "starterPlayerIds and benchPlayerIds must not overlap",
+        overlap,
+      });
+      return;
+    }
 
     // Verify matchday belongs to team.
     const [matchday] = await db
@@ -274,18 +289,34 @@ router.post(
       return;
     }
 
-    // Load players (only those in this team — silently drop foreign ids).
-    const players = availablePlayerIds.length
+    // Load players (only those in this team).
+    const allRequestedIds = [...starterPlayerIds, ...benchPlayerIds];
+    const players = allRequestedIds.length
       ? await db
           .select()
           .from(playersTable)
-          .where(and(eq(playersTable.teamId, teamId), inArray(playersTable.id, availablePlayerIds)))
+          .where(and(eq(playersTable.teamId, teamId), inArray(playersTable.id, allRequestedIds)))
       : [];
 
     if (players.length === 0) {
       res.status(400).json({ error: "No valid players in this team for the supplied ids" });
       return;
     }
+
+    const mapPlayer = (p: typeof players[number]) => ({
+      id: p.id,
+      firstName: p.firstName,
+      lastName: p.lastName,
+      shirtNumber: p.shirtNumber,
+      dominantFoot: p.dominantFoot,
+      height: p.height,
+      status: p.status,
+      tags: p.tags,
+      headingStrength: p.headingStrength,
+      speed: p.speed,
+    });
+    const starterPlayers = players.filter(p => starterSet.has(p.id)).map(mapPlayer);
+    const benchPlayers = players.filter(p => !starterSet.has(p.id)).map(mapPlayer);
 
     // Load set pieces in this matchday.
     const mdSetPieces = await db
@@ -298,11 +329,17 @@ router.post(
       return;
     }
 
-    const setPieceIds = mdSetPieces.map(m => m.setPieceId);
-    const setPieceRows = await db
-      .select()
-      .from(setPiecesTable)
-      .where(and(eq(setPiecesTable.teamId, teamId), inArray(setPiecesTable.id, setPieceIds)));
+    let setPieceIds = mdSetPieces.map(m => m.setPieceId);
+    if (setPieceFilter && setPieceFilter.length > 0) {
+      const filterSet = new Set(setPieceFilter);
+      setPieceIds = setPieceIds.filter(id => filterSet.has(id));
+    }
+    const setPieceRows = setPieceIds.length
+      ? await db
+          .select()
+          .from(setPiecesTable)
+          .where(and(eq(setPiecesTable.teamId, teamId), inArray(setPiecesTable.id, setPieceIds)))
+      : [];
 
     const allRoles = setPieceRows.length
       ? await db
@@ -326,18 +363,8 @@ router.post(
 
     const input = {
       mode,
-      availablePlayers: players.map(p => ({
-        id: p.id,
-        firstName: p.firstName,
-        lastName: p.lastName,
-        shirtNumber: p.shirtNumber,
-        dominantFoot: p.dominantFoot,
-        height: p.height,
-        status: p.status,
-        tags: p.tags,
-        headingStrength: p.headingStrength,
-        speed: p.speed,
-      })),
+      starterPlayers,
+      benchPlayers,
       setPieces: orderedSetPieces.map(sp => ({
         id: sp.id,
         title: sp.title,
@@ -362,6 +389,8 @@ router.post(
       matchdayId,
       mode,
       playersConsidered: players.length,
+      starterCount: starterPlayers.length,
+      benchCount: benchPlayers.length,
       setPieces,
     });
   },

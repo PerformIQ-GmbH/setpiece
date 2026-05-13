@@ -6,10 +6,9 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export type RoleAssignmentSuggestionPrimaryClass =
-  (typeof RoleAssignmentSuggestionPrimaryClass)[keyof typeof RoleAssignmentSuggestionPrimaryClass];
+export type RoleClass = (typeof RoleClass)[keyof typeof RoleClass];
 
-export const RoleAssignmentSuggestionPrimaryClass = {
+export const RoleClass = {
   delivery: "delivery",
   aerial_target: "aerial_target",
   defensive_marker: "defensive_marker",

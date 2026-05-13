@@ -10,7 +10,10 @@ import {
 } from '@workspace/api-client-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { Sparkles, ChevronDown, ChevronRight, Check, Loader2, Users, AlertCircle, X, Info } from 'lucide-react';
+import {
+  Sparkles, ChevronDown, ChevronRight, Check, Loader2, Users, AlertCircle,
+  X, Info, ShieldAlert, ShieldCheck, ListChecks, HelpCircle,
+} from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { BADGE_STYLES, ROLE_CLASS_LABELS } from '@/lib/roleSuitability';
 
@@ -24,9 +27,26 @@ interface MatchdayAssistantProps {
 
 type ApplyState = 'idle' | 'applying' | 'done' | 'error';
 
+const STATUS_TONE: Record<string, string> = {
+  active: 'text-emerald-400/80',
+  injured: 'text-red-400',
+  suspended: 'text-red-400',
+  inactive: 'text-amber-300',
+};
+
+function statusBadge(p: Player) {
+  const s = (p.status ?? 'active').toLowerCase();
+  return s === 'active' ? null : (
+    <span className={cn('ml-auto text-[8px] uppercase tracking-wider font-bold', STATUS_TONE[s] ?? 'text-amber-300')}>
+      {s}
+    </span>
+  );
+}
+
 export function MatchdayAssistant({ teamId, matchdayId, players, setPieces, onApplied }: MatchdayAssistantProps) {
   const [open, setOpen] = useState(false);
-  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [starterIds, setStarterIds] = useState<Set<string>>(new Set());
+  const [benchIds, setBenchIds] = useState<Set<string>>(new Set());
   const [mode, setMode] = useState<'fill_empty' | 'replace_all'>('fill_empty');
   const [suggestions, setSuggestions] = useState<AssignmentSuggestionsResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -39,24 +59,53 @@ export function MatchdayAssistant({ teamId, matchdayId, players, setPieces, onAp
 
   const playersById = useMemo(() => new Map(players.map(p => [p.id, p])), [players]);
 
-  const toggleId = (id: string) =>
-    setSelectedIds(prev => {
+  // Move a player into starters; remove from bench (dedupe).
+  const toggleStarter = (id: string) => {
+    setStarterIds(prev => {
       const next = new Set(prev);
       if (next.has(id)) next.delete(id);
       else next.add(id);
       return next;
     });
+    setBenchIds(prev => {
+      if (!prev.has(id)) return prev;
+      const next = new Set(prev);
+      next.delete(id);
+      return next;
+    });
+  };
+  const toggleBench = (id: string) => {
+    setBenchIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+    setStarterIds(prev => {
+      if (!prev.has(id)) return prev;
+      const next = new Set(prev);
+      next.delete(id);
+      return next;
+    });
+  };
 
-  const selectAll = () => setSelectedIds(new Set(players.filter(p => p.status !== 'injured' && p.status !== 'suspended' && p.status !== 'inactive').map(p => p.id)));
-  const clearAll = () => setSelectedIds(new Set());
+  const fillStartersFromAvailable = () => {
+    setStarterIds(new Set(players.filter(p => (p.status ?? 'active') === 'active').slice(0, 11).map(p => p.id)));
+    setBenchIds(prev => {
+      const next = new Set(prev);
+      for (const p of players.slice(0, 11)) next.delete(p.id);
+      return next;
+    });
+  };
+  const clearAll = () => { setStarterIds(new Set()); setBenchIds(new Set()); };
 
   const compute = async () => {
     setError(null);
     setSuggestions(null);
     setApplyState({});
     setApplyAllState('idle');
-    if (selectedIds.size === 0) {
-      setError('Pick at least one available player from the squad.');
+    if (starterIds.size === 0) {
+      setError('Pick at least one starter (this is the players you want strongly preferred for assignments).');
       return;
     }
     if (setPieces.length === 0) {
@@ -67,10 +116,13 @@ export function MatchdayAssistant({ teamId, matchdayId, players, setPieces, onAp
       const res = await suggest.mutateAsync({
         teamId,
         matchdayId,
-        data: { availablePlayerIds: Array.from(selectedIds), mode },
+        data: {
+          starterPlayerIds: Array.from(starterIds),
+          benchPlayerIds: Array.from(benchIds),
+          mode,
+        },
       });
       setSuggestions(res);
-      // Auto-expand groups that have at least one applicable suggestion.
       const expanded = new Set<string>();
       for (const grp of res.setPieces) {
         if (grp.roles.some(r => r.suggestedPlayerId && !r.skipped)) expanded.add(grp.setPieceId);
@@ -83,28 +135,34 @@ export function MatchdayAssistant({ teamId, matchdayId, players, setPieces, onAp
 
   const applyGroup = async (group: SetPieceSuggestionGroup) => {
     if (!suggestions) return;
-    // Bind to the mode used at compute time, not the mutable UI mode —
-    // otherwise switching the toggle after compute could bypass the
-    // fill_empty no-overwrite guarantee on the client.
+    // Bind to mode at compute time (not the mutable UI mode).
     const appliedMode = suggestions.mode;
     setApplyState(prev => ({ ...prev, [group.setPieceId]: 'applying' }));
     try {
-      // Need each role's full assignment record so we can preserve backupPlayerId.
       const detail = await getSetPiece(teamId, group.setPieceId);
       const existing = new Map((detail.assignments ?? []).map(a => [a.roleId, a]));
       let applied = 0;
       for (const role of group.roles) {
         if (!role.suggestedPlayerId || role.skipped) continue;
         const cur = existing.get(role.roleId);
-        // In fill_empty mode, never overwrite an existing assignment.
         if (appliedMode === 'fill_empty' && cur) continue;
+
+        // Prefer the server-suggested backup, but never reuse the primary
+        // player as their own backup; fall back to the existing backup.
+        const suggestedBackup =
+          role.suggestedBackupPlayerId && role.suggestedBackupPlayerId !== role.suggestedPlayerId
+            ? role.suggestedBackupPlayerId
+            : (cur?.backupPlayerId && cur.backupPlayerId !== role.suggestedPlayerId
+                ? cur.backupPlayerId
+                : undefined);
+
         await upsert.mutateAsync({
           teamId,
           setPieceId: group.setPieceId,
           data: {
             roleId: role.roleId,
             playerId: role.suggestedPlayerId,
-            ...(cur?.backupPlayerId ? { backupPlayerId: cur.backupPlayerId } : {}),
+            ...(suggestedBackup ? { backupPlayerId: suggestedBackup } : {}),
             ...(cur?.notes ? { notes: cur.notes } : {}),
           },
         });
@@ -130,7 +188,23 @@ export function MatchdayAssistant({ teamId, matchdayId, players, setPieces, onAp
     }
   };
 
-  const totalSuggestions = suggestions
+  const summary = useMemo(() => {
+    if (!suggestions) return null;
+    let total = 0, protectedCount = 0, safe = 0, review = 0, problem = 0, missing = 0;
+    for (const grp of suggestions.setPieces) {
+      for (const r of grp.roles) {
+        total += 1;
+        if (r.skipped) { protectedCount += 1; continue; }
+        if (r.missingProfileData) missing += 1;
+        if (r.badge === 'best' || r.badge === 'good') safe += 1;
+        else if (r.badge === 'review') review += 1;
+        else if (r.badge === 'problem') problem += 1;
+      }
+    }
+    return { total, protectedCount, safe, review, problem, missing };
+  }, [suggestions]);
+
+  const totalApplicable = suggestions
     ? suggestions.setPieces.reduce((acc, g) => acc + g.roles.filter(r => r.suggestedPlayerId && !r.skipped).length, 0)
     : 0;
 
@@ -148,7 +222,7 @@ export function MatchdayAssistant({ teamId, matchdayId, players, setPieces, onAp
           <div className="flex-1 min-w-0">
             <h3 className="font-display font-bold text-sm text-white">Matchday Assistant</h3>
             <p className="text-xs text-muted-foreground mt-0.5 truncate">
-              Pick available players, get suggested role assignments across every set piece.
+              Pick your starting XI + bench, then get suggested assignments for every set piece.
             </p>
           </div>
           {open ? <ChevronDown className="w-4 h-4 text-muted-foreground shrink-0" /> : <ChevronRight className="w-4 h-4 text-muted-foreground shrink-0" />}
@@ -156,49 +230,34 @@ export function MatchdayAssistant({ teamId, matchdayId, players, setPieces, onAp
 
         {open && (
           <div className="border-t border-white/[0.06] p-5 space-y-5">
-            {/* Squad selector */}
-            <div>
-              <div className="flex items-center justify-between mb-2.5">
-                <label className="section-label flex items-center gap-2">
-                  <Users className="h-3.5 w-3.5" /> Available squad ({selectedIds.size}/{players.length})
-                </label>
-                <div className="flex gap-2">
-                  <button onClick={selectAll} className="text-[11px] text-primary hover:underline" data-testid="select-all-available">All available</button>
-                  <span className="text-muted-foreground/40 text-[11px]">·</span>
-                  <button onClick={clearAll} className="text-[11px] text-muted-foreground hover:text-white">Clear</button>
-                </div>
-              </div>
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5 max-h-44 overflow-y-auto rounded-xl border border-white/[0.06] p-2 bg-white/[0.02]">
-                {players.length === 0 && (
-                  <p className="text-xs text-muted-foreground p-2 col-span-full">No players in this team yet.</p>
-                )}
-                {players.map(p => {
-                  const sel = selectedIds.has(p.id);
-                  const blocked = p.status === 'injured' || p.status === 'suspended' || p.status === 'inactive';
-                  return (
-                    <button
-                      key={p.id}
-                      onClick={() => toggleId(p.id)}
-                      className={cn(
-                        'flex items-center gap-1.5 px-2 py-1.5 rounded-lg border text-[11px] text-left transition-all',
-                        sel
-                          ? 'bg-primary/15 border-primary/40 text-white'
-                          : 'bg-white/[0.02] border-white/[0.06] text-muted-foreground hover:border-white/[0.12]',
-                        blocked && !sel && 'opacity-60',
-                      )}
-                      data-testid={`squad-toggle-${p.id}`}
-                    >
-                      <span className={cn('w-3 h-3 rounded border flex items-center justify-center shrink-0', sel ? 'bg-primary border-primary' : 'border-white/20')}>
-                        {sel && <Check className="w-2.5 h-2.5 text-black" />}
-                      </span>
-                      {p.shirtNumber && <span className="font-mono text-[10px] text-muted-foreground">#{p.shirtNumber}</span>}
-                      <span className="truncate">{p.firstName} {p.lastName}</span>
-                      {blocked && <span className="ml-auto text-[8px] uppercase text-red-400">{p.status}</span>}
-                    </button>
-                  );
-                })}
-              </div>
+            {/* Dual squad selector: Starting XI + Bench */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <SquadList
+                title="Starting XI"
+                accent="primary"
+                count={starterIds.size}
+                total={players.length}
+                players={players}
+                selected={starterIds}
+                otherSelected={benchIds}
+                onToggle={toggleStarter}
+                onFill={fillStartersFromAvailable}
+                fillLabel="Auto-fill 11"
+              />
+              <SquadList
+                title="Bench"
+                accent="muted"
+                count={benchIds.size}
+                total={players.length}
+                players={players}
+                selected={benchIds}
+                otherSelected={starterIds}
+                onToggle={toggleBench}
+              />
             </div>
+            <p className="text-[10px] text-muted-foreground -mt-2 flex items-center gap-1.5">
+              <Info className="w-3 h-3" /> Starters get a small priority bias when scores are close. A player can only be on one list.
+            </p>
 
             {/* Mode toggle */}
             <div>
@@ -229,18 +288,18 @@ export function MatchdayAssistant({ teamId, matchdayId, players, setPieces, onAp
               </div>
             </div>
 
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
               <Button
                 size="sm"
                 onClick={compute}
-                disabled={suggest.isPending || selectedIds.size === 0}
+                disabled={suggest.isPending || starterIds.size === 0}
                 className="rounded-xl"
                 data-testid="compute-suggestions"
               >
                 {suggest.isPending ? <Loader2 className="w-3.5 h-3.5 mr-2 animate-spin" /> : <Sparkles className="w-3.5 h-3.5 mr-2" />}
                 {suggest.isPending ? 'Computing…' : 'Suggest assignments'}
               </Button>
-              {suggestions && totalSuggestions > 0 && (
+              {suggestions && totalApplicable > 0 && (
                 <Button
                   size="sm"
                   variant="outline"
@@ -250,9 +309,10 @@ export function MatchdayAssistant({ teamId, matchdayId, players, setPieces, onAp
                   data-testid="apply-all"
                 >
                   {applyAllState === 'applying' ? <Loader2 className="w-3.5 h-3.5 mr-2 animate-spin" /> : <Check className="w-3.5 h-3.5 mr-2" />}
-                  {applyAllState === 'done' ? 'Applied to all' : `Apply all (${totalSuggestions})`}
+                  {applyAllState === 'done' ? 'Applied to all' : `Apply all (${totalApplicable})`}
                 </Button>
               )}
+              <button onClick={clearAll} className="text-[11px] text-muted-foreground hover:text-white ml-auto">Reset squad</button>
             </div>
 
             {error && (
@@ -260,6 +320,18 @@ export function MatchdayAssistant({ teamId, matchdayId, players, setPieces, onAp
                 <AlertCircle className="w-3.5 h-3.5 mt-0.5 shrink-0" />
                 <span>{error}</span>
                 <button onClick={() => setError(null)} className="ml-auto text-red-300/60 hover:text-red-300"><X className="w-3 h-3" /></button>
+              </div>
+            )}
+
+            {/* Summary cards */}
+            {summary && (
+              <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
+                <SummaryCard label="Roles" value={summary.total} icon={ListChecks} tone="muted" testId="summary-total" />
+                <SummaryCard label="Protected" value={summary.protectedCount} icon={ShieldCheck} tone="muted" testId="summary-protected" />
+                <SummaryCard label="Safe" value={summary.safe} icon={Check} tone="emerald" testId="summary-safe" />
+                <SummaryCard label="Review" value={summary.review} icon={AlertCircle} tone="amber" testId="summary-review" />
+                <SummaryCard label="Problem" value={summary.problem} icon={ShieldAlert} tone="red" testId="summary-problem" />
+                <SummaryCard label="Missing data" value={summary.missing} icon={HelpCircle} tone="muted" testId="summary-missing" />
               </div>
             )}
 
@@ -289,7 +361,7 @@ export function MatchdayAssistant({ teamId, matchdayId, players, setPieces, onAp
               </div>
             )}
 
-            {suggestions && totalSuggestions === 0 && suggestions.setPieces.length > 0 && (
+            {suggestions && totalApplicable === 0 && suggestions.setPieces.length > 0 && (
               <div className="flex items-start gap-2 p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-xs text-amber-300">
                 <Info className="w-3.5 h-3.5 mt-0.5 shrink-0" />
                 <span>No applicable suggestions — every role already has a player and you're in "Fill empty" mode. Switch to "Replace all" to get suggestions for every role.</span>
@@ -299,6 +371,102 @@ export function MatchdayAssistant({ teamId, matchdayId, players, setPieces, onAp
         )}
       </CardContent>
     </Card>
+  );
+}
+
+function SquadList({
+  title, count, total, players, selected, otherSelected, onToggle, onFill, fillLabel, accent,
+}: {
+  title: string;
+  count: number;
+  total: number;
+  players: Player[];
+  selected: Set<string>;
+  otherSelected: Set<string>;
+  onToggle: (id: string) => void;
+  onFill?: () => void;
+  fillLabel?: string;
+  accent: 'primary' | 'muted';
+}) {
+  const isPrimary = accent === 'primary';
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-2.5">
+        <label className="section-label flex items-center gap-2">
+          <Users className="h-3.5 w-3.5" /> {title} ({count}/{total})
+        </label>
+        {onFill && (
+          <button onClick={onFill} className="text-[11px] text-primary hover:underline" data-testid={`fill-${title.toLowerCase().replace(/\s+/g, '-')}`}>
+            {fillLabel}
+          </button>
+        )}
+      </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 max-h-44 overflow-y-auto rounded-xl border border-white/[0.06] p-2 bg-white/[0.02]">
+        {players.length === 0 && (
+          <p className="text-xs text-muted-foreground p-2 col-span-full">No players in this team yet.</p>
+        )}
+        {players.map(p => {
+          const sel = selected.has(p.id);
+          const inOther = otherSelected.has(p.id);
+          const blocked = p.status === 'injured' || p.status === 'suspended' || p.status === 'inactive';
+          return (
+            <button
+              key={p.id}
+              onClick={() => onToggle(p.id)}
+              className={cn(
+                'flex items-center gap-1.5 px-2 py-1.5 rounded-lg border text-[11px] text-left transition-all',
+                sel
+                  ? (isPrimary
+                    ? 'bg-primary/15 border-primary/40 text-white'
+                    : 'bg-white/[0.08] border-white/30 text-white')
+                  : 'bg-white/[0.02] border-white/[0.06] text-muted-foreground hover:border-white/[0.12]',
+                inOther && !sel && 'opacity-50',
+                blocked && !sel && 'opacity-60',
+              )}
+              data-testid={`${isPrimary ? 'starter' : 'bench'}-toggle-${p.id}`}
+              title={inOther ? `Currently in ${isPrimary ? 'bench' : 'starting XI'} — selecting will move here` : undefined}
+            >
+              <span className={cn(
+                'w-3 h-3 rounded border flex items-center justify-center shrink-0',
+                sel ? (isPrimary ? 'bg-primary border-primary' : 'bg-white/80 border-white') : 'border-white/20',
+              )}>
+                {sel && <Check className={cn('w-2.5 h-2.5', isPrimary ? 'text-black' : 'text-black')} />}
+              </span>
+              {p.shirtNumber && <span className="font-mono text-[10px] text-muted-foreground">#{p.shirtNumber}</span>}
+              <span className="truncate">{p.firstName} {p.lastName}</span>
+              {statusBadge(p)}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function SummaryCard({ label, value, icon: Icon, tone, testId }: {
+  label: string;
+  value: number;
+  icon: React.ElementType;
+  tone: 'emerald' | 'amber' | 'red' | 'muted';
+  testId?: string;
+}) {
+  const styles: Record<typeof tone, string> = {
+    emerald: 'bg-emerald-500/10 border-emerald-500/20 text-emerald-300',
+    amber: 'bg-amber-500/10 border-amber-500/20 text-amber-300',
+    red: 'bg-red-500/10 border-red-500/20 text-red-300',
+    muted: 'bg-white/[0.03] border-white/[0.08] text-muted-foreground',
+  };
+  return (
+    <div
+      className={cn('flex items-center gap-2 px-2.5 py-2 rounded-xl border', styles[tone])}
+      data-testid={testId}
+    >
+      <Icon className="w-3.5 h-3.5 shrink-0" />
+      <div className="min-w-0">
+        <p className="text-[9px] uppercase tracking-wider opacity-80 leading-none">{label}</p>
+        <p className="text-sm font-bold leading-tight mt-0.5">{value}</p>
+      </div>
+    </div>
   );
 }
 
@@ -337,9 +505,7 @@ function SuggestionGroupCard({
           className="h-7 text-[11px] text-emerald-300 hover:text-emerald-200 hover:bg-emerald-500/10"
           data-testid={`apply-group-${group.setPieceId}`}
         >
-          {state === 'applying' ? <Loader2 className="w-3 h-3 mr-1 animate-spin" /> :
-           state === 'done' ? <Check className="w-3 h-3 mr-1" /> :
-           <Check className="w-3 h-3 mr-1" />}
+          {state === 'applying' ? <Loader2 className="w-3 h-3 mr-1 animate-spin" /> : <Check className="w-3 h-3 mr-1" />}
           {state === 'done' ? 'Applied' : state === 'error' ? 'Retry' : 'Apply set piece'}
         </Button>
       </div>
@@ -361,6 +527,7 @@ function SuggestionRow({ role, playersById, mode }: {
   mode: AssignmentSuggestionsResponse['mode'];
 }) {
   const player = role.suggestedPlayerId ? playersById.get(role.suggestedPlayerId) : null;
+  const backup = role.suggestedBackupPlayerId ? playersById.get(role.suggestedBackupPlayerId) : null;
   const existing = role.existingPlayerId ? playersById.get(role.existingPlayerId) : null;
   const badge = BADGE_STYLES[role.badge];
   const classLabel = ROLE_CLASS_LABELS[role.primaryClass] ?? role.primaryClass;
@@ -372,6 +539,11 @@ function SuggestionRow({ role, playersById, mode }: {
         <div className="flex items-center gap-2 flex-wrap">
           <span className="text-[11px] font-semibold text-white truncate">{role.roleName}</span>
           <span className="text-[9px] uppercase tracking-wider text-muted-foreground">{classLabel}</span>
+          {role.missingProfileData && !skipped && (
+            <span className="text-[9px] uppercase tracking-wider text-amber-300/80" data-testid={`missing-data-${role.roleId}`}>
+              missing data
+            </span>
+          )}
         </div>
         {(role.reasons.length > 0 || role.cautions.length > 0) && !skipped && (
           <div className="mt-1 space-y-0.5">
@@ -382,6 +554,11 @@ function SuggestionRow({ role, playersById, mode }: {
               <p key={`c-${i}`} className="text-[10px] text-amber-300/80 leading-snug">! {c}</p>
             ))}
           </div>
+        )}
+        {backup && !skipped && (
+          <p className="mt-1 text-[10px] text-muted-foreground leading-snug">
+            Backup: {backup.shirtNumber ? `#${backup.shirtNumber} ` : ''}{backup.firstName} {backup.lastName}
+          </p>
         )}
       </div>
 
@@ -406,9 +583,7 @@ function SuggestionRow({ role, playersById, mode }: {
               {badge.label} · {role.score}
             </span>
             {mode === 'replace_all' && existing && existing.id !== player.id && (
-              <span className="text-[9px] text-muted-foreground">
-                replaces {existing.firstName}
-              </span>
+              <span className="text-[9px] text-muted-foreground">replaces {existing.firstName}</span>
             )}
           </>
         ) : (
