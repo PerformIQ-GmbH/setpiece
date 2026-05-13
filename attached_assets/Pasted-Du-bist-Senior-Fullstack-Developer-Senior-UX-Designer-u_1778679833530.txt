@@ -1,0 +1,143 @@
+Du bist Senior Fullstack Developer, Senior UX Designer und Product Architect für eine bestehende React/TypeScript/Node/PostgreSQL-App.
+
+Projekt:
+SETPIECE by PerformIQ
+
+Ziel:
+Erweitere den bestehenden Matchday- und Set Piece Editor Workflow so, dass ein Coach mit möglichst wenig Aufwand maximalen Input erhält.
+
+Der Coach soll im Matchday eine Startelf und Bank auswählen können. Danach soll die App automatisch sinnvolle Rollen-Zuteilungen für alle ausgewählten Set Pieces analysieren und Vorschläge machen.
+
+Wichtig:
+Rollen, Spielerprofile und Spieler-Stärken sind bereits vorhanden. Bitte nichts doppelt bauen.
+
+Bestehende relevante Spielerfelder:
+- dominantFoot
+- height
+- status
+- tags
+- headingStrength
+- speed
+
+Bestehende relevante Konzepte:
+- Teams
+- Players
+- Set Pieces
+- Set Piece Roles
+- Role Assignments
+- Matchdays
+- Ghost Mode
+- Board Health
+- PlayerCombobox
+- InspectorPanel
+- Player PWA
+- Matchday PDF Export
+
+Wichtige Projektregeln:
+- Bitte zuerst den bestehenden Code genau analysieren.
+- Keine grossen bestehenden Komponenten ersetzen.
+- Keine bestehende Editor-Logik zerstören.
+- Keine Änderungen an `lib/db` in Phase 1.
+- Keine Datenbank-Migration in Phase 1.
+- Bestehende Assignments dürfen nicht automatisch überschrieben werden.
+- Vorschläge dürfen erst übernommen werden, wenn der Coach aktiv klickt.
+- Bestehende manuelle Zuteilungen haben Vorrang.
+- Der MVP soll robust, transparent und einfach sein.
+- Keine überkomplizierte Optimierungslogik im ersten Schritt.
+- Bitte keine Dummy-Daten hart codieren.
+- Bitte bestehende API-/Query-/Mutation-Struktur verwenden, wenn möglich.
+- Bitte vorhandene Design-Sprache beibehalten: premium dark mode, glassmorphism, rounded-xl/2xl, emerald accents, mobile-first.
+
+Bitte analysiere insbesondere diese Dateien:
+- `lib/db/src/schema/players.ts`
+- `lib/db/src/schema/setPieceRoles.ts`
+- `lib/db/src/schema/roleAssignments.ts`
+- `lib/db/src/schema/matchdays.ts`
+- `artifacts/api-server/src/routes/players.ts`
+- `artifacts/api-server/src/routes/roles.ts`
+- `artifacts/api-server/src/routes/matchdays.ts`
+- `artifacts/api-server/src/routes/ghost.ts`
+- `artifacts/setpiece/src/pages/MatchdayDetail.tsx`
+- `artifacts/setpiece/src/pages/SetPieceEditor.tsx`
+- `artifacts/setpiece/src/components/editor/InspectorPanel.tsx`
+- `artifacts/setpiece/src/components/editor/BoardHealth.tsx`
+- `artifacts/setpiece/src/components/editor/PlayerCombobox.tsx`
+
+────────────────────────
+PHASE 1 — ROLE SUITABILITY ENGINE
+────────────────────────
+
+Erstelle eine neue zentrale Datei:
+
+`artifacts/api-server/src/lib/roleSuitability.ts`
+
+Diese Datei soll die Bewertungslogik für Rollen-Zuteilungen enthalten und später von Matchday, GhostMode, BoardHealth und Editor verwendet werden können.
+
+Implementiere folgende Funktionen:
+
+1. `normalizePlayerTags(player)`
+
+Ziel:
+Tags vereinheitlichen, weil im System unterschiedliche Tag-Namen vorkommen können.
+
+Bitte mindestens folgende Normalisierungen unterstützen:
+
+- `strong_header` und `best_header` → strong header
+- `fast` und `fast_runner` → fast player
+- `set_piece_specialist` und `delivery_specialist` → delivery specialist
+- `strong_blocker`
+- `rebound_hunter`
+- `far_post_target`
+- `goalkeeper`
+- `defender`
+- `midfielder`
+- `forward`
+
+Die Funktion soll ein Set oder Array mit normalisierten Tags zurückgeben.
+
+2. `classifyRole(role, setPiece?)`
+
+Ziel:
+Rolle automatisch einem Archetyp zuordnen.
+
+Nutze:
+- role.name
+- role.description
+- role.coachingPoint
+- optional setPiece title/type, falls vorhanden
+
+Erkenne folgende Archetypen:
+
+- `delivery`
+- `aerial_target`
+- `blocker`
+- `runner`
+- `rebound`
+- `rest_defense`
+- `defensive_marker`
+- `counter_outlet`
+- `generic`
+
+Beispiele:
+- delivery, taker, corner, freekick, Schütze → `delivery`
+- target, header, flick, near post, far post, Kopfball → `aerial_target`
+- block, screen, pick, sperren → `blocker`
+- runner, run, decoy, attack space, Laufweg → `runner`
+- rebound, second ball, zweite Bälle → `rebound`
+- cover, rest defense, absicherung, sichern → `rest_defense`
+- marker, marking, defend, zone, mannorientiert → `defensive_marker`
+- outlet, transition, counter, konter → `counter_outlet`
+
+3. `scorePlayerForRole(player, role, setPiece?, context?)`
+
+Rückgabeformat:
+
+```ts
+{
+  playerId: string;
+  score: number;
+  confidence: number;
+  severity: 'good' | 'review' | 'problem';
+  reasons: string[];
+  warnings: string[];
+}

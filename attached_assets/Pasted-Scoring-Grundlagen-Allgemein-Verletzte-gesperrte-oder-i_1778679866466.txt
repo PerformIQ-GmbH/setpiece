@@ -1,0 +1,452 @@
+Scoring-Grundlagen:
+
+Allgemein:
+
+Verletzte, gesperrte oder inaktive Spieler dürfen keine guten Primärvorschläge sein.
+Fehlende Profildaten sollen als Warning erscheinen.
+Score soll nachvollziehbar sein.
+Gründe müssen für Trainer verständlich formuliert sein.
+Keine erfundenen Daten verwenden.
+Nur vorhandene Spielerfelder nutzen.
+
+Delivery:
+
+dominantFoot berücksichtigen, wenn aus Rolle/SetPiece eine Seite ableitbar ist.
+set_piece_specialist oder delivery_specialist stark positiv.
+Aktiver Status positiv.
+Fehlender Fuss oder fehlendes Spezialisten-Tag als Warning, nicht als harter Fehler.
+
+Aerial Target:
+
+headingStrength stark gewichten.
+height positiv gewichten.
+strong_header, best_header, far_post_target positiv.
+Kleine Spieler oder niedrige Heading-Werte als Review/Warning.
+
+Blocker:
+
+height, headingStrength, strong_blocker positiv.
+Körperlich passende Spieler bevorzugen.
+
+Runner:
+
+speed, fast, fast_runner positiv.
+Sehr langsame Spieler als Review/Warning.
+
+Rebound:
+
+rebound_hunter positiv.
+midfielder oder forward positiv.
+Speed leicht positiv.
+
+Rest Defense:
+
+speed stark positiv.
+defender oder midfielder positiv.
+Aktiver Status wichtig.
+Langsame Spieler als Risiko markieren.
+
+Defensive Marker:
+
+defender positiv.
+headingStrength und height positiv.
+goalkeeper normalerweise nicht vorschlagen.
+
+Counter Outlet:
+
+speed, fast, forward positiv.
+
+Generic:
+
+Aktive Spieler neutral bewerten.
+Vorhandene passende Tags leicht positiv berücksichtigen.
+
+Severity:
+
+good: Score stark, keine kritischen Warnungen.
+review: brauchbar, aber Coach sollte prüfen.
+problem: verletzt/inaktiv, sehr tiefer Score oder unpassend.
+
+Confidence:
+
+Niedriger, wenn viele Profildaten fehlen.
+Höher, wenn mehrere passende Felder vorhanden sind.
+
+────────────────────────
+PHASE 2 — GHOST MODE REFACTOR
+────────────────────────
+
+In artifacts/api-server/src/routes/ghost.ts gibt es bereits einfache Suitability-Hints.
+
+Bitte:
+
+bestehende Logik nicht einfach löschen
+stattdessen auf roleSuitability.ts umstellen
+Verhalten möglichst beibehalten
+aber bessere reasons/warnings aus der zentralen Scoring-Funktion verwenden
+
+Ziel:
+GhostMode und Matchday verwenden dieselbe Bewertungslogik.
+
+────────────────────────
+PHASE 3 — MATCHDAY ASSIGNMENT SUGGESTIONS API
+────────────────────────
+
+Erweitere artifacts/api-server/src/routes/matchdays.ts um einen neuen Endpoint:
+
+POST /teams/:teamId/matchdays/:matchdayId/assignment-suggestions
+
+Request Body:
+
+{
+  starterPlayerIds: string[];
+  benchPlayerIds?: string[];
+  setPieceIds?: string[];
+  mode?: 'fill_empty' | 'replace_weak' | 'replace_all';
+}
+
+Default:
+
+mode = 'fill_empty'
+
+Logik:
+
+Prüfe Teamzugriff mit vorhandener Auth-/Access-Logik.
+Lade den Matchday.
+Lade alle mit dem Matchday verknüpften Set Pieces.
+Wenn setPieceIds mitgegeben werden, analysiere nur diese.
+Lade alle Rollen dieser Set Pieces.
+Lade bestehende Role Assignments.
+Lade Spieler aus starterPlayerIds und benchPlayerIds.
+Primäre Vorschläge bevorzugt aus Startelf.
+Backup-Vorschläge bevorzugt aus Bank.
+Spieler mit Status verletzt/gesperrt/inaktiv nicht als gute Primärvorschläge behandeln.
+In fill_empty bestehende Assignments nie überschreiben.
+In replace_weak nur Vorschläge machen, wenn bestehende Zuteilung schwach/problematisch ist.
+In replace_all darf für alle Rollen ein Vorschlag berechnet werden, aber trotzdem nichts direkt speichern.
+Pro Rolle Top 3 Alternativen berechnen.
+Pro Set Piece denselben Spieler nicht doppelt vergeben, sofern sinnvoll möglich.
+Verwende einen einfachen Greedy-Algorithmus.
+Rollen nach Wichtigkeit sortieren:
+delivery
+aerial_target
+defensive_marker
+rest_defense
+blocker
+runner
+rebound
+counter_outlet
+generic
+
+Response:
+
+{
+  summary: {
+    totalRoles: number;
+    alreadyAssigned: number;
+    safeSuggestions: number;
+    reviewSuggestions: number;
+    problemRoles: number;
+    missingProfileData: number;
+  };
+  suggestions: Array<{
+    setPieceId: string;
+    setPieceTitle: string;
+    roleId: string;
+    roleName: string;
+    roleArchetype: string;
+    currentPlayerId?: string | null;
+    suggestedPlayerId?: string | null;
+    suggestedBackupPlayerId?: string | null;
+    score: number;
+    confidence: number;
+    severity: 'good' | 'review' | 'problem';
+    reasons: string[];
+    warnings: string[];
+    alternatives: Array<{
+      playerId: string;
+      playerName?: string;
+      score: number;
+      confidence: number;
+      severity: 'good' | 'review' | 'problem';
+      reasons: string[];
+      warnings: string[];
+    }>;
+    keepExisting: boolean;
+  }>;
+}
+
+Wichtig:
+Dieser Endpoint speichert nichts. Er analysiert nur.
+
+────────────────────────
+PHASE 4 — OPENAPI / API CLIENT
+────────────────────────
+
+Falls das Projekt OpenAPI/Orval nutzt:
+
+Aktualisiere lib/api-spec/openapi.yaml
+Ergänze Request-/Response-Schemas
+Regeneriere API Client, falls vorhandenes Script verfügbar ist
+
+Falls die Generierung nicht sauber möglich ist:
+
+Keine kaputten Imports erzeugen
+Stattdessen eine kleine, konsistente API-Funktion im vorhandenen Frontend-API-Stil ergänzen
+
+────────────────────────
+PHASE 5 — MATCHDAY UX
+────────────────────────
+
+Erweitere artifacts/setpiece/src/pages/MatchdayDetail.tsx.
+
+Neuer Bereich oberhalb des Match Packs:
+
+Matchday Assistant
+
+UX-Ziel:
+Der Coach soll nicht manuell jede Rolle durchgehen müssen. Die App zeigt zuerst:
+
+was sicher ist
+was geprüft werden muss
+was problematisch ist
+
+Funktionen:
+
+Startelf auswählen
+Liste aller aktiven Spieler des Teams
+Mehrfachauswahl
+Ziel: 11 Spieler, aber nicht hart blockieren
+Status sichtbar machen
+Verletzte/gesperrte Spieler visuell markieren
+Bank auswählen
+Mehrfachauswahl
+Spieler aus Startelf nicht nochmals in Bank auswählbar
+Bankspieler für Backup-Vorschläge verwenden
+Analyse starten
+Button:
+Analyse starten
+
+Sendet:
+
+{
+  starterPlayerIds,
+  benchPlayerIds,
+  mode: 'fill_empty'
+}
+Summary Cards anzeigen
+Nach Analyse anzeigen:
+Rollen geprüft
+Bereits besetzt
+Sichere Vorschläge
+Prüfen
+Problematisch
+Fehlende Profildaten
+Vorschlagskarten anzeigen
+
+Pro Suggestion Card:
+
+Set Piece Name
+Rollenname
+Rollen-Archetyp
+aktueller Spieler
+vorgeschlagener Spieler
+Backup-Vorschlag
+Score / Confidence
+Reasons
+Warnings
+Alternativen
+Button Übernehmen
+Wenn keepExisting = true, klar anzeigen: “Bestehende Zuteilung bleibt geschützt”
+Bulk Actions
+
+Buttons:
+
+Alle sicheren Vorschläge übernehmen
+Nur leere Rollen füllen
+Analyse neu starten
+
+Alle sicheren Vorschläge übernehmen:
+
+nur severity === 'good'
+nur Vorschläge mit suggestedPlayerId
+keine keepExisting Vorschläge überschreiben
+vorhandene Assignment-Mutation/API verwenden
+nach erfolgreicher Übernahme Matchday/Assignments refetchen
+UX Design
+Premium Card Layout
+Ampelfarben:
+good = grün
+review = amber/orange
+problem = rot
+Keine überladene Tabelle
+Mobile-first
+Auf Desktop gerne 2-Spalten Grid
+Reasons kurz und scanbar
+Warnings prominent, aber nicht zu aggressiv
+Coach soll in 30 Sekunden wissen, was wichtig ist
+
+Beispieltext:
+
+“31 Rollen geprüft”
+“22 sichere Vorschläge”
+“6 Rollen prüfen”
+“3 problematische Rollen”
+“Bestehende Zuteilungen wurden geschützt”
+
+────────────────────────
+PHASE 6 — EDITOR UX VERBESSERN
+────────────────────────
+
+Bitte den Editor nicht umbauen, sondern gezielt verbessern.
+
+In InspectorPanel.tsx:
+
+PlayerData erweitern/verwenden mit:
+speed
+headingStrength
+tags
+status
+dominantFoot
+height
+
+Bei ausgewählter Rolle anzeigen:
+
+Rollen-Fit
+
+aktueller Spieler
+Score
+Gründe
+Warnungen
+Top 3 empfohlene Alternativen
+Button Besten Spieler zuweisen
+
+Falls noch kein Recommendation-Endpoint direkt im Editor verfügbar ist:
+
+Nicht blockieren.
+Struktur so vorbereiten, dass Empfehlungen später angeschlossen werden können.
+Keine kaputten API Calls einbauen.
+
+In PlayerCombobox.tsx:
+
+Optional Recommendation-Daten akzeptieren.
+Empfohlene Spieler oben anzeigen.
+Badges anzeigen:
+Best Fit
+Review
+Problem
+Injured
+Suspended
+Normale Suche muss weiterhin funktionieren.
+Bestehende Auswahlfunktion darf nicht brechen.
+
+────────────────────────
+PHASE 7 — BOARD HEALTH ERWEITERN
+────────────────────────
+
+Erweitere BoardHealth.tsx.
+
+Bestehende Checks behalten:
+
+Rolle ohne Spieler
+Rolle ohne Laufweg
+Keine Rollen vorhanden
+
+Neue Checks:
+
+Spieler verletzt/gesperrt/inaktiv
+Spieler passt schwach zur Rolle
+Bessere Alternative vorhanden
+Fehlende Profildaten für wichtige Rolle
+Zu wenig Kopfballstärke bei offensiven Zielrollen
+Restverteidigung zu langsam
+Delivery-Rolle ohne klar passenden Schützen
+
+Wichtig:
+Wenn für BoardHealth nicht alle Daten verfügbar sind:
+
+gracefully degradieren
+keine Fehler werfen
+Hinweis anzeigen: “Für detaillierte Rollenbewertung fehlen Spielerprofil-Daten”
+
+────────────────────────
+PHASE 8 — APPLY SUGGESTIONS
+────────────────────────
+
+Nutze vorhandene Role Assignment APIs/Mutations.
+
+Beim Übernehmen:
+
+Wenn Assignment existiert und Modus fill_empty: nicht überschreiben
+Wenn Rolle leer: Assignment erstellen
+Wenn replace_weak später genutzt wird: nur ersetzen, wenn current severity problem/review
+BackupPlayerId setzen, wenn vorgeschlagen
+Notes optional ergänzen:
+“Auto-suggested by Matchday Assistant based on player profile and role fit.”
+
+Wichtig:
+Keine Vorschläge automatisch speichern.
+Immer nur nach Coach-Klick.
+
+────────────────────────
+PHASE 9 — TESTS / QUALITÄTSPRÜFUNG
+────────────────────────
+
+Bitte nach der Umsetzung prüfen:
+
+Editor
+SetPieceEditor öffnet weiterhin
+Rollen können weiterhin manuell zugewiesen werden
+PlayerCombobox funktioniert weiterhin
+InspectorPanel crasht nicht
+BoardHealth crasht nicht
+Matchday
+MatchdayDetail lädt weiterhin
+Set Pieces werden weiterhin angezeigt
+Match Pack funktioniert weiterhin
+Share Link funktioniert weiterhin
+PDF Export funktioniert weiterhin
+API
+Neuer Suggestions Endpoint funktioniert
+Keine Auth-/Access-Regeln umgangen
+Verletzte/gesperrte Spieler werden nicht als gute Vorschläge bewertet
+Bestehende Assignments werden in fill_empty geschützt
+GhostMode
+GhostMode funktioniert weiterhin
+Suitability-Hints kommen aus zentraler Logik
+Mobile UX
+Matchday Assistant funktioniert auf Mobile
+Vorschlagskarten sind lesbar
+Buttons sind gut bedienbar
+
+────────────────────────
+PHASE 10 — ABSCHLUSSBERICHT
+────────────────────────
+
+Nach der Umsetzung bitte eine kurze technische Zusammenfassung ausgeben:
+
+Geänderte Dateien
+Neue Dateien
+Neue API-Endpunkte
+Welche bestehende Logik wiederverwendet wurde
+Welche Risiken offen sind
+Welche nächsten Schritte sinnvoll wären
+
+Wichtig:
+Bitte nicht nur sagen “done”.
+Bitte konkret erklären, was gebaut wurde und wie ich es testen kann.
+
+────────────────────────
+PRODUKT-PRINZIP
+────────────────────────
+
+Das Ziel ist nicht ein schönerer Editor allein.
+
+Das Ziel ist:
+
+“Der Coach wählt seine Startelf aus. Die App erkennt automatisch, welche Spieler für welche Standardsituations-Rollen am besten passen, schützt bestehende manuelle Zuteilungen und zeigt nur die wichtigsten Entscheidungen.”
+
+Der Matchday soll zum Entscheidungs-Cockpit werden.
+
+Der Editor bleibt für Detailarbeit.
+Der Matchday Assistant übernimmt die Denkarbeit.
