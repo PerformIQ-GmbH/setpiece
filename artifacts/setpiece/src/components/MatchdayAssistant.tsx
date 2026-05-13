@@ -7,6 +7,8 @@ import {
   type AssignmentSuggestionsResponse,
   type RoleAssignmentSuggestion,
   type SetPieceSuggestionGroup,
+  type SuggestionAlternative,
+  type SuitabilityBadge,
 } from '@workspace/api-client-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -133,10 +135,13 @@ export function MatchdayAssistant({ teamId, matchdayId, players, setPieces, onAp
     }
   };
 
-  const applyGroup = async (group: SetPieceSuggestionGroup) => {
+  const SAFE_BADGES: ReadonlyArray<SuitabilityBadge> = ['best', 'good'];
+
+  const applyGroup = async (group: SetPieceSuggestionGroup, opts?: { safeOnly?: boolean }) => {
     if (!suggestions) return;
     // Bind to mode at compute time (not the mutable UI mode).
     const appliedMode = suggestions.mode;
+    const safeOnly = !!opts?.safeOnly;
     setApplyState(prev => ({ ...prev, [group.setPieceId]: 'applying' }));
     try {
       const detail = await getSetPiece(teamId, group.setPieceId);
@@ -144,6 +149,7 @@ export function MatchdayAssistant({ teamId, matchdayId, players, setPieces, onAp
       let applied = 0;
       for (const role of group.roles) {
         if (!role.suggestedPlayerId || role.skipped) continue;
+        if (safeOnly && !SAFE_BADGES.includes(role.badge)) continue;
         const cur = existing.get(role.roleId);
         if (appliedMode === 'fill_empty' && cur) continue;
 
@@ -175,12 +181,12 @@ export function MatchdayAssistant({ teamId, matchdayId, players, setPieces, onAp
     }
   };
 
-  const applyAll = async () => {
+  const applyAll = async (opts?: { safeOnly?: boolean }) => {
     if (!suggestions) return;
     setApplyAllState('applying');
     try {
       for (const grp of suggestions.setPieces) {
-        await applyGroup(grp);
+        await applyGroup(grp, opts);
       }
       setApplyAllState('done');
     } catch {
@@ -299,16 +305,29 @@ export function MatchdayAssistant({ teamId, matchdayId, players, setPieces, onAp
                 {suggest.isPending ? <Loader2 className="w-3.5 h-3.5 mr-2 animate-spin" /> : <Sparkles className="w-3.5 h-3.5 mr-2" />}
                 {suggest.isPending ? 'Computing…' : 'Suggest assignments'}
               </Button>
-              {suggestions && totalApplicable > 0 && (
+              {suggestions && summary && summary.safe > 0 && (
                 <Button
                   size="sm"
                   variant="outline"
-                  onClick={applyAll}
+                  onClick={() => applyAll({ safeOnly: true })}
                   disabled={applyAllState === 'applying'}
                   className="rounded-xl border-emerald-500/30 text-emerald-300 hover:bg-emerald-500/10"
-                  data-testid="apply-all"
+                  data-testid="apply-safe"
                 >
                   {applyAllState === 'applying' ? <Loader2 className="w-3.5 h-3.5 mr-2 animate-spin" /> : <Check className="w-3.5 h-3.5 mr-2" />}
+                  Apply safe only ({summary.safe})
+                </Button>
+              )}
+              {suggestions && totalApplicable > 0 && (
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => applyAll()}
+                  disabled={applyAllState === 'applying'}
+                  className="rounded-xl text-muted-foreground hover:text-white"
+                  data-testid="apply-all"
+                  title="Apply every suggestion regardless of fit quality"
+                >
                   {applyAllState === 'done' ? 'Applied to all' : `Apply all (${totalApplicable})`}
                 </Button>
               )}
@@ -521,6 +540,43 @@ function SuggestionGroupCard({
   );
 }
 
+function AlternativesList({ alternatives, playersById, primaryId }: {
+  alternatives: SuggestionAlternative[];
+  playersById: Map<string, Player>;
+  primaryId: string | null | undefined;
+}) {
+  const top = alternatives.filter(a => a.playerId !== primaryId).slice(0, 3);
+  if (top.length === 0) return null;
+  return (
+    <div className="mt-1.5 space-y-1">
+      <p className="text-[9px] uppercase tracking-wider text-muted-foreground">Top alternatives</p>
+      <div className="flex flex-wrap gap-1.5">
+        {top.map(alt => {
+          const p = playersById.get(alt.playerId);
+          const style = BADGE_STYLES[alt.badge];
+          return (
+            <span
+              key={alt.playerId}
+              className={cn(
+                'flex items-center gap-1.5 px-1.5 py-0.5 rounded-full border text-[9px]',
+                'bg-white/[0.03] border-white/[0.08]',
+              )}
+              data-testid={`alt-badge-${alt.playerId}`}
+            >
+              {p?.shirtNumber && <span className="font-mono text-muted-foreground">#{p.shirtNumber}</span>}
+              <span className="text-white/90">{p ? `${p.firstName} ${p.lastName}` : 'Unknown'}</span>
+              <span className={cn('flex items-center gap-1 px-1 py-px rounded-full border font-bold uppercase tracking-wider', style.bg, style.text, style.ring)}>
+                <span className={cn('w-1 h-1 rounded-full', style.dot)} />
+                {alt.score}
+              </span>
+            </span>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 function SuggestionRow({ role, playersById, mode }: {
   role: RoleAssignmentSuggestion;
   playersById: Map<string, Player>;
@@ -559,6 +615,13 @@ function SuggestionRow({ role, playersById, mode }: {
           <p className="mt-1 text-[10px] text-muted-foreground leading-snug">
             Backup: {backup.shirtNumber ? `#${backup.shirtNumber} ` : ''}{backup.firstName} {backup.lastName}
           </p>
+        )}
+        {!skipped && role.alternatives && role.alternatives.length > 0 && (
+          <AlternativesList
+            alternatives={role.alternatives}
+            playersById={playersById}
+            primaryId={role.suggestedPlayerId}
+          />
         )}
       </div>
 

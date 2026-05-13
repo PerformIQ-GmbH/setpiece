@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { BoardHealth } from './BoardHealth';
 import { BADGE_STYLES, ROLE_CLASS_LABELS } from '@/lib/roleSuitability';
 import { useGetSetPieceRoleSuggestions, type RoleEvaluation } from '@workspace/api-client-react';
+import type { SuitabilityBadge } from '@/lib/roleSuitability';
 
 interface RoleData {
   id: string;
@@ -78,13 +79,15 @@ function CollapsibleSection({ title, icon: Icon, defaultOpen = true, children }:
   );
 }
 
-function PlayerCombobox({ players, assignments, roles, currentRoleId, value, onChange }: {
+function PlayerCombobox({ players, assignments, roles, currentRoleId, value, onChange, teamId, setPieceId }: {
   players?: PlayerData[];
   assignments: AssignmentData[];
   roles: RoleData[];
   currentRoleId: string;
   value: string;
   onChange: (playerId: string) => void;
+  teamId?: string;
+  setPieceId?: string;
 }) {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState('');
@@ -93,6 +96,33 @@ function PlayerCombobox({ players, assignments, roles, currentRoleId, value, onC
   const dropdownRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const [dropdownPos, setDropdownPos] = useState<{ top: number; left: number; width: number } | null>(null);
+
+  // Server-driven fit data for the *current* role. Lazily fetched the first
+  // time the user opens the combobox so we don't hammer the API on render.
+  const suggest = useGetSetPieceRoleSuggestions();
+  const [fitByPlayer, setFitByPlayer] = useState<Map<string, { score: number; badge: SuitabilityBadge }>>(new Map());
+  const fetchedRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!open || !teamId || !setPieceId) return;
+    const key = `${teamId}|${setPieceId}|${currentRoleId}`;
+    if (fetchedRef.current === key) return;
+    fetchedRef.current = key;
+    suggest.mutate(
+      { teamId, setPieceId, data: {} },
+      {
+        onSuccess: (res) => {
+          const role = res.roles.find(r => r.roleId === currentRoleId);
+          const map = new Map<string, { score: number; badge: SuitabilityBadge }>();
+          if (role) {
+            for (const c of role.candidates) map.set(c.playerId, { score: c.score, badge: c.badge });
+          }
+          setFitByPlayer(map);
+        },
+        onError: () => { fetchedRef.current = null; },
+      },
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, teamId, setPieceId, currentRoleId]);
 
   useEffect(() => {
     const handler = (e: MouseEvent) => {
@@ -119,12 +149,19 @@ function PlayerCombobox({ players, assignments, roles, currentRoleId, value, onC
   const filteredPlayers = useMemo(() => {
     if (!players) return [];
     const q = search.toLowerCase();
-    return players.filter(p => {
+    const matches = players.filter(p => {
       const fullName = `${p.firstName} ${p.lastName}`.toLowerCase();
       const num = String(p.shirtNumber ?? '');
       return fullName.includes(q) || num.includes(q);
     });
-  }, [players, search]);
+    if (fitByPlayer.size === 0) return matches;
+    // Sort by server fit score (desc); unscored players keep original order.
+    return [...matches].sort((a, b) => {
+      const sa = fitByPlayer.get(a.id)?.score ?? -1;
+      const sb = fitByPlayer.get(b.id)?.score ?? -1;
+      return sb - sa;
+    });
+  }, [players, search, fitByPlayer]);
 
   const getAssignedRoleName = (playerId: string): string | null => {
     const a = assignments.find(a => a.playerId === playerId && a.roleId !== currentRoleId);
@@ -211,8 +248,25 @@ function PlayerCombobox({ players, assignments, roles, currentRoleId, value, onC
                     </span>
                   )}
                   <span className="truncate flex-1">{p.firstName} {p.lastName}</span>
+                  {(() => {
+                    const fit = fitByPlayer.get(p.id);
+                    if (!fit) return null;
+                    const style = BADGE_STYLES[fit.badge];
+                    return (
+                      <span
+                        className={cn('flex items-center gap-1 px-1 py-px rounded-full border text-[8px] font-bold uppercase tracking-wider shrink-0', style.bg, style.text, style.ring)}
+                        title={`${style.label} · ${fit.score}/100`}
+                      >
+                        <span className={cn('w-1 h-1 rounded-full', style.dot)} />
+                        {fit.score}
+                      </span>
+                    );
+                  })()}
                   {p.status === 'injured' && (
                     <span className="text-[8px] px-1 py-0.5 rounded bg-red-500/10 text-red-400 border border-red-500/20 shrink-0">Injured</span>
+                  )}
+                  {p.status === 'suspended' && (
+                    <span className="text-[8px] px-1 py-0.5 rounded bg-red-500/10 text-red-400 border border-red-500/20 shrink-0">Susp.</span>
                   )}
                   {isTaken && !isCurrent && (
                     <span className="text-[8px] text-muted-foreground shrink-0 truncate max-w-[80px]" title={`Taken by: ${takenByRoleName}`}>
@@ -300,6 +354,8 @@ export function InspectorPanel({
           onDeleteRole={onDeleteRole}
           onDuplicateRole={onDuplicateRole}
           onAddRole={onAddRole}
+          teamId={teamId}
+          setPieceId={setPieceId}
         />
       )}
     </aside>
@@ -601,6 +657,8 @@ function RoleMarkerInspector({ role, assignment, player, linkedAnnotations, play
             currentRoleId={activeRoleId}
             value={assignment?.playerId || ''}
             onChange={onAssignPlayer}
+            teamId={teamId}
+            setPieceId={setPieceId}
           />
           {!assignment && (
             <p className="text-[9px] text-amber-300 mt-2 flex items-center gap-1">
@@ -618,6 +676,8 @@ function RoleMarkerInspector({ role, assignment, player, linkedAnnotations, play
             currentRoleId={activeRoleId}
             value={assignment?.backupPlayerId || ''}
             onChange={onAssignBackup}
+            teamId={teamId}
+            setPieceId={setPieceId}
           />
           <p className="text-[9px] text-muted-foreground mt-2">Optional substitute if primary player is unavailable</p>
         </CollapsibleSection>
@@ -927,7 +987,7 @@ function RoleFitSection({
   );
 }
 
-function RolesPanel({ roles, assignments, players, activeRoleId, onRoleClick, onAssignPlayer, onDeleteRole, onDuplicateRole, onAddRole }: {
+function RolesPanel({ roles, assignments, players, activeRoleId, onRoleClick, onAssignPlayer, onDeleteRole, onDuplicateRole, onAddRole, teamId, setPieceId }: {
   roles: RoleData[];
   assignments: AssignmentData[];
   players?: PlayerData[];
@@ -937,6 +997,8 @@ function RolesPanel({ roles, assignments, players, activeRoleId, onRoleClick, on
   onDeleteRole: (roleId: string) => void;
   onDuplicateRole: (roleId: string) => void;
   onAddRole: () => void;
+  teamId?: string;
+  setPieceId?: string;
 }) {
   return (
     <>
@@ -949,7 +1011,7 @@ function RolesPanel({ roles, assignments, players, activeRoleId, onRoleClick, on
         </Button>
       </div>
 
-      <BoardHealth roles={roles} assignments={assignments} players={players} />
+      <BoardHealth roles={roles} assignments={assignments} players={players} teamId={teamId} setPieceId={setPieceId} />
 
       <div className="flex-1 overflow-y-auto p-3 space-y-2">
         {roles.length === 0 && (
@@ -1009,6 +1071,8 @@ function RolesPanel({ roles, assignments, players, activeRoleId, onRoleClick, on
                   currentRoleId={role.id}
                   value={assignment?.playerId || ''}
                   onChange={(playerId) => onAssignPlayer(role.id, playerId)}
+                  teamId={teamId}
+                  setPieceId={setPieceId}
                 />
                 {!assignment && (
                   <div className="flex items-center gap-1 mt-1 px-1 py-0.5 rounded bg-amber-500/10 border border-amber-500/20">
