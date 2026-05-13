@@ -254,11 +254,12 @@ function PlayerCombobox({ players, assignments, roles, currentRoleId, value, onC
                     const style = BADGE_STYLES[fit.badge];
                     return (
                       <span
-                        className={cn('flex items-center gap-1 px-1 py-px rounded-full border text-[8px] font-bold uppercase tracking-wider shrink-0', style.bg, style.text, style.ring)}
+                        className={cn('flex items-center gap-1 px-1.5 py-px rounded-full border text-[8px] font-bold uppercase tracking-wider shrink-0', style.bg, style.text, style.ring)}
                         title={`${style.label} · ${fit.score}/100`}
                       >
                         <span className={cn('w-1 h-1 rounded-full', style.dot)} />
-                        {fit.score}
+                        {style.label}
+                        <span className="opacity-70 font-mono">{fit.score}</span>
                       </span>
                     );
                   })()}

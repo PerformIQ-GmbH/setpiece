@@ -304,9 +304,9 @@ export function MatchdayAssistant({ teamId, matchdayId, players, setPieces, onAp
                   disabled={applyAllState === 'applying'}
                   className="rounded-xl text-muted-foreground hover:text-white"
                   data-testid="apply-all"
-                  title="Apply every suggestion regardless of fit quality"
+                  title="Fill every empty role with its suggested player, regardless of fit quality"
                 >
-                  {applyAllState === 'done' ? 'Applied to all' : `Apply all (${totalApplicable})`}
+                  {applyAllState === 'done' ? 'Applied to all' : `Fill empty roles (${totalApplicable})`}
                 </Button>
               )}
               <button onClick={clearAll} className="text-[11px] text-muted-foreground hover:text-white ml-auto">Reset squad</button>

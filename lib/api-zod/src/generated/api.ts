@@ -1762,53 +1762,57 @@ export const getSetPieceRoleSuggestionsResponseRolesItemCandidatesItemScoreMax =
 export const GetSetPieceRoleSuggestionsResponse = zod.object({
   setPieceId: zod.string(),
   roles: zod.array(
-    zod.object({
-      roleId: zod.string(),
-      roleName: zod.string(),
-      primaryClass: zod.enum([
-        "delivery",
-        "aerial_target",
-        "defensive_marker",
-        "rest_defense",
-        "blocker",
-        "runner",
-        "rebound",
-        "counter_outlet",
-        "generic",
-      ]),
-      currentPlayerId: zod.string().nullish(),
-      currentScore: zod
-        .number()
-        .min(getSetPieceRoleSuggestionsResponseRolesItemCurrentScoreMin)
-        .max(getSetPieceRoleSuggestionsResponseRolesItemCurrentScoreMax)
-        .nullish(),
-      currentBadge: zod
-        .union([zod.enum(["best", "good", "review", "problem"]), zod.null()])
-        .optional(),
-      currentReasons: zod.array(zod.string()),
-      currentCautions: zod.array(zod.string()),
-      currentMissingProfileData: zod
-        .boolean()
-        .describe(
-          "True when the currently assigned player exists but lacks profile data needed to assess role fit.",
+    zod
+      .object({
+        roleId: zod.string(),
+        roleName: zod.string(),
+        primaryClass: zod.enum([
+          "delivery",
+          "aerial_target",
+          "defensive_marker",
+          "rest_defense",
+          "blocker",
+          "runner",
+          "rebound",
+          "counter_outlet",
+          "generic",
+        ]),
+        currentPlayerId: zod.string().nullish(),
+        currentScore: zod
+          .number()
+          .min(getSetPieceRoleSuggestionsResponseRolesItemCurrentScoreMin)
+          .max(getSetPieceRoleSuggestionsResponseRolesItemCurrentScoreMax)
+          .nullish(),
+        currentBadge: zod
+          .union([zod.enum(["best", "good", "review", "problem"]), zod.null()])
+          .optional(),
+        currentReasons: zod.array(zod.string()),
+        currentCautions: zod.array(zod.string()),
+        currentMissingProfileData: zod
+          .boolean()
+          .describe(
+            "True when the currently assigned player exists but lacks profile data needed to assess role fit.",
+          ),
+        candidates: zod.array(
+          zod.object({
+            playerId: zod.string(),
+            score: zod
+              .number()
+              .min(
+                getSetPieceRoleSuggestionsResponseRolesItemCandidatesItemScoreMin,
+              )
+              .max(
+                getSetPieceRoleSuggestionsResponseRolesItemCandidatesItemScoreMax,
+              ),
+            badge: zod.enum(["best", "good", "review", "problem"]),
+            reasons: zod.array(zod.string()),
+            cautions: zod.array(zod.string()),
+          }),
         ),
-      candidates: zod.array(
-        zod.object({
-          playerId: zod.string(),
-          score: zod
-            .number()
-            .min(
-              getSetPieceRoleSuggestionsResponseRolesItemCandidatesItemScoreMin,
-            )
-            .max(
-              getSetPieceRoleSuggestionsResponseRolesItemCandidatesItemScoreMax,
-            ),
-          badge: zod.enum(["best", "good", "review", "problem"]),
-          reasons: zod.array(zod.string()),
-          cautions: zod.array(zod.string()),
-        }),
+      })
+      .describe(
+        "Per-role fit evaluation. Confidence is expressed via two complementary\nfields: `currentScore` (0–100) is the numeric fit, and `currentBadge`\nis its qualitative bucket (best \/ good \/ review \/ problem). The same\npair appears on each candidate and on every alternative.\n",
       ),
-    }),
   ),
 });
 

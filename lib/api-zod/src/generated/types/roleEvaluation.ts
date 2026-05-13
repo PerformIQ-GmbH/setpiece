@@ -9,6 +9,13 @@ import type { RoleCandidate } from "./roleCandidate";
 import type { RoleClass } from "./roleClass";
 import type { SuitabilityBadge } from "./suitabilityBadge";
 
+/**
+ * Per-role fit evaluation. Confidence is expressed via two complementary
+fields: `currentScore` (0–100) is the numeric fit, and `currentBadge`
+is its qualitative bucket (best / good / review / problem). The same
+pair appears on each candidate and on every alternative.
+
+ */
 export interface RoleEvaluation {
   roleId: string;
   roleName: string;
