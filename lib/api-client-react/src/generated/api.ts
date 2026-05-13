@@ -19,6 +19,8 @@ import type {
 import type {
   AddMemberBody,
   AddToMatchdayBody,
+  AssignmentSuggestionsBody,
+  AssignmentSuggestionsResponse,
   AuditEvent,
   AuthUserEnvelope,
   BeginBrowserLoginParams,
@@ -4092,6 +4094,126 @@ export const useDeleteMatchday = <
   TContext
 > => {
   return useMutation(getDeleteMatchdayMutationOptions(options));
+};
+
+/**
+ * Given the coach's available squad (starters + bench), score every player
+against every role in every set piece of this matchday and return a
+suggested assignment per role. Suggestions are NOT persisted; the
+coach must apply them explicitly.
+
+ * @summary Suggest role assignments across all set pieces in a matchday
+ */
+export const getSuggestMatchdayAssignmentsUrl = (
+  teamId: string,
+  matchdayId: string,
+) => {
+  return `/api/teams/${teamId}/matchdays/${matchdayId}/assignment-suggestions`;
+};
+
+export const suggestMatchdayAssignments = async (
+  teamId: string,
+  matchdayId: string,
+  assignmentSuggestionsBody: AssignmentSuggestionsBody,
+  options?: RequestInit,
+): Promise<AssignmentSuggestionsResponse> => {
+  return customFetch<AssignmentSuggestionsResponse>(
+    getSuggestMatchdayAssignmentsUrl(teamId, matchdayId),
+    {
+      ...options,
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...options?.headers },
+      body: JSON.stringify(assignmentSuggestionsBody),
+    },
+  );
+};
+
+export const getSuggestMatchdayAssignmentsMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof suggestMatchdayAssignments>>,
+    TError,
+    {
+      teamId: string;
+      matchdayId: string;
+      data: BodyType<AssignmentSuggestionsBody>;
+    },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof suggestMatchdayAssignments>>,
+  TError,
+  {
+    teamId: string;
+    matchdayId: string;
+    data: BodyType<AssignmentSuggestionsBody>;
+  },
+  TContext
+> => {
+  const mutationKey = ["suggestMatchdayAssignments"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof suggestMatchdayAssignments>>,
+    {
+      teamId: string;
+      matchdayId: string;
+      data: BodyType<AssignmentSuggestionsBody>;
+    }
+  > = (props) => {
+    const { teamId, matchdayId, data } = props ?? {};
+
+    return suggestMatchdayAssignments(teamId, matchdayId, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type SuggestMatchdayAssignmentsMutationResult = NonNullable<
+  Awaited<ReturnType<typeof suggestMatchdayAssignments>>
+>;
+export type SuggestMatchdayAssignmentsMutationBody =
+  BodyType<AssignmentSuggestionsBody>;
+export type SuggestMatchdayAssignmentsMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Suggest role assignments across all set pieces in a matchday
+ */
+export const useSuggestMatchdayAssignments = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof suggestMatchdayAssignments>>,
+    TError,
+    {
+      teamId: string;
+      matchdayId: string;
+      data: BodyType<AssignmentSuggestionsBody>;
+    },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof suggestMatchdayAssignments>>,
+  TError,
+  {
+    teamId: string;
+    matchdayId: string;
+    data: BodyType<AssignmentSuggestionsBody>;
+  },
+  TContext
+> => {
+  return useMutation(getSuggestMatchdayAssignmentsMutationOptions(options));
 };
 
 /**

@@ -871,6 +871,32 @@ paths:
       responses:
         "204":
           description: Matchday deleted
+  /teams/{teamId}/matchdays/{matchdayId}/assignment-suggestions:
+    post:
+      operationId: suggestMatchdayAssignments
+      tags: [matchdays]
+      summary: Suggest role assignments across all set pieces in a matchday
+      description: |
+        Given the coach's available squad (starters + bench), score every player
+        against every role in every set piece of this matchday and return a
+        suggested assignment per role. Suggestions are NOT persisted; the
+        coach must apply them explicitly.
+      parameters:
+        - $ref: "#/components/parameters/TeamId"
+        - $ref: "#/components/parameters/MatchdayId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AssignmentSuggestionsBody"
+      responses:
+        "200":
+          description: Suggestions
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AssignmentSuggestionsResponse"
   /teams/{teamId}/matchdays/{matchdayId}/set-pieces:
     post:
       operationId: addSetPieceToMatchday
@@ -2026,6 +2052,110 @@ components:
         createdAt:
           type: string
           format: date-time
+
+    AssignmentSuggestionsBody:
+      type: object
+      required: [availablePlayerIds]
+      properties:
+        availablePlayerIds:
+          type: array
+          minItems: 1
+          maxItems: 50
+          items:
+            type: string
+        mode:
+          type: string
+          enum: [fill_empty, replace_all]
+          default: fill_empty
+
+    SuggestionAlternative:
+      type: object
+      required: [playerId, score, badge]
+      properties:
+        playerId:
+          type: string
+        score:
+          type: integer
+          minimum: 0
+          maximum: 100
+        badge:
+          type: string
+          enum: [best, good, review, problem]
+
+    RoleAssignmentSuggestion:
+      type: object
+      required: [roleId, roleName, primaryClass, score, badge, reasons, cautions, alternatives]
+      properties:
+        roleId:
+          type: string
+        roleName:
+          type: string
+        primaryClass:
+          type: string
+          enum:
+            - delivery
+            - aerial_target
+            - defensive_marker
+            - rest_defense
+            - blocker
+            - runner
+            - rebound
+            - counter_outlet
+            - generic
+        suggestedPlayerId:
+          type: [string, 'null']
+        existingPlayerId:
+          type: [string, 'null']
+        score:
+          type: integer
+          minimum: 0
+          maximum: 100
+        badge:
+          type: string
+          enum: [best, good, review, problem]
+        reasons:
+          type: array
+          items:
+            type: string
+        cautions:
+          type: array
+          items:
+            type: string
+        alternatives:
+          type: array
+          items:
+            $ref: "#/components/schemas/SuggestionAlternative"
+        skipped:
+          type: boolean
+
+    SetPieceSuggestionGroup:
+      type: object
+      required: [setPieceId, setPieceTitle, roles]
+      properties:
+        setPieceId:
+          type: string
+        setPieceTitle:
+          type: string
+        roles:
+          type: array
+          items:
+            $ref: "#/components/schemas/RoleAssignmentSuggestion"
+
+    AssignmentSuggestionsResponse:
+      type: object
+      required: [matchdayId, mode, playersConsidered, setPieces]
+      properties:
+        matchdayId:
+          type: string
+        mode:
+          type: string
+          enum: [fill_empty, replace_all]
+        playersConsidered:
+          type: integer
+        setPieces:
+          type: array
+          items:
+            $ref: "#/components/schemas/SetPieceSuggestionGroup"
 
     # ─── Share Link ───
     ShareLink:

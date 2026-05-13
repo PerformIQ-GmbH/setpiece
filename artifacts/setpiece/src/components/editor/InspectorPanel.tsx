@@ -4,9 +4,10 @@ import { useEditorStore } from './editorStore';
 import { ANNOTATION_COLORS } from './types';
 import type { Annotation, EntityMarker } from './types';
 import { cn } from '@/lib/utils';
-import { Users, Layers, Trash2, Copy, Plus, ChevronDown, ChevronRight, ArrowLeft, UserRound, Info, Search, X } from 'lucide-react';
+import { Users, Layers, Trash2, Copy, Plus, ChevronDown, ChevronRight, ArrowLeft, UserRound, Info, Search, X, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { BoardHealth } from './BoardHealth';
+import { scorePlayerForRole, BADGE_STYLES, ROLE_CLASS_LABELS } from '@/lib/roleSuitability';
 
 interface RoleData {
   id: string;
@@ -31,6 +32,8 @@ interface PlayerData {
   height?: number | null;
   status?: string | null;
   tags?: string[] | null;
+  speed?: number | null;
+  headingStrength?: number | null;
 }
 
 interface InspectorPanelProps {
@@ -684,6 +687,41 @@ function RoleMarkerInspector({ role, assignment, player, linkedAnnotations, play
           </CollapsibleSection>
         )}
 
+        {player && (() => {
+          const fit = scorePlayerForRole(player, role);
+          const style = BADGE_STYLES[fit.badge];
+          return (
+            <CollapsibleSection title="Role Fit" icon={Sparkles} defaultOpen={fit.badge !== 'best'}>
+              <div className="space-y-2.5 p-2.5 rounded-xl bg-background border border-border">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className={cn('flex items-center gap-1.5 px-2 py-1 rounded-full border text-[10px] font-bold uppercase tracking-wider', style.bg, style.text, style.ring)}>
+                    <span className={cn('w-1.5 h-1.5 rounded-full', style.dot)} />
+                    {style.label} · {fit.score}
+                  </span>
+                  <span className="text-[9px] uppercase tracking-wider text-muted-foreground">{ROLE_CLASS_LABELS[fit.primaryClass]}</span>
+                </div>
+                {fit.reasons.length > 0 && (
+                  <div className="space-y-1">
+                    {fit.reasons.map((r, i) => (
+                      <p key={`r-${i}`} className="text-[10px] text-emerald-400/90 leading-snug">+ {r}</p>
+                    ))}
+                  </div>
+                )}
+                {fit.cautions.length > 0 && (
+                  <div className="space-y-1">
+                    {fit.cautions.map((c, i) => (
+                      <p key={`c-${i}`} className="text-[10px] text-amber-300/90 leading-snug">! {c}</p>
+                    ))}
+                  </div>
+                )}
+                {fit.reasons.length === 0 && fit.cautions.length === 0 && (
+                  <p className="text-[10px] text-muted-foreground">Add player tags or attributes (speed, heading, foot, height) for sharper suggestions.</p>
+                )}
+              </div>
+            </CollapsibleSection>
+          );
+        })()}
+
         <CollapsibleSection title="Position" defaultOpen={false}>
           <p className="text-[11px] text-white">x: {(role.startPosition?.x ?? 50).toFixed(1)}% &nbsp; y: {(role.startPosition?.y ?? 50).toFixed(1)}%</p>
         </CollapsibleSection>
@@ -777,7 +815,7 @@ function RolesPanel({ roles, assignments, players, activeRoleId, onRoleClick, on
         </Button>
       </div>
 
-      <BoardHealth roles={roles} assignments={assignments} />
+      <BoardHealth roles={roles} assignments={assignments} players={players} />
 
       <div className="flex-1 overflow-y-auto p-3 space-y-2">
         {roles.length === 0 && (

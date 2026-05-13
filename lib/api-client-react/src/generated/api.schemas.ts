@@ -464,6 +464,109 @@ export interface MatchdaySetPieceEntry {
   createdAt: string;
 }
 
+export type AssignmentSuggestionsBodyMode =
+  (typeof AssignmentSuggestionsBodyMode)[keyof typeof AssignmentSuggestionsBodyMode];
+
+export const AssignmentSuggestionsBodyMode = {
+  fill_empty: "fill_empty",
+  replace_all: "replace_all",
+} as const;
+
+export interface AssignmentSuggestionsBody {
+  /**
+   * @minItems 1
+   * @maxItems 50
+   */
+  availablePlayerIds: string[];
+  mode?: AssignmentSuggestionsBodyMode;
+}
+
+export type SuggestionAlternativeBadge =
+  (typeof SuggestionAlternativeBadge)[keyof typeof SuggestionAlternativeBadge];
+
+export const SuggestionAlternativeBadge = {
+  best: "best",
+  good: "good",
+  review: "review",
+  problem: "problem",
+} as const;
+
+export interface SuggestionAlternative {
+  playerId: string;
+  /**
+   * @minimum 0
+   * @maximum 100
+   */
+  score: number;
+  badge: SuggestionAlternativeBadge;
+}
+
+export type RoleAssignmentSuggestionPrimaryClass =
+  (typeof RoleAssignmentSuggestionPrimaryClass)[keyof typeof RoleAssignmentSuggestionPrimaryClass];
+
+export const RoleAssignmentSuggestionPrimaryClass = {
+  delivery: "delivery",
+  aerial_target: "aerial_target",
+  defensive_marker: "defensive_marker",
+  rest_defense: "rest_defense",
+  blocker: "blocker",
+  runner: "runner",
+  rebound: "rebound",
+  counter_outlet: "counter_outlet",
+  generic: "generic",
+} as const;
+
+export type RoleAssignmentSuggestionBadge =
+  (typeof RoleAssignmentSuggestionBadge)[keyof typeof RoleAssignmentSuggestionBadge];
+
+export const RoleAssignmentSuggestionBadge = {
+  best: "best",
+  good: "good",
+  review: "review",
+  problem: "problem",
+} as const;
+
+export interface RoleAssignmentSuggestion {
+  roleId: string;
+  roleName: string;
+  primaryClass: RoleAssignmentSuggestionPrimaryClass;
+  /** @nullable */
+  suggestedPlayerId?: string | null;
+  /** @nullable */
+  existingPlayerId?: string | null;
+  /**
+   * @minimum 0
+   * @maximum 100
+   */
+  score: number;
+  badge: RoleAssignmentSuggestionBadge;
+  reasons: string[];
+  cautions: string[];
+  alternatives: SuggestionAlternative[];
+  skipped?: boolean;
+}
+
+export interface SetPieceSuggestionGroup {
+  setPieceId: string;
+  setPieceTitle: string;
+  roles: RoleAssignmentSuggestion[];
+}
+
+export type AssignmentSuggestionsResponseMode =
+  (typeof AssignmentSuggestionsResponseMode)[keyof typeof AssignmentSuggestionsResponseMode];
+
+export const AssignmentSuggestionsResponseMode = {
+  fill_empty: "fill_empty",
+  replace_all: "replace_all",
+} as const;
+
+export interface AssignmentSuggestionsResponse {
+  matchdayId: string;
+  mode: AssignmentSuggestionsResponseMode;
+  playersConsidered: number;
+  setPieces: SetPieceSuggestionGroup[];
+}
+
 export interface ShareLink {
   id: string;
   teamId: string;

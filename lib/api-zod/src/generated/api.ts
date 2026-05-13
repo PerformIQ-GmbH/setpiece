@@ -1000,6 +1000,96 @@ export const DeleteMatchdayParams = zod.object({
 });
 
 /**
+ * Given the coach's available squad (starters + bench), score every player
+against every role in every set piece of this matchday and return a
+suggested assignment per role. Suggestions are NOT persisted; the
+coach must apply them explicitly.
+
+ * @summary Suggest role assignments across all set pieces in a matchday
+ */
+export const SuggestMatchdayAssignmentsParams = zod.object({
+  teamId: zod.coerce.string(),
+  matchdayId: zod.coerce.string(),
+});
+
+export const suggestMatchdayAssignmentsBodyAvailablePlayerIdsMax = 50;
+
+export const suggestMatchdayAssignmentsBodyModeDefault = `fill_empty`;
+
+export const SuggestMatchdayAssignmentsBody = zod.object({
+  availablePlayerIds: zod
+    .array(zod.string())
+    .min(1)
+    .max(suggestMatchdayAssignmentsBodyAvailablePlayerIdsMax),
+  mode: zod
+    .enum(["fill_empty", "replace_all"])
+    .default(suggestMatchdayAssignmentsBodyModeDefault),
+});
+
+export const suggestMatchdayAssignmentsResponseSetPiecesItemRolesItemScoreMin = 0;
+export const suggestMatchdayAssignmentsResponseSetPiecesItemRolesItemScoreMax = 100;
+
+export const suggestMatchdayAssignmentsResponseSetPiecesItemRolesItemAlternativesItemScoreMin = 0;
+export const suggestMatchdayAssignmentsResponseSetPiecesItemRolesItemAlternativesItemScoreMax = 100;
+
+export const SuggestMatchdayAssignmentsResponse = zod.object({
+  matchdayId: zod.string(),
+  mode: zod.enum(["fill_empty", "replace_all"]),
+  playersConsidered: zod.number(),
+  setPieces: zod.array(
+    zod.object({
+      setPieceId: zod.string(),
+      setPieceTitle: zod.string(),
+      roles: zod.array(
+        zod.object({
+          roleId: zod.string(),
+          roleName: zod.string(),
+          primaryClass: zod.enum([
+            "delivery",
+            "aerial_target",
+            "defensive_marker",
+            "rest_defense",
+            "blocker",
+            "runner",
+            "rebound",
+            "counter_outlet",
+            "generic",
+          ]),
+          suggestedPlayerId: zod.string().nullish(),
+          existingPlayerId: zod.string().nullish(),
+          score: zod
+            .number()
+            .min(
+              suggestMatchdayAssignmentsResponseSetPiecesItemRolesItemScoreMin,
+            )
+            .max(
+              suggestMatchdayAssignmentsResponseSetPiecesItemRolesItemScoreMax,
+            ),
+          badge: zod.enum(["best", "good", "review", "problem"]),
+          reasons: zod.array(zod.string()),
+          cautions: zod.array(zod.string()),
+          alternatives: zod.array(
+            zod.object({
+              playerId: zod.string(),
+              score: zod
+                .number()
+                .min(
+                  suggestMatchdayAssignmentsResponseSetPiecesItemRolesItemAlternativesItemScoreMin,
+                )
+                .max(
+                  suggestMatchdayAssignmentsResponseSetPiecesItemRolesItemAlternativesItemScoreMax,
+                ),
+              badge: zod.enum(["best", "good", "review", "problem"]),
+            }),
+          ),
+          skipped: zod.boolean().optional(),
+        }),
+      ),
+    }),
+  ),
+});
+
+/**
  * @summary Activate a set piece for matchday
  */
 export const AddSetPieceToMatchdayParams = zod.object({

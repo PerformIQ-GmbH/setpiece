@@ -10,6 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Plus, Trash2, Share2, QrCode, ArrowLeft, LayoutDashboard, Copy, Check, Clock, Users, FileDown, Loader2 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { QRCodeSVG } from 'qrcode.react';
+import { MatchdayAssistant } from '@/components/MatchdayAssistant';
 
 export default function MatchdayDetail() {
   const [, params] = useRoute('/teams/:teamId/matchdays/:matchdayId');
@@ -324,6 +325,16 @@ export default function MatchdayDetail() {
           </Button>
         </div>
       </div>
+
+      {matchday && players && (
+        <MatchdayAssistant
+          teamId={teamId}
+          matchdayId={matchdayId}
+          players={players}
+          setPieces={(matchday.setPieces ?? []).map(sp => ({ id: sp.id, title: sp.title }))}
+          onApplied={() => refetch()}
+        />
+      )}
 
       <div className="mb-5">
         <p className="section-label mb-3">Match Pack ({matchday?.setPieces?.length || 0} set pieces)</p>

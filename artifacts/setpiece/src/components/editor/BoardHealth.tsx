@@ -1,18 +1,34 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { useEditorStore } from './editorStore';
 import { cn } from '@/lib/utils';
 import { CheckCircle2, AlertTriangle, XCircle, ChevronDown, ChevronRight } from 'lucide-react';
-import { useState } from 'react';
+import { scorePlayerForRole } from '@/lib/roleSuitability';
 
 interface RoleData {
   id: string;
   name: string;
+  description?: string | null;
+  coachingPoint?: string | null;
   startPosition?: { x?: number | null; y?: number | null } | null;
 }
 
 interface AssignmentData {
   roleId: string;
   playerId: string;
+  backupPlayerId?: string | null;
+}
+
+interface PlayerData {
+  id: string;
+  firstName: string;
+  lastName: string;
+  shirtNumber?: number | null;
+  dominantFoot?: string | null;
+  height?: number | null;
+  status?: string | null;
+  tags?: string[] | null;
+  speed?: number | null;
+  headingStrength?: number | null;
 }
 
 type Severity = 'green' | 'amber' | 'red';
@@ -26,19 +42,48 @@ interface HealthIssue {
 interface BoardHealthProps {
   roles: RoleData[];
   assignments: AssignmentData[];
+  players?: PlayerData[];
 }
 
 function computeHealth(
   roles: RoleData[],
   assignments: AssignmentData[],
   annotations: { linkedRoleId?: string; type: string; points: { x: number; y: number }[] }[],
+  players: PlayerData[],
 ): HealthIssue[] {
   const issues: HealthIssue[] = [];
+  const playersById = new Map(players.map(p => [p.id, p]));
 
   for (const role of roles) {
-    const hasAssignment = assignments.some(a => a.roleId === role.id);
-    if (!hasAssignment) {
+    const assignment = assignments.find(a => a.roleId === role.id);
+    if (!assignment) {
       issues.push({ severity: 'red', message: `"${role.name}" has no player assigned`, roleId: role.id });
+      continue;
+    }
+
+    const player = playersById.get(assignment.playerId);
+    if (!player) continue;
+
+    const status = (player.status ?? '').toLowerCase();
+    if (status === 'injured') {
+      issues.push({ severity: 'red', message: `"${role.name}" is assigned to ${player.firstName} ${player.lastName} who is injured`, roleId: role.id });
+      continue;
+    }
+    if (status === 'suspended') {
+      issues.push({ severity: 'red', message: `"${role.name}" is assigned to ${player.firstName} ${player.lastName} who is suspended`, roleId: role.id });
+      continue;
+    }
+    if (status === 'inactive') {
+      issues.push({ severity: 'amber', message: `"${role.name}" is assigned to ${player.firstName} ${player.lastName} (inactive)`, roleId: role.id });
+    }
+
+    const fit = scorePlayerForRole(player, role);
+    if (fit.badge === 'problem' && status !== 'injured' && status !== 'suspended') {
+      const top = fit.cautions[0] ? ` — ${fit.cautions[0]}` : '';
+      issues.push({ severity: 'red', message: `"${role.name}": ${player.firstName} ${player.lastName} is a poor fit (${fit.score}/100)${top}`, roleId: role.id });
+    } else if (fit.badge === 'review') {
+      const top = fit.cautions[0] ? ` — ${fit.cautions[0]}` : '';
+      issues.push({ severity: 'amber', message: `"${role.name}": review fit for ${player.firstName} ${player.lastName} (${fit.score}/100)${top}`, roleId: role.id });
     }
   }
 
@@ -58,13 +103,13 @@ function computeHealth(
   return issues;
 }
 
-export function BoardHealth({ roles, assignments }: BoardHealthProps) {
+export function BoardHealth({ roles, assignments, players }: BoardHealthProps) {
   const annotations = useEditorStore((s) => s.annotations);
   const [expanded, setExpanded] = useState(true);
 
   const issues = useMemo(
-    () => computeHealth(roles, assignments, annotations),
-    [roles, assignments, annotations],
+    () => computeHealth(roles, assignments, annotations, players ?? []),
+    [roles, assignments, annotations, players],
   );
 
   const redCount = issues.filter(i => i.severity === 'red').length;
@@ -133,7 +178,7 @@ export function BoardHealth({ roles, assignments }: BoardHealthProps) {
         <div className="px-3 pb-2.5">
           <div className="flex items-center gap-1.5 px-2 py-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-[10px] text-emerald-400">
             <CheckCircle2 className="w-3 h-3 shrink-0" />
-            All roles assigned with movement paths
+            All roles assigned with strong fit
           </div>
         </div>
       )}

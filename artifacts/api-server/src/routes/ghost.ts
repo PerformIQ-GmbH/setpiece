@@ -2,6 +2,7 @@ import { Router, type IRouter } from "express";
 import { eq, and } from "drizzle-orm";
 import { db, setPiecesTable, setPieceRolesTable, roleAssignmentsTable, playersTable } from "@workspace/db";
 import { requireCoachAccess, parseParam } from "../lib/authorization";
+import { scorePlayerForRole } from "../lib/roleSuitability";
 import { z } from "zod/v4";
 
 const router: IRouter = Router();
@@ -93,33 +94,14 @@ router.post("/teams/:teamId/set-pieces/:setPieceId/ghost", async (req, res): Pro
         newPlayerId: playerInId,
       });
 
-      const roleName = role.name.toLowerCase();
-      if ((roleName.includes("header") || roleName.includes("target")) && (playerIn.headingStrength ?? 0) < 5) {
+      const fit = scorePlayerForRole(playerIn, role);
+      for (const caution of fit.cautions) {
         suitabilityHints.push({
           roleId: role.id,
           roleName: role.name,
-          hint: `${playerIn.firstName} may not be strong enough in the air for this role`,
-          severity: "warning",
+          hint: `${playerIn.firstName}: ${caution}`,
+          severity: fit.badge === "problem" ? "warning" : "info",
         });
-      }
-      if ((roleName.includes("runner") || roleName.includes("fast")) && (playerIn.speed ?? 0) < 5) {
-        suitabilityHints.push({
-          roleId: role.id,
-          roleName: role.name,
-          hint: `${playerIn.firstName} may lack the speed needed for this role`,
-          severity: "warning",
-        });
-      }
-      if (roleName.includes("delivery") || roleName.includes("taker")) {
-        const playerTags = playerIn.tags || [];
-        if (!playerTags.includes("delivery_specialist")) {
-          suitabilityHints.push({
-            roleId: role.id,
-            roleName: role.name,
-            hint: `${playerIn.firstName} is not tagged as a delivery specialist`,
-            severity: "info",
-          });
-        }
       }
     } else {
       afterPositions.push({
