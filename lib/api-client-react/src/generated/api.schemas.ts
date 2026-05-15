@@ -407,6 +407,11 @@ export interface UpsertAssignmentBody {
   notes?: string;
 }
 
+export interface MatchdaySquad {
+  starters: string[];
+  bench: string[];
+}
+
 export interface Matchday {
   id: string;
   teamId: string;
@@ -417,6 +422,7 @@ export interface Matchday {
   opponent?: string | null;
   /** @nullable */
   notes?: string | null;
+  squad?: MatchdaySquad | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -431,6 +437,7 @@ export interface MatchdayDetail {
   opponent?: string | null;
   /** @nullable */
   notes?: string | null;
+  squad?: MatchdaySquad | null;
   setPieces: SetPiece[];
   createdAt: string;
   updatedAt: string;
@@ -449,6 +456,7 @@ export interface UpdateMatchdayBody {
   date?: string;
   opponent?: string;
   notes?: string;
+  squad?: MatchdaySquad | null;
 }
 
 export interface AddToMatchdayBody {
@@ -472,12 +480,18 @@ export const AssignmentSuggestionsBodyMode = {
   replace_all: "replace_all",
 } as const;
 
+/**
+ * If `starterPlayerIds` (and optionally `benchPlayerIds`) are omitted, the
+server falls back to the matchday's persisted `squad`. The endpoint
+returns 400 if neither is available.
+
+ */
 export interface AssignmentSuggestionsBody {
   /**
    * @minItems 1
    * @maxItems 50
    */
-  starterPlayerIds: string[];
+  starterPlayerIds?: string[];
   /** @maxItems 50 */
   benchPlayerIds?: string[];
   /** @maxItems 100 */

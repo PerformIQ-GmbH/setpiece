@@ -7,12 +7,18 @@
  */
 import type { AssignmentSuggestionsBodyMode } from "./assignmentSuggestionsBodyMode";
 
+/**
+ * If `starterPlayerIds` (and optionally `benchPlayerIds`) are omitted, the
+server falls back to the matchday's persisted `squad`. The endpoint
+returns 400 if neither is available.
+
+ */
 export interface AssignmentSuggestionsBody {
   /**
    * @minItems 1
    * @maxItems 50
    */
-  starterPlayerIds: string[];
+  starterPlayerIds?: string[];
   /** @maxItems 50 */
   benchPlayerIds?: string[];
   /** @maxItems 100 */

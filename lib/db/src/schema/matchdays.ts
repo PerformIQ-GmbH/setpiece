@@ -1,9 +1,14 @@
 import { sql } from "drizzle-orm";
-import { integer, pgTable, text, timestamp, varchar } from "drizzle-orm/pg-core";
+import { integer, jsonb, pgTable, text, timestamp, varchar } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 import { teamsTable } from "./teams";
 import { setPiecesTable } from "./setPieces";
+
+export type MatchdaySquad = {
+  starters: string[];
+  bench: string[];
+};
 
 export const matchdaysTable = pgTable("matchdays", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -12,6 +17,7 @@ export const matchdaysTable = pgTable("matchdays", {
   date: timestamp("date", { withTimezone: true }),
   opponent: varchar("opponent", { length: 255 }),
   notes: text("notes"),
+  squad: jsonb("squad").$type<MatchdaySquad>(),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
 });

@@ -1980,6 +1980,18 @@ components:
           type: string
 
     # ─── Matchday ───
+    MatchdaySquad:
+      type: object
+      required: [starters, bench]
+      properties:
+        starters:
+          type: array
+          items:
+            type: string
+        bench:
+          type: array
+          items:
+            type: string
     Matchday:
       type: object
       required: [id, teamId, title, createdAt, updatedAt]
@@ -1997,6 +2009,10 @@ components:
           type: [string, 'null']
         notes:
           type: [string, 'null']
+        squad:
+          oneOf:
+            - $ref: "#/components/schemas/MatchdaySquad"
+            - type: 'null'
         createdAt:
           type: string
           format: date-time
@@ -2020,6 +2036,10 @@ components:
           type: [string, 'null']
         notes:
           type: [string, 'null']
+        squad:
+          oneOf:
+            - $ref: "#/components/schemas/MatchdaySquad"
+            - type: 'null'
         setPieces:
           type: array
           items:
@@ -2056,6 +2076,10 @@ components:
           type: string
         notes:
           type: string
+        squad:
+          oneOf:
+            - $ref: "#/components/schemas/MatchdaySquad"
+            - type: 'null'
     AddToMatchdayBody:
       type: object
       required: [setPieceId]
@@ -2082,7 +2106,10 @@ components:
 
     AssignmentSuggestionsBody:
       type: object
-      required: [starterPlayerIds]
+      description: |
+        If `starterPlayerIds` (and optionally `benchPlayerIds`) are omitted, the
+        server falls back to the matchday's persisted `squad`. The endpoint
+        returns 400 if neither is available.
       properties:
         starterPlayerIds:
           type: array

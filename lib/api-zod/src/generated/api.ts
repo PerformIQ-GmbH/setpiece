@@ -909,6 +909,15 @@ export const ListMatchdaysResponseItem = zod.object({
   date: zod.coerce.date().nullish(),
   opponent: zod.string().nullish(),
   notes: zod.string().nullish(),
+  squad: zod
+    .union([
+      zod.object({
+        starters: zod.array(zod.string()),
+        bench: zod.array(zod.string()),
+      }),
+      zod.null(),
+    ])
+    .optional(),
   createdAt: zod.coerce.date(),
   updatedAt: zod.coerce.date(),
 });
@@ -943,6 +952,15 @@ export const GetMatchdayResponse = zod.object({
   date: zod.coerce.date().nullish(),
   opponent: zod.string().nullish(),
   notes: zod.string().nullish(),
+  squad: zod
+    .union([
+      zod.object({
+        starters: zod.array(zod.string()),
+        bench: zod.array(zod.string()),
+      }),
+      zod.null(),
+    ])
+    .optional(),
   setPieces: zod.array(
     zod.object({
       id: zod.string(),
@@ -978,6 +996,15 @@ export const UpdateMatchdayBody = zod.object({
   date: zod.coerce.date().optional(),
   opponent: zod.string().optional(),
   notes: zod.string().optional(),
+  squad: zod
+    .union([
+      zod.object({
+        starters: zod.array(zod.string()),
+        bench: zod.array(zod.string()),
+      }),
+      zod.null(),
+    ])
+    .optional(),
 });
 
 export const UpdateMatchdayResponse = zod.object({
@@ -987,6 +1014,15 @@ export const UpdateMatchdayResponse = zod.object({
   date: zod.coerce.date().nullish(),
   opponent: zod.string().nullish(),
   notes: zod.string().nullish(),
+  squad: zod
+    .union([
+      zod.object({
+        starters: zod.array(zod.string()),
+        bench: zod.array(zod.string()),
+      }),
+      zod.null(),
+    ])
+    .optional(),
   createdAt: zod.coerce.date(),
   updatedAt: zod.coerce.date(),
 });
@@ -1020,23 +1056,28 @@ export const suggestMatchdayAssignmentsBodySetPieceIdsMax = 100;
 
 export const suggestMatchdayAssignmentsBodyModeDefault = `fill_empty`;
 
-export const SuggestMatchdayAssignmentsBody = zod.object({
-  starterPlayerIds: zod
-    .array(zod.string())
-    .min(1)
-    .max(suggestMatchdayAssignmentsBodyStarterPlayerIdsMax),
-  benchPlayerIds: zod
-    .array(zod.string())
-    .max(suggestMatchdayAssignmentsBodyBenchPlayerIdsMax)
-    .optional(),
-  setPieceIds: zod
-    .array(zod.string())
-    .max(suggestMatchdayAssignmentsBodySetPieceIdsMax)
-    .optional(),
-  mode: zod
-    .enum(["fill_empty", "replace_all"])
-    .default(suggestMatchdayAssignmentsBodyModeDefault),
-});
+export const SuggestMatchdayAssignmentsBody = zod
+  .object({
+    starterPlayerIds: zod
+      .array(zod.string())
+      .min(1)
+      .max(suggestMatchdayAssignmentsBodyStarterPlayerIdsMax)
+      .optional(),
+    benchPlayerIds: zod
+      .array(zod.string())
+      .max(suggestMatchdayAssignmentsBodyBenchPlayerIdsMax)
+      .optional(),
+    setPieceIds: zod
+      .array(zod.string())
+      .max(suggestMatchdayAssignmentsBodySetPieceIdsMax)
+      .optional(),
+    mode: zod
+      .enum(["fill_empty", "replace_all"])
+      .default(suggestMatchdayAssignmentsBodyModeDefault),
+  })
+  .describe(
+    "If `starterPlayerIds` (and optionally `benchPlayerIds`) are omitted, the\nserver falls back to the matchday's persisted `squad`. The endpoint\nreturns 400 if neither is available.\n",
+  );
 
 export const suggestMatchdayAssignmentsResponseSetPiecesItemRolesItemScoreMin = 0;
 export const suggestMatchdayAssignmentsResponseSetPiecesItemRolesItemScoreMax = 100;

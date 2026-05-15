@@ -15,11 +15,17 @@ const createMatchdaySchema = z.object({
   notes: z.string().optional(),
 });
 
+const squadSchema = z.object({
+  starters: z.array(z.string().min(1)).max(50),
+  bench: z.array(z.string().min(1)).max(50),
+});
+
 const updateMatchdaySchema = z.object({
   title: z.string().min(1).max(255).optional(),
   date: z.string().nullable().optional(),
   opponent: z.string().max(255).nullable().optional(),
   notes: z.string().nullable().optional(),
+  squad: squadSchema.nullable().optional(),
 });
 
 const addSetPieceSchema = z.object({
@@ -118,6 +124,7 @@ router.patch("/teams/:teamId/matchdays/:matchdayId", async (req, res): Promise<v
   if (data.date !== undefined) updates.date = data.date ? new Date(data.date) : null;
   if (data.opponent !== undefined) updates.opponent = data.opponent;
   if (data.notes !== undefined) updates.notes = data.notes;
+  if (data.squad !== undefined) updates.squad = data.squad;
 
   const [matchday] = await db
     .update(matchdaysTable)
@@ -244,7 +251,7 @@ router.delete("/teams/:teamId/matchdays/:matchdayId/set-pieces", async (req, res
 });
 
 const suggestionsSchema = z.object({
-  starterPlayerIds: z.array(z.string().min(1)).min(1).max(50),
+  starterPlayerIds: z.array(z.string().min(1)).max(50).optional(),
   benchPlayerIds: z.array(z.string().min(1)).max(50).optional(),
   setPieceIds: z.array(z.string().min(1)).max(100).optional(),
   mode: z.enum(["fill_empty", "replace_all"]).optional(),
@@ -263,10 +270,33 @@ router.post(
     }
 
     const matchdayId = parseParam(req.params.matchdayId);
-    const { starterPlayerIds } = parsed.data;
-    const benchPlayerIds = parsed.data.benchPlayerIds ?? [];
     const setPieceFilter = parsed.data.setPieceIds;
     const mode: SuggestionMode = parsed.data.mode ?? "fill_empty";
+
+    // Verify matchday belongs to team.
+    const [matchday] = await db
+      .select()
+      .from(matchdaysTable)
+      .where(and(eq(matchdaysTable.id, matchdayId), eq(matchdaysTable.teamId, teamId)));
+    if (!matchday) {
+      res.status(404).json({ error: "Matchday not found" });
+      return;
+    }
+
+    // Fall back to the matchday's persisted squad when the caller didn't
+    // provide one. This lets coaches lock in their starting XI + bench once
+    // and have every "Suggest assignments" call use it by default.
+    const persistedSquad = matchday.squad ?? null;
+    const starterPlayerIds = parsed.data.starterPlayerIds ?? persistedSquad?.starters ?? [];
+    const benchPlayerIds = parsed.data.benchPlayerIds ?? persistedSquad?.bench ?? [];
+
+    if (starterPlayerIds.length === 0) {
+      res.status(400).json({
+        error:
+          "No starters provided and this matchday has no saved squad. Pick a starting XI first.",
+      });
+      return;
+    }
 
     // Reject overlap between starters and bench.
     const starterSet = new Set(starterPlayerIds);
@@ -276,16 +306,6 @@ router.post(
         error: "starterPlayerIds and benchPlayerIds must not overlap",
         overlap,
       });
-      return;
-    }
-
-    // Verify matchday belongs to team.
-    const [matchday] = await db
-      .select()
-      .from(matchdaysTable)
-      .where(and(eq(matchdaysTable.id, matchdayId), eq(matchdaysTable.teamId, teamId)));
-    if (!matchday) {
-      res.status(404).json({ error: "Matchday not found" });
       return;
     }
 

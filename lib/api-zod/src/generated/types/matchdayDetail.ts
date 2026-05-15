@@ -5,6 +5,7 @@
  * SETPIECE by PerformIQ API
  * OpenAPI spec version: 0.1.0
  */
+import type { MatchdaySquad } from "./matchdaySquad";
 import type { SetPiece } from "./setPiece";
 
 export interface MatchdayDetail {
@@ -17,6 +18,7 @@ export interface MatchdayDetail {
   opponent?: string | null;
   /** @nullable */
   notes?: string | null;
+  squad?: MatchdaySquad | null;
   setPieces: SetPiece[];
   createdAt: Date;
   updatedAt: Date;

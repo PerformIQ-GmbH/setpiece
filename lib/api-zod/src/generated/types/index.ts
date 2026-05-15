@@ -63,6 +63,7 @@ export * from "./markReadyBody";
 export * from "./matchday";
 export * from "./matchdayDetail";
 export * from "./matchdaySetPieceEntry";
+export * from "./matchdaySquad";
 export * from "./matchPackData";
 export * from "./matchPackDataAssignmentsItem";
 export * from "./membership";

@@ -5,10 +5,12 @@
  * SETPIECE by PerformIQ API
  * OpenAPI spec version: 0.1.0
  */
+import type { MatchdaySquad } from "./matchdaySquad";
 
 export interface UpdateMatchdayBody {
   title?: string;
   date?: Date;
   opponent?: string;
   notes?: string;
+  squad?: MatchdaySquad | null;
 }

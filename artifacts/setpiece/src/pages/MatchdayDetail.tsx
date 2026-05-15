@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { CoachLayout } from '@/components/Layout';
 import { useRoute, Link } from 'wouter';
 import { useGetTeam, useGetMatchday, useListSetPieces, useListPlayers, useAddSetPieceToMatchday, useRemoveSetPieceFromMatchday, useCreateShareLink, getSetPiece } from '@workspace/api-client-react';
@@ -11,6 +11,7 @@ import { Plus, Trash2, Share2, QrCode, ArrowLeft, LayoutDashboard, Copy, Check, 
 import { motion } from 'framer-motion';
 import { QRCodeSVG } from 'qrcode.react';
 import { MatchdayAssistant } from '@/components/MatchdayAssistant';
+import { MatchdaySquadSection } from '@/components/MatchdaySquadSection';
 
 export default function MatchdayDetail() {
   const [, params] = useRoute('/teams/:teamId/matchdays/:matchdayId');
@@ -27,6 +28,27 @@ export default function MatchdayDetail() {
   const [addOpen, setAddOpen] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
   const [exportingPDF, setExportingPDF] = useState(false);
+
+  // Squad selection lifted to the page so the Squad section and the
+  // Matchday Assistant share one source of truth. We hydrate it from the
+  // matchday's persisted squad whenever it changes (e.g. after a save).
+  const [starterIds, setStarterIds] = useState<Set<string>>(new Set());
+  const [benchIds, setBenchIds] = useState<Set<string>>(new Set());
+  const [hydratedFor, setHydratedFor] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!matchday) return;
+    // Reload squad state when we navigate to a different matchday or when
+    // the persisted squad changes (e.g. just after we saved it).
+    const persistedKey = JSON.stringify({
+      id: matchday.id,
+      squad: matchday.squad ?? null,
+    });
+    if (persistedKey === hydratedFor) return;
+    setStarterIds(new Set(matchday.squad?.starters ?? []));
+    setBenchIds(new Set(matchday.squad?.bench ?? []));
+    setHydratedFor(persistedKey);
+  }, [matchday, hydratedFor]);
 
   const handleExportMatchPack = async () => {
     if (!matchday) return;
@@ -327,13 +349,39 @@ export default function MatchdayDetail() {
       </div>
 
       {matchday && players && (
-        <MatchdayAssistant
-          teamId={teamId}
-          matchdayId={matchdayId}
-          players={players}
-          setPieces={(matchday.setPieces ?? []).map(sp => ({ id: sp.id, title: sp.title }))}
-          onApplied={() => refetch()}
-        />
+        <>
+          <MatchdaySquadSection
+            teamId={teamId}
+            matchdayId={matchdayId}
+            players={players}
+            starterIds={starterIds}
+            benchIds={benchIds}
+            onChange={({ starters, bench }) => {
+              setStarterIds(starters);
+              setBenchIds(bench);
+            }}
+            persistedSquad={matchday.squad ?? null}
+            onSaved={() => refetch()}
+          />
+          <MatchdayAssistant
+            teamId={teamId}
+            matchdayId={matchdayId}
+            players={players}
+            setPieces={(matchday.setPieces ?? []).map(sp => ({ id: sp.id, title: sp.title }))}
+            starterIds={starterIds}
+            benchIds={benchIds}
+            squadIsDirty={(() => {
+              const persisted = matchday.squad;
+              const persistedStarters = new Set(persisted?.starters ?? []);
+              const persistedBench = new Set(persisted?.bench ?? []);
+              if (persistedStarters.size !== starterIds.size || persistedBench.size !== benchIds.size) return true;
+              for (const id of starterIds) if (!persistedStarters.has(id)) return true;
+              for (const id of benchIds) if (!persistedBench.has(id)) return true;
+              return false;
+            })()}
+            onApplied={() => refetch()}
+          />
+        </>
       )}
 
       <div className="mb-5">
