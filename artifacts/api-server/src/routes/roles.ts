@@ -248,4 +248,38 @@ router.put("/teams/:teamId/set-pieces/:setPieceId/assignments", async (req, res)
   res.json(assignment);
 });
 
+router.delete("/teams/:teamId/set-pieces/:setPieceId/assignments/:roleId", async (req, res): Promise<void> => {
+  const teamId = await requireCoachAccess(req, res);
+  if (!teamId) return;
+
+  const setPieceId = parseParam(req.params.setPieceId);
+  if (!(await verifySetPieceBelongsToTeam(setPieceId, teamId))) {
+    res.status(404).json({ error: "Set piece not found" });
+    return;
+  }
+
+  const roleId = parseParam(req.params.roleId);
+  const [role] = await db
+    .select()
+    .from(setPieceRolesTable)
+    .where(and(eq(setPieceRolesTable.id, roleId), eq(setPieceRolesTable.setPieceId, setPieceId)));
+  if (!role) {
+    res.status(404).json({ error: "Role not found in this set piece" });
+    return;
+  }
+
+  await db.delete(roleAssignmentsTable).where(eq(roleAssignmentsTable.roleId, roleId));
+
+  await db.insert(auditEventsTable).values({
+    teamId,
+    userId: req.user!.id,
+    eventType: "assignment_changed",
+    entityType: "role_assignment",
+    entityId: roleId,
+    metadata: { roleId, playerId: null },
+  });
+
+  res.sendStatus(204);
+});
+
 export default router;

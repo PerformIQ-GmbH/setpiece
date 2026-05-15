@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { useRoute } from 'wouter';
-import { useGetTeam, useGetSetPiece, useCreateRole, useUpdateRole, useDeleteRole, useUpsertAssignment, useListPlayers, useUpdateSetPieceStatus, useUpdateSetPiece } from '@workspace/api-client-react';
+import { useGetTeam, useGetSetPiece, useCreateRole, useUpdateRole, useDeleteRole, useUpsertAssignment, useDeleteAssignment, useListPlayers, useUpdateSetPieceStatus, useUpdateSetPiece } from '@workspace/api-client-react';
 import type { SetPieceRole, RoleAssignment } from '@workspace/api-client-react';
 import { EditorCanvas, EditorToolbar, MobileToolDrawer, BottomBar, InspectorPanel, TutorialOverlay, ContextualTip, QuickLegend, PresentationMode, EditorContextMenu, ContextualMiniBar, useEditorStore } from '@/components/editor';
 import type { Point, Annotation, BoardData, EditorCanvasHandle, PitchTheme } from '@/components/editor';
@@ -41,6 +41,7 @@ export default function SetPieceEditor() {
   const updateRole = useUpdateRole();
   const deleteRole = useDeleteRole();
   const upsertAssignment = useUpsertAssignment();
+  const deleteAssignment = useDeleteAssignment();
   const updateStatus = useUpdateSetPieceStatus();
   const updateSetPiece = useUpdateSetPiece();
 
@@ -332,7 +333,11 @@ export default function SetPieceEditor() {
   const assignPlayer = async (roleId: string, playerId: string) => {
     setSaveState('saving');
     try {
-      await upsertAssignment.mutateAsync({ teamId, setPieceId, data: { roleId, playerId } });
+      if (playerId) {
+        await upsertAssignment.mutateAsync({ teamId, setPieceId, data: { roleId, playerId } });
+      } else {
+        await deleteAssignment.mutateAsync({ teamId, setPieceId, roleId });
+      }
       await refetch();
       setSaveState('saved');
     } catch {

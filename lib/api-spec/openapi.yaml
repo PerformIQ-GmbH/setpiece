@@ -789,6 +789,18 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/RoleAssignment"
+  /teams/{teamId}/set-pieces/{setPieceId}/assignments/{roleId}:
+    delete:
+      operationId: deleteAssignment
+      tags: [roles]
+      summary: Remove the player assignment for a role
+      parameters:
+        - $ref: "#/components/parameters/TeamId"
+        - $ref: "#/components/parameters/SetPieceId"
+        - $ref: "#/components/parameters/RoleId"
+      responses:
+        "204":
+          description: Assignment removed
 
   # ─── Matchdays ───
   /teams/{teamId}/matchdays:

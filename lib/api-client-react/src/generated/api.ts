@@ -3661,6 +3661,96 @@ export const useUpsertAssignment = <
 };
 
 /**
+ * @summary Remove the player assignment for a role
+ */
+export const getDeleteAssignmentUrl = (
+  teamId: string,
+  setPieceId: string,
+  roleId: string,
+) => {
+  return `/api/teams/${teamId}/set-pieces/${setPieceId}/assignments/${roleId}`;
+};
+
+export const deleteAssignment = async (
+  teamId: string,
+  setPieceId: string,
+  roleId: string,
+  options?: RequestInit,
+): Promise<void> => {
+  return customFetch<void>(getDeleteAssignmentUrl(teamId, setPieceId, roleId), {
+    ...options,
+    method: "DELETE",
+  });
+};
+
+export const getDeleteAssignmentMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof deleteAssignment>>,
+    TError,
+    { teamId: string; setPieceId: string; roleId: string },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof deleteAssignment>>,
+  TError,
+  { teamId: string; setPieceId: string; roleId: string },
+  TContext
+> => {
+  const mutationKey = ["deleteAssignment"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof deleteAssignment>>,
+    { teamId: string; setPieceId: string; roleId: string }
+  > = (props) => {
+    const { teamId, setPieceId, roleId } = props ?? {};
+
+    return deleteAssignment(teamId, setPieceId, roleId, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type DeleteAssignmentMutationResult = NonNullable<
+  Awaited<ReturnType<typeof deleteAssignment>>
+>;
+
+export type DeleteAssignmentMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Remove the player assignment for a role
+ */
+export const useDeleteAssignment = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof deleteAssignment>>,
+    TError,
+    { teamId: string; setPieceId: string; roleId: string },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof deleteAssignment>>,
+  TError,
+  { teamId: string; setPieceId: string; roleId: string },
+  TContext
+> => {
+  return useMutation(getDeleteAssignmentMutationOptions(options));
+};
+
+/**
  * @summary List matchdays
  */
 export const getListMatchdaysUrl = (teamId: string) => {

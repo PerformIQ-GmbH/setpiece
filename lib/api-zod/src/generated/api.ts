@@ -896,6 +896,15 @@ export const UpsertAssignmentResponse = zod.object({
 });
 
 /**
+ * @summary Remove the player assignment for a role
+ */
+export const DeleteAssignmentParams = zod.object({
+  teamId: zod.coerce.string(),
+  setPieceId: zod.coerce.string(),
+  roleId: zod.coerce.string(),
+});
+
+/**
  * @summary List matchdays
  */
 export const ListMatchdaysParams = zod.object({
