@@ -10,7 +10,7 @@ export const quizAttemptsTable = pgTable("quiz_attempts", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   playerId: varchar("player_id").notNull().references(() => playersTable.id, { onDelete: "cascade" }),
   setPieceId: varchar("set_piece_id").notNull().references(() => setPiecesTable.id, { onDelete: "cascade" }),
-  roleId: varchar("role_id").references(() => setPieceRolesTable.id),
+  roleId: varchar("role_id").references(() => setPieceRolesTable.id, { onDelete: "set null" }),
   openedAt: timestamp("opened_at", { withTimezone: true }).notNull().defaultNow(),
   completedAt: timestamp("completed_at", { withTimezone: true }),
   passed: boolean("passed"),

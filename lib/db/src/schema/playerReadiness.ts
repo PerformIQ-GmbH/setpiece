@@ -12,7 +12,7 @@ export const playerReadinessTable = pgTable("player_readiness", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   playerId: varchar("player_id").notNull().references(() => playersTable.id, { onDelete: "cascade" }),
   setPieceId: varchar("set_piece_id").notNull().references(() => setPiecesTable.id, { onDelete: "cascade" }),
-  roleId: varchar("role_id").references(() => setPieceRolesTable.id),
+  roleId: varchar("role_id").references(() => setPieceRolesTable.id, { onDelete: "set null" }),
   status: readinessStatusEnum("status").notNull().default("not_opened"),
   lastOpenedAt: timestamp("last_opened_at", { withTimezone: true }),
   readyAt: timestamp("ready_at", { withTimezone: true }),

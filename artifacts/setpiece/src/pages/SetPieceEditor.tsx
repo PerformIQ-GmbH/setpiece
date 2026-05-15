@@ -161,7 +161,8 @@ export default function SetPieceEditor() {
         let { width, height } = entry.contentRect;
         width = Math.floor(width);
         height = Math.floor(height);
-        if (isCorner && width > 0 && height > 0) {
+        const isMobileViewport = typeof window !== 'undefined' && window.innerWidth < 768;
+        if (isCorner && width > 0 && height > 0 && !isMobileViewport) {
           const fitByWidth = width / CORNER_RATIO;
           if (fitByWidth <= height) {
             height = Math.floor(fitByWidth);
@@ -359,8 +360,12 @@ export default function SetPieceEditor() {
       if (activeRoleId === roleId) setActiveRoleId(null);
       await refetch();
       setSaveState('saved');
-    } catch {
+    } catch (err) {
       setSaveState('error');
+      const msg = (err as { response?: { data?: { error?: string } }; message?: string })?.response?.data?.error
+        ?? (err as { message?: string })?.message
+        ?? 'Could not delete role.';
+      alert(`Delete failed: ${msg}`);
     }
   };
 
@@ -579,7 +584,7 @@ export default function SetPieceEditor() {
   );
 
   return (
-    <div className="min-h-screen bg-background text-foreground flex flex-col h-screen overflow-hidden">
+    <div className="bg-background text-foreground flex flex-col min-h-screen md:h-screen md:overflow-hidden">
       {/* ─── HEADER ─── */}
       <header
         data-tutorial="header"
@@ -853,10 +858,10 @@ export default function SetPieceEditor() {
       </header>
 
       {/* ─── MAIN BODY ─── */}
-      <div className="flex-1 flex overflow-hidden min-h-0">
+      <div className="flex-1 flex flex-col md:flex-row md:overflow-hidden md:min-h-0">
         {/* ─── PITCH AREA ─── */}
-        <div className="flex-1 relative flex flex-col min-w-0 min-h-0">
-          <main data-tutorial="pitch" className="flex-1 min-h-0 relative">
+        <div className="flex-1 relative flex flex-col min-w-0 md:min-h-0">
+          <main data-tutorial="pitch" className="relative h-[68vh] md:h-auto md:flex-1 md:min-h-0">
             <div
               ref={canvasRef}
               className={cn(
