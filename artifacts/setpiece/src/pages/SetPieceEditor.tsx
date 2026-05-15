@@ -871,7 +871,7 @@ export default function SetPieceEditor() {
       <div className="flex-1 flex flex-col md:flex-row md:overflow-hidden md:min-h-0">
         {/* ─── PITCH AREA ─── */}
         <div className="flex-1 relative flex flex-col min-w-0 md:min-h-0">
-          <main data-tutorial="pitch" className="relative h-[68vh] md:h-auto md:flex-1 md:min-h-0">
+          <main data-tutorial="pitch" className="relative flex-1 min-h-[55vh] md:min-h-0">
             <div
               ref={canvasRef}
               className={cn(
