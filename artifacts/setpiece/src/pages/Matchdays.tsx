@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Plus, Calendar, ArrowRight, Trash2 } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { useConfirm } from '@/hooks/use-confirm';
 
 export default function Matchdays() {
   const [, params] = useRoute('/teams/:teamId/matchdays');
@@ -15,6 +16,7 @@ export default function Matchdays() {
   const { data: matchdays, refetch } = useListMatchdays(teamId);
   const createMatchday = useCreateMatchday();
   const deleteMatchday = useDeleteMatchday();
+  const confirm = useConfirm();
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState({ title: '', opponent: '', date: '', notes: '' });
 
@@ -67,7 +69,13 @@ export default function Matchdays() {
                       <Button variant="outline" size="sm" className="text-xs">Manage <ArrowRight className="h-3 w-3 ml-1" /></Button>
                     </Link>
                     <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive" onClick={async () => {
-                      if (confirm('Delete matchday?')) { await deleteMatchday.mutateAsync({ teamId, matchdayId: m.id }); refetch(); }
+                      const ok = await confirm({
+                        title: 'Delete matchday?',
+                        description: `"${m.title}" will be permanently removed.`,
+                        confirmText: 'Delete',
+                        destructive: true,
+                      });
+                      if (ok) { await deleteMatchday.mutateAsync({ teamId, matchdayId: m.id }); refetch(); }
                     }}>
                       <Trash2 className="h-3.5 w-3.5" />
                     </Button>

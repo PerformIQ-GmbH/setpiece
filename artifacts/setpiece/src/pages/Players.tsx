@@ -9,6 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { UserPlus, Search, Trash2, Edit2, QrCode, Link2, Copy, Check, RefreshCw, Loader2 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { QRCodeSVG } from 'qrcode.react';
+import { useConfirm } from '@/hooks/use-confirm';
 
 const FOOT_OPTIONS = ['right', 'left', 'both'];
 const TAG_OPTIONS = ['tall', 'fast', 'strong_header', 'set_piece_specialist', 'captain', 'penalty_taker', 'goalkeeper', 'defender', 'midfielder', 'forward'];
@@ -29,6 +30,7 @@ export default function Players() {
   const createPlayer = useCreatePlayer();
   const updatePlayer = useUpdatePlayer();
   const deletePlayer = useDeletePlayer();
+  const confirm = useConfirm();
 
   const { data: invites, refetch: refetchInvites } = useListInvites(teamId);
   const createInvite = useCreateInvite();
@@ -221,7 +223,13 @@ export default function Players() {
                         <Edit2 className="h-3.5 w-3.5" />
                       </Button>
                       <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive" onClick={async () => {
-                        if (confirm('Remove player?')) { await deletePlayer.mutateAsync({ teamId, playerId: p.id }); refetch(); }
+                        const ok = await confirm({
+                          title: 'Remove player?',
+                          description: `${p.firstName} ${p.lastName} will be removed from this team.`,
+                          confirmText: 'Remove',
+                          destructive: true,
+                        });
+                        if (ok) { await deletePlayer.mutateAsync({ teamId, playerId: p.id }); refetch(); }
                       }}>
                         <Trash2 className="h-3.5 w-3.5" />
                       </Button>

@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useEditorStore } from './editorStore';
 import { ANNOTATION_COLORS, ACTION_SEMANTICS } from './types';
 import { cn } from '@/lib/utils';
+import { useConfirm } from '@/hooks/use-confirm';
 import { Play, Pause, RotateCcw, Trash2, ArrowRight, Minus, ChevronLeft, ChevronRight, ChevronUp, ChevronDown as ChevronDownIcon, Plus, Check, X, Users, Presentation } from 'lucide-react';
 
 const WIDTHS = [1.5, 2.5, 4, 6];
@@ -63,6 +64,7 @@ export function BottomBar({ mobile = false, onUndo, onRedo, canUndo, canRedo, on
   const forceDashed = useEditorStore((s) => s.forceDashed);
   const setForceDashed = useEditorStore((s) => s.setForceDashed);
   const clearAnnotations = useEditorStore((s) => s.clearAnnotations);
+  const confirm = useConfirm();
   const animation = useEditorStore((s) => s.animation);
   const setPlaying = useEditorStore((s) => s.setAnimationPlaying);
   const setProgress = useEditorStore((s) => s.setAnimationProgress);
@@ -550,7 +552,15 @@ export function BottomBar({ mobile = false, onUndo, onRedo, canUndo, canRedo, on
         <div className="w-px h-5 bg-border shrink-0" />
 
         <button
-          onClick={() => { if (confirm('Clear all annotations?')) clearAnnotations(); }}
+          onClick={async () => {
+            const ok = await confirm({
+              title: 'Clear all annotations?',
+              description: 'All drawn paths, zones, and labels on this board will be removed.',
+              confirmText: 'Clear',
+              destructive: true,
+            });
+            if (ok) clearAnnotations();
+          }}
           className="text-[10px] text-muted-foreground hover:text-red-400 transition-colors shrink-0 px-1"
         >
           Clear All

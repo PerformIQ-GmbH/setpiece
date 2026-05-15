@@ -13,6 +13,7 @@ import { Users, LayoutDashboard, Calendar, Share2, Activity, UserPlus, Plus, Arr
 import { cn } from '@/lib/utils';
 import { Link } from 'wouter';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { useConfirm } from '@/hooks/use-confirm';
 
 export default function TeamDetail() {
   const [, params] = useRoute('/teams/:teamId');
@@ -79,6 +80,7 @@ function PlayersTab({ teamId }: { teamId: string }) {
   const { data: players, refetch } = useListPlayers(teamId);
   const createPlayer = useCreatePlayer();
   const deletePlayer = useDeletePlayer();
+  const confirm = useConfirm();
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState({ firstName: '', lastName: '', shirtNumber: '' });
 
@@ -150,7 +152,13 @@ function PlayersTab({ teamId }: { teamId: string }) {
                 <td className="px-6 py-4 text-right">
                   <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-destructive hover:bg-destructive/10" 
                     onClick={async () => {
-                      if(confirm('Remove player?')) {
+                      const ok = await confirm({
+                        title: 'Remove player?',
+                        description: `${p.firstName} ${p.lastName} will be removed from this team.`,
+                        confirmText: 'Remove',
+                        destructive: true,
+                      });
+                      if (ok) {
                         await deletePlayer.mutateAsync({ teamId, playerId: p.id });
                         refetch();
                       }

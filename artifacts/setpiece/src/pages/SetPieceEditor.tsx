@@ -17,6 +17,8 @@ import { cn } from '@/lib/utils';
 import { Link } from 'wouter';
 import { useBreakpoint } from '@/hooks/use-mobile';
 import type { Breakpoint } from '@/hooks/use-mobile';
+import { useToast } from '@/hooks/use-toast';
+import { useConfirm } from '@/hooks/use-confirm';
 
 type SaveState = 'saved' | 'saving' | 'unsaved' | 'error';
 
@@ -42,6 +44,8 @@ export default function SetPieceEditor() {
   const updateStatus = useUpdateSetPieceStatus();
   const updateSetPiece = useUpdateSetPiece();
 
+  const { toast } = useToast();
+  const confirm = useConfirm();
   const [activeRoleId, setActiveRoleId] = useState<string | null>(null);
   const [roleFormOpen, setRoleFormOpen] = useState(false);
   const [labelFormOpen, setLabelFormOpen] = useState(false);
@@ -353,7 +357,13 @@ export default function SetPieceEditor() {
   };
 
   const handleDeleteRole = async (roleId: string) => {
-    if (!confirm('Delete this role?')) return;
+    const ok = await confirm({
+      title: 'Delete this role?',
+      description: 'This will remove the role and its assignment from this set piece.',
+      confirmText: 'Delete',
+      destructive: true,
+    });
+    if (!ok) return;
     setSaveState('saving');
     try {
       await deleteRole.mutateAsync({ teamId, setPieceId, roleId });
@@ -365,7 +375,7 @@ export default function SetPieceEditor() {
       const msg = (err as { response?: { data?: { error?: string } }; message?: string })?.response?.data?.error
         ?? (err as { message?: string })?.message
         ?? 'Could not delete role.';
-      alert(`Delete failed: ${msg}`);
+      toast({ title: 'Delete failed', description: msg, variant: 'destructive' });
     }
   };
 
