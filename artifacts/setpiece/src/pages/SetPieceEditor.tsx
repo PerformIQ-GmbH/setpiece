@@ -1012,9 +1012,9 @@ export default function SetPieceEditor() {
       {/* ─── MOBILE INSPECTOR: Bottom sheet ─── */}
       {isMobile && (
         <Drawer open={mobileInspectorOpen} onOpenChange={setMobileInspectorOpen}>
-          <DrawerContent className="bg-card border-white/[0.08] max-h-[80vh]">
+          <DrawerContent className="bg-card border-white/[0.08] h-[85vh]">
             <DrawerTitle className="sr-only">Inspector</DrawerTitle>
-            <div className="overflow-y-auto max-h-[70vh]">
+            <div className="flex-1 overflow-y-auto overscroll-contain pb-8">
               {inspectorPanel}
             </div>
           </DrawerContent>

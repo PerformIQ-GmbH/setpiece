@@ -190,10 +190,13 @@ function PlayerCombobox({ players, assignments, roles, currentRoleId, value, onC
         )}
         {selectedPlayer && (
           <button
+            type="button"
+            onPointerDown={(e) => { e.stopPropagation(); }}
             onClick={(e) => { e.stopPropagation(); onChange(''); setOpen(false); }}
-            className="text-muted-foreground hover:text-red-400 transition-colors"
+            aria-label="Unassign player"
+            className="-m-1 p-1.5 text-muted-foreground hover:text-red-400 transition-colors touch-manipulation"
           >
-            <X className="w-3 h-3" />
+            <X className="w-4 h-4" />
           </button>
         )}
         <ChevronDown className="w-3 h-3 text-muted-foreground shrink-0" />
