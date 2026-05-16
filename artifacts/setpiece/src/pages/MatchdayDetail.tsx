@@ -10,6 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Plus, Trash2, Share2, QrCode, ArrowLeft, LayoutDashboard, Copy, Check, Clock, Users, FileDown, Loader2 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { QRCodeSVG } from 'qrcode.react';
+import type { jsPDF as JsPDFType } from 'jspdf';
 import { MatchdayAssistant } from '@/components/MatchdayAssistant';
 import { MatchdaySquadSection } from '@/components/MatchdaySquadSection';
 
@@ -54,67 +55,158 @@ export default function MatchdayDetail() {
     if (!matchday) return;
     setExportingPDF(true);
     try {
-      const [jsPDFMod, { renderSetPieceSteps }] = await Promise.all([
+      const [jsPDFMod, { renderSetPieceSteps }, QRCodeMod] = await Promise.all([
         import('jspdf'),
         import('@/utils/offscreenPitchRenderer'),
+        import('qrcode'),
       ]);
       const jsPDF = jsPDFMod.default;
-      const pdf = new jsPDF('p', 'mm', 'a4');
-      const pw = 210;
-      const ph = 297;
+      const QRCode = QRCodeMod.default ?? QRCodeMod;
 
-      const addPageBg = () => {
+      // A4 portrait dimensions (mm).
+      const PW_P = 210;
+      const PH_P = 297;
+      // A4 landscape dimensions (mm).
+      const PW_L = 297;
+      const PH_L = 210;
+      const MARGIN = 14;
+      const FOOTER_H = 10;
+
+      const pdf = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4' });
+
+      const teamName = team?.name || 'Team';
+      const matchTitle = matchday.title || 'Match Pack';
+      const matchDate = matchday.date
+        ? new Date(matchday.date).toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
+        : '';
+      const generatedStamp = new Date().toLocaleString();
+      const brandGreen: [number, number, number] = [16, 185, 129];
+      const inkDark: [number, number, number] = [20, 28, 22];
+
+      // Generated metadata for the footer/header that we add at the end of the
+      // build once the total page count is known.
+      type PageMeta = { orientation: 'p' | 'l' };
+      const pageMeta: PageMeta[] = [{ orientation: 'p' }];
+
+      const currentPage = () => pdf.getNumberOfPages();
+      const pageDims = (orientation: 'p' | 'l') =>
+        orientation === 'l' ? { w: PW_L, h: PH_L } : { w: PW_P, h: PH_P };
+
+      const fillPageBackground = (orientation: 'p' | 'l') => {
+        const { w, h } = pageDims(orientation);
         pdf.setFillColor(255, 255, 255);
-        pdf.rect(0, 0, pw, ph, 'F');
+        pdf.rect(0, 0, w, h, 'F');
+        // Brand stripe at top.
+        pdf.setFillColor(brandGreen[0], brandGreen[1], brandGreen[2]);
+        pdf.rect(0, 0, w, 3, 'F');
       };
 
-      addPageBg();
+      const addPage = (orientation: 'p' | 'l') => {
+        pdf.addPage('a4', orientation);
+        pageMeta.push({ orientation });
+        fillPageBackground(orientation);
+      };
 
-      pdf.setFillColor(16, 185, 129);
-      pdf.rect(0, 0, pw, 4, 'F');
+      fillPageBackground('p');
 
-      pdf.setTextColor(16, 185, 129);
-      pdf.setFontSize(10);
-      pdf.text('SETPIECE by PerformIQ', 15, 18);
+      // Generate a real share link for the QR code on the cover.
+      let shareUrl = `${window.location.origin}${import.meta.env.BASE_URL}`;
+      try {
+        const link = await createShareLink.mutateAsync({
+          teamId,
+          data: { matchdayScope: matchdayId },
+        });
+        shareUrl = `${window.location.origin}${import.meta.env.BASE_URL}p/${link.token}`;
+      } catch (err) {
+        console.warn('Could not create share link for QR, falling back to base URL.', err);
+      }
 
-      pdf.setTextColor(30, 30, 30);
-      pdf.setFontSize(22);
-      pdf.text(team?.name || 'Team', 15, 30);
+      const qrDataUrl = await QRCode.toDataURL(shareUrl, {
+        width: 600,
+        margin: 1,
+        errorCorrectionLevel: 'M',
+        color: { dark: '#0b1f12', light: '#ffffff' },
+      });
 
-      pdf.setFontSize(16);
-      pdf.setTextColor(80, 80, 80);
-      pdf.text(`Match Pack: ${matchday.title}`, 15, 40);
+      // ─── COVER PAGE ────────────────────────────────────────────────────
+      pdf.setFont('helvetica', 'bold');
+      pdf.setTextColor(brandGreen[0], brandGreen[1], brandGreen[2]);
+      pdf.setFontSize(11);
+      pdf.text('SETPIECE  ·  by PerformIQ', MARGIN, 18);
+
+      pdf.setTextColor(inkDark[0], inkDark[1], inkDark[2]);
+      pdf.setFontSize(40);
+      const teamLines = pdf.splitTextToSize(teamName, PW_P - MARGIN * 2);
+      pdf.text(teamLines, MARGIN, 50);
+
+      pdf.setFont('helvetica', 'normal');
+      pdf.setFontSize(13);
+      pdf.setTextColor(110, 110, 110);
+      pdf.text('MATCH PACK', MARGIN, 60);
+
+      pdf.setFont('helvetica', 'bold');
+      pdf.setFontSize(26);
+      pdf.setTextColor(inkDark[0], inkDark[1], inkDark[2]);
+      const titleLines = pdf.splitTextToSize(matchTitle, PW_P - MARGIN * 2);
+      pdf.text(titleLines, MARGIN, 76);
+      let coverY = 76 + titleLines.length * 10;
 
       if (matchday.opponent) {
-        pdf.setFontSize(11);
-        pdf.setTextColor(100, 100, 100);
-        pdf.text(`vs ${matchday.opponent}`, 15, 48);
+        pdf.setFont('helvetica', 'normal');
+        pdf.setFontSize(16);
+        pdf.setTextColor(80, 80, 80);
+        pdf.text(`vs ${matchday.opponent}`, MARGIN, coverY);
+        coverY += 8;
       }
-      if (matchday.date) {
-        pdf.setFontSize(10);
+      if (matchDate) {
+        pdf.setFontSize(12);
         pdf.setTextColor(120, 120, 120);
-        pdf.text(new Date(matchday.date).toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }), 15, 55);
+        pdf.text(matchDate, MARGIN, coverY);
+        coverY += 8;
       }
 
-      let yOff = 65;
+      // QR card on the right side of the cover page.
+      const qrSize = 70;
+      const qrX = PW_P - MARGIN - qrSize;
+      const qrY = 120;
+      pdf.setDrawColor(brandGreen[0], brandGreen[1], brandGreen[2]);
+      pdf.setLineWidth(0.6);
+      pdf.setFillColor(247, 250, 247);
+      pdf.roundedRect(qrX - 6, qrY - 6, qrSize + 12, qrSize + 26, 3, 3, 'FD');
+      pdf.addImage(qrDataUrl, 'PNG', qrX, qrY, qrSize, qrSize);
+      pdf.setFont('helvetica', 'bold');
+      pdf.setFontSize(10);
+      pdf.setTextColor(inkDark[0], inkDark[1], inkDark[2]);
+      pdf.text('Scan for player view', qrX + qrSize / 2, qrY + qrSize + 8, { align: 'center' });
+      pdf.setFont('helvetica', 'normal');
+      pdf.setFontSize(7);
+      pdf.setTextColor(120, 120, 120);
+      const urlLine = shareUrl.length > 36 ? shareUrl.slice(0, 36) + '…' : shareUrl;
+      pdf.text(urlLine, qrX + qrSize / 2, qrY + qrSize + 13, { align: 'center' });
 
+      // Cover-page coaching notes block.
+      let coverNotesY = 140;
       if (matchday.notes) {
-        pdf.setFontSize(9);
-        pdf.setTextColor(16, 185, 129);
-        pdf.text('COACHING NOTES', 15, yOff);
-        yOff += 6;
-        pdf.setTextColor(60, 60, 60);
-        pdf.setFontSize(9);
-        const noteLines = pdf.splitTextToSize(matchday.notes, 180);
-        pdf.text(noteLines, 15, yOff);
-        yOff += noteLines.length * 4.5 + 6;
+        pdf.setFont('helvetica', 'bold');
+        pdf.setFontSize(11);
+        pdf.setTextColor(brandGreen[0], brandGreen[1], brandGreen[2]);
+        pdf.text('COACHING NOTES', MARGIN, coverNotesY);
+        coverNotesY += 6;
+        pdf.setDrawColor(brandGreen[0], brandGreen[1], brandGreen[2]);
+        pdf.setLineWidth(0.4);
+        pdf.line(MARGIN, coverNotesY, MARGIN + 80, coverNotesY);
+        coverNotesY += 5;
+        pdf.setFont('helvetica', 'normal');
+        pdf.setFontSize(11);
+        pdf.setTextColor(50, 50, 50);
+        const wrapWidth = qrX - MARGIN - 8;
+        const noteLines = pdf.splitTextToSize(matchday.notes, wrapWidth);
+        const maxLines = Math.floor((PH_P - coverNotesY - 30) / 5.5);
+        const shown = noteLines.slice(0, maxLines);
+        pdf.text(shown, MARGIN, coverNotesY);
       }
 
       const pieces = matchday.setPieces || [];
-      const imgWidth = 170;
-      const imgAspect = 560 / 800;
-      const imgHeight = imgWidth * imgAspect;
-
       const detailResults = await Promise.allSettled(
         pieces.map(sp => getSetPiece(teamId, sp.id))
       );
@@ -125,14 +217,6 @@ export default function MatchdayDetail() {
         }
       });
 
-      const ensureSpace = (needed: number) => {
-        if (yOff + needed > ph - 15) {
-          pdf.addPage();
-          addPageBg();
-          yOff = 15;
-        }
-      };
-
       const playerList = (players || []).map((p: Player) => ({
         id: p.id,
         firstName: p.firstName,
@@ -140,43 +224,84 @@ export default function MatchdayDetail() {
         shirtNumber: p.shirtNumber,
       }));
 
-      for (const sp of pieces) {
+      // Table of contents on the cover (bottom).
+      if (pieces.length > 0) {
+        let tocY = PH_P - 30 - Math.min(pieces.length, 6) * 5;
+        if (tocY < coverNotesY + 30) tocY = PH_P - 50;
+        pdf.setFont('helvetica', 'bold');
+        pdf.setFontSize(10);
+        pdf.setTextColor(brandGreen[0], brandGreen[1], brandGreen[2]);
+        pdf.text('IN THIS PACK', MARGIN, tocY);
+        tocY += 5;
+        pdf.setFont('helvetica', 'normal');
+        pdf.setFontSize(10);
+        pdf.setTextColor(60, 60, 60);
+        pieces.slice(0, 8).forEach((sp, i) => {
+          pdf.text(`${i + 1}.  ${sp.title}  ·  ${sp.category.replace(/_/g, ' ')}`, MARGIN, tocY);
+          tocY += 5;
+        });
+      }
+
+      // ─── PER-SET-PIECE SECTIONS ────────────────────────────────────────
+      for (let pi = 0; pi < pieces.length; pi++) {
+        const sp = pieces[pi];
         const spDetail = detailMap.get(sp.id) || null;
 
-        ensureSpace(20);
+        // Section starts on a new portrait page.
+        addPage('p');
 
-        pdf.setDrawColor(200, 210, 200);
-        pdf.line(15, yOff, 195, yOff);
-        yOff += 6;
+        // Section header.
+        pdf.setFillColor(brandGreen[0], brandGreen[1], brandGreen[2]);
+        pdf.roundedRect(MARGIN, 18, 26, 7, 1.5, 1.5, 'F');
+        pdf.setFont('helvetica', 'bold');
+        pdf.setFontSize(8);
+        pdf.setTextColor(255, 255, 255);
+        pdf.text(sp.category.replace(/_/g, ' ').toUpperCase(), MARGIN + 13, 23, { align: 'center' });
 
-        pdf.setTextColor(16, 185, 129);
-        pdf.setFontSize(13);
-        pdf.text(sp.title, 15, yOff);
-        pdf.setFontSize(9);
-        pdf.setTextColor(120, 120, 120);
-        pdf.text(sp.category.replace(/_/g, ' ').toUpperCase(), 15, yOff + 5);
-        yOff += 12;
+        pdf.setFont('helvetica', 'bold');
+        pdf.setFontSize(11);
+        pdf.setTextColor(150, 150, 150);
+        pdf.text(`SET PIECE ${pi + 1} OF ${pieces.length}`, PW_P - MARGIN, 23, { align: 'right' });
 
-        pdf.setTextColor(60, 60, 60);
+        pdf.setFont('helvetica', 'bold');
+        pdf.setFontSize(26);
+        pdf.setTextColor(inkDark[0], inkDark[1], inkDark[2]);
+        const titleW = PW_P - MARGIN * 2;
+        const spTitleLines = pdf.splitTextToSize(sp.title, titleW);
+        pdf.text(spTitleLines, MARGIN, 38);
+        let yOff = 38 + spTitleLines.length * 9;
+
+        pdf.setDrawColor(brandGreen[0], brandGreen[1], brandGreen[2]);
+        pdf.setLineWidth(0.6);
+        pdf.line(MARGIN, yOff, MARGIN + 30, yOff);
+        yOff += 8;
+
         if (sp.description) {
-          ensureSpace(10);
-          const descLines = pdf.splitTextToSize(sp.description, 170);
-          pdf.text(descLines, 15, yOff);
-          yOff += descLines.length * 4 + 2;
-        }
-        if (sp.coachingNotes) {
-          ensureSpace(10);
-          pdf.setTextColor(16, 185, 129);
-          pdf.setFontSize(8);
-          pdf.text('NOTES:', 15, yOff);
-          pdf.setTextColor(80, 80, 80);
-          const noteLines = pdf.splitTextToSize(sp.coachingNotes, 160);
-          pdf.text(noteLines, 35, yOff);
-          yOff += noteLines.length * 3.5 + 2;
-          pdf.setFontSize(9);
+          pdf.setFont('helvetica', 'normal');
+          pdf.setFontSize(12);
+          pdf.setTextColor(45, 45, 45);
+          const descLines = pdf.splitTextToSize(sp.description, titleW);
+          pdf.text(descLines, MARGIN, yOff);
+          yOff += descLines.length * 5.5 + 3;
         }
 
-        const boardData = (spDetail?.boardData || sp.boardData || {}) as Record<string, unknown>;
+        if (sp.coachingNotes) {
+          pdf.setFillColor(245, 250, 245);
+          const noteLines = pdf.splitTextToSize(sp.coachingNotes, titleW - 10);
+          const noteBlockH = noteLines.length * 5 + 12;
+          pdf.roundedRect(MARGIN, yOff, titleW, noteBlockH, 2, 2, 'F');
+          pdf.setFont('helvetica', 'bold');
+          pdf.setFontSize(9);
+          pdf.setTextColor(brandGreen[0], brandGreen[1], brandGreen[2]);
+          pdf.text('COACHING NOTES', MARGIN + 5, yOff + 6);
+          pdf.setFont('helvetica', 'normal');
+          pdf.setFontSize(11);
+          pdf.setTextColor(60, 60, 60);
+          pdf.text(noteLines, MARGIN + 5, yOff + 11);
+          yOff += noteBlockH + 6;
+        }
+
+        // Roles & assignments table.
         const roles = (spDetail?.roles || []).map((r: SetPieceRole) => ({
           id: r.id,
           name: r.name,
@@ -187,6 +312,65 @@ export default function MatchdayDetail() {
           playerId: a.playerId,
         }));
 
+        if (roles.length > 0) {
+          // Make sure the table fits on the section page; otherwise let it
+          // start at the top of a fresh portrait page so it never breaks.
+          const tableRowH = 8;
+          const tableHeaderH = 10;
+          const tableTotalH = tableHeaderH + roles.length * tableRowH + 10;
+          if (yOff + tableTotalH > PH_P - 25) {
+            addPage('p');
+            yOff = 22;
+          }
+
+          pdf.setFont('helvetica', 'bold');
+          pdf.setFontSize(13);
+          pdf.setTextColor(inkDark[0], inkDark[1], inkDark[2]);
+          pdf.text('Roles & Assignments', MARGIN, yOff);
+          yOff += 4;
+
+          // Header row.
+          pdf.setFillColor(brandGreen[0], brandGreen[1], brandGreen[2]);
+          pdf.rect(MARGIN, yOff, titleW, tableHeaderH, 'F');
+          pdf.setFont('helvetica', 'bold');
+          pdf.setFontSize(10);
+          pdf.setTextColor(255, 255, 255);
+          pdf.text('ROLE', MARGIN + 4, yOff + 6.5);
+          pdf.text('PLAYER', MARGIN + 70, yOff + 6.5);
+          pdf.text('#', MARGIN + titleW - 12, yOff + 6.5);
+          yOff += tableHeaderH;
+
+          pdf.setFont('helvetica', 'normal');
+          pdf.setFontSize(11);
+          for (let ri = 0; ri < (spDetail?.roles || []).length; ri++) {
+            const role = (spDetail?.roles || [])[ri];
+            const assignment = spDetail?.assignments?.find((a: RoleAssignment) => a.roleId === role.id);
+            const player = assignment ? players?.find((p: Player) => p.id === assignment.playerId) : null;
+            const playerName = player ? `${player.firstName} ${player.lastName}` : 'Unassigned';
+            const shirt = player?.shirtNumber != null ? `#${player.shirtNumber}` : '—';
+
+            if (ri % 2 === 0) {
+              pdf.setFillColor(248, 250, 248);
+              pdf.rect(MARGIN, yOff, titleW, tableRowH, 'F');
+            }
+            pdf.setTextColor(inkDark[0], inkDark[1], inkDark[2]);
+            pdf.text(role.name, MARGIN + 4, yOff + 5.5);
+            pdf.setTextColor(player ? 40 : 150, player ? 40 : 150, player ? 40 : 150);
+            pdf.text(playerName, MARGIN + 70, yOff + 5.5);
+            pdf.setFont('helvetica', 'bold');
+            pdf.setTextColor(player ? brandGreen[0] : 150, player ? brandGreen[1] : 150, player ? brandGreen[2] : 150);
+            pdf.text(shirt, MARGIN + titleW - 12, yOff + 5.5);
+            pdf.setFont('helvetica', 'normal');
+            yOff += tableRowH;
+          }
+          // Table border.
+          pdf.setDrawColor(220, 230, 220);
+          pdf.setLineWidth(0.3);
+          pdf.rect(MARGIN, yOff - roles.length * tableRowH - tableHeaderH, titleW, roles.length * tableRowH + tableHeaderH);
+        }
+
+        // ─── DIAGRAM PAGES (landscape) ─────────────────────────────────
+        const boardData = (spDetail?.boardData || sp.boardData || {}) as Record<string, unknown>;
         const hasBoard = boardData && Object.keys(boardData).length > 0;
 
         if (hasBoard) {
@@ -198,62 +382,62 @@ export default function MatchdayDetail() {
             category: sp.category,
           });
 
-          for (let si = 0; si < stepImages.length; si++) {
-            ensureSpace(10 + imgHeight + 4);
+          for (const stepImage of stepImages) {
+            addPage('l');
 
-            pdf.setTextColor(16, 185, 129);
-            pdf.setFontSize(9);
-            pdf.text(stepImages[si].stepLabel, 20, yOff);
-            yOff += 4;
+            // Diagram-page header.
+            pdf.setFont('helvetica', 'bold');
+            pdf.setFontSize(10);
+            pdf.setTextColor(brandGreen[0], brandGreen[1], brandGreen[2]);
+            pdf.text(sp.title.toUpperCase(), MARGIN, 14);
+            pdf.setFont('helvetica', 'normal');
+            pdf.setTextColor(120, 120, 120);
+            pdf.text(sp.category.replace(/_/g, ' ').toUpperCase(), PW_L - MARGIN, 14, { align: 'right' });
 
-            pdf.addImage(stepImages[si].dataUrl, 'PNG', 20, yOff, imgWidth, imgHeight);
-            yOff += imgHeight + 4;
+            pdf.setFont('helvetica', 'bold');
+            pdf.setFontSize(18);
+            pdf.setTextColor(inkDark[0], inkDark[1], inkDark[2]);
+            pdf.text(stepImage.stepLabel, MARGIN, 23);
+
+            // Diagram fills the rest of the page above the legend/footer.
+            const legendH = 14;
+            const topPad = 26;
+            const availW = PW_L - MARGIN * 2;
+            const availH = PH_L - topPad - FOOTER_H - legendH - 4;
+            const aspect = stepImage.aspect || (1400 / 990);
+            let imgW = availW;
+            let imgH = imgW / aspect;
+            if (imgH > availH) {
+              imgH = availH;
+              imgW = imgH * aspect;
+            }
+            const imgX = (PW_L - imgW) / 2;
+            const imgY = topPad;
+            pdf.addImage(stepImage.dataUrl, 'PNG', imgX, imgY, imgW, imgH);
+
+            // Legend strip beneath the diagram.
+            const legendY = imgY + imgH + 3;
+            drawLegend(pdf, MARGIN, legendY, availW);
           }
         }
-
-        if (roles.length > 0) {
-          ensureSpace(12);
-          pdf.setTextColor(30, 30, 30);
-          pdf.setFontSize(10);
-          pdf.text('Roles & Assignments', 15, yOff);
-          yOff += 6;
-          pdf.setFontSize(8);
-          for (const role of spDetail?.roles || []) {
-            ensureSpace(7);
-            const assignment = spDetail?.assignments?.find((a: RoleAssignment) => a.roleId === role.id);
-            const player = assignment ? players?.find((p: Player) => p.id === assignment.playerId) : null;
-            const playerName = player ? `${player.firstName} ${player.lastName} (#${player.shirtNumber || '?'})` : 'Unassigned';
-            pdf.setTextColor(16, 185, 129);
-            pdf.text(role.name, 15, yOff);
-            pdf.setTextColor(80, 80, 80);
-            pdf.text(playerName, 75, yOff);
-            yOff += 5;
-          }
-          yOff += 4;
-        }
-
-        ensureSpace(10);
-        pdf.setTextColor(120, 120, 120);
-        pdf.setFontSize(8);
-        pdf.text(`Status: ${sp.status} · Version: ${sp.versionNumber}`, 15, yOff);
-        yOff += 8;
       }
 
-      ensureSpace(45);
-      const qrSize = 25;
-      pdf.setTextColor(100, 100, 100);
-      pdf.setFontSize(8);
-      pdf.text('Scan to access player view', pw - 15 - qrSize, yOff - 3);
-
-      pdf.setFillColor(240, 240, 240);
-      pdf.rect(pw - 15 - qrSize, yOff, qrSize, qrSize, 'F');
-      pdf.setTextColor(80, 80, 80);
-      pdf.setFontSize(6);
-      pdf.text('SETPIECE QR', pw - 15 - qrSize + 3, yOff + qrSize / 2 + 2);
-
-      pdf.setTextColor(150, 150, 150);
-      pdf.setFontSize(7);
-      pdf.text(`Generated ${new Date().toLocaleString()} · SETPIECE by PerformIQ`, 15, ph - 8);
+      // ─── FOOTERS (added after total page count is known) ───────────────
+      const total = currentPage();
+      for (let p = 1; p <= total; p++) {
+        pdf.setPage(p);
+        const meta = pageMeta[p - 1] || { orientation: 'p' };
+        const { w, h } = pageDims(meta.orientation);
+        pdf.setDrawColor(220, 230, 220);
+        pdf.setLineWidth(0.3);
+        pdf.line(MARGIN, h - FOOTER_H, w - MARGIN, h - FOOTER_H);
+        pdf.setFont('helvetica', 'normal');
+        pdf.setFontSize(8);
+        pdf.setTextColor(140, 140, 140);
+        pdf.text(`${teamName}  ·  ${matchTitle}`, MARGIN, h - 5);
+        pdf.text(`Page ${p} / ${total}`, w / 2, h - 5, { align: 'center' });
+        pdf.text(`Generated ${generatedStamp}`, w - MARGIN, h - 5, { align: 'right' });
+      }
 
       pdf.save(`${team?.name || 'team'}_${matchday.title}_matchpack.pdf`);
     } catch (err) {
@@ -261,6 +445,82 @@ export default function MatchdayDetail() {
     } finally {
       setExportingPDF(false);
     }
+  };
+
+  // Compact legend for diagram pages: arrow styles + marker styles.
+  const drawLegend = (pdf: JsPDFType, x: number, y: number, w: number) => {
+    const h = 12;
+    pdf.setFillColor(247, 250, 247);
+    pdf.setDrawColor(200, 215, 200);
+    pdf.setLineWidth(0.3);
+    pdf.roundedRect(x, y, w, h, 1.5, 1.5, 'FD');
+
+    pdf.setFont('helvetica', 'bold');
+    pdf.setFontSize(7);
+    pdf.setTextColor(80, 80, 80);
+    pdf.text('LEGEND', x + 3, y + 4.5);
+
+    let cx = x + 22;
+    const drawArrow = (sx: number, sy: number, ex: number, ey: number, dashed: boolean) => {
+      pdf.setLineWidth(1.4);
+      pdf.setDrawColor(11, 31, 18);
+      if (dashed) pdf.setLineDashPattern([1.2, 1], 0);
+      else pdf.setLineDashPattern([], 0);
+      pdf.line(sx, sy, ex, ey);
+      pdf.setLineDashPattern([], 0);
+      // Arrowhead triangle.
+      pdf.setFillColor(11, 31, 18);
+      pdf.triangle(ex, ey, ex - 1.6, ey - 1, ex - 1.6, ey + 1, 'F');
+    };
+    const drawCircle = (px: number, py: number, fill: [number, number, number], label: string) => {
+      pdf.setFillColor(fill[0], fill[1], fill[2]);
+      pdf.setDrawColor(11, 31, 18);
+      pdf.setLineWidth(0.4);
+      pdf.circle(px, py, 1.8, 'FD');
+      pdf.setFont('helvetica', 'normal');
+      pdf.setFontSize(7);
+      pdf.setTextColor(60, 60, 60);
+      pdf.text(label, px + 3, py + 1);
+    };
+
+    const midY = y + h / 2;
+
+    // Pass (solid)
+    drawArrow(cx, midY, cx + 10, midY, false);
+    pdf.setFont('helvetica', 'normal');
+    pdf.setFontSize(7);
+    pdf.setTextColor(60, 60, 60);
+    pdf.text('Pass', cx + 12, midY + 1);
+    cx += 28;
+
+    // Run (dashed)
+    drawArrow(cx, midY, cx + 10, midY, true);
+    pdf.text('Run', cx + 12, midY + 1);
+    cx += 28;
+
+    // Player
+    drawCircle(cx, midY, [6, 95, 70], 'Player');
+    cx += 22;
+
+    // Opponent
+    drawCircle(cx, midY, [127, 29, 29], 'Opponent');
+    cx += 28;
+
+    // Goalkeeper
+    drawCircle(cx, midY, [180, 83, 9], 'Goalkeeper');
+    cx += 30;
+
+    // Ball
+    pdf.setFillColor(255, 255, 255);
+    pdf.setDrawColor(11, 31, 18);
+    pdf.setLineWidth(0.5);
+    pdf.circle(cx, midY, 1.6, 'FD');
+    pdf.setFillColor(11, 31, 18);
+    pdf.circle(cx, midY, 0.5, 'F');
+    pdf.setFont('helvetica', 'normal');
+    pdf.setFontSize(7);
+    pdf.setTextColor(60, 60, 60);
+    pdf.text('Ball', cx + 3, midY + 1);
   };
   const [shareLink, setShareLink] = useState('');
   const [copied, setCopied] = useState(false);

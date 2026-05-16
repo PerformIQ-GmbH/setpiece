@@ -1,5 +1,5 @@
 import Konva from 'konva';
-import { PITCH_THEMES, CORNER_PITCH_THEMES, migrateLegacyBoardData } from '../components/editor/types';
+import { migrateLegacyBoardData } from '../components/editor/types';
 import type { Annotation, AnimationStep, EntityMarker, Point } from '../components/editor/types';
 
 interface RoleData {
@@ -30,13 +30,31 @@ interface RenderOptions {
   height?: number;
 }
 
-const RENDER_W = 800;
-const RENDER_H = 560;
-const PAD = 20;
-const MARKER_R = 14;
+// Landscape A4 aspect (297 / 210 ≈ 1.414). Resolution tuned for crisp print.
+const RENDER_W = 1400;
+const RENDER_H = 990;
+const PAD = 36;
+const MARKER_R = 26;
+
+const PRINT_PITCH = {
+  background: '#ffffff',
+  field: '#b9d8a8',
+  fieldStripe: '#a8cd96',
+  lines: '#0b1f12',
+  lineAlpha: 1,
+  stripeAlpha: 1,
+};
+
+const PRINT_CORNER_PITCH = {
+  background: '#ffffff',
+  field: '#b9d8a8',
+  lines: '#0b1f12',
+  lineWidth: 2.4,
+  thinLine: 1.8,
+};
 
 function drawPremiumPitch(layer: Konva.Layer, w: number, h: number, halfPitch: boolean) {
-  const t = PITCH_THEMES.light;
+  const t = PRINT_PITCH;
   const pitchW = w - PAD * 2;
   const pitchH = h - PAD * 2;
   const cx = w / 2;
@@ -52,51 +70,52 @@ function drawPremiumPitch(layer: Konva.Layer, w: number, h: number, halfPitch: b
   const stripeCount = 12;
   const stripeH = pitchH / stripeCount;
 
-  layer.add(new Konva.Rect({ x: 0, y: 0, width: w, height: h, fill: t.background, cornerRadius: 10 }));
-  layer.add(new Konva.Rect({ x: PAD, y: PAD, width: pitchW, height: pitchH, fill: t.field, cornerRadius: 4 }));
+  layer.add(new Konva.Rect({ x: 0, y: 0, width: w, height: h, fill: t.background }));
+  layer.add(new Konva.Rect({ x: PAD, y: PAD, width: pitchW, height: pitchH, fill: t.field }));
 
   for (let i = 0; i < stripeCount; i++) {
     if (i % 2 === 0) {
       layer.add(new Konva.Rect({
         x: PAD, y: PAD + i * stripeH, width: pitchW, height: stripeH,
-        fill: '#000000', opacity: t.stripeAlpha,
+        fill: t.fieldStripe,
       }));
     }
   }
 
-  layer.add(new Konva.Rect({ x: PAD, y: PAD, width: pitchW, height: pitchH, stroke: t.lines, strokeWidth: 2, opacity: t.lineAlpha, cornerRadius: 2 }));
+  const lw = 2.2;
+  layer.add(new Konva.Rect({ x: PAD, y: PAD, width: pitchW, height: pitchH, stroke: t.lines, strokeWidth: lw }));
 
   if (!halfPitch) {
-    layer.add(new Konva.Line({ points: [PAD, cy, PAD + pitchW, cy], stroke: t.lines, strokeWidth: 1.5, opacity: t.lineAlpha }));
-    layer.add(new Konva.Circle({ x: cx, y: cy, radius: centerR, stroke: t.lines, strokeWidth: 1.5, opacity: t.lineAlpha }));
-    layer.add(new Konva.Circle({ x: cx, y: cy, radius: 4, fill: t.lines, opacity: t.lineAlpha * 0.8 }));
+    layer.add(new Konva.Line({ points: [PAD, cy, PAD + pitchW, cy], stroke: t.lines, strokeWidth: lw }));
+    layer.add(new Konva.Circle({ x: cx, y: cy, radius: centerR, stroke: t.lines, strokeWidth: lw }));
+    layer.add(new Konva.Circle({ x: cx, y: cy, radius: 5, fill: t.lines }));
   }
 
-  layer.add(new Konva.Rect({ x: cx - penBoxW / 2, y: PAD, width: penBoxW, height: penBoxH, stroke: t.lines, strokeWidth: 1.5, opacity: t.lineAlpha }));
-  layer.add(new Konva.Rect({ x: cx - goalBoxW / 2, y: PAD, width: goalBoxW, height: goalBoxH, stroke: t.lines, strokeWidth: 1.5, opacity: t.lineAlpha }));
-  layer.add(new Konva.Circle({ x: cx, y: PAD + penSpotDist, radius: 3, fill: t.lines, opacity: t.lineAlpha * 0.8 }));
+  layer.add(new Konva.Rect({ x: cx - penBoxW / 2, y: PAD, width: penBoxW, height: penBoxH, stroke: t.lines, strokeWidth: lw }));
+  layer.add(new Konva.Rect({ x: cx - goalBoxW / 2, y: PAD, width: goalBoxW, height: goalBoxH, stroke: t.lines, strokeWidth: lw }));
+  layer.add(new Konva.Circle({ x: cx, y: PAD + penSpotDist, radius: 4, fill: t.lines }));
 
-  layer.add(new Konva.Arc({ x: cx, y: PAD + penBoxH, innerRadius: 0, outerRadius: centerR * 0.6, angle: 180, rotation: -90, stroke: t.lines, strokeWidth: 1.5, opacity: t.lineAlpha, fill: 'transparent' }));
+  layer.add(new Konva.Arc({ x: cx, y: PAD + penBoxH, innerRadius: 0, outerRadius: centerR * 0.6, angle: 180, rotation: -90, stroke: t.lines, strokeWidth: lw, fill: 'transparent' }));
 
-  layer.add(new Konva.Arc({ x: PAD, y: PAD, innerRadius: 0, outerRadius: cornerR, angle: 90, rotation: 0, stroke: t.lines, strokeWidth: 1.2, opacity: t.lineAlpha, fill: 'transparent' }));
-  layer.add(new Konva.Arc({ x: PAD + pitchW, y: PAD, innerRadius: 0, outerRadius: cornerR, angle: 90, rotation: 90, stroke: t.lines, strokeWidth: 1.2, opacity: t.lineAlpha, fill: 'transparent' }));
+  layer.add(new Konva.Arc({ x: PAD, y: PAD, innerRadius: 0, outerRadius: cornerR, angle: 90, rotation: 0, stroke: t.lines, strokeWidth: lw, fill: 'transparent' }));
+  layer.add(new Konva.Arc({ x: PAD + pitchW, y: PAD, innerRadius: 0, outerRadius: cornerR, angle: 90, rotation: 90, stroke: t.lines, strokeWidth: lw, fill: 'transparent' }));
 
   if (!halfPitch) {
-    layer.add(new Konva.Rect({ x: cx - penBoxW / 2, y: PAD + pitchH - penBoxH, width: penBoxW, height: penBoxH, stroke: t.lines, strokeWidth: 1.5, opacity: t.lineAlpha }));
-    layer.add(new Konva.Rect({ x: cx - goalBoxW / 2, y: PAD + pitchH - goalBoxH, width: goalBoxW, height: goalBoxH, stroke: t.lines, strokeWidth: 1.5, opacity: t.lineAlpha }));
-    layer.add(new Konva.Circle({ x: cx, y: PAD + pitchH - penSpotDist, radius: 3, fill: t.lines, opacity: t.lineAlpha * 0.8 }));
-    layer.add(new Konva.Arc({ x: cx, y: PAD + pitchH - penBoxH, innerRadius: 0, outerRadius: centerR * 0.6, angle: 180, rotation: 90, stroke: t.lines, strokeWidth: 1.5, opacity: t.lineAlpha, fill: 'transparent' }));
-    layer.add(new Konva.Arc({ x: PAD, y: PAD + pitchH, innerRadius: 0, outerRadius: cornerR, angle: 90, rotation: -90, stroke: t.lines, strokeWidth: 1.2, opacity: t.lineAlpha, fill: 'transparent' }));
-    layer.add(new Konva.Arc({ x: PAD + pitchW, y: PAD + pitchH, innerRadius: 0, outerRadius: cornerR, angle: 90, rotation: 180, stroke: t.lines, strokeWidth: 1.2, opacity: t.lineAlpha, fill: 'transparent' }));
+    layer.add(new Konva.Rect({ x: cx - penBoxW / 2, y: PAD + pitchH - penBoxH, width: penBoxW, height: penBoxH, stroke: t.lines, strokeWidth: lw }));
+    layer.add(new Konva.Rect({ x: cx - goalBoxW / 2, y: PAD + pitchH - goalBoxH, width: goalBoxW, height: goalBoxH, stroke: t.lines, strokeWidth: lw }));
+    layer.add(new Konva.Circle({ x: cx, y: PAD + pitchH - penSpotDist, radius: 4, fill: t.lines }));
+    layer.add(new Konva.Arc({ x: cx, y: PAD + pitchH - penBoxH, innerRadius: 0, outerRadius: centerR * 0.6, angle: 180, rotation: 90, stroke: t.lines, strokeWidth: lw, fill: 'transparent' }));
+    layer.add(new Konva.Arc({ x: PAD, y: PAD + pitchH, innerRadius: 0, outerRadius: cornerR, angle: 90, rotation: -90, stroke: t.lines, strokeWidth: lw, fill: 'transparent' }));
+    layer.add(new Konva.Arc({ x: PAD + pitchW, y: PAD + pitchH, innerRadius: 0, outerRadius: cornerR, angle: 90, rotation: 180, stroke: t.lines, strokeWidth: lw, fill: 'transparent' }));
   }
 
   if (halfPitch) {
-    layer.add(new Konva.Line({ points: [PAD, PAD + pitchH, PAD + pitchW, PAD + pitchH], stroke: t.lines, strokeWidth: 2, opacity: t.lineAlpha * 0.6, dash: [10, 5] }));
+    layer.add(new Konva.Line({ points: [PAD, PAD + pitchH, PAD + pitchW, PAD + pitchH], stroke: t.lines, strokeWidth: lw, dash: [14, 8] }));
   }
 }
 
 function drawCornerPitch(layer: Konva.Layer, w: number, h: number) {
-  const t = CORNER_PITCH_THEMES.light;
+  const t = PRINT_CORNER_PITCH;
   const pitchW = w - PAD * 2;
   const pitchH = h - PAD * 2;
 
@@ -120,14 +139,14 @@ function drawCornerPitch(layer: Konva.Layer, w: number, h: number) {
   const CORNER_ARC_R_REF = 14;
   const cornerR = (CORNER_ARC_R_REF / REF_W) * pitchW;
 
-  layer.add(new Konva.Rect({ x: 0, y: 0, width: w, height: h, fill: t.background, cornerRadius: 6 }));
+  layer.add(new Konva.Rect({ x: 0, y: 0, width: w, height: h, fill: t.background }));
   layer.add(new Konva.Rect({ x: PAD, y: PAD, width: pitchW, height: pitchH, fill: t.field }));
   layer.add(new Konva.Rect({ x: PAD, y: PAD, width: pitchW, height: pitchH, stroke: t.lines, strokeWidth: t.lineWidth }));
 
   layer.add(new Konva.Rect({ x: sx(PEN_LEFT), y: sy(PEN_TOP), width: sw(PEN_RIGHT - PEN_LEFT), height: sh(PEN_BOTTOM - PEN_TOP), stroke: t.lines, strokeWidth: t.lineWidth }));
   layer.add(new Konva.Rect({ x: sx(GOAL_LEFT), y: PAD, width: sw(GOAL_RIGHT - GOAL_LEFT), height: sh(GOAL_BOTTOM), stroke: t.lines, strokeWidth: t.lineWidth }));
-  layer.add(new Konva.Circle({ x: sx(PEN_SPOT_X), y: sy(PEN_SPOT_Y), radius: 3, fill: t.lines }));
-  layer.add(new Konva.Line({ points: [PAD, sy(MID_Y), sx(1), sy(MID_Y)], stroke: t.lines, strokeWidth: t.thinLine, dash: [8, 4] }));
+  layer.add(new Konva.Circle({ x: sx(PEN_SPOT_X), y: sy(PEN_SPOT_Y), radius: 4, fill: t.lines }));
+  layer.add(new Konva.Line({ points: [PAD, sy(MID_Y), sx(1), sy(MID_Y)], stroke: t.lines, strokeWidth: t.thinLine, dash: [12, 6] }));
 
   layer.add(new Konva.Arc({ x: PAD, y: PAD, innerRadius: 0, outerRadius: cornerR, angle: 90, rotation: 0, stroke: t.lines, strokeWidth: t.thinLine, fill: 'transparent' }));
   layer.add(new Konva.Arc({ x: sx(1), y: PAD, innerRadius: 0, outerRadius: cornerR, angle: 90, rotation: 90, stroke: t.lines, strokeWidth: t.thinLine, fill: 'transparent' }));
@@ -142,13 +161,28 @@ function toPixel(pct: Point, w: number, h: number): Point {
   };
 }
 
+// Print-tuned annotation colors: solid, dark, no washed-out tones.
+function tunedColor(input: string, isGhost: boolean): string {
+  if (isGhost) return '#1e3a8a';
+  const c = (input || '').toLowerCase();
+  // Replace washed/bright tones with denser equivalents that pop on green.
+  if (c === '#ffffff' || c === 'white') return '#0b1f12';
+  if (c === '#10b981' || c === '#34d399') return '#065f46';
+  if (c === '#f59e0b' || c === '#fbbf24') return '#b45309';
+  if (c === '#a855f7' || c === '#c084fc') return '#6b21a8';
+  if (c === '#ec4899' || c === '#f472b6') return '#9d174d';
+  if (c === '#06b6d4' || c === '#22d3ee') return '#0e7490';
+  if (c === '#3b82f6' || c === '#60a5fa') return '#1d4ed8';
+  if (c === '#ef4444' || c === '#f87171') return '#b91c1c';
+  return input;
+}
+
 function drawAnnotations(layer: Konva.Layer, annotations: Annotation[], w: number, h: number) {
   const pitchW = w - PAD * 2;
   const pitchH = h - PAD * 2;
 
   for (const ann of annotations) {
-    const ghostColor = ann.ghost ? '#3b82f6' : ann.color;
-    const ghostOpacity = ann.ghost ? 0.4 : 1;
+    const drawColor = tunedColor(ann.color, !!ann.ghost);
     const isRun = ann.type === 'run_path' || ann.type === 'curved_run';
     const isPass = ann.type === 'pass_line' || ann.type === 'curved_cross';
     const effectiveDashed = isRun;
@@ -167,30 +201,60 @@ function drawAnnotations(layer: Konva.Layer, annotations: Annotation[], w: numbe
           flat.push(px.x, px.y);
         }
 
+        // Bold, fully opaque arrows tuned for print legibility.
+        const baseWidth = Math.max(ann.strokeWidth ?? 3, 3);
+        const strokeW = baseWidth * 1.9 + 2.5;
+        const haloW = strokeW + 3;
+        const haloColor = '#0b1f12';
+
         if (effectiveArrowhead) {
+          // Dark halo behind the arrow so it pops against the green pitch.
           layer.add(new Konva.Arrow({
             points: flat,
-            stroke: ghostColor,
-            strokeWidth: ann.strokeWidth,
-            dash: effectiveDashed ? [8, 5] : undefined,
+            stroke: haloColor,
+            strokeWidth: haloW,
+            dash: effectiveDashed ? [16, 10] : undefined,
             tension: isCurved ? 0.4 : undefined,
             lineCap: 'round',
             lineJoin: 'round',
-            pointerLength: 10,
-            pointerWidth: 8,
-            fill: ghostColor,
-            opacity: 0.85 * ghostOpacity,
+            pointerLength: 18,
+            pointerWidth: 16,
+            fill: haloColor,
+            opacity: 1,
+          }));
+          layer.add(new Konva.Arrow({
+            points: flat,
+            stroke: drawColor,
+            strokeWidth: strokeW,
+            dash: effectiveDashed ? [16, 10] : undefined,
+            tension: isCurved ? 0.4 : undefined,
+            lineCap: 'round',
+            lineJoin: 'round',
+            pointerLength: 16,
+            pointerWidth: 14,
+            fill: drawColor,
+            opacity: 1,
           }));
         } else {
           layer.add(new Konva.Line({
             points: flat,
-            stroke: ghostColor,
-            strokeWidth: ann.strokeWidth,
-            dash: effectiveDashed ? [8, 5] : undefined,
+            stroke: haloColor,
+            strokeWidth: haloW,
+            dash: effectiveDashed ? [16, 10] : undefined,
             tension: isCurved ? 0.4 : undefined,
             lineCap: 'round',
             lineJoin: 'round',
-            opacity: 0.85 * ghostOpacity,
+            opacity: 1,
+          }));
+          layer.add(new Konva.Line({
+            points: flat,
+            stroke: drawColor,
+            strokeWidth: strokeW,
+            dash: effectiveDashed ? [16, 10] : undefined,
+            tension: isCurved ? 0.4 : undefined,
+            lineCap: 'round',
+            lineJoin: 'round',
+            opacity: 1,
           }));
         }
         break;
@@ -201,8 +265,8 @@ function drawAnnotations(layer: Konva.Layer, annotations: Annotation[], w: numbe
         const r = (ann.radius ?? 10) / 100 * Math.min(pitchW, pitchH);
         layer.add(new Konva.Circle({
           x: center.x, y: center.y, radius: r,
-          fill: ann.color, opacity: 0.25,
-          stroke: ann.color, strokeWidth: ann.strokeWidth + 0.5, dash: [6, 4],
+          fill: drawColor, opacity: 0.18,
+          stroke: drawColor, strokeWidth: 3, dash: [10, 6],
         }));
         break;
       }
@@ -213,8 +277,8 @@ function drawAnnotations(layer: Konva.Layer, annotations: Annotation[], w: numbe
         layer.add(new Konva.Rect({
           x: Math.min(p1.x, p2.x), y: Math.min(p1.y, p2.y),
           width: Math.abs(p2.x - p1.x), height: Math.abs(p2.y - p1.y),
-          fill: ann.color, opacity: 0.22,
-          stroke: ann.color, strokeWidth: ann.strokeWidth + 0.5, dash: [6, 4], cornerRadius: 3,
+          fill: drawColor, opacity: 0.16,
+          stroke: drawColor, strokeWidth: 3, dash: [10, 6], cornerRadius: 4,
         }));
         break;
       }
@@ -224,8 +288,8 @@ function drawAnnotations(layer: Konva.Layer, annotations: Annotation[], w: numbe
         layer.add(new Konva.Text({
           x: pos.x, y: pos.y,
           text: ann.label || 'Label',
-          fontSize: 13, fontFamily: 'Inter, sans-serif', fontStyle: 'bold',
-          fill: ann.color, opacity: 0.9,
+          fontSize: 22, fontFamily: 'Inter, sans-serif', fontStyle: 'bold',
+          fill: drawColor,
         }));
         break;
       }
@@ -303,6 +367,40 @@ function computeRolePositionAtStep(
   return cur;
 }
 
+function drawTextWithBackdrop(
+  layer: Konva.Layer,
+  text: string,
+  x: number,
+  y: number,
+  opts: { fontSize: number; width: number; fill: string; padY?: number },
+) {
+  const padX = 5;
+  const padY = opts.padY ?? 2;
+  // Approximate text width — we let Konva center inside the given width.
+  layer.add(new Konva.Rect({
+    x: x - opts.width / 2 - padX,
+    y: y - padY,
+    width: opts.width + padX * 2,
+    height: opts.fontSize + padY * 2,
+    fill: '#ffffff',
+    opacity: 0.92,
+    cornerRadius: 4,
+    stroke: '#0b1f12',
+    strokeWidth: 0.8,
+  }));
+  layer.add(new Konva.Text({
+    text,
+    x: x - opts.width / 2,
+    y,
+    width: opts.width,
+    fontSize: opts.fontSize,
+    fontFamily: 'Inter, sans-serif',
+    fontStyle: 'bold',
+    fill: opts.fill,
+    align: 'center',
+  }));
+}
+
 function drawMarkers(
   layer: Konva.Layer,
   roles: RoleData[],
@@ -316,30 +414,32 @@ function drawMarkers(
   w: number,
   h: number,
 ) {
+  // Opponents / GK / ball first, players on top.
   for (const ent of entities) {
     const px = toPixel(ent.position, w, h);
     if (ent.type === 'opponent') {
       const group = new Konva.Group({ x: px.x, y: px.y });
-      group.add(new Konva.Circle({ radius: MARKER_R, fill: '#7f1d1d', stroke: '#dc2626', strokeWidth: 2 }));
+      group.add(new Konva.Circle({ radius: MARKER_R, fill: '#7f1d1d', stroke: '#0b1f12', strokeWidth: 3 }));
       group.add(new Konva.Text({
         text: String(ent.shirtNumber ?? ''),
-        fontSize: 12, fontFamily: 'Inter, sans-serif', fontStyle: 'bold',
+        fontSize: 22, fontFamily: 'Inter, sans-serif', fontStyle: 'bold',
         fill: '#ffffff', align: 'center', verticalAlign: 'middle',
         width: MARKER_R * 2, height: MARKER_R * 2, x: -MARKER_R, y: -MARKER_R,
       }));
       layer.add(group);
     } else if (ent.type === 'goalkeeper') {
       const group = new Konva.Group({ x: px.x, y: px.y });
-      group.add(new Konva.Circle({ radius: MARKER_R, fill: '#92400e', stroke: '#f59e0b', strokeWidth: 2 }));
+      group.add(new Konva.Circle({ radius: MARKER_R, fill: '#b45309', stroke: '#0b1f12', strokeWidth: 3 }));
       group.add(new Konva.Text({
         text: String(ent.shirtNumber ?? 'GK'),
-        fontSize: 11, fontFamily: 'Inter, sans-serif', fontStyle: 'bold',
+        fontSize: 20, fontFamily: 'Inter, sans-serif', fontStyle: 'bold',
         fill: '#ffffff', align: 'center', verticalAlign: 'middle',
         width: MARKER_R * 2, height: MARKER_R * 2, x: -MARKER_R, y: -MARKER_R,
       }));
       layer.add(group);
     } else if (ent.type === 'ball') {
-      layer.add(new Konva.Circle({ x: px.x, y: px.y, radius: 8, fill: '#ffffff', stroke: '#1a1a1a', strokeWidth: 1.5 }));
+      layer.add(new Konva.Circle({ x: px.x, y: px.y, radius: 13, fill: '#ffffff', stroke: '#0b1f12', strokeWidth: 2.5 }));
+      layer.add(new Konva.Circle({ x: px.x, y: px.y, radius: 4, fill: '#0b1f12' }));
     }
   }
 
@@ -352,51 +452,40 @@ function drawMarkers(
 
     const group = new Konva.Group({ x: px.x, y: px.y });
 
-    const fill = isUnassigned ? '#6b7280' : '#059669';
-    const border = isUnassigned ? '#9ca3af' : '#047857';
+    const fill = isUnassigned ? '#6b7280' : '#065f46';
+    const border = '#0b1f12';
 
     group.add(new Konva.Circle({
-      radius: MARKER_R, fill, stroke: border, strokeWidth: 2,
-      dash: isUnassigned ? [4, 3] : undefined,
+      radius: MARKER_R, fill, stroke: border, strokeWidth: 3,
+      dash: isUnassigned ? [6, 4] : undefined,
     }));
 
-    if (!isUnassigned) {
-      group.add(new Konva.Circle({ radius: MARKER_R - 3, fill: 'transparent', stroke: '#10b981', strokeWidth: 0.8, opacity: 0.4 }));
-    }
-
+    const num = isUnassigned ? '?' : String(player?.shirtNumber ?? '');
     group.add(new Konva.Text({
-      text: isUnassigned ? '?' : String(player?.shirtNumber ?? ''),
-      fontSize: isUnassigned ? 15 : (player?.shirtNumber && player.shirtNumber > 9 ? 11 : 13),
+      text: num,
+      fontSize: num.length > 2 ? 18 : 24,
       fontFamily: 'Inter, sans-serif', fontStyle: 'bold',
-      fill: isUnassigned ? '#9ca3af' : '#ffffff',
+      fill: '#ffffff',
       align: 'center', verticalAlign: 'middle',
       width: MARKER_R * 2, height: MARKER_R * 2, x: -MARKER_R, y: -MARKER_R,
     }));
 
-    const labelText = player?.lastName || (isUnassigned ? 'Unassigned' : role.name);
-    group.add(new Konva.Text({
-      text: labelText,
-      fontSize: 9, fontFamily: 'Inter, sans-serif', fontStyle: 'bold',
-      fill: '#065f46', opacity: isUnassigned ? 0.6 : 0.95,
-      align: 'center', width: 80, x: -40, y: MARKER_R + 3,
-    }));
-
-    if (player?.lastName && role.name) {
-      group.add(new Konva.Text({
-        text: role.name,
-        fontSize: 8, fontFamily: 'Inter, sans-serif', fontStyle: '600',
-        fill: '#065f46', opacity: 0.6,
-        align: 'center', width: 70, x: -35, y: MARKER_R + 15,
-      }));
-    }
-
     layer.add(group);
+
+    // Player name label with white backdrop for legibility on the green pitch.
+    const labelText = player?.lastName || (isUnassigned ? 'Unassigned' : role.name);
+    drawTextWithBackdrop(layer, labelText, px.x, px.y + MARKER_R + 4, {
+      fontSize: 14,
+      width: 110,
+      fill: '#0b1f12',
+    });
   }
 }
 
 export interface StepImage {
   stepLabel: string;
   dataUrl: string;
+  aspect: number; // width / height
 }
 
 export function renderSetPieceSteps(options: RenderOptions): StepImage[] {
@@ -447,7 +536,7 @@ export function renderSetPieceSteps(options: RenderOptions): StepImage[] {
       stage.add(contentLayer);
 
       const dataUrl = stage.toDataURL({ pixelRatio: 2, mimeType: 'image/png' });
-      results.push({ stepLabel: step.label || `Step ${si + 1}`, dataUrl });
+      results.push({ stepLabel: step.label || `Step ${si + 1}`, dataUrl, aspect: width / height });
 
       stage.destroy();
     }
