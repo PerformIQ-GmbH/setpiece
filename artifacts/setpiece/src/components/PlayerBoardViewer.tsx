@@ -692,7 +692,7 @@ export function PlayerBoardViewer({
                       x={px.x}
                       y={px.y}
                       isSelected={isActive}
-                      isDimmed={false}
+                      isDimmed={!isActive && !!activeRoleId}
                       isUnassigned={!assignment}
                       label={undefined}
                       lastName={player?.lastName}
@@ -711,15 +711,25 @@ export function PlayerBoardViewer({
         <div className="absolute top-2 left-2 flex flex-col gap-1 px-2 py-1.5 rounded-lg bg-black/55 backdrop-blur-sm border border-white/10 text-[10px] text-white/85 font-medium pointer-events-none">
           <div className="flex items-center gap-1.5">
             <span className="inline-block w-2.5 h-2.5 rounded-full" style={{ background: ACCENT, boxShadow: `0 0 6px ${ACCENT}` }} />
-            <span>You</span>
+            <span>Du</span>
           </div>
           <div className="flex items-center gap-1.5">
             <span className="inline-block w-2.5 h-2.5 rounded-full bg-emerald-700 border border-emerald-500" />
-            <span>Teammate</span>
+            <span>Mitspieler</span>
           </div>
           <div className="flex items-center gap-1.5">
             <span className="inline-block w-2.5 h-2.5 rounded-full bg-red-500/80" />
-            <span>Opponent</span>
+            <span>Gegner</span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <span
+              className="inline-block w-5 h-0"
+              style={{
+                borderTop: `2px dashed ${ACCENT}`,
+                boxShadow: `0 0 4px ${ACCENT}`,
+              }}
+            />
+            <span>Dein Laufweg</span>
           </div>
           <div className="flex items-center gap-1.5">
             <span className="inline-block w-2.5 h-2.5 rounded-full bg-white" />
