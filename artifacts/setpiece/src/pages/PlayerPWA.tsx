@@ -216,7 +216,7 @@ export default function PlayerPWA() {
 
           <div className="flex-1 overflow-y-auto pb-36">
             <div className="p-4">
-              <div className="mb-6 rounded-2xl overflow-hidden border border-white/[0.08] shadow-2xl shadow-black/30">
+              <div className="mb-6">
                 <PlayerBoardViewer
                   roles={activeSetPiece.roles || []}
                   assignments={activeSetPiece.assignments || []}
@@ -224,6 +224,7 @@ export default function PlayerPWA() {
                   category={activeSetPiece.category}
                   activePlayerId={selectedPlayerId || undefined}
                   activeRoleId={activeSetPiece.playerRole?.id}
+                  players={teamData?.players || []}
                 />
               </div>
 
