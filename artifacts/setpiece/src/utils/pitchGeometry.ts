@@ -129,6 +129,22 @@ export function arcToKonva(arc: GeoArc): {
   };
 }
 
+/** Sample a canonical {@link GeoArc} into a flat `[x0, y0, x1, y1, …]` point
+ *  array describing an OPEN arc. Render with a Konva `Line` (no `closed`, no
+ *  `fill`) so only the curve is drawn — never the radial sector edges that a
+ *  Konva `Arc` would stroke from the center to the endpoints. */
+export function arcToPoints(arc: GeoArc, segments = 32): number[] {
+  const rad = (d: number) => d / DEG;
+  const span = arc.endAngle - arc.startAngle;
+  const steps = Math.max(2, segments);
+  const pts: number[] = [];
+  for (let i = 0; i <= steps; i++) {
+    const ang = rad(arc.startAngle + (span * i) / steps);
+    pts.push(arc.x + arc.radius * Math.cos(ang), arc.y + arc.radius * Math.sin(ang));
+  }
+  return pts;
+}
+
 /** Convert a canonical {@link GeoArc} into an SVG path `d` string. */
 export function arcToSvgPath(arc: GeoArc): string {
   const rad = (d: number) => d / DEG;

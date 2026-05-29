@@ -999,7 +999,7 @@ export default function SetPieceEditor() {
               ref={canvasRef}
               className={cn(
                 "absolute inset-0 flex items-center justify-center",
-                isMobile ? "p-0" : isTablet ? "p-1" : "p-2 lg:p-3"
+                isMobile ? "p-0" : isTablet ? "p-1" : "p-1 lg:p-1"
               )}
               data-pitch-container
             >
@@ -1023,10 +1023,10 @@ export default function SetPieceEditor() {
                 </ErrorBoundary>
               )}
               {setPiece.roles.length === 0 && entities.length === 0 && annotations.length === 0 && (
-                <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-10">
+                <div className="absolute inset-x-0 top-0 flex items-start justify-center pointer-events-none z-10 p-3">
                   <div className={cn(
                     "bg-card/80 backdrop-blur-sm border border-border/50 rounded-2xl text-center",
-                    isMobile ? "px-4 py-3 max-w-[200px]" : "px-6 py-4 max-w-[260px]"
+                    isMobile ? "px-3 py-2 max-w-[200px]" : "px-4 py-2.5 max-w-[320px]"
                   )}>
                     <p className="text-sm font-display font-bold text-white mb-1">Empty Board</p>
                     <p className="text-[11px] text-muted-foreground leading-relaxed">

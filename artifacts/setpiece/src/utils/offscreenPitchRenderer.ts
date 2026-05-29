@@ -1,7 +1,7 @@
 import Konva from 'konva';
 import { migrateLegacyBoardData } from '../components/editor/types';
 import type { Annotation, AnimationStep, EntityMarker, Point } from '../components/editor/types';
-import { arcToKonva, buildPitchGeometry } from './pitchGeometry';
+import { arcToPoints, buildPitchGeometry } from './pitchGeometry';
 
 interface RoleData {
   id: string;
@@ -93,14 +93,17 @@ function drawPremiumPitch(layer: Konva.Layer, w: number, h: number, halfPitch: b
   for (const r of g.goalAreas) {
     layer.add(new Konva.Rect({ x: r.x, y: r.y, width: r.width, height: r.height, stroke: t.lines, strokeWidth: lw }));
   }
+  for (const r of g.goals) {
+    layer.add(new Konva.Rect({ x: r.x, y: r.y, width: r.width, height: r.height, fill: t.lines, opacity: 0.35, stroke: t.lines, strokeWidth: lw }));
+  }
   for (const p of g.penaltySpots) {
     layer.add(new Konva.Circle({ x: p.x, y: p.y, radius: 4, fill: t.lines }));
   }
   for (const a of g.penaltyArcs) {
-    layer.add(new Konva.Arc({ ...arcToKonva(a), stroke: t.lines, strokeWidth: lw, fill: 'transparent' }));
+    layer.add(new Konva.Line({ points: arcToPoints(a), stroke: t.lines, strokeWidth: lw, lineCap: 'round', lineJoin: 'round' }));
   }
   for (const a of g.cornerArcs) {
-    layer.add(new Konva.Arc({ ...arcToKonva(a), stroke: t.lines, strokeWidth: lw, fill: 'transparent' }));
+    layer.add(new Konva.Line({ points: arcToPoints(a), stroke: t.lines, strokeWidth: lw, lineCap: 'round', lineJoin: 'round' }));
   }
 }
 
@@ -118,18 +121,21 @@ function drawCornerPitch(layer: Konva.Layer, w: number, h: number) {
   for (const r of g.goalAreas) {
     layer.add(new Konva.Rect({ x: r.x, y: r.y, width: r.width, height: r.height, stroke: t.lines, strokeWidth: t.lineWidth }));
   }
+  for (const r of g.goals) {
+    layer.add(new Konva.Rect({ x: r.x, y: r.y, width: r.width, height: r.height, fill: t.lines, opacity: 0.35, stroke: t.lines, strokeWidth: t.thinLine }));
+  }
   for (const p of g.penaltySpots) {
     layer.add(new Konva.Circle({ x: p.x, y: p.y, radius: 4, fill: t.lines }));
   }
   for (const a of g.penaltyArcs) {
-    layer.add(new Konva.Arc({ ...arcToKonva(a), stroke: t.lines, strokeWidth: t.lineWidth, fill: 'transparent' }));
+    layer.add(new Konva.Line({ points: arcToPoints(a), stroke: t.lines, strokeWidth: t.lineWidth, lineCap: 'round', lineJoin: 'round' }));
   }
   layer.add(new Konva.Line({
     points: [g.halfwayLine.x1, g.halfwayLine.y1, g.halfwayLine.x2, g.halfwayLine.y2],
     stroke: t.lines, strokeWidth: t.thinLine, dash: [12, 6],
   }));
   for (const a of g.cornerArcs) {
-    layer.add(new Konva.Arc({ ...arcToKonva(a), stroke: t.lines, strokeWidth: t.thinLine, fill: 'transparent' }));
+    layer.add(new Konva.Line({ points: arcToPoints(a), stroke: t.lines, strokeWidth: t.thinLine, lineCap: 'round', lineJoin: 'round' }));
   }
 }
 

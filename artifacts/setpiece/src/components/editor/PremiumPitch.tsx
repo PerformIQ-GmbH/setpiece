@@ -1,7 +1,7 @@
-import { Rect, Circle, Line, Arc, Group, Text } from 'react-konva';
+import { Rect, Circle, Line, Group, Text } from 'react-konva';
 import type { PitchTheme } from './types';
 import { PITCH_THEMES } from './types';
-import { arcToKonva, buildPitchGeometry } from '@/utils/pitchGeometry';
+import { arcToPoints, buildPitchGeometry } from '@/utils/pitchGeometry';
 
 interface PremiumPitchProps {
   width: number;
@@ -65,17 +65,18 @@ export function PremiumPitch({ width, height, halfPitch, pad = 24, theme = 'dark
         {g.goalAreas.map((r, i) => (
           <Rect key={`ga-${i}`} x={r.x} y={r.y} width={r.width} height={r.height} stroke={t.lines} strokeWidth={1.5} opacity={t.lineAlpha} />
         ))}
+        {g.goals.map((r, i) => (
+          <Rect key={`goal-${i}`} x={r.x} y={r.y} width={r.width} height={r.height} fill={t.lines} opacity={t.lineAlpha * 0.35} stroke={t.lines} strokeWidth={1.2} />
+        ))}
         {g.penaltySpots.map((p, i) => (
           <Circle key={`ps-${i}`} x={p.x} y={p.y} radius={3} fill={t.lines} opacity={t.lineAlpha * 0.8} />
         ))}
-        {g.penaltyArcs.map((a, i) => {
-          const k = arcToKonva(a);
-          return <Arc key={`par-${i}`} x={k.x} y={k.y} innerRadius={k.innerRadius} outerRadius={k.outerRadius} angle={k.angle} rotation={k.rotation} stroke={t.lines} strokeWidth={1.5} opacity={t.lineAlpha} fill="transparent" />;
-        })}
-        {g.cornerArcs.map((a, i) => {
-          const k = arcToKonva(a);
-          return <Arc key={`ca-${i}`} x={k.x} y={k.y} innerRadius={k.innerRadius} outerRadius={k.outerRadius} angle={k.angle} rotation={k.rotation} stroke={t.lines} strokeWidth={1.2} opacity={t.lineAlpha} fill="transparent" />;
-        })}
+        {g.penaltyArcs.map((a, i) => (
+          <Line key={`par-${i}`} points={arcToPoints(a)} stroke={t.lines} strokeWidth={1.5} opacity={t.lineAlpha} lineCap="round" lineJoin="round" />
+        ))}
+        {g.cornerArcs.map((a, i) => (
+          <Line key={`ca-${i}`} points={arcToPoints(a)} stroke={t.lines} strokeWidth={1.2} opacity={t.lineAlpha} lineCap="round" lineJoin="round" />
+        ))}
 
         <Text
           text="SETPIECE"
