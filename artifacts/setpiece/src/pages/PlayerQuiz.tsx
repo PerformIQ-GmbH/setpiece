@@ -5,8 +5,10 @@ import { Loader2, CheckCircle2, XCircle, ChevronRight, ArrowLeft, Trophy, Rotate
 import { Button } from '@/components/ui/button';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Link } from 'wouter';
+import { useToast } from '@/hooks/use-toast';
 
 export default function PlayerQuiz() {
+  const { toast } = useToast();
   const [, params] = useRoute('/p/:shareToken/quiz');
   const shareToken = params?.shareToken || '';
 
@@ -85,12 +87,20 @@ export default function PlayerQuiz() {
       setResult(res);
     } catch (e) {
       console.error(e);
+      toast({
+        title: 'Could not submit quiz, please try again.',
+        variant: 'destructive',
+      });
     }
   };
 
   if (result) {
     const correctCount = result.correct ?? Math.round((result.score / 100) * result.total);
     const isPassed = result.passed;
+    // TODO: needs per-question result in quiz API
+    // The quiz API only returns the aggregate { passed, score, correct, total }
+    // and strips correctAnswer / per-question correctness, so we cannot render a
+    // per-question review list here without inventing data.
 
     return (
       <div className="min-h-screen bg-[var(--surface-0)] text-white">

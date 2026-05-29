@@ -4,11 +4,11 @@ import { useRoute } from 'wouter';
 import { useGetTeam, useGetReadinessDashboard, useListMatchdays, useListSetPieces, useGetMatchday } from '@workspace/api-client-react';
 import type { ReadinessDashboardPlayersItem, PlayerReadinessStatus } from '@workspace/api-client-react';
 import { Card, CardContent } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 import { StatusBadge } from '@/components/StatusBadge';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
-import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from '@/components/ui/tooltip';
-import { Eye, EyeOff, CheckCircle2, AlertTriangle, Users, Filter, BellRing } from 'lucide-react';
+import { Eye, EyeOff, CheckCircle2, AlertTriangle, Users, Filter, BellRing, Printer, Loader2 } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 function computeWorstStatus(readiness: PlayerReadinessStatus[]): string {
@@ -66,6 +66,138 @@ export default function Readiness() {
     return true;
   });
 
+  const [isExporting, setIsExporting] = useState(false);
+
+  const handleExportPDF = async () => {
+    setIsExporting(true);
+    try {
+      const jsPDFMod = await import('jspdf');
+      const jsPDF = jsPDFMod.default;
+
+      // A4 landscape dimensions (mm).
+      const PW = 297;
+      const PH = 210;
+      const MARGIN = 14;
+      const FOOTER_H = 10;
+      const brandGreen: [number, number, number] = [16, 185, 129];
+      const inkDark: [number, number, number] = [20, 28, 22];
+
+      const pdf = new jsPDF({ orientation: 'l', unit: 'mm', format: 'a4' });
+
+      const teamName = team?.name || 'Team';
+      const generatedStamp = new Date().toLocaleString();
+      const dateLabel = new Date().toLocaleDateString('en-GB', {
+        weekday: 'long', day: 'numeric', month: 'long', year: 'numeric',
+      });
+
+      // White background + brand stripe at top (mirrors MatchdayDetail).
+      pdf.setFillColor(255, 255, 255);
+      pdf.rect(0, 0, PW, PH, 'F');
+      pdf.setFillColor(brandGreen[0], brandGreen[1], brandGreen[2]);
+      pdf.rect(0, 0, PW, 3, 'F');
+
+      // Header.
+      pdf.setFont('helvetica', 'bold');
+      pdf.setTextColor(brandGreen[0], brandGreen[1], brandGreen[2]);
+      pdf.setFontSize(11);
+      pdf.text('SETPIECE  ·  by PerformIQ', MARGIN, 16);
+
+      pdf.setTextColor(inkDark[0], inkDark[1], inkDark[2]);
+      pdf.setFontSize(24);
+      pdf.text(teamName, MARGIN, 30);
+
+      pdf.setFont('helvetica', 'normal');
+      pdf.setFontSize(12);
+      pdf.setTextColor(110, 110, 110);
+      pdf.text('Readiness Overview', MARGIN, 38);
+      pdf.setFontSize(10);
+      pdf.text(dateLabel, MARGIN, 45);
+
+      // Table columns.
+      const cols = [
+        { label: 'Player', x: MARGIN, w: 90 },
+        { label: 'Status', x: MARGIN + 90, w: 45 },
+        { label: 'Ready', x: MARGIN + 135, w: 35 },
+        { label: 'Last Opened', x: MARGIN + 170, w: 45 },
+        { label: 'Views', x: MARGIN + 215, w: 30 },
+      ];
+
+      let y = 56;
+      pdf.setFillColor(brandGreen[0], brandGreen[1], brandGreen[2]);
+      pdf.rect(MARGIN, y - 6, PW - MARGIN * 2, 9, 'F');
+      pdf.setFont('helvetica', 'bold');
+      pdf.setFontSize(10);
+      pdf.setTextColor(255, 255, 255);
+      cols.forEach(c => pdf.text(c.label, c.x + 2, y));
+      y += 9;
+
+      pdf.setFont('helvetica', 'normal');
+      pdf.setFontSize(10);
+
+      filteredPlayers.forEach((entry: ReadinessDashboardPlayersItem, idx: number) => {
+        const p = entry.player;
+        const r = entry.readiness || [];
+        const worstStatus = computeWorstStatus(r);
+        const readyCount = r.filter(rd => rd.status === 'opened' || rd.status === 'passed').length;
+        const totalViews = r.reduce((sum, rd) => sum + (rd.viewCount || 0), 0);
+        const lastOpened = r.reduce((latest: string | null, rd) => {
+          if (!rd.lastOpenedAt) return latest;
+          if (!latest) return rd.lastOpenedAt;
+          return rd.lastOpenedAt > latest ? rd.lastOpenedAt : latest;
+        }, null);
+
+        if (y > PH - FOOTER_H - 8) {
+          pdf.addPage('a4', 'l');
+          pdf.setFillColor(255, 255, 255);
+          pdf.rect(0, 0, PW, PH, 'F');
+          pdf.setFillColor(brandGreen[0], brandGreen[1], brandGreen[2]);
+          pdf.rect(0, 0, PW, 3, 'F');
+          y = 24;
+        }
+
+        if (idx % 2 === 1) {
+          pdf.setFillColor(244, 247, 245);
+          pdf.rect(MARGIN, y - 5, PW - MARGIN * 2, 8, 'F');
+        }
+
+        const name = `${p.shirtNumber ? `#${p.shirtNumber}  ` : ''}${p.firstName} ${p.lastName}`;
+        pdf.setTextColor(inkDark[0], inkDark[1], inkDark[2]);
+        pdf.text(pdf.splitTextToSize(name, cols[0].w - 4)[0], cols[0].x + 2, y);
+        pdf.setTextColor(60, 60, 60);
+        pdf.text(worstStatus.replace(/_/g, ' '), cols[1].x + 2, y);
+        pdf.text(`${readyCount}/${r.length} ready`, cols[2].x + 2, y);
+        pdf.text(lastOpened ? new Date(lastOpened).toLocaleDateString() : 'Never', cols[3].x + 2, y);
+        pdf.text(String(totalViews), cols[4].x + 2, y);
+        y += 8;
+      });
+
+      if (filteredPlayers.length === 0) {
+        pdf.setTextColor(120, 120, 120);
+        pdf.text('No readiness data available.', MARGIN + 2, y);
+      }
+
+      // Footer on every page.
+      const pageCount = pdf.getNumberOfPages();
+      for (let i = 1; i <= pageCount; i++) {
+        pdf.setPage(i);
+        pdf.setDrawColor(220, 220, 220);
+        pdf.setLineWidth(0.3);
+        pdf.line(MARGIN, PH - FOOTER_H, PW - MARGIN, PH - FOOTER_H);
+        pdf.setFont('helvetica', 'normal');
+        pdf.setFontSize(8);
+        pdf.setTextColor(140, 140, 140);
+        pdf.text(`Generated ${generatedStamp}`, MARGIN, PH - FOOTER_H + 5);
+        pdf.text(`Page ${i} of ${pageCount}`, PW - MARGIN, PH - FOOTER_H + 5, { align: 'right' });
+      }
+
+      pdf.save(`${teamName.replace(/\s+/g, '-')}-readiness.pdf`);
+    } catch (err) {
+      console.error('Failed to export readiness PDF', err);
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
   return (
     <CoachLayout teamId={teamId} teamName={team?.name}>
       <div className="mb-6">
@@ -111,14 +243,14 @@ export default function Readiness() {
             value={searchTerm}
             onChange={e => setSearchTerm(e.target.value)}
             placeholder="Search players..."
-            className="w-full pl-10 pr-4 py-2 bg-card border border-border rounded-lg text-sm focus:border-primary outline-none"
+            className="w-full pl-10 pr-4 py-2 bg-[var(--surface-2)] border border-white/[0.06] rounded-xl text-sm focus:border-primary outline-none"
           />
         </div>
         {setPieces && setPieces.length > 0 && (
           <select
             value={setPieceFilter}
             onChange={e => setSetPieceFilter(e.target.value)}
-            className="bg-card border border-border rounded-lg px-3 py-2 text-sm focus:border-primary outline-none text-muted-foreground"
+            className="bg-[var(--surface-2)] border border-white/[0.06] rounded-xl px-3 py-2 text-sm focus:border-primary outline-none text-muted-foreground"
           >
             <option value="all">All Set Pieces</option>
             {setPieces.map(sp => (
@@ -130,7 +262,7 @@ export default function Readiness() {
           <select
             value={matchdayFilter}
             onChange={e => setMatchdayFilter(e.target.value)}
-            className="bg-card border border-border rounded-lg px-3 py-2 text-sm focus:border-primary outline-none text-muted-foreground"
+            className="bg-[var(--surface-2)] border border-white/[0.06] rounded-xl px-3 py-2 text-sm focus:border-primary outline-none text-muted-foreground"
           >
             <option value="all">All Matchdays</option>
             {matchdays.map(md => (
@@ -138,12 +270,76 @@ export default function Readiness() {
             ))}
           </select>
         )}
+        <Button
+          variant="outline"
+          onClick={handleExportPDF}
+          disabled={isExporting}
+          className="border-white/[0.06] bg-[var(--surface-2)] rounded-xl"
+        >
+          {isExporting ? (
+            <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Exporting...</>
+          ) : (
+            <><Printer className="w-4 h-4 mr-2" /> Print / Export</>
+          )}
+        </Button>
       </div>
 
-      <Card className="bg-card border-border overflow-hidden">
+      {/* Mobile: card list (below md) */}
+      <div className="md:hidden space-y-3">
+        {filteredPlayers.map((entry: ReadinessDashboardPlayersItem, idx: number) => {
+          const p = entry.player;
+          const r = entry.readiness || [];
+          const worstStatus = computeWorstStatus(r);
+          const readyCount = r.filter(rd => rd.status === 'opened' || rd.status === 'passed').length;
+          const lastOpened = r.reduce((latest: string | null, rd) => {
+            if (!rd.lastOpenedAt) return latest;
+            if (!latest) return rd.lastOpenedAt;
+            return rd.lastOpenedAt > latest ? rd.lastOpenedAt : latest;
+          }, null);
+
+          return (
+            <motion.div
+              key={p.id}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: idx * 0.02 }}
+              className="rounded-2xl border border-white/[0.06] bg-[var(--surface-1)] p-4"
+            >
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="w-9 h-9 rounded-full bg-[var(--surface-3)] flex items-center justify-center text-xs font-bold text-primary shrink-0">{p.shirtNumber || '?'}</div>
+                  <div className="min-w-0">
+                    <span className="font-semibold text-white block truncate">{p.firstName} {p.lastName}</span>
+                    {p.tags && p.tags.length > 0 && (
+                      <div className="flex gap-1 mt-0.5">
+                        {p.tags.slice(0, 2).map(t => (
+                          <span key={t} className="text-[8px] px-1 py-0 rounded bg-primary/10 text-primary/70">{t.replace(/_/g, ' ')}</span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+                <StatusBadge status={worstStatus} />
+              </div>
+              <div className="flex items-center justify-between mt-3 text-xs text-muted-foreground">
+                <span>{readyCount}/{r.length} ready</span>
+                <span>{lastOpened ? new Date(lastOpened).toLocaleDateString() : 'Never opened'}</span>
+              </div>
+            </motion.div>
+          );
+        })}
+        {filteredPlayers.length === 0 && (
+          <div className="rounded-2xl border border-white/[0.06] bg-[var(--surface-1)] px-4 py-8 text-center text-muted-foreground text-sm">
+            {allPlayers.length === 0 ? 'No readiness data available.' : 'No players match your filters.'}
+          </div>
+        )}
+      </div>
+
+      {/* Desktop: table (md and up) */}
+      <div className="hidden md:block rounded-2xl border border-white/[0.06] bg-[var(--surface-1)] overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-sm text-left">
-            <thead className="bg-secondary/50 text-muted-foreground text-xs uppercase font-bold">
+            <thead className="bg-[var(--surface-2)] text-muted-foreground text-xs uppercase font-bold">
               <tr>
                 <th className="px-4 py-3">Player</th>
                 <th className="px-4 py-3">Status</th>
@@ -152,7 +348,7 @@ export default function Readiness() {
                 <th className="px-4 py-3">Views</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-border">
+            <tbody className="divide-y divide-white/[0.06]">
               {filteredPlayers.map((entry: ReadinessDashboardPlayersItem, idx: number) => {
                 const p = entry.player;
                 const r = entry.readiness || [];
@@ -173,11 +369,11 @@ export default function Readiness() {
                     animate={{ opacity: 1 }}
                     transition={{ delay: idx * 0.02 }}
                     onClick={() => setSelectedPlayer(entry)}
-                    className="hover:bg-secondary/20 cursor-pointer"
+                    className="hover:bg-white/[0.03] cursor-pointer"
                   >
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-full bg-secondary flex items-center justify-center text-xs font-bold text-primary">{p.shirtNumber || '?'}</div>
+                        <div className="w-8 h-8 rounded-full bg-[var(--surface-3)] flex items-center justify-center text-xs font-bold text-primary">{p.shirtNumber || '?'}</div>
                         <div>
                           <span className="font-semibold text-white block">{p.firstName} {p.lastName}</span>
                           {p.tags && p.tags.length > 0 && (
@@ -222,7 +418,7 @@ export default function Readiness() {
             </tbody>
           </table>
         </div>
-      </Card>
+      </div>
 
       <Sheet open={!!selectedPlayer} onOpenChange={(open) => { if (!open) setSelectedPlayer(null); }}>
         <SheetContent side="right" className="w-full sm:max-w-md overflow-y-auto">

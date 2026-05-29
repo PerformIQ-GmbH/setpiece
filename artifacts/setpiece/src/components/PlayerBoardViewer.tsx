@@ -711,15 +711,15 @@ export function PlayerBoardViewer({
         <div className="absolute top-2 left-2 flex flex-col gap-1 px-2 py-1.5 rounded-lg bg-black/55 backdrop-blur-sm border border-white/10 text-[10px] text-white/85 font-medium pointer-events-none">
           <div className="flex items-center gap-1.5">
             <span className="inline-block w-2.5 h-2.5 rounded-full" style={{ background: ACCENT, boxShadow: `0 0 6px ${ACCENT}` }} />
-            <span>Du</span>
+            <span>You</span>
           </div>
           <div className="flex items-center gap-1.5">
             <span className="inline-block w-2.5 h-2.5 rounded-full bg-emerald-700 border border-emerald-500" />
-            <span>Mitspieler</span>
+            <span>Teammate</span>
           </div>
           <div className="flex items-center gap-1.5">
             <span className="inline-block w-2.5 h-2.5 rounded-full bg-red-500/80" />
-            <span>Gegner</span>
+            <span>Opponent</span>
           </div>
           <div className="flex items-center gap-1.5">
             <span
@@ -729,7 +729,7 @@ export function PlayerBoardViewer({
                 boxShadow: `0 0 4px ${ACCENT}`,
               }}
             />
-            <span>Dein Laufweg</span>
+            <span>Your run</span>
           </div>
           <div className="flex items-center gap-1.5">
             <span className="inline-block w-2.5 h-2.5 rounded-full bg-white" />
@@ -770,24 +770,33 @@ export function PlayerBoardViewer({
 
       {/* Playback controls */}
       {hasMultipleSteps && (
-        <div className="mt-2 flex items-center gap-2 px-2 py-2 rounded-xl bg-white/[0.04] border border-white/[0.06]">
-          <button
-            type="button"
-            onClick={togglePlay}
-            className="w-10 h-10 rounded-xl bg-primary/15 border border-primary/30 text-primary flex items-center justify-center active:scale-95 transition-transform"
-            aria-label={playing ? 'Pause' : 'Play'}
-          >
-            {playing ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4 ml-0.5" />}
-          </button>
-          <button
-            type="button"
-            onClick={reset}
-            className="w-10 h-10 rounded-xl bg-white/[0.06] border border-white/[0.06] text-white/80 flex items-center justify-center active:scale-95 transition-transform"
-            aria-label="Restart"
-          >
-            <RotateCcw className="w-4 h-4" />
-          </button>
-          <div className="flex-1 flex items-center gap-1.5 overflow-x-auto">
+        <div className="mt-2 flex flex-col gap-2 px-2 py-2 rounded-xl bg-white/[0.04] border border-white/[0.06]">
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={togglePlay}
+              className="w-10 h-10 rounded-xl bg-primary/15 border border-primary/30 text-primary flex items-center justify-center active:scale-95 transition-transform"
+              aria-label={playing ? 'Pause' : 'Play'}
+            >
+              {playing ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4 ml-0.5" />}
+            </button>
+            <button
+              type="button"
+              onClick={reset}
+              className="w-10 h-10 rounded-xl bg-white/[0.06] border border-white/[0.06] text-white/80 flex items-center justify-center active:scale-95 transition-transform"
+              aria-label="Restart"
+            >
+              <RotateCcw className="w-4 h-4" />
+            </button>
+            {/* Slim read-only progress bar for the current step (no scrubbing) */}
+            <div className="flex-1 h-1 rounded-full bg-white/[0.06] overflow-hidden">
+              <div
+                className="h-full bg-primary rounded-full"
+                style={{ width: `${Math.max(0, Math.min(1, progress)) * 100}%` }}
+              />
+            </div>
+          </div>
+          <div className="flex items-center gap-1.5 overflow-x-auto">
             {steps.map((s, i) => {
               const active = i === stepIndex;
               return (

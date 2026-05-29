@@ -196,7 +196,7 @@ export default function Onboarding() {
               exit={{ opacity: 0, x: -20 }}
               transition={{ duration: 0.2 }}
             >
-              <Card className="bg-card border-border">
+              <Card className="bg-[var(--surface-1)] border-white/[0.06] rounded-2xl">
                 <CardContent className="p-8">
                   <div className="flex items-center gap-3 mb-6">
                     <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
@@ -213,7 +213,7 @@ export default function Onboarding() {
                         value={teamName}
                         onChange={e => setTeamName(e.target.value)}
                         placeholder="e.g. FC Lightning"
-                        className="w-full bg-background border border-border rounded-lg px-4 py-3 text-sm focus:border-primary outline-none"
+                        className="w-full bg-[var(--surface-2)] border border-white/[0.06] rounded-xl px-4 py-3 text-sm focus:border-primary outline-none"
                       />
                     </div>
                   )}
@@ -224,9 +224,9 @@ export default function Onboarding() {
                       <div className="space-y-3 max-h-[280px] overflow-y-auto pr-1">
                         {playerDrafts.map((p, idx) => (
                           <div key={idx} className="flex gap-2 items-center">
-                            <input value={p.firstName} onChange={e => updatePlayer(idx, 'firstName', e.target.value)} placeholder="First" className="flex-1 bg-background border border-border rounded-lg px-3 py-2 text-sm focus:border-primary outline-none" />
-                            <input value={p.lastName} onChange={e => updatePlayer(idx, 'lastName', e.target.value)} placeholder="Last" className="flex-1 bg-background border border-border rounded-lg px-3 py-2 text-sm focus:border-primary outline-none" />
-                            <input value={p.shirtNumber} onChange={e => updatePlayer(idx, 'shirtNumber', e.target.value.replace(/\D/g, ''))} placeholder="#" className="w-14 bg-background border border-border rounded-lg px-2 py-2 text-sm text-center focus:border-primary outline-none" />
+                            <input value={p.firstName} onChange={e => updatePlayer(idx, 'firstName', e.target.value)} placeholder="First" className="flex-1 bg-[var(--surface-2)] border border-white/[0.06] rounded-xl px-3 py-2 text-sm focus:border-primary outline-none" />
+                            <input value={p.lastName} onChange={e => updatePlayer(idx, 'lastName', e.target.value)} placeholder="Last" className="flex-1 bg-[var(--surface-2)] border border-white/[0.06] rounded-xl px-3 py-2 text-sm focus:border-primary outline-none" />
+                            <input value={p.shirtNumber} onChange={e => updatePlayer(idx, 'shirtNumber', e.target.value.replace(/\D/g, ''))} placeholder="#" className="w-14 bg-[var(--surface-2)] border border-white/[0.06] rounded-xl px-2 py-2 text-sm text-center focus:border-primary outline-none" />
                             {playerDrafts.length > 1 && (
                               <button onClick={() => removePlayer(idx)} className="text-muted-foreground hover:text-destructive text-lg leading-none">&times;</button>
                             )}
@@ -248,7 +248,7 @@ export default function Onboarding() {
                             key={t.id}
                             onClick={() => setSelectedTemplateId(t.id)}
                             className={`w-full text-left p-4 rounded-xl border transition-all ${
-                              selectedTemplateId === t.id ? 'bg-primary/10 border-primary/30' : 'bg-secondary/30 border-border hover:border-muted-foreground'
+                              selectedTemplateId === t.id ? 'bg-primary/10 border-primary/30' : 'bg-[var(--surface-2)] border-white/[0.06] hover:border-white/20'
                             }`}
                           >
                             <p className="font-semibold text-sm text-white">{t.title}</p>
@@ -270,12 +270,12 @@ export default function Onboarding() {
                       <p className="text-sm text-muted-foreground mb-2">Assign players to roles. You can change these later in the editor.</p>
                       <div className="space-y-3 max-h-[320px] overflow-y-auto pr-1">
                         {createdRoles.map(role => (
-                          <div key={role.id} className="p-3 rounded-xl bg-secondary/30 border border-border">
+                          <div key={role.id} className="p-3 rounded-xl bg-[var(--surface-2)] border border-white/[0.06]">
                             <label className="text-xs font-bold text-primary uppercase tracking-wider mb-1 block">{role.name}</label>
                             <select
                               value={roleAssignments[role.id] || ''}
                               onChange={e => setRoleAssignments(prev => ({ ...prev, [role.id]: e.target.value }))}
-                              className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm focus:border-primary outline-none"
+                              className="w-full bg-[var(--surface-2)] border border-white/[0.06] rounded-xl px-3 py-2 text-sm focus:border-primary outline-none"
                             >
                               <option value="">Unassigned</option>
                               {createdPlayers.map(p => (
@@ -306,7 +306,7 @@ export default function Onboarding() {
                       </div>
 
                       {setPieceId && selectedTemplate && (
-                        <div className="bg-secondary/50 border border-border rounded-xl p-4 text-left">
+                        <div className="bg-[var(--surface-2)] border border-white/[0.06] rounded-2xl p-4 text-left">
                           <div className="flex items-start gap-3">
                             <div className="w-10 h-10 rounded-lg bg-primary/20 flex items-center justify-center shrink-0">
                               <LayoutTemplate className="w-5 h-5 text-primary" />
