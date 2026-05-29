@@ -33,6 +33,7 @@ const updateSetPieceSchema = z.object({
   boardData: z.any().optional(),
   previewImageUrl: z.string().nullable().optional(),
   coachingNotes: z.string().nullable().optional(),
+  tags: z.array(z.string().min(1).max(40)).max(20).nullable().optional(),
 });
 
 const updateStatusSchema = z.object({
@@ -206,6 +207,7 @@ router.patch("/teams/:teamId/set-pieces/:setPieceId", async (req, res): Promise<
   if (data.boardData !== undefined) updates.boardData = data.boardData;
   if (data.previewImageUrl !== undefined) updates.previewImageUrl = data.previewImageUrl;
   if (data.coachingNotes !== undefined) updates.coachingNotes = data.coachingNotes;
+  if (data.tags !== undefined) updates.tags = data.tags;
 
   if (data.boardData !== undefined) {
     updates.lastSavedBoardSnapshot = existing.boardData;

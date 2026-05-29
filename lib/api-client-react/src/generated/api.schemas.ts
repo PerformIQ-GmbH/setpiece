@@ -237,6 +237,8 @@ export interface SetPiece {
   /** @nullable */
   coachingNotes?: string | null;
   /** @nullable */
+  tags?: string[] | null;
+  /** @nullable */
   createdBy?: string | null;
   /** @nullable */
   updatedBy?: string | null;
@@ -316,6 +318,8 @@ export interface SetPieceDetail {
   /** @nullable */
   coachingNotes?: string | null;
   /** @nullable */
+  tags?: string[] | null;
+  /** @nullable */
   createdBy?: string | null;
   /** @nullable */
   updatedBy?: string | null;
@@ -345,6 +349,7 @@ export interface UpdateSetPieceBody {
   boardData?: UpdateSetPieceBodyBoardData;
   previewImageUrl?: string;
   coachingNotes?: string;
+  tags?: string[];
 }
 
 export type UpdateStatusBodyStatus =

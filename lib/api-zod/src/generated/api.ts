@@ -560,6 +560,7 @@ export const ListSetPiecesResponseItem = zod.object({
   previewImageUrl: zod.string().nullish(),
   versionNumber: zod.number(),
   coachingNotes: zod.string().nullish(),
+  tags: zod.array(zod.string()).nullish(),
   createdBy: zod.string().nullish(),
   updatedBy: zod.string().nullish(),
   createdAt: zod.coerce.date(),
@@ -603,6 +604,7 @@ export const GetSetPieceResponse = zod.object({
   versionNumber: zod.number(),
   lastSavedBoardSnapshot: zod.object({}).passthrough().nullish(),
   coachingNotes: zod.string().nullish(),
+  tags: zod.array(zod.string()).nullish(),
   createdBy: zod.string().nullish(),
   updatedBy: zod.string().nullish(),
   roles: zod.array(
@@ -660,6 +662,7 @@ export const UpdateSetPieceBody = zod.object({
   boardData: zod.object({}).passthrough().optional(),
   previewImageUrl: zod.string().optional(),
   coachingNotes: zod.string().optional(),
+  tags: zod.array(zod.string()).optional(),
 });
 
 export const UpdateSetPieceResponse = zod.object({
@@ -673,6 +676,7 @@ export const UpdateSetPieceResponse = zod.object({
   previewImageUrl: zod.string().nullish(),
   versionNumber: zod.number(),
   coachingNotes: zod.string().nullish(),
+  tags: zod.array(zod.string()).nullish(),
   createdBy: zod.string().nullish(),
   updatedBy: zod.string().nullish(),
   createdAt: zod.coerce.date(),
@@ -710,6 +714,7 @@ export const UpdateSetPieceStatusResponse = zod.object({
   previewImageUrl: zod.string().nullish(),
   versionNumber: zod.number(),
   coachingNotes: zod.string().nullish(),
+  tags: zod.array(zod.string()).nullish(),
   createdBy: zod.string().nullish(),
   updatedBy: zod.string().nullish(),
   createdAt: zod.coerce.date(),
@@ -982,6 +987,7 @@ export const GetMatchdayResponse = zod.object({
       previewImageUrl: zod.string().nullish(),
       versionNumber: zod.number(),
       coachingNotes: zod.string().nullish(),
+      tags: zod.array(zod.string()).nullish(),
       createdBy: zod.string().nullish(),
       updatedBy: zod.string().nullish(),
       createdAt: zod.coerce.date(),
@@ -1675,6 +1681,7 @@ export const GetMatchPackDataResponse = zod.object({
     previewImageUrl: zod.string().nullish(),
     versionNumber: zod.number(),
     coachingNotes: zod.string().nullish(),
+    tags: zod.array(zod.string()).nullish(),
     createdBy: zod.string().nullish(),
     updatedBy: zod.string().nullish(),
     createdAt: zod.coerce.date(),

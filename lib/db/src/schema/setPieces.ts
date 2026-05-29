@@ -20,6 +20,7 @@ export const setPiecesTable = pgTable("set_pieces", {
   versionNumber: integer("version_number").notNull().default(1),
   lastSavedBoardSnapshot: jsonb("last_saved_board_snapshot").$type<Record<string, unknown>>(),
   coachingNotes: text("coaching_notes"),
+  tags: text("tags").array(),
   createdBy: varchar("created_by").references(() => usersTable.id),
   updatedBy: varchar("updated_by").references(() => usersTable.id),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),

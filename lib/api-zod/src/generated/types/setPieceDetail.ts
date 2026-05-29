@@ -28,6 +28,8 @@ export interface SetPieceDetail {
   /** @nullable */
   coachingNotes?: string | null;
   /** @nullable */
+  tags?: string[] | null;
+  /** @nullable */
   createdBy?: string | null;
   /** @nullable */
   updatedBy?: string | null;

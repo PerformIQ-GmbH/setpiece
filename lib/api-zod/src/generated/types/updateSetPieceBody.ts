@@ -13,4 +13,5 @@ export interface UpdateSetPieceBody {
   boardData?: UpdateSetPieceBodyBoardData;
   previewImageUrl?: string;
   coachingNotes?: string;
+  tags?: string[];
 }
