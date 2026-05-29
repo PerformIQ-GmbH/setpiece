@@ -5,7 +5,10 @@ import { useGetTeam, useGetReadinessDashboard, useListMatchdays, useListSetPiece
 import type { ReadinessDashboardPlayersItem, PlayerReadinessStatus } from '@workspace/api-client-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { StatusBadge } from '@/components/StatusBadge';
-import { Eye, EyeOff, CheckCircle2, AlertTriangle, Users, Filter, ChevronDown } from 'lucide-react';
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
+import { Button } from '@/components/ui/button';
+import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from '@/components/ui/tooltip';
+import { Eye, EyeOff, CheckCircle2, AlertTriangle, Users, Filter, BellRing } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 function computeWorstStatus(readiness: PlayerReadinessStatus[]): string {
@@ -29,6 +32,9 @@ export default function Readiness() {
   const [setPieceFilter, setSetPieceFilter] = useState<string>('all');
   const [matchdayFilter, setMatchdayFilter] = useState<string>('all');
   const [searchTerm, setSearchTerm] = useState('');
+  const [selectedPlayer, setSelectedPlayer] = useState<ReadinessDashboardPlayersItem | null>(null);
+
+  const setPieceTitleById = (id: string) => setPieces?.find(sp => sp.id === id)?.title || 'Untitled set piece';
 
   const { data: selectedMatchday } = useGetMatchday(teamId, matchdayFilter !== 'all' ? matchdayFilter : '__none__');
 
@@ -161,7 +167,14 @@ export default function Readiness() {
                 }, null);
 
                 return (
-                  <motion.tr key={p.id} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: idx * 0.02 }} className="hover:bg-secondary/20">
+                  <motion.tr
+                    key={p.id}
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ delay: idx * 0.02 }}
+                    onClick={() => setSelectedPlayer(entry)}
+                    className="hover:bg-secondary/20 cursor-pointer"
+                  >
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-3">
                         <div className="w-8 h-8 rounded-full bg-secondary flex items-center justify-center text-xs font-bold text-primary">{p.shirtNumber || '?'}</div>
@@ -210,6 +223,75 @@ export default function Readiness() {
           </table>
         </div>
       </Card>
+
+      <Sheet open={!!selectedPlayer} onOpenChange={(open) => { if (!open) setSelectedPlayer(null); }}>
+        <SheetContent side="right" className="w-full sm:max-w-md overflow-y-auto">
+          {selectedPlayer && (() => {
+            const p = selectedPlayer.player;
+            const rows = selectedPlayer.readiness || [];
+            const sortedRows = [...rows].sort((a, b) =>
+              setPieceTitleById(a.setPieceId).localeCompare(setPieceTitleById(b.setPieceId))
+            );
+            return (
+              <>
+                <SheetHeader>
+                  <div className="flex items-center gap-3 text-left">
+                    <div className="w-11 h-11 rounded-2xl bg-secondary flex items-center justify-center text-sm font-bold text-primary shrink-0">
+                      {p.shirtNumber || '?'}
+                    </div>
+                    <div>
+                      <SheetTitle>{p.firstName} {p.lastName}</SheetTitle>
+                      <SheetDescription>Per-set-piece readiness</SheetDescription>
+                    </div>
+                  </div>
+                </SheetHeader>
+
+                <div className="mt-6 space-y-3">
+                  {sortedRows.length === 0 && (
+                    <div className="rounded-2xl border border-border bg-secondary/20 p-6 text-center text-sm text-muted-foreground">
+                      No set-piece activity yet.
+                    </div>
+                  )}
+                  {sortedRows.map((rd) => (
+                    <div key={rd.id} className="rounded-2xl border border-border bg-secondary/20 p-4">
+                      <div className="flex items-start justify-between gap-3 mb-3">
+                        <span className="font-semibold text-white text-sm leading-snug">{setPieceTitleById(rd.setPieceId)}</span>
+                        <StatusBadge status={rd.status} className="shrink-0" />
+                      </div>
+                      <div className="flex items-center justify-between text-xs text-muted-foreground">
+                        <span className="inline-flex items-center gap-1.5">
+                          <Eye className="h-3.5 w-3.5" />
+                          {rd.viewCount || 0} view{(rd.viewCount || 0) !== 1 ? 's' : ''}
+                        </span>
+                        <span>
+                          {rd.lastOpenedAt ? `Last opened ${new Date(rd.lastOpenedAt).toLocaleDateString()}` : 'Never opened'}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="mt-6 pt-4 border-t border-border">
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        {/* TODO: needs reminder endpoint in api-spec */}
+                        <span className="inline-block w-full">
+                          <Button disabled className="w-full" variant="outline">
+                            <BellRing className="h-4 w-4 mr-2" />
+                            Remind player
+                          </Button>
+                        </span>
+                      </TooltipTrigger>
+                      <TooltipContent>Coming soon</TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                </div>
+              </>
+            );
+          })()}
+        </SheetContent>
+      </Sheet>
     </CoachLayout>
   );
 }

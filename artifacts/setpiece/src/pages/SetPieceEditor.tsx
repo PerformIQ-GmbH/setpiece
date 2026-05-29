@@ -462,8 +462,6 @@ export default function SetPieceEditor() {
       import('@/utils/offscreenPitchRenderer'),
     ]);
     const jsPDF = jsPDFMod.default;
-    const pw = 210;
-    const ph = 297;
 
     const stepImages = renderSetPieceSteps({
       boardData: (setPiece.boardData || {}) as Record<string, unknown>,
@@ -485,81 +483,157 @@ export default function SetPieceEditor() {
       category: setPiece.category,
     });
 
-    const pdf = new jsPDF('p', 'mm', 'a4');
+    // Landscape A4: 297mm x 210mm.
+    const pdf = new jsPDF('l', 'mm', 'a4');
+    const PW = 297;
+    const PH = 210;
+    const MARGIN = 14;
+    const FOOTER_H = 12;
+
+    const brandGreen: [number, number, number] = [16, 185, 129];
+    const inkDark: [number, number, number] = [30, 30, 30];
 
     const addPageBg = () => {
       pdf.setFillColor(255, 255, 255);
-      pdf.rect(0, 0, pw, ph, 'F');
+      pdf.rect(0, 0, PW, PH, 'F');
     };
 
+    // ─── HEADER BAND (first page) ──────────────────────────────────────
     addPageBg();
 
-    pdf.setFillColor(16, 185, 129);
-    pdf.rect(0, 0, pw, 3, 'F');
+    pdf.setFillColor(brandGreen[0], brandGreen[1], brandGreen[2]);
+    pdf.rect(0, 0, PW, 3, 'F');
 
-    pdf.setTextColor(16, 185, 129);
+    pdf.setFont('helvetica', 'normal');
+    pdf.setTextColor(brandGreen[0], brandGreen[1], brandGreen[2]);
     pdf.setFontSize(10);
-    pdf.text('SETPIECE by PerformIQ', pw / 2, 14, { align: 'center' });
+    pdf.text('SETPIECE by PerformIQ', PW / 2, 16, { align: 'center' });
 
-    pdf.setTextColor(30, 30, 30);
-    pdf.setFontSize(20);
-    pdf.text(setPiece.title || 'Set Piece', pw / 2, 24, { align: 'center' });
+    pdf.setFont('helvetica', 'bold');
+    pdf.setTextColor(inkDark[0], inkDark[1], inkDark[2]);
+    pdf.setFontSize(26);
+    pdf.text(setPiece.title || 'Set Piece', PW / 2, 30, { align: 'center' });
 
-    pdf.setFontSize(10);
-    pdf.setTextColor(100, 100, 100);
-    pdf.text(setPiece.category?.replace(/_/g, ' ').toUpperCase() || '', pw / 2, 31, { align: 'center' });
+    pdf.setFont('helvetica', 'normal');
+    pdf.setFontSize(11);
+    pdf.setTextColor(120, 120, 120);
+    pdf.text(setPiece.category?.replace(/_/g, ' ').toUpperCase() || '', PW / 2, 38, { align: 'center' });
 
-    let yOff = 38;
-    const imgWidth = 170;
-    const imgAspect = 560 / 800;
-    const imgHeight = imgWidth * imgAspect;
+    pdf.setDrawColor(220, 230, 220);
+    pdf.setLineWidth(0.3);
+    pdf.line(MARGIN, 44, PW - MARGIN, 44);
 
+    // ─── DIAGRAM PAGES (one landscape page per step) ───────────────────
+    // The first step shares the header page; subsequent steps get their own page.
     for (let i = 0; i < stepImages.length; i++) {
-      const neededHeight = 10 + imgHeight + 4;
-      if (yOff + neededHeight > ph - 15) {
+      const step = stepImages[i];
+      let topPad: number;
+
+      if (i === 0) {
+        // Below the header band on the first page.
+        topPad = 50;
+      } else {
         pdf.addPage();
         addPageBg();
-        yOff = 15;
+        topPad = 22;
       }
 
-      pdf.setTextColor(16, 185, 129);
-      pdf.setFontSize(11);
-      pdf.text(stepImages[i].stepLabel, 20, yOff);
-      yOff += 5;
+      // Step label above the diagram.
+      pdf.setFont('helvetica', 'bold');
+      pdf.setFontSize(16);
+      pdf.setTextColor(brandGreen[0], brandGreen[1], brandGreen[2]);
+      pdf.text(step.stepLabel, PW / 2, topPad, { align: 'center' });
 
-      pdf.addImage(stepImages[i].dataUrl, 'PNG', 20, yOff, imgWidth, imgHeight);
-      yOff += imgHeight + 6;
+      const imgTop = topPad + 5;
+      const availW = PW - MARGIN * 2;
+      const availH = PH - imgTop - FOOTER_H - 4;
+      const aspect = step.aspect || (800 / 560);
+      let imgW = availW;
+      let imgH = imgW / aspect;
+      if (imgH > availH) {
+        imgH = availH;
+        imgW = imgH * aspect;
+      }
+      const imgX = (PW - imgW) / 2;
+      pdf.addImage(step.dataUrl, 'PNG', imgX, imgTop, imgW, imgH);
     }
 
-    const ensureSpace = (needed: number) => {
-      if (yOff + needed > ph - 15) {
-        pdf.addPage();
-        addPageBg();
-        yOff = 15;
-      }
-    };
+    // ─── ROLES & ASSIGNMENTS PAGE ──────────────────────────────────────
+    pdf.addPage();
+    addPageBg();
 
-    ensureSpace(14);
-    pdf.setTextColor(30, 30, 30);
-    pdf.setFontSize(12);
-    pdf.text('Roles & Assignments', 20, yOff);
-    yOff += 8;
-    pdf.setFontSize(9);
-    setPiece.roles?.forEach((role: SetPieceRole) => {
-      ensureSpace(8);
+    pdf.setFont('helvetica', 'bold');
+    pdf.setFontSize(20);
+    pdf.setTextColor(inkDark[0], inkDark[1], inkDark[2]);
+    pdf.text('Roles & Assignments', PW / 2, 24, { align: 'center' });
+
+    const roles = setPiece.roles || [];
+    const tableW = 180;
+    const tableX = (PW - tableW) / 2;
+    const colRoleW = tableW * 0.62;
+    const headerH = 11;
+    const rowH = 10;
+    let ty = 36;
+
+    // Header row.
+    pdf.setFillColor(brandGreen[0], brandGreen[1], brandGreen[2]);
+    pdf.rect(tableX, ty, tableW, headerH, 'F');
+    pdf.setFont('helvetica', 'bold');
+    pdf.setFontSize(11);
+    pdf.setTextColor(255, 255, 255);
+    pdf.text('ROLE', tableX + 4, ty + 7.5);
+    pdf.text('PLAYER', tableX + colRoleW + 4, ty + 7.5);
+    ty += headerH;
+
+    pdf.setFontSize(11);
+    roles.forEach((role: SetPieceRole, ri: number) => {
       const assignment = setPiece.assignments?.find((a: RoleAssignment) => a.roleId === role.id);
       const player = assignment ? players?.find(p => p.id === assignment.playerId) : null;
-      const playerName = player ? `${player.firstName} ${player.lastName} (#${player.shirtNumber || '?'})` : 'Unassigned';
-      pdf.setTextColor(16, 185, 129);
-      pdf.text(role.name, 20, yOff);
-      pdf.setTextColor(80, 80, 80);
-      pdf.text(playerName, 80, yOff);
-      yOff += 6;
+      const playerLabel = player ? `#${player.shirtNumber ?? '?'}` : 'Unassigned';
+
+      if (ri % 2 === 0) {
+        pdf.setFillColor(248, 250, 248);
+        pdf.rect(tableX, ty, tableW, rowH, 'F');
+      }
+      pdf.setFont('helvetica', 'normal');
+      pdf.setTextColor(inkDark[0], inkDark[1], inkDark[2]);
+      pdf.text(role.name, tableX + 4, ty + 6.5);
+      pdf.setFont('helvetica', 'bold');
+      pdf.setTextColor(player ? brandGreen[0] : 150, player ? brandGreen[1] : 150, player ? brandGreen[2] : 150);
+      pdf.text(playerLabel, tableX + colRoleW + 4, ty + 6.5);
+      ty += rowH;
     });
 
-    pdf.setFontSize(7);
-    pdf.setTextColor(150, 150, 150);
-    pdf.text('SETPIECE by PerformIQ', pw / 2, ph - 8, { align: 'center' });
+    if (roles.length === 0) {
+      pdf.setFont('helvetica', 'normal');
+      pdf.setTextColor(150, 150, 150);
+      pdf.text('No roles defined.', tableX + 4, ty + 6.5);
+      ty += rowH;
+    }
+
+    // Table border + column divider.
+    pdf.setDrawColor(220, 230, 220);
+    pdf.setLineWidth(0.3);
+    const tableBodyTop = 36 + headerH;
+    const tableBottom = ty;
+    pdf.rect(tableX, 36, tableW, tableBottom - 36);
+    pdf.line(tableX + colRoleW, tableBodyTop, tableX + colRoleW, tableBottom);
+
+    // ─── FOOTERS (every page) ──────────────────────────────────────────
+    const generatedStamp = new Date().toLocaleDateString();
+    const totalPages = pdf.getNumberOfPages();
+    for (let p = 1; p <= totalPages; p++) {
+      pdf.setPage(p);
+      pdf.setDrawColor(220, 230, 220);
+      pdf.setLineWidth(0.3);
+      pdf.line(MARGIN, PH - FOOTER_H, PW - MARGIN, PH - FOOTER_H);
+      pdf.setFont('helvetica', 'normal');
+      pdf.setFontSize(8);
+      pdf.setTextColor(140, 140, 140);
+      pdf.text('SETPIECE by PerformIQ', MARGIN, PH - 5);
+      pdf.text(generatedStamp, PW - MARGIN, PH - 5, { align: 'right' });
+    }
+
     pdf.save(`${setPiece.title || 'setpiece'}.pdf`);
   };
 
