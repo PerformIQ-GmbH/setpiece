@@ -1,18 +1,21 @@
 import { useEffect, useState } from 'react';
 import { CoachLayout } from '@/components/Layout';
 import { useRoute, Link } from 'wouter';
-import { useGetTeam, useGetMatchday, useListSetPieces, useListPlayers, useAddSetPieceToMatchday, useRemoveSetPieceFromMatchday, useCreateShareLink, getSetPiece } from '@workspace/api-client-react';
-import type { Player, CreateShareLinkBody, SetPieceRole, RoleAssignment } from '@workspace/api-client-react';
+import { useGetTeam, useGetMatchday, useListSetPieces, useListPlayers, useAddSetPieceToMatchday, useRemoveSetPieceFromMatchday, useCreateShareLink, useListShareLinks, getSetPiece } from '@workspace/api-client-react';
+import type { Player, CreateShareLinkBody, SetPieceRole, RoleAssignment, SetPieceDetail } from '@workspace/api-client-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Progress } from '@/components/ui/progress';
 import { StatusBadge } from '@/components/StatusBadge';
+import { Pitch } from '@/components/Pitch';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Plus, Trash2, Share2, QrCode, ArrowLeft, LayoutDashboard, Copy, Check, Clock, Users, FileDown, Loader2 } from 'lucide-react';
+import { Plus, Trash2, Share2, QrCode, ArrowLeft, LayoutDashboard, Copy, Check, Clock, Users, FileDown, Loader2, Pencil, CheckCircle2, AlertTriangle, CircleDashed } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { QRCodeSVG } from 'qrcode.react';
 import type { jsPDF as JsPDFType } from 'jspdf';
 import { MatchdayAssistant } from '@/components/MatchdayAssistant';
 import { MatchdaySquadSection } from '@/components/MatchdaySquadSection';
+import { cn } from '@/lib/utils';
 
 export default function MatchdayDetail() {
   const [, params] = useRoute('/teams/:teamId/matchdays/:matchdayId');
@@ -22,6 +25,7 @@ export default function MatchdayDetail() {
   const { data: matchday, refetch } = useGetMatchday(teamId, matchdayId);
   const { data: allSetPieces } = useListSetPieces(teamId);
   const { data: players } = useListPlayers(teamId);
+  const { data: shareLinks } = useListShareLinks(teamId);
   const addToMatchday = useAddSetPieceToMatchday();
   const removeFromMatchday = useRemoveSetPieceFromMatchday();
   const createShareLink = useCreateShareLink();
@@ -50,6 +54,36 @@ export default function MatchdayDetail() {
     setBenchIds(new Set(matchday.squad?.bench ?? []));
     setHydratedFor(persistedKey);
   }, [matchday, hydratedFor]);
+
+  // Fetch full details (roles + assignments + board positions) for each set
+  // piece in the pack so we can derive completeness status and render the
+  // compact list rows. Derived from existing endpoints — no new backend.
+  const [detailMap, setDetailMap] = useState<Map<string, SetPieceDetail>>(new Map());
+  const [detailsLoading, setDetailsLoading] = useState(false);
+  const pieceIdsKey = (matchday?.setPieces ?? []).map(sp => sp.id).join(',');
+
+  useEffect(() => {
+    const pieces = matchday?.setPieces ?? [];
+    if (pieces.length === 0) {
+      setDetailMap(new Map());
+      setDetailsLoading(false);
+      return;
+    }
+    let cancelled = false;
+    setDetailsLoading(true);
+    (async () => {
+      const results = await Promise.allSettled(pieces.map(sp => getSetPiece(teamId, sp.id)));
+      if (cancelled) return;
+      const map = new Map<string, SetPieceDetail>();
+      results.forEach((result, idx) => {
+        if (result.status === 'fulfilled') map.set(pieces[idx].id, result.value);
+      });
+      setDetailMap(map);
+      setDetailsLoading(false);
+    })();
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [teamId, pieceIdsKey]);
 
   const handleExportMatchPack = async () => {
     if (!matchday) return;
@@ -581,6 +615,41 @@ export default function MatchdayDetail() {
     );
   };
 
+  // ─── Pack completeness (derived from existing data only) ──────────────────
+  const packPieces = matchday?.setPieces ?? [];
+  const pieceStats = packPieces.map(sp => {
+    const detail = detailMap.get(sp.id);
+    const roles = detail?.roles ?? [];
+    const assignments = detail?.assignments ?? [];
+    const totalRoles = roles.length;
+    const assignedRoles = roles.filter(r => assignments.some(a => a.roleId === r.id && a.playerId)).length;
+    const missing = totalRoles - assignedRoles;
+    const isOffensive = sp.category.startsWith('offensive');
+    return { sp, detail, roles, totalRoles, assignedRoles, missing, isOffensive, loaded: !!detail };
+  });
+
+  const totalRolesAll = pieceStats.reduce((sum, p) => sum + p.totalRoles, 0);
+  const assignedRolesAll = pieceStats.reduce((sum, p) => sum + p.assignedRoles, 0);
+  const openRoles = totalRolesAll - assignedRolesAll;
+  const notReadyCount = packPieces.filter(sp => sp.status !== 'ready').length;
+
+  const hasSquad = (matchday?.squad?.starters?.length ?? 0) > 0;
+  const hasPieces = packPieces.length > 0;
+  const rolesComplete = totalRolesAll > 0 && openRoles === 0;
+  const isShared = (shareLinks ?? []).some(l => l.matchdayScope === matchdayId && !l.revokedAt);
+  const readinessComplete = hasPieces && notReadyCount === 0;
+
+  const packSteps = [
+    { key: 'squad', label: 'Squad selected', done: hasSquad, open: hasSquad ? null : 'Squad not set' },
+    { key: 'pieces', label: 'Set pieces added', done: hasPieces, open: hasPieces ? null : 'No set pieces' },
+    { key: 'roles', label: 'Roles assigned', done: rolesComplete, open: rolesComplete ? null : (totalRolesAll === 0 ? 'No roles yet' : `${openRoles} role${openRoles === 1 ? '' : 's'} open`) },
+    { key: 'shared', label: 'Player pack shared', done: isShared, open: isShared ? null : 'Not shared' },
+    { key: 'readiness', label: 'Readiness', done: readinessComplete, open: readinessComplete ? null : (!hasPieces ? 'No set pieces' : `${notReadyCount} not ready`) },
+  ];
+  const completedSteps = packSteps.filter(s => s.done).length;
+  const packPercent = Math.round((completedSteps / packSteps.length) * 100);
+  const openItems = packSteps.filter(s => !s.done).map(s => s.open as string);
+
   return (
     <CoachLayout teamId={teamId} teamName={team?.name}>
       <div className="flex items-center gap-4 mb-8">
@@ -607,6 +676,45 @@ export default function MatchdayDetail() {
           </Button>
         </div>
       </div>
+
+      {matchday && (
+        <Card className="mb-6 border-white/[0.08]">
+          <CardContent className="p-5">
+            <div className="flex items-end justify-between gap-4 mb-3">
+              <div className="min-w-0">
+                <p className="section-label">Matchday Pack Readiness</p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  {completedSteps} of {packSteps.length} steps complete
+                  {openItems.length > 0 && (
+                    <> · <span className="text-amber-400">{openItems.join(' · ')}</span></>
+                  )}
+                </p>
+              </div>
+              <span className="text-2xl font-display font-bold text-white tabular-nums shrink-0">{packPercent}%</span>
+            </div>
+            <Progress value={packPercent} className="mb-4" />
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2">
+              {packSteps.map(step => (
+                <div
+                  key={step.key}
+                  className={cn(
+                    'flex items-center gap-2 rounded-xl px-3 py-2 border',
+                    step.done ? 'bg-emerald-500/[0.08] border-emerald-500/20' : 'bg-white/[0.02] border-white/[0.06]'
+                  )}
+                >
+                  {step.done
+                    ? <CheckCircle2 className="h-4 w-4 text-emerald-400 shrink-0" />
+                    : <CircleDashed className="h-4 w-4 text-muted-foreground/50 shrink-0" />}
+                  <div className="min-w-0">
+                    <p className={cn('text-xs font-medium truncate', step.done ? 'text-white' : 'text-muted-foreground')}>{step.label}</p>
+                    {step.open && <p className="text-[10px] text-amber-400/80 truncate">{step.open}</p>}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {matchday && players && (
         <>
@@ -660,35 +768,70 @@ export default function MatchdayDetail() {
           </CardContent>
         </Card>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {matchday?.setPieces?.map((sp, idx) => (
-            <motion.div key={sp.id} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: idx * 0.05 }}>
-              <Card className="overflow-hidden group hover:border-white/[0.12] transition-all">
-                <div className="aspect-[16/9] bg-emerald-950/30 border-b border-white/[0.06] relative flex items-center justify-center">
-                  {sp.previewImageUrl ? (
-                    <img src={sp.previewImageUrl} alt={sp.title} className="w-full h-full object-cover" />
-                  ) : (
-                    <LayoutDashboard className="h-8 w-8 text-muted-foreground/20" />
-                  )}
-                </div>
-                <CardContent className="p-5">
-                  <div className="flex justify-between items-start mb-2">
-                    <h3 className="font-bold text-sm text-white group-hover:text-primary/90 transition-colors">{sp.title}</h3>
-                    <StatusBadge status={sp.status} />
+        <div className="space-y-2">
+          {pieceStats.map(({ sp, detail, totalRoles, assignedRoles, missing, isOffensive, loaded }, idx) => {
+            const ready = loaded && totalRoles > 0 && missing === 0 && sp.status === 'ready';
+            return (
+              <motion.div key={sp.id} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: idx * 0.04 }}>
+                <Card className="overflow-hidden group hover:border-white/[0.12] transition-all">
+                  <div className="flex items-center gap-3 p-3 pr-3 sm:pr-4">
+                    {/* Pitch thumbnail (shared geometry renderer) */}
+                    <div className="w-12 shrink-0">
+                      <Pitch
+                        roles={(detail?.roles ?? []).map(r => ({ id: r.id, name: r.name, startPosition: r.startPosition }))}
+                        halfPitch
+                        className="aspect-[3/4] rounded-lg shadow-none border-white/[0.08]"
+                      />
+                    </div>
+
+                    {/* Name + category + type badge */}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <h3 className="font-bold text-sm text-white truncate group-hover:text-primary/90 transition-colors">{sp.title}</h3>
+                        <span className={cn(
+                          'px-1.5 py-0.5 rounded-md text-[9px] font-bold uppercase tracking-wider shrink-0 border',
+                          isOffensive ? 'bg-primary/10 text-primary border-primary/25' : 'bg-sky-500/10 text-sky-400 border-sky-500/25'
+                        )}>{isOffensive ? 'Off' : 'Def'}</span>
+                      </div>
+                      <p className="text-xs text-muted-foreground capitalize truncate mt-0.5">{sp.category.replace(/_/g, ' ')}</p>
+                    </div>
+
+                    {/* Assigned roles fraction */}
+                    <div className="hidden sm:flex flex-col items-end shrink-0 w-14">
+                      <span className="text-[10px] uppercase tracking-wider text-muted-foreground/60">Roles</span>
+                      <span className="text-sm font-bold text-white tabular-nums">{loaded ? `${assignedRoles}/${totalRoles}` : '—'}</span>
+                    </div>
+
+                    {/* Readiness indicator + problem hint */}
+                    <div className="flex flex-col items-end shrink-0 w-20 sm:w-24">
+                      {!loaded ? (
+                        <Loader2 className="h-4 w-4 animate-spin text-muted-foreground/40" />
+                      ) : ready ? (
+                        <span className="inline-flex items-center gap-1 text-xs font-medium text-emerald-400"><CheckCircle2 className="h-3.5 w-3.5" /> Ready</span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 text-xs font-medium text-amber-400 text-right">
+                          <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
+                          {missing > 0 ? `${missing} missing` : (totalRoles === 0 ? 'No roles' : 'In progress')}
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Compact edit / delete actions */}
+                    <div className="flex items-center gap-1 shrink-0">
+                      <Link href={`/teams/${teamId}/set-pieces/${sp.id}/editor`}>
+                        <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg text-muted-foreground hover:text-primary hover:bg-primary/10" title="Edit set piece">
+                          <Pencil className="h-3.5 w-3.5" />
+                        </Button>
+                      </Link>
+                      <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10" onClick={() => handleRemove(sp.id)} title="Remove from pack">
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
                   </div>
-                  <p className="text-xs text-muted-foreground capitalize mb-4">{sp.category.replace(/_/g, ' ')}</p>
-                  <div className="flex gap-2">
-                    <Link href={`/teams/${teamId}/set-pieces/${sp.id}/editor`} className="flex-1">
-                      <Button variant="outline" size="sm" className="w-full text-xs rounded-xl">Edit</Button>
-                    </Link>
-                    <Button variant="ghost" size="icon" className="h-8 w-8 rounded-xl text-muted-foreground hover:text-destructive hover:bg-destructive/10" onClick={() => handleRemove(sp.id)}>
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            </motion.div>
-          ))}
+                </Card>
+              </motion.div>
+            );
+          })}
         </div>
       )}
 
