@@ -60,6 +60,7 @@ export * from "./listSetPiecesParams";
 export * from "./listTemplatesParams";
 export * from "./logoutSuccess";
 export * from "./markReadyBody";
+export * from "./markReadyBodyStatus";
 export * from "./matchday";
 export * from "./matchdayDetail";
 export * from "./matchdaySetPieceEntry";

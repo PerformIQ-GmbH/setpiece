@@ -772,10 +772,23 @@ export interface PlayerSpecificViewData {
   setPieces: PlayerSpecificViewDataSetPiecesItem[];
 }
 
+/**
+ * Readiness intent submitted by the player. "ready" (default) marks the set piece as opened/acknowledged; "needs_review" flags it as unsure so it surfaces in the coach readiness dashboard.
+ */
+export type MarkReadyBodyStatus =
+  (typeof MarkReadyBodyStatus)[keyof typeof MarkReadyBodyStatus];
+
+export const MarkReadyBodyStatus = {
+  ready: "ready",
+  needs_review: "needs_review",
+} as const;
+
 export interface MarkReadyBody {
   playerId: string;
   setPieceId: string;
   roleId?: string;
+  /** Readiness intent submitted by the player. "ready" (default) marks the set piece as opened/acknowledged; "needs_review" flags it as unsure so it surfaces in the coach readiness dashboard. */
+  status?: MarkReadyBodyStatus;
 }
 
 export type ReadinessDashboardSummary = {

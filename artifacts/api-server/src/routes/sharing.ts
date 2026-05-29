@@ -30,6 +30,7 @@ const markReadySchema = z.object({
   playerId: z.string().min(1),
   setPieceId: z.string().min(1),
   roleId: z.string().optional(),
+  status: z.enum(["ready", "needs_review"]).optional(),
 });
 
 router.get("/teams/:teamId/share-links", async (req, res): Promise<void> => {
@@ -320,7 +321,8 @@ router.post("/p/:shareToken/ready", async (req, res): Promise<void> => {
     return;
   }
 
-  const { playerId, setPieceId, roleId } = parsed.data;
+  const { playerId, setPieceId, roleId, status } = parsed.data;
+  const targetStatus = status === "needs_review" ? "needs_review" : "opened";
 
   if (link.playerScope && link.playerScope.length > 0 && !link.playerScope.includes(playerId)) {
     res.status(403).json({ error: "Player not in scope for this link" });
@@ -360,15 +362,17 @@ router.post("/p/:shareToken/ready", async (req, res): Promise<void> => {
       ),
     );
 
+  const isNeedsReview = targetStatus === "needs_review";
+
   let readiness;
   if (existing.length > 0) {
     [readiness] = await db
       .update(playerReadinessTable)
       .set({
-        status: "opened",
+        status: targetStatus,
         lastOpenedAt: new Date(),
         viewCount: existing[0].viewCount + 1,
-        readyAt: new Date(),
+        readyAt: isNeedsReview ? existing[0].readyAt : new Date(),
         roleId: roleId || existing[0].roleId,
       })
       .where(eq(playerReadinessTable.id, existing[0].id))
@@ -380,9 +384,9 @@ router.post("/p/:shareToken/ready", async (req, res): Promise<void> => {
         playerId,
         setPieceId,
         roleId: roleId || null,
-        status: "opened",
+        status: targetStatus,
         lastOpenedAt: new Date(),
-        readyAt: new Date(),
+        readyAt: isNeedsReview ? null : new Date(),
         viewCount: 1,
       })
       .returning();
@@ -393,7 +397,7 @@ router.post("/p/:shareToken/ready", async (req, res): Promise<void> => {
     eventType: "readiness_changed",
     entityType: "player_readiness",
     entityId: readiness.id,
-    metadata: { playerId, setPieceId, status: "opened" },
+    metadata: { playerId, setPieceId, status: targetStatus },
   });
 
   res.json(readiness);

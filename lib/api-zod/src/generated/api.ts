@@ -1449,6 +1449,12 @@ export const MarkPlayerReadyBody = zod.object({
   playerId: zod.string(),
   setPieceId: zod.string(),
   roleId: zod.string().optional(),
+  status: zod
+    .enum(["ready", "needs_review"])
+    .optional()
+    .describe(
+      'Readiness intent submitted by the player. \"ready\" (default) marks the set piece as opened\/acknowledged; \"needs_review\" flags it as unsure so it surfaces in the coach readiness dashboard.',
+    ),
 });
 
 export const MarkPlayerReadyResponse = zod.object({

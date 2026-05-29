@@ -2552,6 +2552,13 @@ components:
           type: string
         roleId:
           type: string
+        status:
+          type: string
+          enum: [ready, needs_review]
+          description: >-
+            Readiness intent submitted by the player. "ready" (default) marks the
+            set piece as opened/acknowledged; "needs_review" flags it as unsure so
+            it surfaces in the coach readiness dashboard.
     ReadinessDashboard:
       type: object
       required: [summary, players]

@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { useRoute, Link } from 'wouter';
 import { useGetPlayerView, useGetPlayerSpecificView, useMarkPlayerReady } from '@workspace/api-client-react';
 import type { PlayerViewDataPlayersItem, PlayerSpecificViewDataSetPiecesItem } from '@workspace/api-client-react';
-import { Loader2, ShieldAlert, ChevronRight, CheckCircle2, Circle, Search, ArrowLeft, Trophy, Eye } from 'lucide-react';
+import { Loader2, ShieldAlert, ChevronRight, CheckCircle2, Circle, Search, ArrowLeft, Trophy, Eye, HelpCircle } from 'lucide-react';
 import { PlayerBoardViewer } from '@/components/PlayerBoardViewer';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Button } from '@/components/ui/button';
@@ -172,7 +172,20 @@ export default function PlayerPWA() {
     try {
       await markReady.mutateAsync({
         shareToken,
-        data: { setPieceId: spId, roleId, playerId: selectedPlayerId },
+        data: { setPieceId: spId, roleId, playerId: selectedPlayerId, status: 'ready' },
+      });
+      refetchPlayer();
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const handleMarkUnsure = async (spId: string, roleId: string | undefined) => {
+    if (!roleId || !selectedPlayerId) return;
+    try {
+      await markReady.mutateAsync({
+        shareToken,
+        data: { setPieceId: spId, roleId, playerId: selectedPlayerId, status: 'needs_review' },
       });
       refetchPlayer();
     } catch (e) {
@@ -190,6 +203,7 @@ export default function PlayerPWA() {
   if (screen === 'detail' && activeSetPiece) {
     const readinessStatus = activeSetPiece.readiness?.status;
     const isReady = readinessStatus === 'opened' || readinessStatus === 'passed';
+    const isUnsure = readinessStatus === 'needs_review';
 
     return (
       <div className="min-h-screen bg-[var(--surface-0)] text-white font-sans">
@@ -284,17 +298,34 @@ export default function PlayerPWA() {
                   <CheckCircle2 className="w-5 h-5" /> You are ready
                 </div>
               ) : (
-                <div className="flex gap-3">
-                  <Button
-                    variant="outline"
-                    className="flex-1 py-5 rounded-2xl bg-white/[0.03] backdrop-blur"
-                    onClick={() => handleMarkReady(activeSetPiece.id, activeSetPiece.playerRole?.id)}
-                    disabled={markReady.isPending}
-                  >
-                    <Eye className="w-4 h-4 mr-2" />
-                    {markReady.isPending ? 'Saving...' : 'Acknowledge'}
-                  </Button>
-                  <Link href={`/p/${shareToken}/quiz?setPieceId=${activeSetPiece.id}&playerId=${selectedPlayerId || ''}&roleId=${activeSetPiece.playerRole?.id || ''}`} className="flex-1">
+                <div className="flex flex-col gap-3">
+                  {isUnsure && (
+                    <div className="w-full py-3 px-4 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-400 text-sm font-medium text-center flex items-center justify-center gap-2">
+                      <HelpCircle className="w-4 h-4 shrink-0" />
+                      You flagged this as unsure — your coach has been notified.
+                    </div>
+                  )}
+                  <div className="flex gap-3">
+                    <Button
+                      variant="outline"
+                      className="flex-1 py-5 rounded-2xl bg-white/[0.03] backdrop-blur"
+                      onClick={() => handleMarkReady(activeSetPiece.id, activeSetPiece.playerRole?.id)}
+                      disabled={markReady.isPending || !activeSetPiece.playerRole?.id}
+                    >
+                      <Eye className="w-4 h-4 mr-2" />
+                      {markReady.isPending ? 'Saving...' : 'Acknowledge'}
+                    </Button>
+                    <Button
+                      variant="outline"
+                      className="flex-1 py-5 rounded-2xl bg-amber-500/[0.06] border-amber-500/30 text-amber-400 hover:bg-amber-500/10 hover:text-amber-300 backdrop-blur"
+                      onClick={() => handleMarkUnsure(activeSetPiece.id, activeSetPiece.playerRole?.id)}
+                      disabled={markReady.isPending || !activeSetPiece.playerRole?.id}
+                    >
+                      <HelpCircle className="w-4 h-4 mr-2" />
+                      {markReady.isPending ? 'Saving...' : 'Unsure?'}
+                    </Button>
+                  </div>
+                  <Link href={`/p/${shareToken}/quiz?setPieceId=${activeSetPiece.id}&playerId=${selectedPlayerId || ''}&roleId=${activeSetPiece.playerRole?.id || ''}`} className="w-full">
                     <Button className="w-full py-5 rounded-2xl premium-glow">
                       Take Quiz
                     </Button>

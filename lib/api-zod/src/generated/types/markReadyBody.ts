@@ -5,9 +5,12 @@
  * SETPIECE by PerformIQ API
  * OpenAPI spec version: 0.1.0
  */
+import type { MarkReadyBodyStatus } from "./markReadyBodyStatus";
 
 export interface MarkReadyBody {
   playerId: string;
   setPieceId: string;
   roleId?: string;
+  /** Readiness intent submitted by the player. "ready" (default) marks the set piece as opened/acknowledged; "needs_review" flags it as unsure so it surfaces in the coach readiness dashboard. */
+  status?: MarkReadyBodyStatus;
 }

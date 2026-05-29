@@ -1,7 +1,7 @@
 import { useRef, useMemo, useCallback, useState, useEffect } from 'react';
 import { Stage, Layer, Group, Line, Arrow, Circle as KonvaCircle, Ring } from 'react-konva';
 import type Konva from 'konva';
-import { Play, Pause, RotateCcw, ZoomIn, ZoomOut } from 'lucide-react';
+import { Play, Pause, RotateCcw, ZoomIn, ZoomOut, Crosshair } from 'lucide-react';
 import { PremiumPitch } from '@/components/editor/PremiumPitch';
 import { OffensiveCornerPitch } from '@/components/editor/OffensiveCornerPitch';
 import { TeamPlayerMarker, OpponentMarker, GoalkeeperMarker, BallMarker } from '@/components/editor/markers';
@@ -406,6 +406,46 @@ export function PlayerBoardViewer({
     [width, height, clampPan]
   );
 
+  // Focus the viewport on the active player's marker + run path. Reuses the
+  // same zoom/pan state used by pinch-zoom and drag so those keep working.
+  const focusOnRole = useCallback(() => {
+    if (!activeRoleId) return;
+    const role = roles.find((r) => r.id === activeRoleId);
+    if (!role) return;
+
+    const pcts: Point[] = [];
+    if (role.startPosition?.x != null && role.startPosition?.y != null) {
+      pcts.push({ x: role.startPosition.x, y: role.startPosition.y });
+    }
+    pcts.push(computeRolePosition(role));
+    if (selfArrowFull) {
+      for (const p of selfArrowFull.points) pcts.push(safe(p));
+    }
+    if (pcts.length === 0) return;
+
+    const pxs = pcts.map(toPixel);
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    for (const p of pxs) {
+      minX = Math.min(minX, p.x);
+      maxX = Math.max(maxX, p.x);
+      minY = Math.min(minY, p.y);
+      maxY = Math.max(maxY, p.y);
+    }
+    const cx = (minX + maxX) / 2;
+    const cy = (minY + maxY) / 2;
+    // Pad the box so the marker glyph and arrowhead aren't clipped.
+    const bw = Math.max(maxX - minX, 1) + 80;
+    const bh = Math.max(maxY - minY, 1) + 80;
+
+    let z = Math.min(width / bw, height / bh);
+    if (!Number.isFinite(z)) z = 2.2;
+    z = Math.max(1.5, Math.min(3, z));
+
+    const newPan = clampPan({ x: z * (width / 2 - cx), y: z * (height / 2 - cy) }, z);
+    setZoom(z);
+    setPan(newPan);
+  }, [activeRoleId, roles, computeRolePosition, selfArrowFull, toPixel, width, height, clampPan]);
+
   const handleTouchStart = useCallback((e: React.TouchEvent) => {
     if (e.touches.length === 2) {
       const [a, b] = [e.touches[0], e.touches[1]];
@@ -739,6 +779,17 @@ export function PlayerBoardViewer({
 
         {/* Zoom controls */}
         <div className="absolute top-2 right-2 flex flex-col gap-1.5 pointer-events-auto">
+          {activeRoleId && (
+            <button
+              type="button"
+              onClick={focusOnRole}
+              className="w-9 h-9 rounded-lg bg-[var(--accent,#22d3ee)]/20 backdrop-blur-sm border border-[#22d3ee]/40 flex items-center justify-center text-[#22d3ee] active:bg-[#22d3ee]/30"
+              aria-label="Focus on my role"
+              title="Focus on my marker and run"
+            >
+              <Crosshair className="w-4 h-4" />
+            </button>
+          )}
           <button
             type="button"
             onClick={() => setZoomAround(zoom + 0.5)}
