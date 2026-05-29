@@ -1,0 +1,59 @@
+You are working in the SETPIECE pnpm monorepo. This task EXPLICITLY authorizes you to modify
+files under artifacts/setpiece. Do NOT touch lib/db.
+
+WORK RULES:
+- Work fully autonomously. Do NOT ask questions. Make reasonable decisions and finish.
+- All user-facing text stays in ENGLISH (this includes fixing a German legend to English).
+- Reuse existing UI primitives and design tokens (--surface-0..3, rounded-2xl, section-label,
+  premium-card). No new design system.
+- When done: run `pnpm --filter @workspace/setpiece run typecheck`, fix type errors you introduced,
+  then post a short summary and stop.
+
+GOAL: Polish the player-facing experience and the coach dashboards so the product feels finished
+and consistent.
+
+CHANGE 1 — Player board: English legend + step progress bar
+File: artifacts/setpiece/src/components/PlayerBoardViewer.tsx
+- The mini legend currently has German labels ("Du", "Mitspieler", "Gegner", "Dein Laufweg", "Ball").
+  Change to English: "You", "Teammate", "Opponent", "Your run", "Ball".
+- In the playback controls (the block rendered when hasMultipleSteps), add a slim, read-only progress
+  bar between the Play/Reset buttons and the step buttons that reflects the local `progress` (0..1) of
+  the current step. Use tokens: track bg-white/[0.06], fill bg-primary, ~h-1, rounded. No scrubbing needed.
+
+CHANGE 2 — Quiz: answer review + visible submit errors
+File: artifacts/setpiece/src/pages/PlayerQuiz.tsx
+- Submit error handling currently only console.error in handleSubmit. Replace with a toast (useToast)
+  "Could not submit quiz, please try again." and keep the submit button usable after failure.
+- On the result screen, add a per-question review list. First check whether the submit response
+  (useSubmitQuiz result) or quizData exposes the correct answers / per-question correctness.
+  DECISION RULE (do not ask):
+    * If correct answers are available -> show for each question: prompt, the player's answer, the
+      correct answer, and a green/red check/x.
+    * If only correctness (right/wrong) is available -> show prompt + a green/red marker per question.
+    * If NEITHER is available -> add a code comment `// TODO: needs per-question result in quiz API`,
+      skip the review list, and note this in your summary. Do NOT invent data.
+- Optional small win: allow navigating BACK to a previous question (decrement currentIdx) with answers
+  preserved in `answers`. Only do this if it does not complicate scoring.
+
+CHANGE 3 — Readiness: mobile cards + print/export
+File: artifacts/setpiece/src/pages/Readiness.tsx
+- Below the md breakpoint, replace the 5-column table with a card list (one card per player: name + #,
+  StatusBadge, "x/y ready", last opened). Show the table only at md and up (hidden md:block / md:hidden).
+  Reuse the same per-player computation already in the file.
+- Add a "Print / Export" button above the list that generates a landscape A4 PDF readiness overview
+  using jsPDF (mirror the building blocks already used in artifacts/setpiece/src/pages/MatchdayDetail.tsx
+  — dynamic import of 'jspdf', emerald header bar, footer + date): team name, date, and a table of
+  players × status. English text.
+
+CHANGE 4 — Coach pages: align visual layer to the PWA design language
+Files: artifacts/setpiece/src/pages/Readiness.tsx and artifacts/setpiece/src/pages/Onboarding.tsx ONLY.
+- Lift ONLY the visual layer (cards, inputs, table/list containers) to the same tokens/radii/border
+  styles the player PWA uses (--surface-0..3 backgrounds, rounded-2xl, white/[0.06] borders, section-label
+  for small caps labels). Do NOT change layout structure, copy, or behavior. Keep all existing logic.
+
+ACCEPTANCE / FINISH:
+- typecheck passes for @workspace/setpiece.
+- Player legend is English; the board animation shows a progress bar.
+- Quiz shows a review (or degrades per the decision rule) and surfaces submit errors as a toast.
+- Readiness is usable on mobile and can be printed; Readiness + Onboarding match the PWA look.
+Post the summary (incl. what the quiz API exposed) and stop.

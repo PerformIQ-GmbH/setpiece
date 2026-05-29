@@ -1,0 +1,66 @@
+You are working in the SETPIECE pnpm monorepo. This task EXPLICITLY authorizes you to modify
+files under artifacts/setpiece (overriding the usual "don't touch artifacts/setpiece" rule).
+Do NOT touch lib/db.
+
+WORK RULES (apply to the whole task):
+- Work fully autonomously. Do NOT ask clarifying questions. Make reasonable decisions and finish.
+- All user-facing text stays in ENGLISH.
+- Reuse existing UI primitives (artifacts/setpiece/src/components/ui/*) and design tokens
+  (--surface-0..3, rounded-2xl, white/[0.06] borders, section-label) — no new design system.
+- When done: run `pnpm --filter @workspace/setpiece run typecheck`, fix any type errors you
+  introduced, then post a short summary of changed files and stop.
+
+GOAL: Make the editor and onboarding trustworthy — no data loss, no destructive key handling,
+no duplicate data, and an honest readiness dashboard.
+
+CHANGE 1 — Flush autosave on exit (prevent data loss)
+File: artifacts/setpiece/src/pages/SetPieceEditor.tsx
+Today autosave is a 2s debounce (useEffect that depends on annotations/entities/steps/stepPositions
+and calls saveBoardData via setTimeout). The unmount effect calls resetStore() but never flushes,
+so edits made within 2s of leaving are lost.
+Do:
+- Track whether there are unsaved changes (a dirty ref set whenever the debounce timer is (re)armed,
+  cleared inside saveBoardData on success).
+- On component unmount AND on window 'beforeunload' and 'pagehide': if dirty, call saveBoardData()
+  immediately (flush) BEFORE resetStore(). Clear any pending debounce timer.
+- saveBoardData already reads state via useEditorStore.getState(), so it is safe to call at unmount.
+Keep normal debounce behavior otherwise.
+
+CHANGE 2 — Guard global key handlers against text inputs
+Files:
+- artifacts/setpiece/src/components/editor/EditorCanvas.tsx (the window 'keydown' effect handling
+  Enter / Escape / Delete / Backspace)
+- artifacts/setpiece/src/pages/SetPieceEditor.tsx (the window 'keydown' effect handling Ctrl/Cmd+Z / +Y)
+In BOTH handlers, at the very start, return early if the focused element is an editable field:
+  const el = document.activeElement as HTMLElement | null;
+  if (el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.isContentEditable)) return;
+No other behavior change.
+
+CHANGE 3 — Onboarding: make each step idempotent (fix duplicate players)
+File: artifacts/setpiece/src/pages/Onboarding.tsx (handleNext)
+Bug: pressing Back then Continue on the players step re-creates the same players; step 0 is already
+guarded by `!teamId`. Apply the same idempotency to later steps:
+- Step 1 (players): only create players if `createdPlayers.length === 0`. (Do not diff-merge; simplest
+  correct behavior: create once.)
+- Step 2 (template/set piece/roles): only create if `!setPieceId`.
+- Step 3 (assignments + share link): only create the share link if `!shareLink`. Assignments use
+  upsert (idempotent) so leave them.
+
+CHANGE 4 — Readiness: honest status (stop overstating readiness)
+File: artifacts/setpiece/src/pages/Readiness.tsx
+Today computeBestStatus shows the BEST status per player, so 1/5 passed shows green "passed".
+Do:
+- Per player compute: total = readiness.length, readyCount = count where status is 'opened' or 'passed',
+  and a "worstStatus" using this least-ready-first order: not_opened > needs_review > opened > passed.
+- In the Status column, render `${readyCount}/${total} ready` text PLUS a StatusBadge of worstStatus
+  (when total > 0). Keep the existing StatusBadge component.
+- Filtering: a player matches the active statusFilter if ANY of their readiness rows has that status
+  (change the filter to use `r.some(rd => rd.status === statusFilter)` instead of the best-status equality).
+- Leave the top summary cards and their counts unchanged.
+
+ACCEPTANCE / FINISH:
+- typecheck passes for @workspace/setpiece.
+- Editing then immediately navigating away saves the board (manual reasoning is fine).
+- Pressing Back/Continue across onboarding never creates duplicate players or set pieces.
+- Readiness shows "x/y ready" + worst status, no longer a misleading green for partial progress.
+Post the summary of changed files and stop.

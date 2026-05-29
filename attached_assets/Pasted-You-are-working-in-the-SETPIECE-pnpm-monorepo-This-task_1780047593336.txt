@@ -1,0 +1,52 @@
+You are working in the SETPIECE pnpm monorepo. This task EXPLICITLY authorizes you to modify
+files under artifacts/setpiece. Do NOT touch lib/db. Do NOT modify
+artifacts/setpiece/src/utils/offscreenPitchRenderer.ts (only call it).
+
+WORK RULES:
+- Work fully autonomously. Do NOT ask questions. Make reasonable decisions and finish.
+- All user-facing text stays in ENGLISH.
+- Reuse existing UI primitives and design tokens (--surface-0..3, rounded-2xl, section-label).
+- When done: run `pnpm --filter @workspace/setpiece run typecheck`, fix type errors you introduced,
+  then post a short summary and stop.
+
+GOAL: Produce a dressing-room-quality landscape PDF, and turn the readiness dashboard from a
+read-only number into an actionable tool (drill-down + remind).
+
+CHANGE 1 — Landscape "dressing room" PDF export
+File: artifacts/setpiece/src/pages/SetPieceEditor.tsx (function handleExportPDF)
+Today it builds A4 PORTRAIT and stacks the (landscape) step diagrams small (~2 per page). Rebuild it
+as a clear, print-ready LANDSCAPE document:
+- const pdf = new jsPDF('l', 'mm', 'a4');  // 297 x 210
+- Page 1 (cover area at top of first diagram page is fine, OR a dedicated header band): thin emerald
+  bar at top, "SETPIECE by PerformIQ" small, big centered title (setPiece.title), category sublabel.
+- ONE landscape page per step, each with ONE large centered diagram, near full page width.
+  IMPORTANT: use the per-image aspect returned by renderSetPieceSteps (StepImage.aspect = width/height),
+  NOT a hardcoded 560/800. Compute: imgW = pageWidth - 2*margin (margin ~14mm); imgH = imgW / aspect;
+  if imgH exceeds available height, scale down by height instead. Print the step label above the diagram.
+- Final page: "Roles & Assignments" as a clean two-column table (Role | Player #number),
+  readable font size; "Unassigned" where no player.
+- Footer on every page: "SETPIECE by PerformIQ" + current date (new Date().toLocaleDateString()).
+- Keep using renderSetPieceSteps(...) exactly as today for the images; keep pdf.save(filename) download.
+Keep the mobile menu + header "PDF" buttons wired to this same function.
+
+CHANGE 2 — Readiness drill-down + "Remind player"
+File: artifacts/setpiece/src/pages/Readiness.tsx
+- Make each player table row clickable. On click, open a right-side Sheet
+  (artifacts/setpiece/src/components/ui/sheet) showing that player's per-set-piece readiness as a list:
+  set piece title, StatusBadge, view count, last opened date. (Use the readiness rows already loaded
+  for that player; if the title isn't in the readiness row, look it up from the `setPieces` query by id.)
+- Add a "Remind player" button in the Sheet. First INSPECT lib/api-spec/openapi.yaml and the generated
+  hooks in @workspace/api-client-react for an existing reminder/notify/nudge endpoint.
+  DECISION RULE (do not ask):
+    * If such an endpoint exists -> wire the button to it, with loading + a success toast (useToast).
+    * If it does NOT exist -> render the button DISABLED with tooltip text "Coming soon", add a short
+      code comment `// TODO: needs reminder endpoint in api-spec`, and note this in your final summary.
+  Do NOT invent an endpoint or fake a network call.
+- Use the PWA design language (--surface tokens, rounded-2xl). Keep the existing table/filters working.
+
+ACCEPTANCE / FINISH:
+- typecheck passes for @workspace/setpiece.
+- Exported PDF is landscape, one big clear diagram per step, plus a roles/assignments table, with footer+date.
+- Clicking a readiness row opens a detail Sheet; the remind button is either functional or a clearly
+  disabled "Coming soon" depending on the API.
+Post the summary (incl. whether the reminder endpoint existed) and stop.
