@@ -47,6 +47,15 @@ export default function SetPieceEditor() {
 
   const { toast } = useToast();
   const confirm = useConfirm();
+
+  const showActionError = useCallback((action: string, err: unknown) => {
+    setSaveState('error');
+    const msg = (err as { response?: { data?: { error?: string } } })?.response?.data?.error
+      ?? (err as { message?: string })?.message
+      ?? `Could not ${action}. Please try again.`;
+    toast({ title: `Couldn't ${action}`, description: msg, variant: 'destructive' });
+  }, [toast]);
+
   const [activeRoleId, setActiveRoleId] = useState<string | null>(null);
   const [roleFormOpen, setRoleFormOpen] = useState(false);
   const [labelFormOpen, setLabelFormOpen] = useState(false);
@@ -54,6 +63,7 @@ export default function SetPieceEditor() {
   const [labelPos, setLabelPos] = useState<Point | null>(null);
   const [newRoleName, setNewRoleName] = useState('');
   const [saveState, setSaveState] = useState<SaveState>('saved');
+  const [exportingPDF, setExportingPDF] = useState(false);
   const [pendingPos, setPendingPos] = useState<{ x: number; y: number } | null>(null);
   const [editingTitle, setEditingTitle] = useState(false);
   const [titleDraft, setTitleDraft] = useState('');
@@ -93,8 +103,8 @@ export default function SetPieceEditor() {
       }
       await refetch();
       setSaveState('saved');
-    } catch {
-      setSaveState('error');
+    } catch (err) {
+      showActionError('mirror the set piece', err);
     }
   }, [mirrorBoard, setPiece?.roles, teamId, setPieceId, updateRole, refetch]);
 
@@ -210,8 +220,8 @@ export default function SetPieceEditor() {
       });
       dirtyRef.current = false;
       setSaveState('saved');
-    } catch {
-      setSaveState('error');
+    } catch (err) {
+      showActionError('save your changes', err);
     }
   }, [teamId, setPieceId, updateSetPiece]);
 
@@ -253,8 +263,8 @@ export default function SetPieceEditor() {
       await updateRole.mutateAsync({ teamId, setPieceId, roleId, data: { startPosition: pos } });
       await refetch();
       setSaveState('saved');
-    } catch {
-      setSaveState('error');
+    } catch (err) {
+      showActionError('move the marker', err);
     }
   }, [teamId, setPieceId, updateRole, refetch, setPiece?.roles, setStepRolePosition]);
 
@@ -268,8 +278,8 @@ export default function SetPieceEditor() {
       await updateRole.mutateAsync({ teamId, setPieceId, roleId: entry.roleId, data: { startPosition: entry.prevPos } });
       await refetch();
       setSaveState('saved');
-    } catch {
-      setSaveState('error');
+    } catch (err) {
+      showActionError('undo', err);
     }
   }, [undoStack, teamId, setPieceId, updateRole, refetch]);
 
@@ -283,8 +293,8 @@ export default function SetPieceEditor() {
       await updateRole.mutateAsync({ teamId, setPieceId, roleId: entry.roleId, data: { startPosition: entry.newPos } });
       await refetch();
       setSaveState('saved');
-    } catch {
-      setSaveState('error');
+    } catch (err) {
+      showActionError('redo', err);
     }
   }, [redoStack, teamId, setPieceId, updateRole, refetch]);
 
@@ -305,14 +315,9 @@ export default function SetPieceEditor() {
       setNewRoleName('');
       setRoleFormOpen(true);
     } else if (activeTool === 'select' && activeRoleId) {
-      setSaveState('saving');
-      try {
-        await updateRole.mutateAsync({ teamId, setPieceId, roleId: activeRoleId, data: { startPosition: pos } });
-        await refetch();
-        setSaveState('saved');
-      } catch {
-        setSaveState('error');
-      }
+      // Clicking an empty area of the pitch in select mode only clears the
+      // current selection. Markers are repositioned exclusively via drag.
+      setActiveRoleId(null);
     }
   };
 
@@ -352,8 +357,8 @@ export default function SetPieceEditor() {
       setActiveTool('select');
       await refetch();
       setSaveState('saved');
-    } catch {
-      setSaveState('error');
+    } catch (err) {
+      showActionError('add the role', err);
     }
   };
 
@@ -367,8 +372,8 @@ export default function SetPieceEditor() {
       }
       await refetch();
       setSaveState('saved');
-    } catch {
-      setSaveState('error');
+    } catch (err) {
+      showActionError('assign the player', err);
     }
   };
 
@@ -383,8 +388,8 @@ export default function SetPieceEditor() {
       });
       await refetch();
       setSaveState('saved');
-    } catch {
-      setSaveState('error');
+    } catch (err) {
+      showActionError('assign the backup player', err);
     }
   };
 
@@ -428,8 +433,8 @@ export default function SetPieceEditor() {
       setActiveTool('select');
       await refetch();
       setSaveState('saved');
-    } catch {
-      setSaveState('error');
+    } catch (err) {
+      showActionError('duplicate the role', err);
     }
   };
 
@@ -439,8 +444,8 @@ export default function SetPieceEditor() {
       await updateRole.mutateAsync({ teamId, setPieceId, roleId, data: { [field]: value } });
       await refetch();
       setSaveState('saved');
-    } catch {
-      setSaveState('error');
+    } catch (err) {
+      showActionError('update the role', err);
     }
   };
 
@@ -450,13 +455,15 @@ export default function SetPieceEditor() {
       await updateRole.mutateAsync({ teamId, setPieceId, roleId, data: { name: newName } });
       await refetch();
       setSaveState('saved');
-    } catch {
-      setSaveState('error');
+    } catch (err) {
+      showActionError('rename the role', err);
     }
   };
 
   const handleExportPDF = async () => {
-    if (!setPiece) return;
+    if (!setPiece || exportingPDF) return;
+    setExportingPDF(true);
+    try {
     const [jsPDFMod, { renderSetPieceSteps }] = await Promise.all([
       import('jspdf'),
       import('@/utils/offscreenPitchRenderer'),
@@ -635,6 +642,14 @@ export default function SetPieceEditor() {
     }
 
     pdf.save(`${setPiece.title || 'setpiece'}.pdf`);
+      toast({ title: 'PDF generated', description: 'Your set-piece PDF has been downloaded.' });
+    } catch (err) {
+      console.error('PDF export error:', err);
+      const msg = (err as { message?: string })?.message ?? 'Could not generate the PDF. Please try again.';
+      toast({ title: 'PDF export failed', description: msg, variant: 'destructive' });
+    } finally {
+      setExportingPDF(false);
+    }
   };
 
   const handleTitleSave = async () => {
@@ -647,8 +662,8 @@ export default function SetPieceEditor() {
       await updateSetPiece.mutateAsync({ teamId, setPieceId, data: { title: titleDraft.trim() } });
       await refetch();
       setSaveState('saved');
-    } catch {
-      setSaveState('error');
+    } catch (err) {
+      showActionError('rename the set piece', err);
     }
     setEditingTitle(false);
   };
@@ -853,8 +868,9 @@ export default function SetPieceEditor() {
 
               <StatusBadge status={setPiece.status} />
 
-              <Button size="sm" variant="outline" className="text-[10px] h-6 border-border px-2" onClick={handleExportPDF}>
-                <FileDown className="w-3 h-3 mr-1" /> PDF
+              <Button size="sm" variant="outline" className="text-[10px] h-6 border-border px-2" onClick={handleExportPDF} disabled={exportingPDF}>
+                {exportingPDF ? <Loader2 className="w-3 h-3 mr-1 animate-spin" /> : <FileDown className="w-3 h-3 mr-1" />}
+                {exportingPDF ? 'Exporting…' : 'PDF'}
               </Button>
 
               <Link href={`/teams/${teamId}/ghost/${setPieceId}`}>
@@ -921,10 +937,11 @@ export default function SetPieceEditor() {
 
                       <button
                         onClick={() => { handleExportPDF(); setMobileMenuOpen(false); }}
-                        className="w-full text-left px-3 py-2.5 text-[11px] text-muted-foreground hover:text-white hover:bg-secondary transition-colors flex items-center gap-2"
+                        disabled={exportingPDF}
+                        className="w-full text-left px-3 py-2.5 text-[11px] text-muted-foreground hover:text-white hover:bg-secondary transition-colors flex items-center gap-2 disabled:opacity-50 disabled:pointer-events-none"
                       >
-                        <FileDown className="w-3.5 h-3.5" />
-                        Export PDF
+                        {exportingPDF ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <FileDown className="w-3.5 h-3.5" />}
+                        {exportingPDF ? 'Exporting…' : 'Export PDF'}
                       </button>
 
                       <Link href={`/teams/${teamId}/ghost/${setPieceId}`}>
