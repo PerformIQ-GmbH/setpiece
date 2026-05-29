@@ -486,6 +486,8 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
+      const ae = document.activeElement as HTMLElement | null;
+      if (ae && (ae.tagName === 'INPUT' || ae.tagName === 'TEXTAREA' || ae.isContentEditable)) return;
       if (readOnly || useEditorStore.getState().presentationMode) return;
       if (e.key === 'Enter' && isDrawingTool && drawingPoints.length >= 2) {
         finishDrawing();

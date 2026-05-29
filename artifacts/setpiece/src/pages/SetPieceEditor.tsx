@@ -121,6 +121,8 @@ export default function SetPieceEditor() {
   const steps = useEditorStore((s) => s.steps);
 
   const boardDataLoadedRef = useRef<string | null>(null);
+  const dirtyRef = useRef(false);
+  const pendingSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     if (shouldShowTutorial()) {
@@ -153,7 +155,23 @@ export default function SetPieceEditor() {
   }, [setPiece?.id]);
 
   useEffect(() => {
-    return () => { resetStore(); };
+    const flushSave = () => {
+      if (pendingSaveTimerRef.current) {
+        clearTimeout(pendingSaveTimerRef.current);
+        pendingSaveTimerRef.current = null;
+      }
+      if (dirtyRef.current) {
+        saveBoardDataRef.current();
+      }
+    };
+    window.addEventListener('beforeunload', flushSave);
+    window.addEventListener('pagehide', flushSave);
+    return () => {
+      window.removeEventListener('beforeunload', flushSave);
+      window.removeEventListener('pagehide', flushSave);
+      flushSave();
+      resetStore();
+    };
   }, []);
 
   useEffect(() => {
@@ -190,11 +208,15 @@ export default function SetPieceEditor() {
         teamId, setPieceId,
         data: { boardData: { annotations: state.annotations, entities: state.entities, steps: state.steps, stepPositions: state.stepPositions } }
       });
+      dirtyRef.current = false;
       setSaveState('saved');
     } catch {
       setSaveState('error');
     }
   }, [teamId, setPieceId, updateSetPiece]);
+
+  const saveBoardDataRef = useRef(saveBoardData);
+  saveBoardDataRef.current = saveBoardData;
 
   const hasLoadedRef = useRef(false);
   useEffect(() => {
@@ -203,9 +225,12 @@ export default function SetPieceEditor() {
       hasLoadedRef.current = true;
       return;
     }
+    dirtyRef.current = true;
     const timer = setTimeout(() => {
+      pendingSaveTimerRef.current = null;
       saveBoardData();
     }, 2000);
+    pendingSaveTimerRef.current = timer;
     return () => clearTimeout(timer);
   }, [annotations, entities, steps, stepPositions]);
 
@@ -265,6 +290,8 @@ export default function SetPieceEditor() {
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
+      const ae = document.activeElement as HTMLElement | null;
+      if (ae && (ae.tagName === 'INPUT' || ae.tagName === 'TEXTAREA' || ae.isContentEditable)) return;
       if ((e.metaKey || e.ctrlKey) && e.key === 'z' && !e.shiftKey) { e.preventDefault(); handleUndo(); }
       if ((e.metaKey || e.ctrlKey) && (e.key === 'y' || (e.key === 'z' && e.shiftKey))) { e.preventDefault(); handleRedo(); }
     };

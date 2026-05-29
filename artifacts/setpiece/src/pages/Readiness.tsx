@@ -8,11 +8,12 @@ import { StatusBadge } from '@/components/StatusBadge';
 import { Eye, EyeOff, CheckCircle2, AlertTriangle, Users, Filter, ChevronDown } from 'lucide-react';
 import { motion } from 'framer-motion';
 
-function computeBestStatus(readiness: PlayerReadinessStatus[]): string {
+function computeWorstStatus(readiness: PlayerReadinessStatus[]): string {
   if (readiness.length === 0) return 'not_opened';
-  if (readiness.some(r => r.status === 'passed')) return 'passed';
-  if (readiness.some(r => r.status === 'needs_review')) return 'needs_review';
-  if (readiness.some(r => r.status === 'opened')) return 'opened';
+  const leastReadyFirst = ['not_opened', 'needs_review', 'opened', 'passed'];
+  for (const status of leastReadyFirst) {
+    if (readiness.some(r => r.status === status)) return status;
+  }
   return 'not_opened';
 }
 
@@ -37,9 +38,8 @@ export default function Readiness() {
   const filteredPlayers = allPlayers.filter((entry: ReadinessDashboardPlayersItem) => {
     const p = entry.player;
     const r = entry.readiness || [];
-    const best = computeBestStatus(r);
 
-    if (statusFilter !== 'all' && best !== statusFilter) return false;
+    if (statusFilter !== 'all' && !r.some(rd => rd.status === statusFilter)) return false;
 
     if (setPieceFilter !== 'all') {
       const hasMatch = r.some(rd => rd.setPieceId === setPieceFilter);
@@ -150,7 +150,9 @@ export default function Readiness() {
               {filteredPlayers.map((entry: ReadinessDashboardPlayersItem, idx: number) => {
                 const p = entry.player;
                 const r = entry.readiness || [];
-                const bestStatus = computeBestStatus(r);
+                const total = r.length;
+                const readyCount = r.filter(rd => rd.status === 'opened' || rd.status === 'passed').length;
+                const worstStatus = computeWorstStatus(r);
                 const totalViews = r.reduce((sum, rd) => sum + (rd.viewCount || 0), 0);
                 const lastOpened = r.reduce((latest: string | null, rd) => {
                   if (!rd.lastOpenedAt) return latest;
@@ -175,7 +177,16 @@ export default function Readiness() {
                         </div>
                       </div>
                     </td>
-                    <td className="px-4 py-3"><StatusBadge status={bestStatus} /></td>
+                    <td className="px-4 py-3">
+                      {total > 0 ? (
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs text-muted-foreground">{readyCount}/{total} ready</span>
+                          <StatusBadge status={worstStatus} />
+                        </div>
+                      ) : (
+                        <span className="text-xs text-muted-foreground">—</span>
+                      )}
+                    </td>
                     <td className="px-4 py-3">
                       <span className="text-xs text-muted-foreground">{r.length} piece{r.length !== 1 ? 's' : ''}</span>
                     </td>

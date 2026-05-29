@@ -79,7 +79,7 @@ export default function Onboarding() {
         setTeamId(team.id);
       }
 
-      if (step === 1 && teamId) {
+      if (step === 1 && teamId && createdPlayers.length === 0) {
         const validPlayers = playerDrafts.filter(p => p.firstName.trim() && p.lastName.trim());
         const created: CreatedPlayer[] = [];
         for (const p of validPlayers) {
@@ -96,7 +96,7 @@ export default function Onboarding() {
         setCreatedPlayers(created);
       }
 
-      if (step === 2 && teamId && selectedTemplateId) {
+      if (step === 2 && teamId && selectedTemplateId && !setPieceId) {
         const tmpl = templates?.find(t => t.id === selectedTemplateId);
         if (tmpl) {
           const sp = await createSetPiece.mutateAsync({
@@ -132,12 +132,14 @@ export default function Onboarding() {
           }
         }
 
-        const link = await createShareLink.mutateAsync({
-          teamId,
-          data: {}
-        });
-        const url = `${window.location.origin}${import.meta.env.BASE_URL}p/${link.token}`;
-        setShareLink(url);
+        if (!shareLink) {
+          const link = await createShareLink.mutateAsync({
+            teamId,
+            data: {}
+          });
+          const url = `${window.location.origin}${import.meta.env.BASE_URL}p/${link.token}`;
+          setShareLink(url);
+        }
       }
 
       setStep(s => Math.min(s + 1, STEPS.length - 1));
