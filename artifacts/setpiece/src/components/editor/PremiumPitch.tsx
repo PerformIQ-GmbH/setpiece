@@ -1,6 +1,7 @@
 import { Rect, Circle, Line, Arc, Group, Text } from 'react-konva';
 import type { PitchTheme } from './types';
 import { PITCH_THEMES } from './types';
+import { arcToKonva, buildPitchGeometry } from '@/utils/pitchGeometry';
 
 interface PremiumPitchProps {
   width: number;
@@ -12,36 +13,30 @@ interface PremiumPitchProps {
 
 export function PremiumPitch({ width, height, halfPitch, pad = 24, theme = 'dark' }: PremiumPitchProps) {
   const t = PITCH_THEMES[theme];
-  const pitchW = width - pad * 2;
-  const pitchH = height - pad * 2;
-  const cx = width / 2;
-  const cy = height / 2;
-
-  const penBoxW = pitchW * 0.44;
-  const penBoxH = pitchH * 0.18;
-  const goalBoxW = pitchW * 0.18;
-  const goalBoxH = pitchH * 0.06;
-  const centerR = Math.min(pitchW, pitchH) * 0.12;
-  const cornerR = Math.min(pitchW, pitchH) * 0.025;
-  const penSpotDist = pitchH * 0.12;
+  const g = buildPitchGeometry({
+    width,
+    height,
+    pad,
+    orientation: halfPitch ? 'half' : 'full',
+  });
 
   const stripeCount = 12;
-  const stripeH = pitchH / stripeCount;
+  const stripeH = g.pitchH / stripeCount;
 
   return (
     <Group>
       <Rect name="pitch-bg" x={0} y={0} width={width} height={height} fill={t.background} cornerRadius={10} />
 
       <Group listening={false}>
-        <Rect x={pad} y={pad} width={pitchW} height={pitchH} fill={t.field} cornerRadius={4} />
+        <Rect x={g.boundary.x} y={g.boundary.y} width={g.boundary.width} height={g.boundary.height} fill={t.field} cornerRadius={4} />
 
         {Array.from({ length: stripeCount }).map((_, i) => (
           i % 2 === 0 ? (
             <Rect
               key={`stripe-${i}`}
-              x={pad}
-              y={pad + i * stripeH}
-              width={pitchW}
+              x={g.boundary.x}
+              y={g.boundary.y + i * stripeH}
+              width={g.boundary.width}
               height={stripeH}
               fill={theme === 'light' ? '#000000' : '#ffffff'}
               opacity={t.stripeAlpha}
@@ -49,49 +44,48 @@ export function PremiumPitch({ width, height, halfPitch, pad = 24, theme = 'dark
           ) : null
         ))}
 
-        <Rect x={pad} y={pad} width={pitchW} height={pitchH} stroke={t.lines} strokeWidth={2} opacity={t.lineAlpha} cornerRadius={2} />
+        <Rect x={g.boundary.x} y={g.boundary.y} width={g.boundary.width} height={g.boundary.height} stroke={t.lines} strokeWidth={2} opacity={t.lineAlpha} cornerRadius={2} />
 
-        {!halfPitch && (
-          <>
-            <Line points={[pad, cy, pad + pitchW, cy]} stroke={t.lines} strokeWidth={1.5} opacity={t.lineAlpha} />
-            <Circle x={cx} y={cy} radius={centerR} stroke={t.lines} strokeWidth={1.5} opacity={t.lineAlpha} />
-            <Circle x={cx} y={cy} radius={4} fill={t.lines} opacity={t.lineAlpha * 0.8} />
-          </>
+        {g.isHalfwayDashed ? (
+          <Line points={[g.halfwayLine.x1, g.halfwayLine.y1, g.halfwayLine.x2, g.halfwayLine.y2]} stroke={t.lines} strokeWidth={2} opacity={t.lineAlpha * 0.6} dash={[10, 5]} />
+        ) : (
+          <Line points={[g.halfwayLine.x1, g.halfwayLine.y1, g.halfwayLine.x2, g.halfwayLine.y2]} stroke={t.lines} strokeWidth={1.5} opacity={t.lineAlpha} />
         )}
 
-        <Rect x={cx - penBoxW / 2} y={pad} width={penBoxW} height={penBoxH} stroke={t.lines} strokeWidth={1.5} opacity={t.lineAlpha} />
-        <Rect x={cx - goalBoxW / 2} y={pad} width={goalBoxW} height={goalBoxH} stroke={t.lines} strokeWidth={1.5} opacity={t.lineAlpha} />
-        <Circle x={cx} y={pad + penSpotDist} radius={3} fill={t.lines} opacity={t.lineAlpha * 0.8} />
-
-        <Arc x={cx} y={pad + penBoxH} innerRadius={0} outerRadius={centerR * 0.6} angle={180} rotation={-90} stroke={t.lines} strokeWidth={1.5} opacity={t.lineAlpha} fill="transparent" />
-
-        <Arc x={pad} y={pad} innerRadius={0} outerRadius={cornerR} angle={90} rotation={0} stroke={t.lines} strokeWidth={1.2} opacity={t.lineAlpha} fill="transparent" />
-        <Arc x={pad + pitchW} y={pad} innerRadius={0} outerRadius={cornerR} angle={90} rotation={90} stroke={t.lines} strokeWidth={1.2} opacity={t.lineAlpha} fill="transparent" />
-
-        {!halfPitch && (
-          <>
-            <Rect x={cx - penBoxW / 2} y={pad + pitchH - penBoxH} width={penBoxW} height={penBoxH} stroke={t.lines} strokeWidth={1.5} opacity={t.lineAlpha} />
-            <Rect x={cx - goalBoxW / 2} y={pad + pitchH - goalBoxH} width={goalBoxW} height={goalBoxH} stroke={t.lines} strokeWidth={1.5} opacity={t.lineAlpha} />
-            <Circle x={cx} y={pad + pitchH - penSpotDist} radius={3} fill={t.lines} opacity={t.lineAlpha * 0.8} />
-            <Arc x={cx} y={pad + pitchH - penBoxH} innerRadius={0} outerRadius={centerR * 0.6} angle={180} rotation={90} stroke={t.lines} strokeWidth={1.5} opacity={t.lineAlpha} fill="transparent" />
-            <Arc x={pad} y={pad + pitchH} innerRadius={0} outerRadius={cornerR} angle={90} rotation={-90} stroke={t.lines} strokeWidth={1.2} opacity={t.lineAlpha} fill="transparent" />
-            <Arc x={pad + pitchW} y={pad + pitchH} innerRadius={0} outerRadius={cornerR} angle={90} rotation={180} stroke={t.lines} strokeWidth={1.2} opacity={t.lineAlpha} fill="transparent" />
-          </>
+        {g.centerCircle && (
+          <Circle x={g.centerCircle.x} y={g.centerCircle.y} radius={g.centerCircle.radius} stroke={t.lines} strokeWidth={1.5} opacity={t.lineAlpha} />
+        )}
+        {g.centerSpot && (
+          <Circle x={g.centerSpot.x} y={g.centerSpot.y} radius={4} fill={t.lines} opacity={t.lineAlpha * 0.8} />
         )}
 
-        {halfPitch && (
-          <Line points={[pad, pad + pitchH, pad + pitchW, pad + pitchH]} stroke={t.lines} strokeWidth={2} opacity={t.lineAlpha * 0.6} dash={[10, 5]} />
-        )}
+        {g.penaltyAreas.map((r, i) => (
+          <Rect key={`pa-${i}`} x={r.x} y={r.y} width={r.width} height={r.height} stroke={t.lines} strokeWidth={1.5} opacity={t.lineAlpha} />
+        ))}
+        {g.goalAreas.map((r, i) => (
+          <Rect key={`ga-${i}`} x={r.x} y={r.y} width={r.width} height={r.height} stroke={t.lines} strokeWidth={1.5} opacity={t.lineAlpha} />
+        ))}
+        {g.penaltySpots.map((p, i) => (
+          <Circle key={`ps-${i}`} x={p.x} y={p.y} radius={3} fill={t.lines} opacity={t.lineAlpha * 0.8} />
+        ))}
+        {g.penaltyArcs.map((a, i) => {
+          const k = arcToKonva(a);
+          return <Arc key={`par-${i}`} x={k.x} y={k.y} innerRadius={k.innerRadius} outerRadius={k.outerRadius} angle={k.angle} rotation={k.rotation} stroke={t.lines} strokeWidth={1.5} opacity={t.lineAlpha} fill="transparent" />;
+        })}
+        {g.cornerArcs.map((a, i) => {
+          const k = arcToKonva(a);
+          return <Arc key={`ca-${i}`} x={k.x} y={k.y} innerRadius={k.innerRadius} outerRadius={k.outerRadius} angle={k.angle} rotation={k.rotation} stroke={t.lines} strokeWidth={1.2} opacity={t.lineAlpha} fill="transparent" />;
+        })}
 
         <Text
           text="SETPIECE"
-          fontSize={Math.min(pitchW * 0.06, 14)}
+          fontSize={Math.min(g.pitchW * 0.06, 14)}
           fontFamily="Inter, sans-serif"
           fill={t.watermark}
           opacity={t.watermarkAlpha}
-          x={cx}
-          y={halfPitch ? pad + pitchH * 0.85 : cy}
-          offsetX={pitchW * 0.03 * 4}
+          x={width / 2}
+          y={halfPitch ? g.boundary.y + g.pitchH * 0.85 : height / 2}
+          offsetX={g.pitchW * 0.03 * 4}
           letterSpacing={6}
           fontStyle="bold"
         />

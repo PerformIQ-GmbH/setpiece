@@ -1,6 +1,7 @@
 import React from 'react';
 import { cn } from '@/lib/utils';
 import { motion } from 'framer-motion';
+import { arcToSvgPath, buildPitchGeometry } from '@/utils/pitchGeometry';
 
 interface Position {
   x?: number;
@@ -53,48 +54,55 @@ export function Pitch({
         className="absolute inset-0 w-full h-full cursor-crosshair z-10"
         onClick={handlePitchClick}
       >
-        {/* Pitch Lines */}
-        <g stroke="rgba(255,255,255,0.5)" strokeWidth="0.6" fill="none">
-          {/* Outer bounds */}
-          <rect x="2" y="2" width="96" height="96" />
-          
-          {halfPitch ? (
-            <>
-              {/* Half pitch view (Attacking top) */}
-              {/* Penalty Box */}
-              <rect x="20" y="2" width="60" height="25" />
-              {/* Goal Box */}
-              <rect x="35" y="2" width="30" height="10" />
-              {/* Goal */}
-              <rect x="42" y="0" width="16" height="2" fill="rgba(255,255,255,0.3)" />
-              {/* Penalty Arc */}
-              <path d="M 35 27 A 20 20 0 0 0 65 27" />
-              {/* Penalty Spot */}
-              <circle cx="50" cy="18" r="0.5" fill="rgba(255,255,255,0.6)" />
-              {/* Center Line & Circle (at bottom) */}
-              <circle cx="50" cy="100" r="15" />
-            </>
-          ) : (
-            <>
-              {/* Full pitch view */}
-              <line x1="2" y1="50" x2="98" y2="50" />
-              <circle cx="50" cy="50" r="15" />
-              <circle cx="50" cy="50" r="0.5" fill="rgba(255,255,255,0.6)" />
-              
-              {/* Top Penalty Box */}
-              <rect x="20" y="2" width="60" height="15" />
-              <rect x="35" y="2" width="30" height="5" />
-              <path d="M 35 17 A 15 15 0 0 0 65 17" />
-              <circle cx="50" cy="12" r="0.5" fill="rgba(255,255,255,0.6)" />
+        {/* Pitch Lines — driven by the shared scale-accurate geometry module. */}
+        {(() => {
+          const g = buildPitchGeometry({
+            width: 100,
+            height: 100,
+            pad: 2,
+            orientation: halfPitch ? 'half' : 'full',
+          });
+          return (
+            <g stroke="rgba(255,255,255,0.5)" strokeWidth="0.6" fill="none">
+              {/* Outer bounds */}
+              <rect x={g.boundary.x} y={g.boundary.y} width={g.boundary.width} height={g.boundary.height} />
 
-              {/* Bottom Penalty Box */}
-              <rect x="20" y="83" width="60" height="15" />
-              <rect x="35" y="93" width="30" height="5" />
-              <path d="M 35 83 A 15 15 0 0 1 65 83" />
-              <circle cx="50" cy="88" r="0.5" fill="rgba(255,255,255,0.6)" />
-            </>
-          )}
-        </g>
+              {/* Halfway line (dashed when this is a half-pitch cut edge) */}
+              <line
+                x1={g.halfwayLine.x1}
+                y1={g.halfwayLine.y1}
+                x2={g.halfwayLine.x2}
+                y2={g.halfwayLine.y2}
+                strokeDasharray={g.isHalfwayDashed ? '2.5 1.5' : undefined}
+              />
+              {g.centerCircle && (
+                <circle cx={g.centerCircle.x} cy={g.centerCircle.y} r={g.centerCircle.radius} />
+              )}
+              {g.centerSpot && (
+                <circle cx={g.centerSpot.x} cy={g.centerSpot.y} r="0.5" fill="rgba(255,255,255,0.6)" />
+              )}
+
+              {g.penaltyAreas.map((r, i) => (
+                <rect key={`pa-${i}`} x={r.x} y={r.y} width={r.width} height={r.height} />
+              ))}
+              {g.goalAreas.map((r, i) => (
+                <rect key={`ga-${i}`} x={r.x} y={r.y} width={r.width} height={r.height} />
+              ))}
+              {g.goals.map((r, i) => (
+                <rect key={`goal-${i}`} x={r.x} y={r.y} width={r.width} height={r.height} fill="rgba(255,255,255,0.3)" stroke="none" />
+              ))}
+              {g.penaltyArcs.map((a, i) => (
+                <path key={`par-${i}`} d={arcToSvgPath(a)} />
+              ))}
+              {g.cornerArcs.map((a, i) => (
+                <path key={`ca-${i}`} d={arcToSvgPath(a)} />
+              ))}
+              {g.penaltySpots.map((p, i) => (
+                <circle key={`ps-${i}`} cx={p.x} cy={p.y} r="0.5" fill="rgba(255,255,255,0.6)" />
+              ))}
+            </g>
+          );
+        })()}
 
         {/* Roles and Movement Paths */}
         {roles.map((role) => {
