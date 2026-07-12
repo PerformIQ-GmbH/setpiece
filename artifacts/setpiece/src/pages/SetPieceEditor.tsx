@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { useRoute } from 'wouter';
-import { useGetTeam, useGetSetPiece, useCreateRole, useUpdateRole, useDeleteRole, useUpsertAssignment, useDeleteAssignment, useListPlayers, useUpdateSetPieceStatus, useUpdateSetPiece } from '@workspace/api-client-react';
+import { useGetTeam, useGetSetPiece, useCreateRole, useUpdateRole, useDeleteRole, useUpsertAssignment, useDeleteAssignment, useListPlayers, useUpdateSetPieceStatus, useUpdateSetPiece, updateSetPiece as updateSetPieceRequest } from '@workspace/api-client-react';
 import type { SetPieceRole, RoleAssignment } from '@workspace/api-client-react';
 import { EditorCanvas, EditorToolbar, MobileToolDrawer, BottomBar, InspectorPanel, TutorialOverlay, ContextualTip, QuickLegend, PresentationMode, EditorContextMenu, ContextualMiniBar, useEditorStore } from '@/components/editor';
 import type { Point, Annotation, BoardData, EditorCanvasHandle, PitchTheme } from '@/components/editor';
@@ -12,7 +12,9 @@ import { StatusBadge } from '@/components/StatusBadge';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Drawer, DrawerContent, DrawerTitle } from '@/components/ui/drawer';
-import { ArrowLeft, ShieldCheck, Ghost, FileDown, Loader2, Cloud, CloudOff, HelpCircle, Info, Sun, Trees, Moon, MoreVertical, Check } from 'lucide-react';
+import { ArrowLeft, ShieldCheck, Ghost, FileDown, Loader2, Cloud, CloudOff, HelpCircle, Info, Sun, Trees, Moon, MoreVertical, Check, ZoomIn, ZoomOut, Maximize } from 'lucide-react';
+import { clampViewAxis } from '@/components/editor/EditorCanvas';
+import { FIFA_PITCH } from '@/utils/pitchGeometry';
 import { cn } from '@/lib/utils';
 import { Link } from 'wouter';
 import { useBreakpoint } from '@/hooks/use-mobile';
@@ -108,13 +110,35 @@ export default function SetPieceEditor() {
     }
   }, [mirrorBoard, setPiece?.roles, teamId, setPieceId, updateRole, refetch]);
 
-  interface UndoEntry { roleId: string; prevPos: { x: number; y: number }; newPos: { x: number; y: number } }
-  const [undoStack, setUndoStack] = useState<UndoEntry[]>([]);
-  const [redoStack, setRedoStack] = useState<UndoEntry[]>([]);
+  const canUndo = useEditorStore((s) => s.undoStack.length > 0);
+  const canRedo = useEditorStore((s) => s.redoStack.length > 0);
+  const storeUndo = useEditorStore((s) => s.undo);
+  const storeRedo = useEditorStore((s) => s.redo);
+  const commitDrag = useEditorStore((s) => s.commitDrag);
+  const editorView = useEditorStore((s) => s.view);
+  const setEditorView = useEditorStore((s) => s.setView);
 
   const canvasRef = useRef<HTMLDivElement>(null);
   const canvasHandleRef = useRef<EditorCanvasHandle>(null);
   const [canvasSize, setCanvasSize] = useState({ width: 600, height: 500 });
+
+  const zoomTo = useCallback((scale: number) => {
+    const s = Math.max(1, Math.min(4, scale));
+    if (s === 1) {
+      setEditorView({ scale: 1, x: 0, y: 0 });
+      return;
+    }
+    const v = useEditorStore.getState().view;
+    const cx = canvasSize.width / 2;
+    const cy = canvasSize.height / 2;
+    const mx = (cx - v.x) / v.scale;
+    const my = (cy - v.y) / v.scale;
+    setEditorView({
+      scale: s,
+      x: clampViewAxis(cx - mx * s, canvasSize.width, s),
+      y: clampViewAxis(cy - my * s, canvasSize.height, s),
+    });
+  }, [canvasSize, setEditorView]);
 
   const activeTool = useEditorStore((s) => s.activeTool);
   const setActiveTool = useEditorStore((s) => s.setActiveTool);
@@ -165,7 +189,25 @@ export default function SetPieceEditor() {
   }, [setPiece?.id]);
 
   useEffect(() => {
-    const flushSave = () => {
+    // On tab close a normal async mutation gets aborted; `keepalive` lets the
+    // browser finish the PATCH after the page is gone.
+    const flushOnUnload = () => {
+      if (pendingSaveTimerRef.current) {
+        clearTimeout(pendingSaveTimerRef.current);
+        pendingSaveTimerRef.current = null;
+      }
+      if (!dirtyRef.current) return;
+      dirtyRef.current = false;
+      const s = useEditorStore.getState();
+      updateSetPieceRequest(teamId, setPieceId, {
+        boardData: { annotations: s.annotations, entities: s.entities, steps: s.steps, stepPositions: s.stepPositions },
+      }, { keepalive: true }).catch(() => { dirtyRef.current = true; });
+    };
+    window.addEventListener('beforeunload', flushOnUnload);
+    window.addEventListener('pagehide', flushOnUnload);
+    return () => {
+      window.removeEventListener('beforeunload', flushOnUnload);
+      window.removeEventListener('pagehide', flushOnUnload);
       if (pendingSaveTimerRef.current) {
         clearTimeout(pendingSaveTimerRef.current);
         pendingSaveTimerRef.current = null;
@@ -173,42 +215,37 @@ export default function SetPieceEditor() {
       if (dirtyRef.current) {
         saveBoardDataRef.current();
       }
-    };
-    window.addEventListener('beforeunload', flushSave);
-    window.addEventListener('pagehide', flushSave);
-    return () => {
-      window.removeEventListener('beforeunload', flushSave);
-      window.removeEventListener('pagehide', flushSave);
-      flushSave();
       resetStore();
     };
-  }, []);
+  }, [teamId, setPieceId]);
 
+  // Keep the board at true FIFA proportions and letterbox it inside the
+  // container. Re-runs once the set piece has loaded — the container only
+  // exists then, so an empty dependency list would never attach the observer.
+  const category = setPiece?.category ?? '';
   useEffect(() => {
     const el = canvasRef.current;
     if (!el) return;
-    const isCorner = setPiece?.category?.includes('corner');
-    const CORNER_RATIO = 654 / 608;
+    const halfView = category.includes('corner') || category.includes('free_kick');
+    const ratio = halfView
+      ? FIFA_PITCH.fieldWidth / (FIFA_PITCH.fieldLength / 2)
+      : FIFA_PITCH.fieldWidth / FIFA_PITCH.fieldLength;
     const observer = new ResizeObserver((entries) => {
       for (const entry of entries) {
-        let { width, height } = entry.contentRect;
-        width = Math.floor(width);
-        height = Math.floor(height);
-        const isMobileViewport = typeof window !== 'undefined' && window.innerWidth < 768;
-        if (isCorner && width > 0 && height > 0 && !isMobileViewport) {
-          const fitByWidth = width / CORNER_RATIO;
-          if (fitByWidth <= height) {
-            height = Math.floor(fitByWidth);
-          } else {
-            width = Math.floor(height * CORNER_RATIO);
-          }
+        const { width: cw, height: ch } = entry.contentRect;
+        if (cw <= 0 || ch <= 0) continue;
+        let width = cw;
+        let height = cw / ratio;
+        if (height > ch) {
+          height = ch;
+          width = ch * ratio;
         }
-        setCanvasSize({ width, height });
+        setCanvasSize({ width: Math.floor(width), height: Math.floor(height) });
       }
     });
     observer.observe(el);
     return () => observer.disconnect();
-  }, []);
+  }, [setPiece?.id, category]);
 
   const saveBoardData = useCallback(async () => {
     const state = useEditorStore.getState();
@@ -251,52 +288,50 @@ export default function SetPieceEditor() {
 
     if (currentStepIndex > 0 && currentStepId) {
       setStepRolePosition(currentStepId, roleId, pos);
+      commitDrag();
       return;
     }
 
     const role = setPiece?.roles.find(r => r.id === roleId);
     const prevPos = { x: role?.startPosition?.x ?? 50, y: role?.startPosition?.y ?? 50 };
-    setUndoStack(prev => [...prev, { roleId, prevPos, newPos: pos }]);
-    setRedoStack([]);
+    commitDrag({ roleId, prevPos, newPos: pos });
     setSaveState('saving');
     try {
       await updateRole.mutateAsync({ teamId, setPieceId, roleId, data: { startPosition: pos } });
-      await refetch();
       setSaveState('saved');
+      // Refresh in the background — the marker already sits where it was dropped.
+      refetch();
     } catch (err) {
       showActionError('move the marker', err);
     }
-  }, [teamId, setPieceId, updateRole, refetch, setPiece?.roles, setStepRolePosition]);
+  }, [teamId, setPieceId, updateRole, refetch, setPiece?.roles, setStepRolePosition, commitDrag]);
+
+  const applyRolePosition = useCallback(async (roleId: string, pos: { x: number; y: number }, action: string) => {
+    setSaveState('saving');
+    try {
+      await updateRole.mutateAsync({ teamId, setPieceId, roleId, data: { startPosition: pos } });
+      setSaveState('saved');
+      refetch();
+    } catch (err) {
+      showActionError(action, err);
+    }
+  }, [teamId, setPieceId, updateRole, refetch, showActionError]);
 
   const handleUndo = useCallback(async () => {
-    const entry = undoStack[undoStack.length - 1];
+    const entry = storeUndo();
     if (!entry) return;
-    setUndoStack(prev => prev.slice(0, -1));
-    setRedoStack(prev => [...prev, entry]);
-    setSaveState('saving');
-    try {
-      await updateRole.mutateAsync({ teamId, setPieceId, roleId: entry.roleId, data: { startPosition: entry.prevPos } });
-      await refetch();
-      setSaveState('saved');
-    } catch (err) {
-      showActionError('undo', err);
+    if (entry.kind === 'role') {
+      await applyRolePosition(entry.roleId, entry.prevPos, 'undo');
     }
-  }, [undoStack, teamId, setPieceId, updateRole, refetch]);
+  }, [storeUndo, applyRolePosition]);
 
   const handleRedo = useCallback(async () => {
-    const entry = redoStack[redoStack.length - 1];
+    const entry = storeRedo();
     if (!entry) return;
-    setRedoStack(prev => prev.slice(0, -1));
-    setUndoStack(prev => [...prev, entry]);
-    setSaveState('saving');
-    try {
-      await updateRole.mutateAsync({ teamId, setPieceId, roleId: entry.roleId, data: { startPosition: entry.newPos } });
-      await refetch();
-      setSaveState('saved');
-    } catch (err) {
-      showActionError('redo', err);
+    if (entry.kind === 'role') {
+      await applyRolePosition(entry.roleId, entry.newPos, 'redo');
     }
-  }, [redoStack, teamId, setPieceId, updateRole, refetch]);
+  }, [storeRedo, applyRolePosition]);
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -1049,8 +1084,8 @@ export default function SetPieceEditor() {
                 <EditorToolbar
                   onUndo={handleUndo}
                   onRedo={handleRedo}
-                  canUndo={undoStack.length > 0}
-                  canRedo={redoStack.length > 0}
+                  canUndo={canUndo}
+                  canRedo={canRedo}
                   onMirror={handleMirror}
                 />
               </div>
@@ -1062,14 +1097,49 @@ export default function SetPieceEditor() {
                 <EditorToolbar
                   onUndo={handleUndo}
                   onRedo={handleRedo}
-                  canUndo={undoStack.length > 0}
-                  canRedo={redoStack.length > 0}
+                  canUndo={canUndo}
+                  canRedo={canRedo}
                   onMirror={handleMirror}
                 />
               </div>
             )}
 
             <ContextualMiniBar canvasRef={canvasRef} />
+
+            {/* Zoom controls */}
+            {!presentationMode && (
+              <div className="absolute bottom-3 right-3 z-20 flex flex-col gap-0.5 rounded-xl bg-card/80 backdrop-blur-sm border border-white/[0.08] p-1">
+                <button
+                  aria-label="Zoom in"
+                  title="Zoom in (scroll / pinch)"
+                  onClick={() => zoomTo(editorView.scale * 1.25)}
+                  disabled={editorView.scale >= 4}
+                  className="w-10 h-10 rounded-lg flex items-center justify-center text-muted-foreground hover:text-white hover:bg-secondary disabled:opacity-30 transition-colors"
+                >
+                  <ZoomIn className="w-4 h-4" />
+                </button>
+                {editorView.scale > 1 && (
+                  <button
+                    aria-label="Reset zoom"
+                    title="Reset zoom"
+                    onClick={() => zoomTo(1)}
+                    className="w-10 h-10 rounded-lg flex flex-col items-center justify-center text-primary hover:bg-secondary transition-colors"
+                  >
+                    <Maximize className="w-3.5 h-3.5" />
+                    <span className="text-[9px] font-bold leading-tight">{Math.round(editorView.scale * 100)}%</span>
+                  </button>
+                )}
+                <button
+                  aria-label="Zoom out"
+                  title="Zoom out"
+                  onClick={() => zoomTo(editorView.scale / 1.25)}
+                  disabled={editorView.scale <= 1}
+                  className="w-10 h-10 rounded-lg flex items-center justify-center text-muted-foreground hover:text-white hover:bg-secondary disabled:opacity-30 transition-colors"
+                >
+                  <ZoomOut className="w-4 h-4" />
+                </button>
+              </div>
+            )}
 
             {['run_path', 'curved_run', 'pass_line', 'curved_cross'].includes(activeTool) && drawingPoints.length >= 2 && canvasHandleRef.current && (() => {
               const screenPos = canvasHandleRef.current?.getLastDrawingPointScreen();
@@ -1100,16 +1170,16 @@ export default function SetPieceEditor() {
               mobile={isMobile}
               onUndo={handleUndo}
               onRedo={handleRedo}
-              canUndo={undoStack.length > 0}
-              canRedo={redoStack.length > 0}
+              canUndo={canUndo}
+              canRedo={canRedo}
               onMirror={handleMirror}
               onOpenInspector={() => setMobileInspectorOpen(true)}
               toolDrawer={isMobile ? (
                 <MobileToolDrawer
                   onUndo={handleUndo}
                   onRedo={handleRedo}
-                  canUndo={undoStack.length > 0}
-                  canRedo={redoStack.length > 0}
+                  canUndo={canUndo}
+                  canRedo={canRedo}
                   onMirror={handleMirror}
                 />
               ) : undefined}
