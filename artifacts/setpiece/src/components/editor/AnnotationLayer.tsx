@@ -2,6 +2,10 @@ import { useRef } from 'react';
 import { Group, Line, Circle, Rect, Text, Arrow } from 'react-konva';
 import type Konva from 'konva';
 import type { Annotation, Point } from './types';
+import { expandCurve } from './pathUtils';
+import { useEditorStore } from './editorStore';
+
+const snapshotForDrag = () => useEditorStore.getState().snapshotBoard();
 
 interface AnnotationLayerProps {
   annotations: Annotation[];
@@ -65,6 +69,7 @@ function DragHandle({
       strokeWidth={2}
       hitStrokeWidth={HANDLE_HIT_WIDTH}
       draggable
+      onDragStart={snapshotForDrag}
       onDragMove={(e: Konva.KonvaEventObject<DragEvent>) => {
         cancelAnimationFrame(rafRef.current);
         const abs = e.target.getAbsolutePosition();
@@ -127,6 +132,7 @@ function RadiusHandle({
       strokeWidth={2}
       hitStrokeWidth={HANDLE_HIT_WIDTH}
       draggable
+      onDragStart={snapshotForDrag}
       onDragMove={(e: Konva.KonvaEventObject<DragEvent>) => {
         cancelAnimationFrame(rafRef.current);
         const ex = e.target.x();
@@ -160,6 +166,10 @@ export function AnnotationLayer({ annotations, selectedId, focusedRoleId, hasFoc
     return (e: Konva.KonvaEventObject<DragEvent>) => {
       const dx = e.target.x();
       const dy = e.target.y();
+      // The node keeps its drag offset (its x/y props don't change), so reset
+      // it — the movement is applied to the annotation's points instead.
+      // Without this the shape moves twice the drag distance.
+      e.target.position({ x: 0, y: 0 });
       const dxPct = (dx / pitchW) * 100;
       const dyPct = (dy / pitchH) * 100;
       onMove(ann.id, dxPct, dyPct);
@@ -224,6 +234,7 @@ export function AnnotationLayer({ annotations, selectedId, focusedRoleId, hasFoc
                   opacity={Math.min(1, 0.85 * annOpacityScale * ghostOpacity)}
                   hitStrokeWidth={16}
                   draggable={!locked && !isSelected}
+                  onDragStart={snapshotForDrag}
                   onDragEnd={shapeDragEnd}
                   onClick={(e) => { e.cancelBubble = true; if (!locked) onSelect(ann.id); }}
                   onTap={(e) => { e.cancelBubble = true; if (!locked) onSelect(ann.id); }}
@@ -248,7 +259,9 @@ export function AnnotationLayer({ annotations, selectedId, focusedRoleId, hasFoc
           case 'curved_run':
           case 'curved_cross': {
             if (ann.points.length < 2) return null;
-            const curvePts = pctToAbsPoints(ann.points, toPixel);
+            // Render from the same Catmull-Rom expansion the animation travels
+            // on, so the ball/players never leave the drawn line.
+            const curvePts = pctToAbsPoints(expandCurve(ann.points), toPixel);
             const Component = effectiveArrowhead ? Arrow : Line;
             return (
               <Group key={ann.id}>
@@ -258,7 +271,6 @@ export function AnnotationLayer({ annotations, selectedId, focusedRoleId, hasFoc
                     stroke="#ffffff"
                     strokeWidth={ann.strokeWidth + 4}
                     opacity={0.25}
-                    tension={0.4}
                     lineCap="round"
                     lineJoin="round"
                   />
@@ -270,7 +282,6 @@ export function AnnotationLayer({ annotations, selectedId, focusedRoleId, hasFoc
                   stroke={ghostColor}
                   strokeWidth={isLinkedToFocused ? ann.strokeWidth + 1 : ann.strokeWidth}
                   dash={effectiveDashed ? [8, 5] : undefined}
-                  tension={0.4}
                   lineCap="round"
                   lineJoin="round"
                   pointerLength={effectiveArrowhead ? 10 : undefined}
@@ -279,6 +290,7 @@ export function AnnotationLayer({ annotations, selectedId, focusedRoleId, hasFoc
                   opacity={Math.min(1, 0.85 * annOpacityScale * ghostOpacity)}
                   hitStrokeWidth={16}
                   draggable={!locked && !isSelected}
+                  onDragStart={snapshotForDrag}
                   onDragEnd={shapeDragEnd}
                   onClick={(e) => { e.cancelBubble = true; if (!locked) onSelect(ann.id); }}
                   onTap={(e) => { e.cancelBubble = true; if (!locked) onSelect(ann.id); }}
@@ -329,6 +341,7 @@ export function AnnotationLayer({ annotations, selectedId, focusedRoleId, hasFoc
                   dash={[6, 4]}
                   hitStrokeWidth={12}
                   draggable={!zoneLocked}
+                  onDragStart={zoneLocked ? undefined : snapshotForDrag}
                   onClick={(e) => { e.cancelBubble = true; if (!zoneLocked) onSelect(ann.id); }}
                   onTap={(e) => { e.cancelBubble = true; if (!zoneLocked) onSelect(ann.id); }}
                   onDragEnd={zoneLocked ? undefined : (e) => {
@@ -404,6 +417,7 @@ export function AnnotationLayer({ annotations, selectedId, focusedRoleId, hasFoc
                   cornerRadius={3}
                   hitStrokeWidth={12}
                   draggable={!rectLocked}
+                  onDragStart={rectLocked ? undefined : snapshotForDrag}
                   onClick={(e) => { e.cancelBubble = true; if (!rectLocked) onSelect(ann.id); }}
                   onTap={(e) => { e.cancelBubble = true; if (!rectLocked) onSelect(ann.id); }}
                   onDragEnd={rectLocked ? undefined : (e) => {
@@ -437,8 +451,12 @@ export function AnnotationLayer({ annotations, selectedId, focusedRoleId, hasFoc
             const labelLocked = isTypeLocked(ann);
             return (
               <Group key={ann.id} x={0} y={0} draggable={!labelLocked}
+                onDragStart={labelLocked ? undefined : snapshotForDrag}
                 onDragEnd={labelLocked ? undefined : (e) => {
                   const newPct = toPct({ x: e.target.x() + pos.x, y: e.target.y() + pos.y });
+                  // Reset the group's drag offset — the movement is applied to
+                  // the annotation point; leaving it doubles the shift.
+                  e.target.position({ x: 0, y: 0 });
                   const dx = newPct.x - ann.points[0].x;
                   const dy = newPct.y - ann.points[0].y;
                   onMove(ann.id, dx, dy);
@@ -510,7 +528,7 @@ export function DrawingPreview({ points, cursorPoint, toPixel, color, strokeWidt
     ? [...points, cursorPoint]
     : points;
   if (previewPoints.length < 2) return null;
-  const flatPts = pctToAbsPoints(previewPoints, toPixel);
+  const flatPts = pctToAbsPoints(curved ? expandCurve(previewPoints) : previewPoints, toPixel);
   const Component = arrowhead ? Arrow : Line;
   return (
     <Component
@@ -518,7 +536,6 @@ export function DrawingPreview({ points, cursorPoint, toPixel, color, strokeWidt
       stroke={color}
       strokeWidth={strokeWidth}
       dash={dashed ? [8, 5] : undefined}
-      tension={curved ? 0.4 : 0}
       lineCap="round"
       lineJoin="round"
       pointerLength={arrowhead ? 10 : undefined}

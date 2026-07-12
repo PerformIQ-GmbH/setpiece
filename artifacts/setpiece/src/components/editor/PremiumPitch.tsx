@@ -44,6 +44,24 @@ export function PremiumPitch({ width, height, halfPitch, pad = 24, theme = 'dark
           ) : null
         ))}
 
+        {/* Stadium lighting: brighter center falling into a soft vignette. */}
+        <Rect
+          x={g.boundary.x}
+          y={g.boundary.y}
+          width={g.boundary.width}
+          height={g.boundary.height}
+          cornerRadius={4}
+          fillRadialGradientStartPoint={{ x: g.boundary.width / 2, y: g.boundary.height / 2 }}
+          fillRadialGradientEndPoint={{ x: g.boundary.width / 2, y: g.boundary.height / 2 }}
+          fillRadialGradientStartRadius={0}
+          fillRadialGradientEndRadius={Math.max(g.boundary.width, g.boundary.height) * 0.72}
+          fillRadialGradientColorStops={
+            theme === 'light'
+              ? [0, 'rgba(255,255,255,0.35)', 0.65, 'rgba(255,255,255,0)', 1, 'rgba(0,0,0,0.05)']
+              : [0, 'rgba(255,255,255,0.06)', 0.6, 'rgba(255,255,255,0)', 1, 'rgba(0,0,0,0.22)']
+          }
+        />
+
         <Rect x={g.boundary.x} y={g.boundary.y} width={g.boundary.width} height={g.boundary.height} stroke={t.lines} strokeWidth={2} opacity={t.lineAlpha} cornerRadius={2} />
 
         {g.isHalfwayDashed ? (
@@ -66,7 +84,25 @@ export function PremiumPitch({ width, height, halfPitch, pad = 24, theme = 'dark
           <Rect key={`ga-${i}`} x={r.x} y={r.y} width={r.width} height={r.height} stroke={t.lines} strokeWidth={1.5} opacity={t.lineAlpha} />
         ))}
         {g.goals.map((r, i) => (
-          <Rect key={`goal-${i}`} x={r.x} y={r.y} width={r.width} height={r.height} fill={t.lines} opacity={t.lineAlpha * 0.35} stroke={t.lines} strokeWidth={1.2} />
+          <Group key={`goal-${i}`}>
+            <Rect x={r.x} y={r.y} width={r.width} height={r.height} fill={t.lines} opacity={t.lineAlpha * 0.18} stroke={t.lines} strokeWidth={1.2} />
+            {/* Net */}
+            {Array.from({ length: 5 }, (_, n) => (
+              <Line
+                key={`net-v-${n}`}
+                points={[r.x + ((n + 1) * r.width) / 6, r.y, r.x + ((n + 1) * r.width) / 6, r.y + r.height]}
+                stroke={t.lines}
+                strokeWidth={0.5}
+                opacity={t.lineAlpha * 0.4}
+              />
+            ))}
+            <Line
+              points={[r.x, r.y + r.height / 2, r.x + r.width, r.y + r.height / 2]}
+              stroke={t.lines}
+              strokeWidth={0.5}
+              opacity={t.lineAlpha * 0.4}
+            />
+          </Group>
         ))}
         {g.penaltySpots.map((p, i) => (
           <Circle key={`ps-${i}`} x={p.x} y={p.y} radius={3} fill={t.lines} opacity={t.lineAlpha * 0.8} />
@@ -84,9 +120,10 @@ export function PremiumPitch({ width, height, halfPitch, pad = 24, theme = 'dark
           fontFamily="Inter, sans-serif"
           fill={t.watermark}
           opacity={t.watermarkAlpha}
-          x={width / 2}
+          x={g.boundary.x}
+          width={g.boundary.width}
+          align="center"
           y={halfPitch ? g.boundary.y + g.pitchH * 0.85 : height / 2}
-          offsetX={g.pitchW * 0.03 * 4}
           letterSpacing={6}
           fontStyle="bold"
         />

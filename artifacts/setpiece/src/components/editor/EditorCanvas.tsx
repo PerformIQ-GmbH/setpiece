@@ -6,9 +6,33 @@ import { OffensiveCornerPitch } from './OffensiveCornerPitch';
 import { TeamPlayerMarker, OpponentMarker, GoalkeeperMarker, BallMarker } from './markers';
 import { AnnotationLayer, DrawingPreview } from './AnnotationLayer';
 import { useEditorStore } from './editorStore';
-import type { Point, Annotation, AnnotationType } from './types';
-import { snapPosition, PITCH_ANCHORS, findNearestMarker, buildMarkerRefs } from './snapUtils';
-import type { MarkerRef } from './snapUtils';
+import type { Point, Annotation, AnnotationType, EditorTool } from './types';
+import { snapPosition, findNearestMarker, buildMarkerRefs } from './snapUtils';
+import { PITCH_ANCHORS } from './snapUtils';
+import { annotationPath, interpolatePath, subPath, easeInOutQuad, distToSegment, REDUCED_MOTION } from './pathUtils';
+
+/** Clamp one axis of the stage pan offset so the pitch never leaves the viewport. */
+export function clampViewAxis(value: number, size: number, scale: number): number {
+  return Math.max(size - size * scale, Math.min(0, value));
+}
+
+const MAX_ZOOM = 4;
+
+const TOOL_HOTKEYS: Record<string, EditorTool> = {
+  v: 'select',
+  p: 'team_player',
+  o: 'opponent',
+  g: 'goalkeeper',
+  b: 'ball',
+  r: 'run_path',
+  c: 'curved_run',
+  l: 'pass_line',
+  x: 'curved_cross',
+  z: 'zone_circle',
+  u: 'zone_rect',
+  t: 'label',
+  e: 'erase',
+};
 
 interface RoleData {
   id: string;
@@ -112,12 +136,13 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
   const layerLocked = useEditorStore((s) => s.layerLocked);
   const setContextMenu = useEditorStore((s) => s.setContextMenu);
 
-  const markerPositions: Point[] = [
-    ...roles.map(r => ({ x: r.startPosition?.x ?? 50, y: r.startPosition?.y ?? 50 })),
-    ...entities.map(e => e.position),
-  ];
+  const view = useEditorStore((s) => s.view);
+  const setView = useEditorStore((s) => s.setView);
+  const beginDrag = useEditorStore((s) => s.beginDrag);
+  const snapshotBoard = useEditorStore((s) => s.snapshotBoard);
 
-  const snapPos = useCallback((pos: Point, excludePosition?: Point) => snapPosition(pos, markerPositions, snapEnabled, excludePosition), [markerPositions, snapEnabled]);
+  // Live feedback while a marker is dragged: magnet target + alignment guides.
+  const [dragGuides, setDragGuides] = useState<{ snap?: Point; vx?: number; hy?: number } | null>(null);
 
   const animation = useEditorStore((s) => s.animation);
   const setAnimationProgress = useEditorStore((s) => s.setAnimationProgress);
@@ -133,6 +158,10 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
     if (prevStepIndexRef.current !== animation.activeStepIndex && !animation.playing) {
       transitionFromStepRef.current = prevStepIndexRef.current;
       prevStepIndexRef.current = animation.activeStepIndex;
+      if (REDUCED_MOTION) {
+        setStepTransitionT(1);
+        return undefined;
+      }
       setStepTransitionT(0);
       let start: number | null = null;
       let frameId: number;
@@ -157,6 +186,7 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
     } else {
       prevStepIndexRef.current = animation.activeStepIndex;
     }
+    return undefined;
   }, [animation.activeStepIndex, animation.playing]);
 
   const hasFocusedElement = activeRoleId !== null || selectedEntityId !== null;
@@ -212,7 +242,7 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
     const linkedRun = stepAnns.find(
       a => a.linkedRoleId === roleId && (a.type === 'run_path' || a.type === 'curved_run') && a.points.length >= 2
     );
-    if (linkedRun) return interpolatePath(linkedRun.points, t);
+    if (linkedRun) return interpolatePath(annotationPath(linkedRun.type, linkedRun.points), t);
 
     const unlinkedRuns = stepAnns.filter(
       a => !a.linkedRoleId && (a.type === 'run_path' || a.type === 'curved_run') && a.points.length >= 2
@@ -223,7 +253,8 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
     ).length;
     const unlinkedIdx = roleIdx - usedLinkedCount;
     if (unlinkedIdx >= 0 && unlinkedIdx < unlinkedRuns.length) {
-      return interpolatePath(unlinkedRuns[unlinkedIdx].points, t);
+      const run = unlinkedRuns[unlinkedIdx];
+      return interpolatePath(annotationPath(run.type, run.points), t);
     }
 
     return startPos;
@@ -264,6 +295,46 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
     }
     return refs;
   })();
+
+  // Snap against the positions markers are actually displayed at (step-resolved),
+  // excluding the dragged marker itself.
+  const snapPos = useCallback((pos: Point, excludeId?: string) => {
+    const positions = markerRefs.filter(r => r.id !== excludeId).map(r => r.position);
+    return snapPosition(pos, positions, snapEnabled);
+  }, [markerRefs, snapEnabled]);
+
+  /** Live magnet + guide feedback while dragging marker `id`. Returns the
+   *  position (in pct) the marker should sit at. */
+  const applyDragSnap = useCallback((id: string, rawPct: Point): Point => {
+    let pos = snapPos(rawPct, id);
+    const snapped = pos !== rawPct;
+    let vx: number | undefined;
+    let hy: number | undefined;
+    if (!snapped && snapEnabled) {
+      // Soft axis alignment with other markers.
+      for (const m of markerRefs) {
+        if (m.id === id) continue;
+        if (vx === undefined && Math.abs(m.position.x - pos.x) < 1) vx = m.position.x;
+        if (hy === undefined && Math.abs(m.position.y - pos.y) < 1) hy = m.position.y;
+      }
+      if (vx !== undefined || hy !== undefined) {
+        pos = { x: vx ?? pos.x, y: hy ?? pos.y };
+      }
+    }
+    setDragGuides(snapped || vx !== undefined || hy !== undefined
+      ? { snap: snapped ? pos : undefined, vx, hy }
+      : null);
+    return pos;
+  }, [snapPos, snapEnabled, markerRefs]);
+
+  /** Konva dragBoundFunc for markers: operates in absolute (stage-transformed)
+   *  coordinates, applies magnet/alignment snapping and keeps markers on the pitch. */
+  const makeDragBound = useCallback((id: string) => (absPos: { x: number; y: number }) => {
+    const content = { x: (absPos.x - view.x) / view.scale, y: (absPos.y - view.y) / view.scale };
+    const pct = applyDragSnap(id, toPct(content));
+    const px = toPixel(pct);
+    return { x: px.x * view.scale + view.x, y: px.y * view.scale + view.y };
+  }, [view, toPct, toPixel, applyDragSnap]);
 
   const finishDrawing = useCallback(() => {
     const drawingTools = ['run_path', 'curved_run', 'pass_line', 'curved_cross'];
@@ -317,8 +388,16 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
 
   useImperativeHandle(ref, () => ({
     toDataURL: (config) => {
-      if (!stageRef.current) return '';
-      return stageRef.current.toDataURL({ pixelRatio: config?.pixelRatio ?? 2, mimeType: config?.mimeType ?? 'image/png' });
+      const stage = stageRef.current;
+      if (!stage) return '';
+      // Export the un-zoomed board regardless of the current viewport.
+      const prev = { x: stage.x(), y: stage.y(), scaleX: stage.scaleX(), scaleY: stage.scaleY() };
+      stage.position({ x: 0, y: 0 });
+      stage.scale({ x: 1, y: 1 });
+      const url = stage.toDataURL({ pixelRatio: config?.pixelRatio ?? 2, mimeType: config?.mimeType ?? 'image/png' });
+      stage.position({ x: prev.x, y: prev.y });
+      stage.scale({ x: prev.scaleX, y: prev.scaleY });
+      return url;
     },
     finishDrawing,
     getLastDrawingPointScreen: () => {
@@ -329,24 +408,89 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
       const container = stageRef.current?.container();
       if (!container) return null;
       const rect = container.getBoundingClientRect();
-      return { x: rect.left + px.x, y: rect.top + px.y };
+      const v = useEditorStore.getState().view;
+      return { x: rect.left + px.x * v.scale + v.x, y: rect.top + px.y * v.scale + v.y };
     },
   }), [finishDrawing, toPixel]);
 
-  const handleMouseMove = useCallback((e: Konva.KonvaEventObject<MouseEvent>) => {
+  // Pointer position in stage-content coordinates (zoom/pan aware).
+  const contentPointer = useCallback((): Point | null => {
+    const pos = stageRef.current?.getRelativePointerPosition();
+    return pos ?? null;
+  }, []);
+
+  const pinchRef = useRef<{ dist: number; center: { x: number; y: number } } | null>(null);
+
+  const handleWheel = useCallback((e: Konva.KonvaEventObject<WheelEvent>) => {
+    e.evt.preventDefault();
+    const pointer = stageRef.current?.getPointerPosition();
+    if (!pointer) return;
+    const v = useEditorStore.getState().view;
+    const factor = e.evt.deltaY < 0 ? 1.08 : 1 / 1.08;
+    const scale = Math.max(1, Math.min(MAX_ZOOM, v.scale * factor));
+    if (scale === 1) {
+      setView({ scale: 1, x: 0, y: 0 });
+      return;
+    }
+    const mx = (pointer.x - v.x) / v.scale;
+    const my = (pointer.y - v.y) / v.scale;
+    setView({
+      scale,
+      x: clampViewAxis(pointer.x - mx * scale, width, scale),
+      y: clampViewAxis(pointer.y - my * scale, height, scale),
+    });
+  }, [setView, width, height]);
+
+  const handlePinch = useCallback((e: Konva.KonvaEventObject<TouchEvent>): boolean => {
+    const touches = e.evt.touches;
+    if (touches.length !== 2) {
+      pinchRef.current = null;
+      return false;
+    }
+    e.evt.preventDefault();
+    const rect = stageRef.current?.container().getBoundingClientRect();
+    if (!rect) return true;
+    const [a, b] = [touches[0], touches[1]];
+    const dist = Math.hypot(b.clientX - a.clientX, b.clientY - a.clientY);
+    const center = {
+      x: (a.clientX + b.clientX) / 2 - rect.left,
+      y: (a.clientY + b.clientY) / 2 - rect.top,
+    };
+    const prev = pinchRef.current;
+    pinchRef.current = { dist, center };
+    if (!prev) return true;
+    const v = useEditorStore.getState().view;
+    const scale = Math.max(1, Math.min(MAX_ZOOM, v.scale * (dist / prev.dist)));
+    if (scale === 1) {
+      setView({ scale: 1, x: 0, y: 0 });
+      return true;
+    }
+    const mx = (prev.center.x - v.x) / v.scale;
+    const my = (prev.center.y - v.y) / v.scale;
+    // Zoom around the pinch center, panning with the moving midpoint.
+    setView({
+      scale,
+      x: clampViewAxis(center.x - mx * scale, width, scale),
+      y: clampViewAxis(center.y - my * scale, height, scale),
+    });
+    return true;
+  }, [setView, width, height]);
+
+  const handleMouseMove = useCallback((e: Konva.KonvaEventObject<MouseEvent | TouchEvent>) => {
+    if ('touches' in e.evt && handlePinch(e as Konva.KonvaEventObject<TouchEvent>)) return;
     if (!isDrawingTool || readOnly) {
       if (cursorPoint) setCursorPoint(null);
       return;
     }
-    const pos = stageRef.current?.getPointerPosition();
+    const pos = contentPointer();
     if (!pos) return;
     setCursorPoint(toPct(pos));
-  }, [isDrawingTool, readOnly, toPct, cursorPoint]);
+  }, [isDrawingTool, readOnly, toPct, cursorPoint, contentPointer, handlePinch]);
 
   const handleStageInteraction = useCallback((e: Konva.KonvaEventObject<MouseEvent | TouchEvent>) => {
     if (readOnly) return;
     const isBackground = e.target === stageRef.current || e.target.name() === 'pitch-bg';
-    const pos = stageRef.current?.getPointerPosition();
+    const pos = contentPointer();
     if (!pos) return;
     const pct = toPct(pos);
 
@@ -363,14 +507,15 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
     }
 
     if (activeTool === 'erase') {
-      const hitThreshold = 3;
-      let closestAnnId: string | null = null;
-      let closestAnnDist = Infinity;
+      // Hit-test in pixel space against the actual drawn geometry (segments,
+      // circle edges, rect bounds) — not just the stored control points.
+      const HIT_PX = 14;
+      const ENTITY_HIT_PX = 22;
+      const cursor = pos;
       const state = useEditorStore.getState();
       const lv = state.layerVisibility;
       const ll = state.layerLocked;
-      const currentStep = state.steps[state.animation.activeStepIndex];
-      const currentStepId = currentStep?.id;
+      const currentStepId = state.steps[state.animation.activeStepIndex]?.id;
       const visibleAnns = (currentStepId ? state.annotations.filter(a => a.stepId === currentStepId) : state.annotations)
         .filter(a => {
           if (['run_path', 'curved_run', 'pass_line', 'curved_cross'].includes(a.type)) return lv.actions && !ll.actions;
@@ -378,25 +523,40 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
           if (a.type === 'label') return lv.labels && !ll.labels;
           return true;
         });
+
+      let best: { d: number; del: () => void } | null = null;
+      const consider = (d: number, limit: number, del: () => void) => {
+        if (d <= limit && (!best || d < best.d)) best = { d, del };
+      };
+
       for (const ann of visibleAnns) {
-        for (const pt of ann.points) {
-          const d = Math.hypot(pt.x - pct.x, pt.y - pct.y);
-          if (d < closestAnnDist) { closestAnnDist = d; closestAnnId = ann.id; }
+        if (ann.type === 'zone_circle' && ann.points.length >= 1) {
+          const c = toPixel(ann.points[0]);
+          const r = ((ann.radius ?? 10) / 100) * Math.min(pitchW, pitchH);
+          consider(Math.max(0, Math.hypot(cursor.x - c.x, cursor.y - c.y) - r), HIT_PX, () => deleteAnnotation(ann.id));
+        } else if (ann.type === 'zone_rect' && ann.points.length >= 2) {
+          const p1 = toPixel(ann.points[0]);
+          const p2 = toPixel(ann.points[1]);
+          const dx = Math.max(Math.min(p1.x, p2.x) - cursor.x, 0, cursor.x - Math.max(p1.x, p2.x));
+          const dy = Math.max(Math.min(p1.y, p2.y) - cursor.y, 0, cursor.y - Math.max(p1.y, p2.y));
+          consider(Math.hypot(dx, dy), HIT_PX, () => deleteAnnotation(ann.id));
+        } else if (ann.type === 'label' && ann.points.length >= 1) {
+          const p = toPixel(ann.points[0]);
+          consider(Math.hypot(cursor.x - p.x, cursor.y - p.y), ENTITY_HIT_PX, () => deleteAnnotation(ann.id));
+        } else if (ann.points.length >= 2) {
+          const px = annotationPath(ann.type, ann.points).map(toPixel);
+          for (let i = 1; i < px.length; i++) {
+            consider(distToSegment(cursor, px[i - 1], px[i]), HIT_PX, () => deleteAnnotation(ann.id));
+          }
         }
       }
-      let closestEntId: string | null = null;
-      let closestEntDist = Infinity;
       for (const ent of state.entities) {
         const layerKey = ent.type === 'opponent' ? 'opponents' as const : ent.type === 'ball' ? 'ball' as const : 'team' as const;
         if (!lv[layerKey] || ll[layerKey]) continue;
-        const d = Math.hypot(ent.position.x - pct.x, ent.position.y - pct.y);
-        if (d < closestEntDist) { closestEntDist = d; closestEntId = ent.id; }
+        const p = toPixel(ent.position);
+        consider(Math.hypot(cursor.x - p.x, cursor.y - p.y), ENTITY_HIT_PX, () => deleteEntity(ent.id));
       }
-      if (closestAnnDist <= hitThreshold && closestAnnDist <= closestEntDist && closestAnnId) {
-        deleteAnnotation(closestAnnId);
-      } else if (closestEntDist <= hitThreshold && closestEntId) {
-        deleteEntity(closestEntId);
-      }
+      (best as { d: number; del: () => void } | null)?.del();
       return;
     }
 
@@ -489,39 +649,70 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
       const ae = document.activeElement as HTMLElement | null;
       if (ae && (ae.tagName === 'INPUT' || ae.tagName === 'TEXTAREA' || ae.isContentEditable)) return;
       if (readOnly || useEditorStore.getState().presentationMode) return;
+      const state = useEditorStore.getState();
+
       if (e.key === 'Enter' && isDrawingTool && drawingPoints.length >= 2) {
         finishDrawing();
+        return;
       }
       if (e.key === 'Escape') {
         clearDrawingPoints();
         setSelectedAnnotationId(null);
         setSelectedEntityId(null);
+        return;
+      }
+      // While drawing, Backspace removes only the last placed point.
+      if (e.key === 'Backspace' && isDrawingTool && state.drawingPoints.length > 0) {
+        e.preventDefault();
+        state.setDrawingPoints(state.drawingPoints.slice(0, -1));
+        return;
       }
       if (e.key === 'Delete' || e.key === 'Backspace') {
-        const selAnn = useEditorStore.getState().selectedAnnotationId;
-        const selEnt = useEditorStore.getState().selectedEntityId;
-        if (selAnn) deleteAnnotation(selAnn);
-        if (selEnt) deleteEntity(selEnt);
+        if (state.selectedAnnotationId) deleteAnnotation(state.selectedAnnotationId);
+        if (state.selectedEntityId) deleteEntity(state.selectedEntityId);
+        return;
+      }
+      if (e.key === ' ') {
+        e.preventDefault();
+        setAnimationPlaying(!state.animation.playing);
+        return;
+      }
+      // Arrow-key nudge for the selected element (Shift = coarse).
+      if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key) &&
+          (state.selectedEntityId || state.selectedAnnotationId)) {
+        e.preventDefault();
+        const step = e.shiftKey ? 2 : 0.5;
+        const dx = e.key === 'ArrowLeft' ? -step : e.key === 'ArrowRight' ? step : 0;
+        const dy = e.key === 'ArrowUp' ? -step : e.key === 'ArrowDown' ? step : 0;
+        state.snapshotBoard();
+        if (state.selectedEntityId) {
+          const ent = state.entities.find(en => en.id === state.selectedEntityId);
+          if (ent) {
+            updateEntity(ent.id, {
+              position: {
+                x: Math.max(0, Math.min(100, ent.position.x + dx)),
+                y: Math.max(0, Math.min(100, ent.position.y + dy)),
+              },
+            });
+          }
+        } else if (state.selectedAnnotationId) {
+          moveAnnotation(state.selectedAnnotationId, dx, dy);
+        }
+        return;
+      }
+      // Single-letter tool shortcuts.
+      if (!e.metaKey && !e.ctrlKey && !e.altKey) {
+        const tool = TOOL_HOTKEYS[e.key.toLowerCase()];
+        if (tool) {
+          state.setActiveTool(tool);
+        }
       }
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [readOnly, isDrawingTool, drawingPoints.length, finishDrawing, clearDrawingPoints, setSelectedAnnotationId, setSelectedEntityId, deleteAnnotation, deleteEntity]);
-
-  const interpolatePath = (path: Point[], t: number): Point => {
-    if (path.length === 0) return { x: 50, y: 50 };
-    if (path.length === 1 || t <= 0) return { x: path[0]?.x ?? 50, y: path[0]?.y ?? 50 };
-    if (t >= 1) { const last = path[path.length - 1]; return { x: last?.x ?? 50, y: last?.y ?? 50 }; }
-    const totalSegments = path.length - 1;
-    const segIdx = Math.min(Math.floor(t * totalSegments), totalSegments - 1);
-    const segT = (t * totalSegments) - segIdx;
-    const p0 = path[segIdx];
-    const p1 = path[segIdx + 1];
-    if (!p0 || !p1) return { x: 50, y: 50 };
-    const x = (p0.x ?? 50) + ((p1.x ?? 50) - (p0.x ?? 50)) * segT;
-    const y = (p0.y ?? 50) + ((p1.y ?? 50) - (p0.y ?? 50)) * segT;
-    return { x: Number.isFinite(x) ? x : 50, y: Number.isFinite(y) ? y : 50 };
-  };
+  }, [readOnly, isDrawingTool, drawingPoints.length, finishDrawing, clearDrawingPoints,
+    setSelectedAnnotationId, setSelectedEntityId, deleteAnnotation, deleteEntity,
+    setAnimationPlaying, updateEntity, moveAnnotation]);
 
   const activeStep = steps[animation.activeStepIndex];
   const activeStepId = activeStep?.id;
@@ -586,14 +777,24 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
       currentPos = computeStepResolvedPosition(roleId, animation.activeStepIndex);
     }
 
-    return safePoint(resolvePositionForStep(roleId, stepAnnotations, currentPos, animation.progress));
+    // Ease-in/out so runs accelerate and decelerate like real movement.
+    return safePoint(resolvePositionForStep(roleId, stepAnnotations, currentPos, easeInOutQuad(animation.progress)));
   };
 
-  const getAnimatedBallPosition = (): Point | null => {
+  interface BallFlight {
+    pos: Point;
+    /** Eased progress along the CURRENT step's pass (1 for completed steps). */
+    t: number;
+    /** The pass annotation the ball is currently traveling on, if any. */
+    ann: Annotation | null;
+  }
+
+  const getBallFlight = (): BallFlight | null => {
     if (!animation.playing && animation.progress === 0) return null;
+    const easedProgress = easeInOutQuad(animation.progress);
 
     if (isAllMode && isPlaying) {
-      let lastBallPos: Point | null = null;
+      let flight: BallFlight | null = null;
       for (let i = 0; i <= animation.activeStepIndex; i++) {
         const sid = sortedStepIds[i];
         const anns = annotations.filter(a => a.stepId === sid);
@@ -601,18 +802,20 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
           a => (a.type === 'pass_line' || a.type === 'curved_cross') && a.points.length >= 2
         );
         if (passAnns.length > 0) {
-          const t = i < animation.activeStepIndex ? 1 : animation.progress;
-          lastBallPos = interpolatePath(passAnns[0].points, t);
+          const t = i < animation.activeStepIndex ? 1 : easedProgress;
+          const ann = passAnns[0];
+          flight = { pos: interpolatePath(annotationPath(ann.type, ann.points), t), t, ann };
         }
       }
-      return lastBallPos;
+      return flight;
     }
 
     const passAnns = stepAnnotations.filter(
       a => (a.type === 'pass_line' || a.type === 'curved_cross') && a.points.length >= 2
     );
     if (passAnns.length === 0) return null;
-    return interpolatePath(passAnns[0].points, animation.progress);
+    const ann = passAnns[0];
+    return { pos: interpolatePath(annotationPath(ann.type, ann.points), easedProgress), t: easedProgress, ann };
   };
 
   const handleContextMenu = useCallback((e: Konva.KonvaEventObject<PointerEvent>) => {
@@ -645,19 +848,37 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
     return true;
   });
 
+  const gridColor = lightPitch ? '#0f172a' : '#ffffff';
+
   return (
     <Stage
       ref={stageRef}
       width={width}
       height={height}
+      scaleX={view.scale}
+      scaleY={view.scale}
+      x={view.x}
+      y={view.y}
+      draggable={!readOnly && view.scale > 1 && activeTool === 'select'}
+      dragBoundFunc={(pos) => ({
+        x: clampViewAxis(pos.x, width, view.scale),
+        y: clampViewAxis(pos.y, height, view.scale),
+      })}
+      onDragEnd={(e) => {
+        if (e.target === stageRef.current) {
+          setView({ scale: view.scale, x: e.target.x(), y: e.target.y() });
+        }
+      }}
       onClick={handleStageInteraction}
       onTap={handleStageInteraction}
       onDblClick={handleDblClick}
       onDblTap={handleDblClick}
       onMouseMove={handleMouseMove}
       onTouchMove={handleMouseMove}
+      onTouchEnd={() => { pinchRef.current = null; }}
+      onWheel={handleWheel}
       onContextMenu={handleContextMenu}
-      style={{ cursor: isDrawingTool ? 'crosshair' : isEntityTool ? 'cell' : 'default', touchAction: 'none' }}
+      style={{ cursor: isDrawingTool ? 'crosshair' : isEntityTool ? 'cell' : activeTool === 'erase' ? 'not-allowed' : 'default', touchAction: 'none' }}
     >
       <Layer>
         {isCornerKick ? (
@@ -668,14 +889,14 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
       </Layer>
 
       {showGrid && (
-        <Layer listening={false} opacity={0.15}>
+        <Layer listening={false} opacity={lightPitch ? 0.25 : 0.15}>
           {Array.from({ length: 11 }, (_, i) => {
             const x = PAD + (i * 10 / 100) * pitchW;
-            return <Line key={`gv${i}`} points={[x, PAD, x, PAD + pitchH]} stroke="#fff" strokeWidth={0.5} />;
+            return <Line key={`gv${i}`} points={[x, PAD, x, PAD + pitchH]} stroke={gridColor} strokeWidth={0.5} />;
           })}
           {Array.from({ length: 11 }, (_, i) => {
             const y = PAD + (i * 10 / 100) * pitchH;
-            return <Line key={`gh${i}`} points={[PAD, y, PAD + pitchW, y]} stroke="#fff" strokeWidth={0.5} />;
+            return <Line key={`gh${i}`} points={[PAD, y, PAD + pitchW, y]} stroke={gridColor} strokeWidth={0.5} />;
           })}
           {PITCH_ANCHORS.map((a, i) => {
             const px = toPixel(a.pos);
@@ -684,7 +905,23 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
         </Layer>
       )}
 
-      <Layer>
+      {dragGuides && (
+        <Layer listening={false}>
+          {dragGuides.vx !== undefined && (
+            <Line points={[toPixel({ x: dragGuides.vx, y: 0 }).x, PAD, toPixel({ x: dragGuides.vx, y: 0 }).x, PAD + pitchH]} stroke="#10b981" strokeWidth={1} dash={[4, 4]} opacity={0.7} />
+          )}
+          {dragGuides.hy !== undefined && (
+            <Line points={[PAD, toPixel({ x: 0, y: dragGuides.hy }).y, PAD + pitchW, toPixel({ x: 0, y: dragGuides.hy }).y]} stroke="#10b981" strokeWidth={1} dash={[4, 4]} opacity={0.7} />
+          )}
+          {dragGuides.snap && (
+            <KonvaCircle x={toPixel(dragGuides.snap).x} y={toPixel(dragGuides.snap).y} radius={22} stroke="#10b981" strokeWidth={2} dash={[4, 3]} opacity={0.8} />
+          )}
+        </Layer>
+      )}
+
+      {/* While erasing, shapes must not swallow clicks — the stage handler
+          does the hit-testing and deletion. */}
+      <Layer listening={activeTool !== 'erase'}>
         <AnnotationLayer
           annotations={filteredAnnotations}
           selectedId={selectedAnnotationId}
@@ -731,7 +968,7 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
         })()}
       </Layer>
 
-      <Layer>
+      <Layer listening={activeTool !== 'erase'}>
         {entities.map((ent) => {
           const layerKey = ent.type === 'opponent' ? 'opponents' : ent.type === 'ball' ? 'ball' : 'team';
           if (!layerVisibility[layerKey]) return null;
@@ -742,6 +979,20 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
           const isDimmed = hasFocusedElement && !isSelected;
 
           const canInteract = !readOnly && !isLocked;
+
+          const entityDragProps = canInteract ? {
+            dragBoundFunc: makeDragBound(ent.id),
+            onDragStart: () => snapshotBoard(),
+            onDragMove: (pos: Point) => {
+              updateSnappedAnnotations(ent.id, toPct(pos), activeStepId);
+            },
+            onDragEnd: (pos: Point) => {
+              setDragGuides(null);
+              const newPct = toPct(pos);
+              updateSnappedAnnotations(ent.id, newPct, activeStepId);
+              updateEntity(ent.id, { position: newPct });
+            },
+          } : {};
 
           if (ent.type === 'opponent') {
             return (
@@ -754,14 +1005,7 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
                 label={ent.label}
                 lightPitch={lightPitch}
                 draggable={canInteract}
-                onDragMove={canInteract ? (pos) => {
-                  updateSnappedAnnotations(ent.id, toPct(pos), activeStepId);
-                } : undefined}
-                onDragEnd={canInteract ? (pos) => {
-                  const newPct = snapPos(toPct(pos), ent.position);
-                  updateSnappedAnnotations(ent.id, newPct, activeStepId);
-                  updateEntity(ent.id, { position: newPct });
-                } : undefined}
+                {...entityDragProps}
                 onClick={() => canInteract && setSelectedEntityId(ent.id)}
                 onTap={() => canInteract && setSelectedEntityId(ent.id)}
               />
@@ -779,14 +1023,7 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
                 label={ent.label}
                 lightPitch={lightPitch}
                 draggable={canInteract}
-                onDragMove={canInteract ? (pos) => {
-                  updateSnappedAnnotations(ent.id, toPct(pos), activeStepId);
-                } : undefined}
-                onDragEnd={canInteract ? (pos) => {
-                  const newPct = snapPos(toPct(pos), ent.position);
-                  updateSnappedAnnotations(ent.id, newPct, activeStepId);
-                  updateEntity(ent.id, { position: newPct });
-                } : undefined}
+                {...entityDragProps}
                 onClick={() => canInteract && setSelectedEntityId(ent.id)}
                 onTap={() => canInteract && setSelectedEntityId(ent.id)}
               />
@@ -794,31 +1031,66 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
           }
 
           if (ent.type === 'ball') {
-            const animBallPos = getAnimatedBallPosition();
-            const ballPx = animBallPos ? toPixel(animBallPos) : px;
+            const flight = getBallFlight();
+            const ballPx = flight ? toPixel(flight.pos) : px;
+            // Lofted crosses get a flight-arc illusion: the ball grows toward
+            // mid-flight and lands back at normal size.
+            const inFlight = flight && flight.t > 0 && flight.t < 1;
+            const flightScale = inFlight && flight.ann?.type === 'curved_cross'
+              ? 1 + 0.35 * Math.sin(Math.PI * flight.t)
+              : 1;
+            const trail = inFlight && flight.ann
+              ? subPath(annotationPath(flight.ann.type, flight.ann.points), flight.t)
+              : null;
             return (
-              <BallMarker
-                key={ent.id}
-                x={ballPx.x} y={ballPx.y}
-                isSelected={isSelected}
-                isDimmed={isDimmed}
-                lightPitch={lightPitch}
-                draggable={canInteract}
-                onDragMove={canInteract ? (pos) => {
-                  updateSnappedAnnotations(ent.id, toPct(pos), activeStepId);
-                } : undefined}
-                onDragEnd={canInteract ? (pos) => {
-                  const newPct = snapPos(toPct(pos), ent.position);
-                  updateSnappedAnnotations(ent.id, newPct, activeStepId);
-                  updateEntity(ent.id, { position: newPct });
-                } : undefined}
-                onClick={() => canInteract && setSelectedEntityId(ent.id)}
-                onTap={() => canInteract && setSelectedEntityId(ent.id)}
-              />
+              <Group key={ent.id}>
+                {trail && trail.length >= 2 && (
+                  <Line
+                    listening={false}
+                    points={trail.flatMap(p => { const tp = toPixel(p); return [tp.x, tp.y]; })}
+                    stroke={lightPitch ? '#334155' : '#ffffff'}
+                    strokeWidth={2.5}
+                    lineCap="round"
+                    lineJoin="round"
+                    opacity={0.3}
+                  />
+                )}
+                <BallMarker
+                  x={ballPx.x} y={ballPx.y}
+                  flightScale={flightScale}
+                  isSelected={isSelected}
+                  isDimmed={isDimmed}
+                  lightPitch={lightPitch}
+                  draggable={canInteract && !inFlight}
+                  {...(canInteract && !inFlight ? entityDragProps : {})}
+                  onClick={() => canInteract && setSelectedEntityId(ent.id)}
+                  onTap={() => canInteract && setSelectedEntityId(ent.id)}
+                />
+              </Group>
             );
           }
           return null;
         })}
+
+        {/* Onion-skin: ghost of each role's previous-step position while editing later steps. */}
+        {layerVisibility.team && animation.activeStepIndex > 0 && !isPlaying && stepTransitionT >= 1 && (
+          <Group listening={false}>
+            {roles.map((role) => {
+              const cur = computeStepResolvedPosition(role.id, animation.activeStepIndex);
+              const prev = computeStepResolvedPosition(role.id, animation.activeStepIndex - 1);
+              if (Math.hypot(cur.x - prev.x, cur.y - prev.y) < 0.5) return null;
+              const prevPx = toPixel(prev);
+              const curPx = toPixel(cur);
+              const ghostColor = lightPitch ? '#475569' : '#94a3b8';
+              return (
+                <Group key={`ghost-${role.id}`} opacity={0.28}>
+                  <Line points={[prevPx.x, prevPx.y, curPx.x, curPx.y]} stroke={ghostColor} strokeWidth={1} dash={[3, 5]} opacity={0.6} />
+                  <KonvaCircle x={prevPx.x} y={prevPx.y} radius={13} stroke={ghostColor} strokeWidth={1.5} dash={[4, 3]} />
+                </Group>
+              );
+            })}
+          </Group>
+        )}
 
         {layerVisibility.team && roles.map((role) => {
           const pct = getAnimatedPosition(role.id, role);
@@ -850,11 +1122,14 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
               label={compactLabel}
               lightPitch={lightPitch}
               draggable={roleInteractive}
+              dragBoundFunc={roleInteractive ? makeDragBound(role.id) : undefined}
+              onDragStart={roleInteractive ? () => beginDrag() : undefined}
               onDragMove={roleInteractive ? (pos) => {
                 updateSnappedAnnotations(role.id, toPct(pos), activeStepId);
               } : undefined}
               onDragEnd={roleInteractive ? (pos) => {
-                const newPct = snapPos(toPct(pos), { x: role.startPosition?.x ?? 50, y: role.startPosition?.y ?? 50 });
+                setDragGuides(null);
+                const newPct = toPct(pos);
                 updateSnappedAnnotations(role.id, newPct, activeStepId);
                 onRoleDragEnd(role.id, newPct);
               } : undefined}

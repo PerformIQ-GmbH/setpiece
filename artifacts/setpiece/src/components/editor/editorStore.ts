@@ -10,6 +10,28 @@ interface AnimationState {
   playMode: 'step' | 'all';
 }
 
+interface BoardSnapshot {
+  annotations: Annotation[];
+  entities: EntityMarker[];
+  steps: AnimationStep[];
+  stepPositions: Record<string, Record<string, Point>>;
+}
+
+/** One undoable action. 'board' entries restore local board state; 'role'
+ *  entries additionally carry the server-persisted role move for the caller
+ *  to replay via the API. */
+export type UndoEntry =
+  | { kind: 'board'; snap: BoardSnapshot }
+  | { kind: 'role'; roleId: string; prevPos: Point; newPos: Point; snap: BoardSnapshot };
+
+const HISTORY_LIMIT = 50;
+
+interface ViewState {
+  scale: number;
+  x: number;
+  y: number;
+}
+
 interface EditorState {
   editorMode: EditorMode;
   setEditorMode: (mode: EditorMode) => void;
@@ -102,6 +124,24 @@ interface EditorState {
   presentationMode: boolean;
   setPresentationMode: (on: boolean) => void;
 
+  view: ViewState;
+  setView: (view: ViewState) => void;
+
+  undoStack: UndoEntry[];
+  redoStack: UndoEntry[];
+  /** Push the current board state as an undoable entry (call BEFORE mutating,
+   *  or on drag start). */
+  snapshotBoard: () => void;
+  /** Capture board state at drag start; paired with commitDrag at drag end. */
+  beginDrag: () => void;
+  /** Turn the pending beginDrag snapshot into a history entry. With roleMove
+   *  info it becomes a combined role+board entry. */
+  commitDrag: (roleMove?: { roleId: string; prevPos: Point; newPos: Point }) => void;
+  /** Undo the latest entry. Board state is restored internally; the entry is
+   *  returned so the caller can replay server-side role moves. */
+  undo: () => UndoEntry | null;
+  redo: () => UndoEntry | null;
+
   mirrorBoard: () => void;
 
   contextMenu: { x: number; y: number; targetType: 'annotation' | 'entity' | 'role'; targetId: string } | null;
@@ -134,6 +174,22 @@ function getStoredTips(): boolean {
 }
 
 const defaultStep = createDefaultStep();
+
+// All board mutations replace objects immutably, so a snapshot can safely hold
+// references to the current arrays/maps.
+const takeSnap = (s: Pick<EditorState, 'annotations' | 'entities' | 'steps' | 'stepPositions'>): BoardSnapshot => ({
+  annotations: s.annotations,
+  entities: s.entities,
+  steps: s.steps,
+  stepPositions: s.stepPositions,
+});
+
+const pushSnap = (s: EditorState): Pick<EditorState, 'undoStack' | 'redoStack'> => ({
+  undoStack: [...s.undoStack.slice(-(HISTORY_LIMIT - 1)), { kind: 'board', snap: takeSnap(s) }],
+  redoStack: [],
+});
+
+let pendingDragSnap: BoardSnapshot | null = null;
 
 export const useEditorStore = create<EditorState>((set, get) => ({
   editorMode: getStoredEditorMode(),
@@ -182,12 +238,13 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     const ann = activeStep && !annotation.stepId
       ? { ...annotation, stepId: activeStep.id }
       : annotation;
-    return { annotations: [...s.annotations, ann] };
+    return { ...pushSnap(s), annotations: [...s.annotations, ann] };
   }),
   updateAnnotation: (id, updates) => set((s) => ({
     annotations: s.annotations.map((a) => (a.id === id ? { ...a, ...updates } : a)),
   })),
   deleteAnnotation: (id) => set((s) => ({
+    ...pushSnap(s),
     annotations: s.annotations.filter((a) => a.id !== id),
     selectedAnnotationId: s.selectedAnnotationId === id ? null : s.selectedAnnotationId,
   })),
@@ -237,15 +294,16 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       return updated;
     }),
   })),
-  clearAnnotations: () => set({ annotations: [], selectedAnnotationId: null }),
+  clearAnnotations: () => set((s) => ({ ...pushSnap(s), annotations: [], selectedAnnotationId: null })),
 
   entities: [],
   setEntities: (entities) => set({ entities }),
-  addEntity: (entity) => set((s) => ({ entities: [...s.entities, entity] })),
+  addEntity: (entity) => set((s) => ({ ...pushSnap(s), entities: [...s.entities, entity] })),
   updateEntity: (id, updates) => set((s) => ({
     entities: s.entities.map((e) => (e.id === id ? { ...e, ...updates } : e)),
   })),
   deleteEntity: (id) => set((s) => ({
+    ...pushSnap(s),
     entities: s.entities.filter((e) => e.id !== id),
     selectedEntityId: s.selectedEntityId === id ? null : s.selectedEntityId,
   })),
@@ -285,7 +343,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       label: `Step ${s.steps.length + 1}`,
       sortOrder: maxOrder + 1,
     };
-    return { steps: [...s.steps, newStep] };
+    return { ...pushSnap(s), steps: [...s.steps, newStep] };
   }),
   updateStep: (id, updates) => set((s) => ({
     steps: s.steps.map((st) => (st.id === id ? { ...st, ...updates } : st)),
@@ -295,6 +353,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     const filtered = s.steps.filter((st) => st.id !== id);
     const fallbackId = filtered[0]?.id;
     return {
+      ...pushSnap(s),
       steps: filtered,
       annotations: s.annotations.map((a) =>
         a.stepId === id ? { ...a, stepId: fallbackId } : a
@@ -323,7 +382,14 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   }),
 
   animation: { playing: false, progress: 0, speed: 1, activeStepIndex: 0, playMode: 'step' },
-  setAnimationPlaying: (playing) => set((s) => ({ animation: { ...s.animation, playing } })),
+  // Pressing play with a finished run restarts it instead of ending instantly.
+  setAnimationPlaying: (playing) => set((s) => ({
+    animation: {
+      ...s.animation,
+      playing,
+      progress: playing && s.animation.progress >= 1 ? 0 : s.animation.progress,
+    },
+  })),
   setAnimationProgress: (progress) => set((s) => ({ animation: { ...s.animation, progress } })),
   setAnimationSpeed: (speed) => set((s) => ({ animation: { ...s.animation, speed } })),
   setActiveStepIndex: (index) => set((s) => ({
@@ -402,6 +468,70 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   presentationMode: false,
   setPresentationMode: (on) => set({ presentationMode: on }),
 
+  view: { scale: 1, x: 0, y: 0 },
+  setView: (view) => set({ view }),
+
+  undoStack: [],
+  redoStack: [],
+  snapshotBoard: () => set((s) => pushSnap(s)),
+  beginDrag: () => { pendingDragSnap = takeSnap(get()); },
+  commitDrag: (roleMove) => set((s) => {
+    const snap = pendingDragSnap;
+    pendingDragSnap = null;
+    if (!snap) return {};
+    const entry: UndoEntry = roleMove ? { kind: 'role', ...roleMove, snap } : { kind: 'board', snap };
+    return {
+      undoStack: [...s.undoStack.slice(-(HISTORY_LIMIT - 1)), entry],
+      redoStack: [],
+    };
+  }),
+  undo: () => {
+    const s = get();
+    const entry = s.undoStack[s.undoStack.length - 1];
+    if (!entry) return null;
+    const current = takeSnap(s);
+    const redoEntry: UndoEntry = entry.kind === 'role'
+      ? { ...entry, snap: current }
+      : { kind: 'board', snap: current };
+    set({
+      ...entry.snap,
+      undoStack: s.undoStack.slice(0, -1),
+      redoStack: [...s.redoStack, redoEntry],
+      selectedAnnotationId: null,
+      selectedEntityId: null,
+      animation: {
+        ...s.animation,
+        playing: false,
+        progress: 0,
+        activeStepIndex: Math.min(s.animation.activeStepIndex, entry.snap.steps.length - 1),
+      },
+    });
+    return entry;
+  },
+  redo: () => {
+    const s = get();
+    const entry = s.redoStack[s.redoStack.length - 1];
+    if (!entry) return null;
+    const current = takeSnap(s);
+    const undoEntry: UndoEntry = entry.kind === 'role'
+      ? { ...entry, snap: current }
+      : { kind: 'board', snap: current };
+    set({
+      ...entry.snap,
+      redoStack: s.redoStack.slice(0, -1),
+      undoStack: [...s.undoStack, undoEntry],
+      selectedAnnotationId: null,
+      selectedEntityId: null,
+      animation: {
+        ...s.animation,
+        playing: false,
+        progress: 0,
+        activeStepIndex: Math.min(s.animation.activeStepIndex, entry.snap.steps.length - 1),
+      },
+    });
+    return entry;
+  },
+
   mirrorBoard: () => set((s) => {
     const mirroredStepPositions: Record<string, Record<string, Point>> = {};
     for (const [stepId, roleMap] of Object.entries(s.stepPositions)) {
@@ -411,6 +541,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       }
     }
     return {
+      ...pushSnap(s),
       annotations: s.annotations.map(a => ({
         ...a,
         points: a.points.map(p => ({ x: 100 - p.x, y: p.y })),
@@ -428,6 +559,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
 
   resetStore: () => {
     const fresh = createDefaultStep();
+    pendingDragSnap = null;
     set({
       activeTool: 'select',
       selectedAnnotationId: null,
@@ -440,6 +572,9 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       animation: { playing: false, progress: 0, speed: 1, activeStepIndex: 0, playMode: 'step' },
       contextMenu: null,
       presentationMode: false,
+      view: { scale: 1, x: 0, y: 0 },
+      undoStack: [],
+      redoStack: [],
     });
   },
 }));
