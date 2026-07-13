@@ -72,6 +72,7 @@ export interface EditorCanvasHandle {
   toDataURL: (config?: { pixelRatio?: number; mimeType?: string }) => string;
   finishDrawing: () => void;
   getLastDrawingPointScreen: () => { x: number; y: number } | null;
+  getStage: () => Konva.Stage | null;
 }
 
 function computePad(width: number): number {
@@ -400,6 +401,7 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
       return url;
     },
     finishDrawing,
+    getStage: () => stageRef.current,
     getLastDrawingPointScreen: () => {
       const pts = useEditorStore.getState().drawingPoints;
       if (pts.length === 0) return null;

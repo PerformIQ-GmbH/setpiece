@@ -8,6 +8,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { cn } from '@/lib/utils';
+import { t } from '@/lib/i18n';
 
 interface CoachLayoutProps {
   children: React.ReactNode;
@@ -26,17 +27,17 @@ export function CoachLayout({ children, teamId, teamName }: CoachLayoutProps) {
   const isCurrent = (path: string) => location === path || location.startsWith(path + '/');
 
   const globalNav = [
-    { icon: Home, label: 'Dashboard', path: '/dashboard' },
-    { icon: CreditCard, label: 'Pricing', path: '/pricing' },
-    { icon: Settings, label: 'Settings', path: '/settings' },
+    { icon: Home, label: t('Dashboard'), path: '/dashboard' },
+    { icon: CreditCard, label: t('Pricing'), path: '/pricing' },
+    { icon: Settings, label: t('Settings'), path: '/settings' },
   ];
 
   const teamNav = teamId ? [
-    { icon: LayoutDashboard, label: 'Overview', path: `/teams/${teamId}` },
-    { icon: Users, label: 'Players', path: `/teams/${teamId}/players` },
-    { icon: LayoutDashboard, label: 'Set Pieces', path: `/teams/${teamId}/templates` },
-    { icon: Calendar, label: 'Matchdays', path: `/teams/${teamId}/matchdays` },
-    { icon: Activity, label: 'Readiness', path: `/teams/${teamId}/readiness` },
+    { icon: LayoutDashboard, label: t('Overview'), path: `/teams/${teamId}` },
+    { icon: Users, label: t('Players'), path: `/teams/${teamId}/players` },
+    { icon: LayoutDashboard, label: t('Set Pieces'), path: `/teams/${teamId}/templates` },
+    { icon: Calendar, label: t('Matchdays'), path: `/teams/${teamId}/matchdays` },
+    { icon: Activity, label: t('Readiness'), path: `/teams/${teamId}/readiness` },
   ] : [];
 
   if (isLoading) {
@@ -53,11 +54,11 @@ export function CoachLayout({ children, teamId, teamName }: CoachLayoutProps) {
       {teamId && (
         <>
           <Link href="/dashboard" className="flex items-center gap-2 px-4 py-2 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors mb-2">
-            <ChevronLeft className="h-3 w-3" /> All Teams
+            <ChevronLeft className="h-3 w-3" /> {t('All Teams')}
           </Link>
           {teamName && (
             <div className="px-4 mb-3">
-              <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Team</p>
+              <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground">{t('Team')}</p>
               <p className="font-display text-sm font-bold text-white truncate">{teamName}</p>
             </div>
           )}
@@ -114,7 +115,7 @@ export function CoachLayout({ children, teamId, teamName }: CoachLayoutProps) {
                 <NavLinks />
               </div>
               <Button variant="ghost" className="justify-start text-destructive hover:bg-destructive/10 hover:text-destructive" onClick={handleLogout}>
-                <LogOut className="h-5 w-5 mr-3" /> Logout
+                <LogOut className="h-5 w-5 mr-3" /> {t('Logout')}
               </Button>
             </div>
           </SheetContent>
@@ -149,7 +150,7 @@ export function CoachLayout({ children, teamId, teamName }: CoachLayoutProps) {
             </div>
           </div>
           <Button variant="outline" size="sm" className="w-full justify-start text-muted-foreground hover:text-destructive hover:border-destructive/30 text-xs rounded-xl" onClick={handleLogout}>
-            <LogOut className="h-3.5 w-3.5 mr-2" /> Sign Out
+            <LogOut className="h-3.5 w-3.5 mr-2" /> {t('Sign Out')}
           </Button>
         </div>
       </aside>

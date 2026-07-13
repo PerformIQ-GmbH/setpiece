@@ -57,11 +57,31 @@ export interface Annotation {
   ghost?: boolean;
 }
 
+/** One recorded matchday result of executing this set piece. */
+export interface SetPieceOutcome {
+  id: string;
+  /** ISO timestamp of when it was recorded. */
+  at: string;
+  result: 'goal' | 'chance' | 'none';
+}
+
 export interface BoardData {
   annotations: Annotation[];
   entities: EntityMarker[];
   steps?: AnimationStep[];
   stepPositions?: Record<string, Record<string, Point>>;
+  /** Season log of goals/chances produced by this routine. */
+  outcomes?: SetPieceOutcome[];
+}
+
+export function readOutcomes(boardData: unknown): SetPieceOutcome[] {
+  const raw = (boardData as { outcomes?: unknown } | null | undefined)?.outcomes;
+  if (!Array.isArray(raw)) return [];
+  return raw.filter((o): o is SetPieceOutcome =>
+    !!o && typeof o === 'object' &&
+    typeof (o as SetPieceOutcome).id === 'string' &&
+    ['goal', 'chance', 'none'].includes((o as SetPieceOutcome).result)
+  );
 }
 
 export interface EntityMarker {

@@ -2,7 +2,8 @@ import { useRef, useState, useEffect, useCallback } from 'react';
 import { useEditorStore } from './editorStore';
 import { QuickLegend } from './QuickLegend';
 import { cn } from '@/lib/utils';
-import { X, Play, Pause, RotateCcw, ChevronLeft, ChevronRight, Info } from 'lucide-react';
+import { X, Play, Pause, RotateCcw, ChevronLeft, ChevronRight, Info, Maximize } from 'lucide-react';
+import { t } from '@/lib/i18n';
 
 interface PresentationModeProps {
   title: string;
@@ -43,6 +44,53 @@ export function PresentationMode({ title, category, children }: PresentationMode
     return () => ro.disconnect();
   }, [presentationMode]);
 
+  // Locker-room mode: keep the screen awake while presenting (phone propped
+  // against the wall, TV via casted tab). Best-effort — unsupported browsers
+  // just skip it.
+  useEffect(() => {
+    if (!presentationMode) return;
+    let lock: { release: () => Promise<void> } | null = null;
+    const acquire = async () => {
+      try {
+        lock = await (navigator as Navigator & { wakeLock?: { request: (t: 'screen') => Promise<{ release: () => Promise<void> }> } }).wakeLock?.request('screen') ?? null;
+      } catch { /* not supported or denied */ }
+    };
+    const onVisible = () => { if (document.visibilityState === 'visible') void acquire(); };
+    void acquire();
+    document.addEventListener('visibilitychange', onVisible);
+    return () => {
+      document.removeEventListener('visibilitychange', onVisible);
+      void lock?.release().catch(() => {});
+    };
+  }, [presentationMode]);
+
+  // Present from the keyboard/remote: arrows switch steps, space plays.
+  useEffect(() => {
+    if (!presentationMode) return;
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === 'ArrowRight') { e.preventDefault(); goToNextStep(); }
+      else if (e.key === 'ArrowLeft') { e.preventDefault(); goToPrevStep(); }
+      else if (e.key === ' ') { e.preventDefault(); setPlaying(!useEditorStore.getState().animation.playing); }
+      else if (e.key === 'Escape') { setPresentationMode(false); }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [presentationMode, goToNextStep, goToPrevStep, setPlaying, setPresentationMode]);
+
+  const toggleFullscreen = useCallback(() => {
+    if (document.fullscreenElement) {
+      void document.exitFullscreen().catch(() => {});
+    } else {
+      void document.documentElement.requestFullscreen().catch(() => {});
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!presentationMode && document.fullscreenElement) {
+      void document.exitFullscreen().catch(() => {});
+    }
+  }, [presentationMode]);
+
   if (!presentationMode) return null;
 
   const activeStep = steps[animation.activeStepIndex];
@@ -65,21 +113,31 @@ export function PresentationMode({ title, category, children }: PresentationMode
 
         <div className="flex items-center gap-4">
           {activeStep && (
-            <div className="flex items-center gap-2">
-              <span className="text-xs text-muted-foreground">Step</span>
-              <span className="text-sm font-display font-bold text-primary">{animation.activeStepIndex + 1}/{steps.length}</span>
-              <span className="text-xs text-white font-medium">{activeStep.label}</span>
+            <div className="flex items-baseline gap-3">
+              <span className="text-lg font-display font-bold text-primary">{animation.activeStepIndex + 1}/{steps.length}</span>
+              <span className="text-xl font-display font-bold text-white">{activeStep.label}</span>
             </div>
           )}
         </div>
 
-        <button
-          onClick={() => setPresentationMode(false)}
-          className="w-9 h-9 rounded-lg flex items-center justify-center text-muted-foreground hover:text-white hover:bg-secondary transition-all"
-          title="Exit Presentation"
-        >
-          <X className="w-5 h-5" />
-        </button>
+        <div className="flex items-center gap-1">
+          <button
+            onClick={toggleFullscreen}
+            className="w-11 h-11 rounded-lg flex items-center justify-center text-muted-foreground hover:text-white hover:bg-secondary transition-all"
+            title={t('Fullscreen')}
+            aria-label={t('Fullscreen')}
+          >
+            <Maximize className="w-5 h-5" />
+          </button>
+          <button
+            onClick={() => setPresentationMode(false)}
+            className="w-11 h-11 rounded-lg flex items-center justify-center text-muted-foreground hover:text-white hover:bg-secondary transition-all"
+            title={t('Exit Presentation (Esc)')}
+            aria-label={t('Exit Presentation (Esc)')}
+          >
+            <X className="w-5 h-5" />
+          </button>
+        </div>
       </div>
 
       <div ref={containerRef} className="flex-1 flex items-center justify-center p-4 overflow-hidden relative">
@@ -142,7 +200,7 @@ export function PresentationMode({ title, category, children }: PresentationMode
 
         <button
           onClick={() => setShowLegend(!showLegend)}
-          title="Toggle Legend"
+          title={t('Toggle Legend')}
           className={cn(
             "w-10 h-10 rounded-lg flex items-center justify-center transition-all",
             showLegend ? "text-primary bg-primary/10" : "text-muted-foreground hover:text-white hover:bg-secondary"
