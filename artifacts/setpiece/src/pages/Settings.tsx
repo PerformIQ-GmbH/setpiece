@@ -3,7 +3,8 @@ import { CoachLayout } from '@/components/Layout';
 import { useListTeams, useUpdateTeam, useGetCurrentAuthUser } from '@workspace/api-client-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Settings as SettingsIcon, Palette, User, CreditCard, Loader2, ExternalLink, Download, Smartphone, CheckCircle2 } from 'lucide-react';
+import { Settings as SettingsIcon, Palette, User, CreditCard, Loader2, ExternalLink, Download, Smartphone, CheckCircle2, Languages } from 'lucide-react';
+import { t, getLangSetting, setLangSetting } from '@/lib/i18n';
 import { useInstallPrompt } from '@/hooks/useInstallPrompt';
 import { motion } from 'framer-motion';
 
@@ -64,6 +65,36 @@ export default function Settings() {
             <SettingsIcon className="h-6 w-6 text-primary" /> Settings
           </h1>
         </div>
+
+        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
+          <Card className="bg-card border-border mb-6">
+            <CardContent className="p-6">
+              <h2 className="font-display font-bold text-base text-white flex items-center gap-2 mb-4">
+                <Languages className="h-4 w-4 text-primary" /> {t('Language')}
+              </h2>
+              <p className="text-xs text-muted-foreground mb-3">{t('Choose the app language.')}</p>
+              <div className="flex gap-2">
+                {([
+                  { value: 'auto' as const, label: t('Automatic (browser)') },
+                  { value: 'de' as const, label: t('German') },
+                  { value: 'en' as const, label: t('English') },
+                ]).map(opt => (
+                  <button
+                    key={opt.value}
+                    onClick={() => setLangSetting(opt.value)}
+                    className={`px-4 h-11 rounded-xl text-xs font-semibold border transition-colors ${
+                      getLangSetting() === opt.value
+                        ? 'bg-primary/20 text-primary border-primary/30'
+                        : 'text-muted-foreground border-border hover:text-white hover:bg-secondary'
+                    }`}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        </motion.div>
 
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
           <Card className="bg-card border-border mb-6">

@@ -22,31 +22,31 @@ export interface ToolDef {
 }
 
 export const SELECT_TOOLS: ToolDef[] = [
-  { tool: 'select', icon: MousePointer2, label: 'Select & Move' },
+  { tool: 'select', icon: MousePointer2, label: t('Select & Move') },
 ];
 
 export const ENTITY_TOOLS: ToolDef[] = [
-  { tool: 'team_player', icon: UserRound, label: 'Team Player' },
-  { tool: 'opponent', icon: UserX, label: 'Opponent' },
-  { tool: 'ball', icon: Circle, label: 'Ball' },
+  { tool: 'team_player', icon: UserRound, label: t('Team Player') },
+  { tool: 'opponent', icon: UserX, label: t('Opponent') },
+  { tool: 'ball', icon: Circle, label: t('Ball') },
 ];
 
 export const ACTION_TOOLS: ToolDef[] = [
-  { tool: 'run_path', icon: Minus, label: 'Run Path (dashed)' },
-  { tool: 'pass_line', icon: MoveRight, label: 'Pass Line (solid)' },
+  { tool: 'run_path', icon: Minus, label: t('Run Path (dashed)') },
+  { tool: 'pass_line', icon: MoveRight, label: t('Pass Line (solid)') },
 ];
 
 export const ADVANCED_ENTITY_TOOLS: ToolDef[] = [
-  { tool: 'goalkeeper', icon: Shield, label: 'Goalkeeper' },
+  { tool: 'goalkeeper', icon: Shield, label: t('Goalkeeper') },
 ];
 
 export const ADVANCED_ACTION_TOOLS: ToolDef[] = [
-  { tool: 'curved_run', icon: Spline, label: 'Curved Run' },
-  { tool: 'curved_cross', icon: CornerDownRight, label: 'Curved Cross' },
-  { tool: 'zone_circle', icon: Circle, label: 'Circle Zone' },
-  { tool: 'zone_rect', icon: Square, label: 'Rectangle Zone' },
-  { tool: 'label', icon: Type, label: 'Text Label' },
-  { tool: 'erase', icon: Eraser, label: 'Delete Selected' },
+  { tool: 'curved_run', icon: Spline, label: t('Curved Run') },
+  { tool: 'curved_cross', icon: CornerDownRight, label: t('Curved Cross') },
+  { tool: 'zone_circle', icon: Circle, label: t('Circle Zone') },
+  { tool: 'zone_rect', icon: Square, label: t('Rectangle Zone') },
+  { tool: 'label', icon: Type, label: t('Text Label') },
+  { tool: 'erase', icon: Eraser, label: t('Delete Selected') },
 ];
 
 function ToolButton({ tool, icon: Icon, label, compact }: ToolDef & { compact?: boolean }) {
@@ -90,6 +90,7 @@ function Divider() {
 
 import { useState, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
+import { t } from '@/lib/i18n';
 
 interface EditorToolbarProps {
   onUndo?: () => void;
@@ -156,7 +157,7 @@ export function EditorToolbar({ onUndo, onRedo, canUndo, canRedo, onMirror, onOp
 
       <button
         onClick={() => setEditorMode(isAdvanced ? 'basic' : 'advanced')}
-        title={isAdvanced ? 'Switch to Basic' : 'Show Advanced Tools'}
+        title={isAdvanced ? t('Switch to Basic') : t('Show Advanced Tools')}
         className={cn(
           "w-10 h-7 rounded-md flex items-center justify-center gap-0.5 text-[8px] font-bold uppercase tracking-wide transition-all",
           isAdvanced
@@ -174,7 +175,7 @@ export function EditorToolbar({ onUndo, onRedo, canUndo, canRedo, onMirror, onOp
         <ToolGroupLabel text="Tools" />
         <button
           onClick={() => setSnapEnabled(!snapEnabled)}
-          title={snapEnabled ? 'Disable Snap' : 'Enable Snap'}
+          title={snapEnabled ? t('Disable Snap') : t('Enable Snap')}
           className={cn(
             "w-9 h-9 rounded-lg flex items-center justify-center transition-all",
             snapEnabled ? "bg-primary/20 text-primary" : "text-muted-foreground hover:bg-secondary hover:text-white"
@@ -184,7 +185,7 @@ export function EditorToolbar({ onUndo, onRedo, canUndo, canRedo, onMirror, onOp
         </button>
         <button
           onClick={() => setShowGrid(!showGrid)}
-          title={showGrid ? 'Hide Grid' : 'Show Grid'}
+          title={showGrid ? t('Hide Grid') : t('Show Grid')}
           className={cn(
             "w-9 h-9 rounded-lg flex items-center justify-center transition-all",
             showGrid ? "bg-primary/20 text-primary" : "text-muted-foreground hover:bg-secondary hover:text-white"
@@ -194,7 +195,7 @@ export function EditorToolbar({ onUndo, onRedo, canUndo, canRedo, onMirror, onOp
         </button>
         <button
           onClick={onMirror}
-          title="Mirror Board (flip horizontal)"
+          title={t('Mirror Board (flip horizontal)')}
           className="w-9 h-9 rounded-lg flex items-center justify-center text-muted-foreground hover:bg-secondary hover:text-white transition-all"
         >
           <FlipHorizontal2 className="w-3.5 h-3.5" />
@@ -203,7 +204,7 @@ export function EditorToolbar({ onUndo, onRedo, canUndo, canRedo, onMirror, onOp
           <button
             ref={layerBtnRef}
             onClick={() => setShowLayerPanel(!showLayerPanel)}
-            title="Layer Controls"
+            title={t('Layer Controls')}
             className={cn(
               "w-9 h-9 rounded-lg flex items-center justify-center transition-all",
               showLayerPanel ? "bg-primary/20 text-primary" : "text-muted-foreground hover:bg-secondary hover:text-white"
@@ -232,7 +233,7 @@ export function EditorToolbar({ onUndo, onRedo, canUndo, canRedo, onMirror, onOp
       <div className="flex flex-col items-center gap-0.5">
         <button
           onClick={() => setPresentationMode(true)}
-          title="Presentation Mode"
+          title={t('Presentation Mode')}
           className="w-10 h-10 rounded-lg flex items-center justify-center text-muted-foreground hover:bg-secondary hover:text-white transition-all"
         >
           <Presentation className="w-4 h-4" />
@@ -245,7 +246,7 @@ export function EditorToolbar({ onUndo, onRedo, canUndo, canRedo, onMirror, onOp
         <ToolGroupLabel text="Play" />
         <button
           onClick={() => setPlaying(!animation.playing)}
-          title={animation.playing ? 'Pause Animation' : 'Play Animation'}
+          title={animation.playing ? t('Pause Animation') : t('Play Animation')}
           className={cn(
             "w-10 h-10 rounded-lg flex items-center justify-center transition-all",
             animation.playing
@@ -257,7 +258,7 @@ export function EditorToolbar({ onUndo, onRedo, canUndo, canRedo, onMirror, onOp
         </button>
         <button
           onClick={() => { setPlaying(false); setProgress(0); }}
-          title="Reset Animation"
+          title={t('Reset Animation')}
           className="w-10 h-10 rounded-lg flex items-center justify-center text-muted-foreground hover:bg-secondary hover:text-white transition-all"
         >
           <RotateCcw className="w-4 h-4" />
@@ -271,7 +272,7 @@ export function EditorToolbar({ onUndo, onRedo, canUndo, canRedo, onMirror, onOp
         <button
           onClick={onUndo}
           disabled={!canUndo}
-          title="Undo (Ctrl+Z)"
+          title={t('Undo (Ctrl+Z)')}
           className="w-10 h-9 rounded-lg flex items-center justify-center text-muted-foreground hover:bg-secondary hover:text-white disabled:opacity-25 transition-all"
         >
           <Undo2 className="w-4 h-4" />
@@ -279,7 +280,7 @@ export function EditorToolbar({ onUndo, onRedo, canUndo, canRedo, onMirror, onOp
         <button
           onClick={onRedo}
           disabled={!canRedo}
-          title="Redo (Ctrl+Y)"
+          title={t('Redo (Ctrl+Y)')}
           className="w-10 h-9 rounded-lg flex items-center justify-center text-muted-foreground hover:bg-secondary hover:text-white disabled:opacity-25 transition-all"
         >
           <Redo2 className="w-4 h-4" />

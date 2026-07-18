@@ -12,7 +12,8 @@ import { StatusBadge } from '@/components/StatusBadge';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Drawer, DrawerContent, DrawerTitle } from '@/components/ui/drawer';
-import { ArrowLeft, ShieldCheck, Ghost, FileDown, Loader2, Cloud, CloudOff, HelpCircle, Info, Sun, Trees, Moon, MoreVertical, Check, ZoomIn, ZoomOut, Maximize } from 'lucide-react';
+import { ArrowLeft, ShieldCheck, Ghost, FileDown, Loader2, Cloud, CloudOff, HelpCircle, Info, Sun, Trees, Moon, MoreVertical, Check, ZoomIn, ZoomOut, Maximize, Clapperboard } from 'lucide-react';
+import { recordBoardVideo, shareOrDownloadVideo, videoExportSupported } from '@/components/editor/videoExport';
 import { clampViewAxis } from '@/components/editor/EditorCanvas';
 import { FIFA_PITCH } from '@/utils/pitchGeometry';
 import { cn } from '@/lib/utils';
@@ -21,6 +22,7 @@ import { useBreakpoint } from '@/hooks/use-mobile';
 import type { Breakpoint } from '@/hooks/use-mobile';
 import { useToast } from '@/hooks/use-toast';
 import { useConfirm } from '@/hooks/use-confirm';
+import { t } from '@/lib/i18n';
 
 type SaveState = 'saved' | 'saving' | 'unsaved' | 'error';
 
@@ -66,6 +68,7 @@ export default function SetPieceEditor() {
   const [newRoleName, setNewRoleName] = useState('');
   const [saveState, setSaveState] = useState<SaveState>('saved');
   const [exportingPDF, setExportingPDF] = useState(false);
+  const [exportingVideo, setExportingVideo] = useState(false);
   const [pendingPos, setPendingPos] = useState<{ x: number; y: number } | null>(null);
   const [editingTitle, setEditingTitle] = useState(false);
   const [titleDraft, setTitleDraft] = useState('');
@@ -157,6 +160,20 @@ export default function SetPieceEditor() {
   const boardDataLoadedRef = useRef<string | null>(null);
   const dirtyRef = useRef(false);
   const pendingSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // boardData fields the editor doesn't manage (e.g. matchday outcomes) must
+  // survive the editor's whole-object PATCH.
+  const extraBoardFieldsRef = useRef<Record<string, unknown>>({});
+
+  const buildBoardDataPayload = useCallback(() => {
+    const s = useEditorStore.getState();
+    return {
+      ...extraBoardFieldsRef.current,
+      annotations: s.annotations,
+      entities: s.entities,
+      steps: s.steps,
+      stepPositions: s.stepPositions,
+    };
+  }, []);
 
   useEffect(() => {
     if (shouldShowTutorial()) {
@@ -175,6 +192,10 @@ export default function SetPieceEditor() {
     if (boardDataLoadedRef.current === setPiece.id) return;
     resetStore();
     if (setPiece.boardData && typeof setPiece.boardData === 'object') {
+      const managed = new Set(['annotations', 'entities', 'steps', 'stepPositions']);
+      extraBoardFieldsRef.current = Object.fromEntries(
+        Object.entries(setPiece.boardData as Record<string, unknown>).filter(([k]) => !managed.has(k))
+      );
       const bd = migrateLegacyBoardData(setPiece.boardData as Partial<BoardData>);
       setAnnotations(bd.annotations);
       setEntities(bd.entities);
@@ -198,9 +219,8 @@ export default function SetPieceEditor() {
       }
       if (!dirtyRef.current) return;
       dirtyRef.current = false;
-      const s = useEditorStore.getState();
       updateSetPieceRequest(teamId, setPieceId, {
-        boardData: { annotations: s.annotations, entities: s.entities, steps: s.steps, stepPositions: s.stepPositions },
+        boardData: buildBoardDataPayload(),
       }, { keepalive: true }).catch(() => { dirtyRef.current = true; });
     };
     window.addEventListener('beforeunload', flushOnUnload);
@@ -248,19 +268,18 @@ export default function SetPieceEditor() {
   }, [setPiece?.id, category]);
 
   const saveBoardData = useCallback(async () => {
-    const state = useEditorStore.getState();
     setSaveState('saving');
     try {
       await updateSetPiece.mutateAsync({
         teamId, setPieceId,
-        data: { boardData: { annotations: state.annotations, entities: state.entities, steps: state.steps, stepPositions: state.stepPositions } }
+        data: { boardData: buildBoardDataPayload() }
       });
       dirtyRef.current = false;
       setSaveState('saved');
     } catch (err) {
       showActionError('save your changes', err);
     }
-  }, [teamId, setPieceId, updateSetPiece]);
+  }, [teamId, setPieceId, updateSetPiece, buildBoardDataPayload]);
 
   const saveBoardDataRef = useRef(saveBoardData);
   saveBoardDataRef.current = saveBoardData;
@@ -430,9 +449,9 @@ export default function SetPieceEditor() {
 
   const handleDeleteRole = async (roleId: string) => {
     const ok = await confirm({
-      title: 'Delete this role?',
-      description: 'This will remove the role and its assignment from this set piece.',
-      confirmText: 'Delete',
+      title: t('Delete this role?'),
+      description: t('This will remove the role and its assignment from this set piece.'),
+      confirmText: t('Delete'),
       destructive: true,
     });
     if (!ok) return;
@@ -687,6 +706,27 @@ export default function SetPieceEditor() {
     }
   };
 
+  const handleExportVideo = async () => {
+    const stage = canvasHandleRef.current?.getStage();
+    if (!stage || exportingVideo) return;
+    setExportingVideo(true);
+    try {
+      const res = await recordBoardVideo(stage);
+      const how = await shareOrDownloadVideo(res, setPiece?.title || 'Set Piece');
+      toast({
+        title: how === 'shared' ? t('Video shared') : t('Video downloaded'),
+        description: how === 'downloaded'
+          ? t('Attach it to your team chat (e.g. WhatsApp) to share the routine.')
+          : undefined,
+      });
+    } catch (err) {
+      const msg = (err as { message?: string })?.message ?? t('Could not record the video.');
+      toast({ title: t('Video export failed'), description: msg, variant: 'destructive' });
+    } finally {
+      setExportingVideo(false);
+    }
+  };
+
   const handleTitleSave = async () => {
     if (!titleDraft.trim() || titleDraft === setPiece?.title) {
       setEditingTitle(false);
@@ -716,7 +756,7 @@ export default function SetPieceEditor() {
       <div className="min-h-screen bg-background text-foreground flex items-center justify-center">
         <div className="flex flex-col items-center gap-3">
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
-          <p className="text-muted-foreground text-sm">Loading Tactical Board...</p>
+          <p className="text-muted-foreground text-sm">{t('Loading Tactical Board...')}</p>
         </div>
       </div>
     );
@@ -724,7 +764,7 @@ export default function SetPieceEditor() {
   if (!setPiece) {
     return (
       <div className="min-h-screen bg-background text-foreground flex items-center justify-center">
-        <p className="text-muted-foreground">Set piece not found.</p>
+        <p className="text-muted-foreground">{t('Set piece not found.')}</p>
       </div>
     );
   }
@@ -892,7 +932,7 @@ export default function SetPieceEditor() {
                         onClick={() => { setShowLegend(!showLegend); setHelpOpen(false); }}
                         className="w-full text-left px-3 py-2 text-[11px] text-muted-foreground hover:text-white hover:bg-secondary transition-colors"
                       >
-                        {showLegend ? 'Hide Legend' : 'Show Legend'}
+                        {showLegend ? t('Hide Legend') : t('Show Legend')}
                       </button>
                     </div>
                   </>
@@ -905,8 +945,15 @@ export default function SetPieceEditor() {
 
               <Button size="sm" variant="outline" className="text-[10px] h-6 border-border px-2" onClick={handleExportPDF} disabled={exportingPDF}>
                 {exportingPDF ? <Loader2 className="w-3 h-3 mr-1 animate-spin" /> : <FileDown className="w-3 h-3 mr-1" />}
-                {exportingPDF ? 'Exporting…' : 'PDF'}
+                {exportingPDF ? t('Exporting…') : 'PDF'}
               </Button>
+
+              {videoExportSupported() && (
+                <Button size="sm" variant="outline" className="text-[10px] h-6 border-border px-2" onClick={handleExportVideo} disabled={exportingVideo} title="Record the animation as a video and share it">
+                  {exportingVideo ? <Loader2 className="w-3 h-3 mr-1 animate-spin" /> : <Clapperboard className="w-3 h-3 mr-1" />}
+                  {exportingVideo ? t('Recording…') : 'Video'}
+                </Button>
+              )}
 
               <Link href={`/teams/${teamId}/ghost/${setPieceId}`}>
                 <Button size="sm" variant="outline" className="text-[10px] h-6 border-border px-2">
@@ -967,7 +1014,7 @@ export default function SetPieceEditor() {
                         className="w-full text-left px-3 py-2.5 text-[11px] text-muted-foreground hover:text-white hover:bg-secondary transition-colors flex items-center gap-2"
                       >
                         <Info className="w-3.5 h-3.5" />
-                        {showLegend ? 'Hide Legend' : 'Show Legend'}
+                        {showLegend ? t('Hide Legend') : t('Show Legend')}
                       </button>
 
                       <button
@@ -976,8 +1023,19 @@ export default function SetPieceEditor() {
                         className="w-full text-left px-3 py-2.5 text-[11px] text-muted-foreground hover:text-white hover:bg-secondary transition-colors flex items-center gap-2 disabled:opacity-50 disabled:pointer-events-none"
                       >
                         {exportingPDF ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <FileDown className="w-3.5 h-3.5" />}
-                        {exportingPDF ? 'Exporting…' : 'Export PDF'}
+                        {exportingPDF ? t('Exporting…') : t('Export PDF')}
                       </button>
+
+                      {videoExportSupported() && (
+                        <button
+                          onClick={() => { setMobileMenuOpen(false); handleExportVideo(); }}
+                          disabled={exportingVideo}
+                          className="w-full text-left px-3 py-2.5 text-[11px] text-muted-foreground hover:text-white hover:bg-secondary transition-colors flex items-center gap-2 disabled:opacity-50 disabled:pointer-events-none"
+                        >
+                          {exportingVideo ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Clapperboard className="w-3.5 h-3.5" />}
+                          {exportingVideo ? t('Recording…') : t('Share Video')}
+                        </button>
+                      )}
 
                       <Link href={`/teams/${teamId}/ghost/${setPieceId}`}>
                         <button
@@ -985,7 +1043,7 @@ export default function SetPieceEditor() {
                           className="w-full text-left px-3 py-2.5 text-[11px] text-muted-foreground hover:text-white hover:bg-secondary transition-colors flex items-center gap-2"
                         >
                           <Ghost className="w-3.5 h-3.5" />
-                          Ghost View
+                          {t('Ghost View')}
                         </button>
                       </Link>
 
@@ -999,7 +1057,7 @@ export default function SetPieceEditor() {
                           className="w-full text-left px-3 py-2.5 text-[11px] text-primary hover:bg-primary/10 transition-colors flex items-center gap-2"
                         >
                           <ShieldCheck className="w-3.5 h-3.5" />
-                          Mark Ready
+                          {t('Mark Ready')}
                         </button>
                       )}
 
@@ -1014,7 +1072,7 @@ export default function SetPieceEditor() {
                         className="w-full text-left px-3 py-2.5 text-[11px] text-muted-foreground hover:text-white hover:bg-secondary transition-colors flex items-center gap-2"
                       >
                         <HelpCircle className="w-3.5 h-3.5" />
-                        Tutorial
+                        {t('Tutorial')}
                       </button>
                     </div>
                   </>
@@ -1063,11 +1121,11 @@ export default function SetPieceEditor() {
                     "bg-card/80 backdrop-blur-sm border border-border/50 rounded-2xl text-center",
                     isMobile ? "px-3 py-2 max-w-[200px]" : "px-4 py-2.5 max-w-[320px]"
                   )}>
-                    <p className="text-sm font-display font-bold text-white mb-1">Empty Board</p>
+                    <p className="text-sm font-display font-bold text-white mb-1">{t('Empty Board')}</p>
                     <p className="text-[11px] text-muted-foreground leading-relaxed">
                       {isMobile
-                        ? 'Tap the tool button to place players and draw movements.'
-                        : 'Use the toolbar to place players and draw movements. Start with the Team Player tool to add your first role.'
+                        ? t('Tap the tool button to place players and draw movements.')
+                        : t('Use the toolbar to place players and draw movements. Start with the Team Player tool to add your first role.')
                       }
                     </p>
                   </div>
@@ -1110,7 +1168,7 @@ export default function SetPieceEditor() {
             {!presentationMode && (
               <div className="absolute bottom-3 right-3 z-20 flex flex-col gap-0.5 rounded-xl bg-card/80 backdrop-blur-sm border border-white/[0.08] p-1">
                 <button
-                  aria-label="Zoom in"
+                  aria-label={t('Zoom in')}
                   title="Zoom in (scroll / pinch)"
                   onClick={() => zoomTo(editorView.scale * 1.25)}
                   disabled={editorView.scale >= 4}
@@ -1120,7 +1178,7 @@ export default function SetPieceEditor() {
                 </button>
                 {editorView.scale > 1 && (
                   <button
-                    aria-label="Reset zoom"
+                    aria-label={t('Reset zoom')}
                     title="Reset zoom"
                     onClick={() => zoomTo(1)}
                     className="w-10 h-10 rounded-lg flex flex-col items-center justify-center text-primary hover:bg-secondary transition-colors"
@@ -1130,7 +1188,7 @@ export default function SetPieceEditor() {
                   </button>
                 )}
                 <button
-                  aria-label="Zoom out"
+                  aria-label={t('Zoom out')}
                   title="Zoom out"
                   onClick={() => zoomTo(editorView.scale / 1.25)}
                   disabled={editorView.scale <= 1}
@@ -1221,31 +1279,31 @@ export default function SetPieceEditor() {
 
       <Dialog open={roleFormOpen} onOpenChange={setRoleFormOpen}>
         <DialogContent className="bg-card border-white/[0.08] sm:max-w-sm rounded-2xl">
-          <DialogHeader><DialogTitle className="text-sm">New Role</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle className="text-sm">{t('New Role')}</DialogTitle></DialogHeader>
           <form onSubmit={handleCreateRole} className="space-y-3 pt-1">
             <input
               autoFocus
               required
               value={newRoleName}
               onChange={e => setNewRoleName(e.target.value)}
-              placeholder="e.g. Near Post Flick"
+              placeholder={t('e.g. Near Post Flick')}
               className="w-full bg-white/[0.03] border border-white/[0.08] rounded-xl px-4 py-2.5 text-sm focus:border-primary/40 focus:ring-2 focus:ring-primary/20 outline-none transition-all"
             />
-            <Button type="submit" className="w-full rounded-xl" disabled={createRole.isPending}>Create Role</Button>
+            <Button type="submit" className="w-full rounded-xl" disabled={createRole.isPending}>{t('Create Role')}</Button>
           </form>
         </DialogContent>
       </Dialog>
 
       <Dialog open={labelFormOpen} onOpenChange={setLabelFormOpen}>
         <DialogContent className="bg-card border-white/[0.08] sm:max-w-sm rounded-2xl">
-          <DialogHeader><DialogTitle className="text-sm">Add Label</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle className="text-sm">{t('Add Label')}</DialogTitle></DialogHeader>
           <form onSubmit={handleCreateLabel} className="space-y-3 pt-1">
             <input
               autoFocus
               required
               value={labelText}
               onChange={e => setLabelText(e.target.value)}
-              placeholder="Label text..."
+              placeholder={t('Label text...')}
               className="w-full bg-white/[0.03] border border-white/[0.08] rounded-xl px-4 py-2.5 text-sm focus:border-primary/40 focus:ring-2 focus:ring-primary/20 outline-none transition-all"
             />
             <Button type="submit" className="w-full rounded-xl">Add Label</Button>
