@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" fill="none">
+  <title>SETPIECE – Taktik-Turm</title>
+  <g stroke="#ffffff" stroke-linejoin="miter">
+    <path d="M24 14h20v14h12V14h16v14h12V14h20v30L92 56l8 44H28l8-44-12-12V14Z" stroke-width="8"/>
+    <path d="M36 56h56M28 100h72l10 16H18l10-16Z" stroke-width="8"/>
+    <path d="M47 84c8-13 17-17 30-17m-8-8 9 8-9 8" stroke-width="6" stroke-linecap="square"/>
+  </g>
+</svg>
