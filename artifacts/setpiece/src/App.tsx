@@ -1,41 +1,45 @@
-import { Switch, Route, Router as WouterRouter } from "wouter";
+import { lazy, Suspense } from "react";
+import { Switch, Route, Router as WouterRouter, useLocation } from "wouter";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { ConfirmProvider } from "@/hooks/use-confirm";
 import { DemoProvider } from "@/contexts/DemoContext";
 
-import Landing from "./pages/Landing";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
 import ForgotPassword from "./pages/ForgotPassword";
 import ResetPassword from "./pages/ResetPassword";
-import Dashboard from "./pages/Dashboard";
-import TeamDashboard from "./pages/TeamDashboard";
-import Players from "./pages/Players";
-import Templates from "./pages/Templates";
-import SetPieceEditor from "./pages/SetPieceEditor";
-import Matchdays from "./pages/Matchdays";
-import MatchdayDetail from "./pages/MatchdayDetail";
-import Readiness from "./pages/Readiness";
-import GhostMode from "./pages/GhostMode";
 import Pricing from "./pages/Pricing";
-import Settings from "./pages/Settings";
-import PlayerPWA from "./pages/PlayerPWA";
-import PlayerQuiz from "./pages/PlayerQuiz";
-import Onboarding from "./pages/Onboarding";
-import JoinTeam from "./pages/JoinTeam";
 import NotFound from "./pages/not-found";
 import { InstallPrompt } from "./components/InstallPrompt";
 
-import DemoEntry from "./pages/DemoEntry";
-import DemoTeamDashboard from "./pages/DemoTeamDashboard";
-import DemoPlayers from "./pages/DemoPlayers";
-import DemoSetPieces from "./pages/DemoSetPieces";
-import DemoSetPieceViewer from "./pages/DemoSetPieceViewer";
-import DemoMatchdays from "./pages/DemoMatchdays";
-import DemoMatchdayDetail from "./pages/DemoMatchdayDetail";
-import DemoReadiness from "./pages/DemoReadiness";
+import { Contact, Privacy } from "./pages/PublicInfo";
+import { PublicFooter } from "./components/PublicLayout";
+
+const Landing = lazy(() => import("./pages/Landing"));
+const Dashboard = lazy(() => import("./pages/Dashboard"));
+const TeamDashboard = lazy(() => import("./pages/TeamDashboard"));
+const Players = lazy(() => import("./pages/Players"));
+const Templates = lazy(() => import("./pages/Templates"));
+const SetPieceEditor = lazy(() => import("./pages/SetPieceEditor"));
+const Matchdays = lazy(() => import("./pages/Matchdays"));
+const MatchdayDetail = lazy(() => import("./pages/MatchdayDetail"));
+const Readiness = lazy(() => import("./pages/Readiness"));
+const GhostMode = lazy(() => import("./pages/GhostMode"));
+const Settings = lazy(() => import("./pages/Settings"));
+const PlayerPWA = lazy(() => import("./pages/PlayerPWA"));
+const PlayerQuiz = lazy(() => import("./pages/PlayerQuiz"));
+const Onboarding = lazy(() => import("./pages/Onboarding"));
+const JoinTeam = lazy(() => import("./pages/JoinTeam"));
+const DemoEntry = lazy(() => import("./pages/DemoEntry"));
+const DemoTeamDashboard = lazy(() => import("./pages/DemoTeamDashboard"));
+const DemoPlayers = lazy(() => import("./pages/DemoPlayers"));
+const DemoSetPieces = lazy(() => import("./pages/DemoSetPieces"));
+const DemoSetPieceViewer = lazy(() => import("./pages/DemoSetPieceViewer"));
+const DemoMatchdays = lazy(() => import("./pages/DemoMatchdays"));
+const DemoMatchdayDetail = lazy(() => import("./pages/DemoMatchdayDetail"));
+const DemoReadiness = lazy(() => import("./pages/DemoReadiness"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -49,6 +53,11 @@ const queryClient = new QueryClient({
 
 function DemoWrap({ component: C }: { component: React.ComponentType }) {
   return <DemoProvider><C /></DemoProvider>;
+}
+
+function PlayerPublicLinks() {
+  const [location] = useLocation();
+  return location.startsWith('/p/') || location.startsWith('/join/') ? <PublicFooter /> : null;
 }
 
 function AppRouter() {
@@ -70,6 +79,8 @@ function AppRouter() {
       <Route path="/teams/:teamId/readiness" component={Readiness} />
       <Route path="/teams/:teamId/ghost/:setPieceId" component={GhostMode} />
       <Route path="/pricing" component={Pricing} />
+      <Route path="/kontakt" component={Contact} />
+      <Route path="/datenschutz" component={Privacy} />
       <Route path="/settings" component={Settings} />
       <Route path="/join/:token" component={JoinTeam} />
       <Route path="/p/:shareToken" component={PlayerPWA} />
@@ -95,7 +106,10 @@ function App() {
       <TooltipProvider>
         <ConfirmProvider>
           <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
-            <AppRouter />
+            <Suspense fallback={<div role="status" aria-live="polite" aria-busy="true" className="flex min-h-[60vh] items-center justify-center bg-background px-5 text-center text-foreground"><p className="text-base">Seite wird geladen …</p></div>}>
+              <AppRouter />
+            </Suspense>
+            <PlayerPublicLinks />
             <InstallPrompt />
           </WouterRouter>
           <Toaster />

@@ -12,8 +12,8 @@ export default function DemoPlayers() {
   return (
     <DemoLayout teamName={demoTeam?.name}>
       <div className="mb-8">
-        <h1 className="text-3xl font-display font-bold text-white">Squad</h1>
-        <p className="text-muted-foreground mt-1">{players?.length || 0} players</p>
+        <h1 className="text-3xl font-display font-bold text-white">Spieler</h1>
+        <p className="text-muted-foreground mt-1">{players?.length || 0} Spieler</p>
       </div>
 
       {isLoading ? (
@@ -34,7 +34,7 @@ export default function DemoPlayers() {
                     </div>
                     <div className="min-w-0">
                       <h3 className="font-bold text-white truncate">{player.firstName} {player.lastName}</h3>
-                      <p className="text-xs text-muted-foreground">{player.notes || 'Player'}</p>
+                      <p className="text-xs text-muted-foreground">{player.notes || 'Spieler'}</p>
                       <div className="flex gap-1.5 mt-1.5 flex-wrap">
                         {(player.tags || []).slice(0, 3).map((tag: string) => (
                           <span key={tag} className="text-[10px] px-1.5 py-0.5 rounded bg-primary/10 text-primary border border-primary/20 font-medium">

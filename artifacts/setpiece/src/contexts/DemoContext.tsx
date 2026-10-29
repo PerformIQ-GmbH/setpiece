@@ -1,5 +1,5 @@
 import React, { createContext, useContext } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { demoTeam } from '@/lib/demo-fixture';
 
 interface DemoContextType {
   isDemo: boolean;
@@ -20,23 +20,13 @@ export function useDemoMode() {
 }
 
 export function DemoProvider({ children }: { children: React.ReactNode }) {
-  const { data: demoTeam, isLoading } = useQuery({
-    queryKey: ['demo', 'team'],
-    queryFn: async () => {
-      const res = await fetch(`${import.meta.env.BASE_URL}api/demo/team`);
-      if (!res.ok) return null;
-      return res.json();
-    },
-    staleTime: Infinity,
-  });
-
   return (
     <DemoContext.Provider
       value={{
         isDemo: true,
-        demoTeamId: demoTeam?.id ?? null,
-        demoTeam: demoTeam ?? null,
-        loading: isLoading,
+        demoTeamId: demoTeam.id,
+        demoTeam,
+        loading: false,
       }}
     >
       {children}

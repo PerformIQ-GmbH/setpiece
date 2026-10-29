@@ -1,14 +1,19 @@
 import React, { useState } from 'react';
 import { Link, useLocation, useSearch } from 'wouter';
+import { PublicLayout } from '@/components/PublicLayout';
 import { Button } from '@/components/ui/button';
-import { Move, Loader2, Eye, EyeOff } from 'lucide-react';
+import { Loader2, Eye, EyeOff } from 'lucide-react';
 import { useGetCurrentAuthUser } from '@workspace/api-client-react';
+import { useQueryClient } from '@tanstack/react-query';
+import { clearClientSession } from '@/lib/session-cleanup';
+import { safeReturnTo } from '@/lib/auth-return-to';
 
 export default function Register() {
+  const queryClient = useQueryClient();
   const [, setLocation] = useLocation();
   const search = useSearch();
   const params = new URLSearchParams(search);
-  const returnTo = params.get('returnTo') || '/dashboard';
+  const returnTo = safeReturnTo(params.get('returnTo'));
 
   const { data: auth } = useGetCurrentAuthUser();
   const [firstName, setFirstName] = useState('');
@@ -30,7 +35,7 @@ export default function Register() {
     setError('');
 
     if (password.length < 8) {
-      setError('Password must be at least 8 characters');
+      setError('Das Passwort muss mindestens 8 Zeichen lang sein.');
       return;
     }
 
@@ -46,37 +51,32 @@ export default function Register() {
 
       const data = await res.json();
       if (!res.ok) {
-        setError(data.error || 'Registration failed');
+        setError(res.status === 409 ? 'Für diese E-Mail besteht bereits ein Konto. Melde dich an oder setze das Passwort zurück.' : res.status === 400 ? 'Prüfe deine E-Mail und dein Passwort: mindestens 8 Zeichen, höchstens 72 UTF-8-Bytes.' : 'Das Konto konnte nicht erstellt werden. Bitte versuche es erneut.');
         setLoading(false);
         return;
       }
 
+      await clearClientSession(queryClient);
       window.location.href = returnTo;
     } catch {
-      setError('Network error. Please try again.');
+      setError('Keine Verbindung. Bitte versuche es erneut.');
       setLoading(false);
     }
   };
 
-  const handleGoogleLogin = () => {
+  const handleGoogleLogin = async () => {
+    await clearClientSession(queryClient);
     window.location.href = `/api/auth/google?returnTo=${encodeURIComponent(returnTo)}`;
   };
 
   return (
-    <div className="min-h-screen bg-background text-foreground flex flex-col items-center justify-center px-4">
+    <PublicLayout><section className="mx-auto flex w-full max-w-md flex-col items-center px-5 py-10 sm:py-16">
       <div className="w-full max-w-sm">
-        <div className="flex items-center justify-center gap-3 mb-8">
-          <div className="h-10 w-10 rounded-xl bg-primary flex items-center justify-center">
-            <Move className="h-6 w-6 text-primary-foreground" />
-          </div>
-          <span className="font-display font-bold text-2xl tracking-tight text-white">SETPIECE</span>
-        </div>
-
         <div className="bg-card border border-border rounded-2xl p-6">
-          <h2 className="text-xl font-display font-bold text-center mb-6">Create your account</h2>
+          <h2 className="text-xl font-display font-bold text-center mb-6">Kostenloses Konto erstellen</h2>
 
           {error && (
-            <div className="bg-destructive/10 border border-destructive/30 text-destructive text-sm rounded-lg px-4 py-3 mb-4">
+            <div role="alert" className="bg-destructive/10 border border-destructive/30 text-foreground text-sm rounded-lg px-4 py-3 mb-4">
               {error}
             </div>
           )}
@@ -84,25 +84,27 @@ export default function Register() {
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="text-sm font-medium text-muted-foreground mb-1.5 block">First Name</label>
+                <label className="text-sm font-medium text-muted-foreground mb-1.5 block">Vorname</label>
                 <input
                   type="text"
+                  aria-label="Vorname"
                   value={firstName}
                   onChange={(e) => setFirstName(e.target.value)}
-                  placeholder="John"
-                  className="w-full px-4 py-2.5 bg-secondary/50 border border-border rounded-lg text-sm focus:border-primary outline-none transition-colors"
+                  placeholder="Dein Vorname"
+                  className="w-full px-4 py-2.5 bg-secondary/50 border border-border rounded-lg text-base focus:border-primary outline-none transition-colors"
                   required
                   autoComplete="given-name"
                 />
               </div>
               <div>
-                <label className="text-sm font-medium text-muted-foreground mb-1.5 block">Last Name</label>
+                <label className="text-sm font-medium text-muted-foreground mb-1.5 block">Nachname</label>
                 <input
                   type="text"
+                  aria-label="Nachname"
                   value={lastName}
                   onChange={(e) => setLastName(e.target.value)}
-                  placeholder="Smith"
-                  className="w-full px-4 py-2.5 bg-secondary/50 border border-border rounded-lg text-sm focus:border-primary outline-none transition-colors"
+                  placeholder="Dein Nachname"
+                  className="w-full px-4 py-2.5 bg-secondary/50 border border-border rounded-lg text-base focus:border-primary outline-none transition-colors"
                   required
                   autoComplete="family-name"
                 />
@@ -110,27 +112,29 @@ export default function Register() {
             </div>
 
             <div>
-              <label className="text-sm font-medium text-muted-foreground mb-1.5 block">Email</label>
+              <label className="text-sm font-medium text-muted-foreground mb-1.5 block">E-Mail</label>
               <input
                 type="email"
-                value={email}
+                aria-label="E-Mail"
+                  value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="coach@example.com"
-                className="w-full px-4 py-2.5 bg-secondary/50 border border-border rounded-lg text-sm focus:border-primary outline-none transition-colors"
+                className="w-full px-4 py-2.5 bg-secondary/50 border border-border rounded-lg text-base focus:border-primary outline-none transition-colors"
                 required
                 autoComplete="email"
               />
             </div>
 
             <div>
-              <label className="text-sm font-medium text-muted-foreground mb-1.5 block">Password</label>
+              <label className="text-sm font-medium text-muted-foreground mb-1.5 block">Passwort</label>
               <div className="relative">
                 <input
                   type={showPassword ? 'text' : 'password'}
+                  aria-label="Passwort"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  placeholder="Min. 8 characters"
-                  className="w-full px-4 py-2.5 bg-secondary/50 border border-border rounded-lg text-sm focus:border-primary outline-none transition-colors pr-10"
+                  placeholder="Mindestens 8 Zeichen"
+                  className="w-full px-4 py-2.5 bg-secondary/50 border border-border rounded-lg text-base focus:border-primary outline-none transition-colors pr-10"
                   required
                   minLength={8}
                   autoComplete="new-password"
@@ -138,6 +142,7 @@ export default function Register() {
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
+                  aria-label={showPassword ? 'Passwort verbergen' : 'Passwort anzeigen'}
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
                 >
                   {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
@@ -147,7 +152,7 @@ export default function Register() {
 
             <Button type="submit" className="w-full py-2.5 rounded-lg font-semibold" disabled={loading}>
               {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
-              Create Account
+              Konto erstellen
             </Button>
           </form>
 
@@ -156,7 +161,7 @@ export default function Register() {
               <div className="w-full border-t border-border" />
             </div>
             <div className="relative flex justify-center">
-              <span className="bg-card px-3 text-xs text-muted-foreground">or</span>
+              <span className="bg-card px-3 text-xs text-muted-foreground">oder</span>
             </div>
           </div>
 
@@ -171,23 +176,23 @@ export default function Register() {
               <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
               <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
             </svg>
-            Continue with Google
+            Mit Google fortfahren
           </Button>
         </div>
 
         <p className="text-center text-sm text-muted-foreground mt-6">
-          Already have an account?{' '}
+          Du hast bereits ein Konto?{' '}
           <Link href={`/login${returnTo !== '/dashboard' ? `?returnTo=${encodeURIComponent(returnTo)}` : ''}`} className="text-primary font-medium hover:underline">
-            Sign in
+            Anmelden
           </Link>
         </p>
 
         <div className="text-center mt-4">
           <Link href="/" className="text-xs text-muted-foreground hover:text-foreground">
-            Back to home
+            Zur Startseite
           </Link>
         </div>
       </div>
-    </div>
+    </section></PublicLayout>
   );
 }

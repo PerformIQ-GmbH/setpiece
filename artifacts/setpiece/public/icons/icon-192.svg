@@ -1,10 +1,8 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="192" height="192" viewBox="0 0 192 192">
-  <rect width="192" height="192" rx="32" fill="#0a0e17"/>
-  <rect x="16" y="16" width="160" height="160" rx="24" fill="#10b981" opacity="0.15"/>
-  <path d="M96 40 L140 70 L140 130 L96 160 L52 130 L52 70 Z" fill="none" stroke="#10b981" stroke-width="4"/>
-  <circle cx="96" cy="100" r="8" fill="#10b981"/>
-  <line x1="96" y1="92" x2="96" y2="55" stroke="#10b981" stroke-width="3" stroke-dasharray="4 4"/>
-  <line x1="96" y1="108" x2="96" y2="145" stroke="#10b981" stroke-width="3" stroke-dasharray="4 4"/>
-  <line x1="88" y1="96" x2="60" y2="78" stroke="#10b981" stroke-width="3" stroke-dasharray="4 4"/>
-  <line x1="104" y1="96" x2="132" y2="78" stroke="#10b981" stroke-width="3" stroke-dasharray="4 4"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" fill="none">
+  <title>SETPIECE – Taktik-Turm</title>
+  <g stroke="#10b981" stroke-linejoin="miter">
+    <path d="M24 14h20v14h12V14h16v14h12V14h20v30L92 56l8 44H28l8-44-12-12V14Z" stroke-width="8"/>
+    <path d="M36 56h56M28 100h72l10 16H18l10-16Z" stroke-width="8"/>
+    <path d="M47 84c8-13 17-17 30-17m-8-8 9 8-9 8" stroke-width="6" stroke-linecap="square"/>
+  </g>
 </svg>

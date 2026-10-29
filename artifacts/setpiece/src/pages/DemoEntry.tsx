@@ -18,7 +18,7 @@ export default function DemoEntry() {
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="flex flex-col items-center gap-3">
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
-          <p className="text-muted-foreground text-sm">Loading demo...</p>
+          <p className="text-muted-foreground text-sm">Demo wird geöffnet …</p>
         </div>
       </div>
     );
@@ -28,8 +28,8 @@ export default function DemoEntry() {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center">
-          <p className="text-muted-foreground mb-4">Demo data is not available yet.</p>
-          <a href="/" className="text-primary hover:underline">Go back home</a>
+          <p className="text-muted-foreground mb-4">Die Demo kann gerade nicht angezeigt werden.</p>
+          <a href="/" className="text-primary hover:underline">Zur Startseite</a>
         </div>
       </div>
     );

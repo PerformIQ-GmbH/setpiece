@@ -1,94 +1,61 @@
-// Offline strategy, tuned for matchday at pitches with bad reception:
-// - hashed build assets (/assets/*): cache-first (immutable)
-// - navigations & other static files: network-first, cache fallback
-// - GET /api/*: network-first with cached fallback, so the player PWA and
-//   coach views still show the last-loaded data offline
-const STATIC_CACHE = 'setpiece-static-v2';
-const DATA_CACHE = 'setpiece-data-v2';
-const KNOWN_CACHES = [STATIC_CACHE, DATA_CACHE];
-
+// Public static assets only. Never persist team, player, auth or billing data.
+const STATIC_CACHE = 'setpiece-static-v3';
 const BASE_PATH = new URL(self.registration.scope).pathname;
+const OFFLINE_PAGE = BASE_PATH + 'offline.html';
+const PUBLIC_FILES = new Set([
+  OFFLINE_PAGE,
+  BASE_PATH + 'manifest.json',
+  BASE_PATH + 'icons/icon-192.svg',
+  BASE_PATH + 'icons/icon-192.png',
+]);
 
 self.addEventListener('install', (event) => {
-  event.waitUntil(
-    caches.open(STATIC_CACHE).then((cache) => cache.addAll([
-      BASE_PATH,
-      BASE_PATH + 'manifest.json',
-      BASE_PATH + 'icons/icon-192.svg'
-    ]))
-  );
+  event.waitUntil(caches.open(STATIC_CACHE).then((cache) => cache.addAll([...PUBLIC_FILES])));
   self.skipWaiting();
 });
 
 self.addEventListener('activate', (event) => {
-  event.waitUntil(
-    caches.keys().then((keys) =>
-      Promise.all(keys.filter((k) => !KNOWN_CACHES.includes(k)).map((k) => caches.delete(k)))
-    )
-  );
-  self.clients.claim();
+  event.waitUntil((async () => {
+    const keys = await caches.keys();
+    await Promise.all(keys.filter((key) => key.startsWith('setpiece-') && key !== STATIC_CACHE).map((key) => caches.delete(key)));
+    await self.clients.claim();
+  })());
+});
+
+self.addEventListener('message', (event) => {
+  if (event.data?.type !== 'CLEAR_APP_CACHES') return;
+  event.waitUntil((async () => {
+    const keys = await caches.keys();
+    await Promise.all(keys.filter((key) => key.startsWith('setpiece-')).map((key) => caches.delete(key)));
+    event.ports?.[0]?.postMessage({ cleared: true });
+  })());
 });
 
 self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
   if (event.request.method !== 'GET' || url.origin !== self.location.origin) return;
+  if (url.pathname.startsWith(BASE_PATH + 'api/') || url.pathname.startsWith('/api/')) return;
 
-  // Hashed, immutable build assets: cache-first.
-  if (url.pathname.includes('/assets/')) {
-    event.respondWith(
-      caches.match(event.request).then((cached) => {
-        if (cached) return cached;
-        return fetch(event.request).then((response) => {
-          if (response.ok) {
-            const clone = response.clone();
-            caches.open(STATIC_CACHE).then((cache) => cache.put(event.request, clone));
-          }
-          return response;
-        });
-      })
-    );
+  const isBuildAsset = url.pathname.startsWith(BASE_PATH + 'assets/') &&
+    /-[\w-]{6,}\.(?:js|css|woff2?|svg|png|jpe?g|webp)$/.test(url.pathname);
+  const isPublicFile = PUBLIC_FILES.has(url.pathname) && !url.search;
+  if (isBuildAsset || isPublicFile) {
+    event.respondWith((async () => {
+      const cache = await caches.open(STATIC_CACHE);
+      const cached = await cache.match(event.request);
+      if (cached) return cached;
+      const response = await fetch(event.request);
+      if (response.ok && response.type !== 'opaque') await cache.put(event.request, response.clone());
+      return response;
+    })());
     return;
   }
 
-  // API data: network-first so it's always fresh online, cached copy offline.
-  if (url.pathname.startsWith('/api/')) {
-    event.respondWith(
-      fetch(event.request)
-        .then((response) => {
-          if (response.ok) {
-            const clone = response.clone();
-            caches.open(DATA_CACHE).then((cache) => cache.put(event.request, clone));
-          }
-          return response;
-        })
-        .catch(() => caches.match(event.request).then((cached) =>
-          cached || new Response(JSON.stringify({ error: 'offline' }), {
-            status: 503,
-            headers: { 'Content-Type': 'application/json' },
-          })
-        ))
-    );
-    return;
+  if (event.request.mode === 'navigate') {
+    event.respondWith(fetch(event.request).catch(async () =>
+      (await caches.match(OFFLINE_PAGE)) || new Response('Für Team- und Spielerdaten ist eine Internetverbindung erforderlich.', {
+        status: 503, headers: { 'Content-Type': 'text/plain; charset=utf-8' },
+      })
+    ));
   }
-
-  const isNavigationRequest = event.request.mode === 'navigate';
-  event.respondWith(
-    fetch(event.request)
-      .then((response) => {
-        if (response.ok) {
-          const clone = response.clone();
-          caches.open(STATIC_CACHE).then((cache) => cache.put(event.request, clone));
-        }
-        return response;
-      })
-      .catch(() => {
-        return caches.match(event.request).then((cached) => {
-          if (cached) return cached;
-          if (isNavigationRequest) {
-            return caches.match(BASE_PATH);
-          }
-          return new Response('Offline', { status: 503 });
-        });
-      })
-  );
 });

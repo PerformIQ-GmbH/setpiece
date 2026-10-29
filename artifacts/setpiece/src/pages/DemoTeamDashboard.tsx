@@ -6,8 +6,12 @@ import { StatusBadge } from '@/components/StatusBadge';
 import { Users, LayoutDashboard, Calendar, Activity, ArrowRight, Eye, EyeOff, CheckCircle2 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { Link } from 'wouter';
+import { ProductWalkthrough } from '@/components/ProductWalkthrough';
+import { useQueryClient } from '@tanstack/react-query';
+import { demoReadinessForAnswer } from '@/lib/demo-fixture';
 
 export default function DemoTeamDashboard() {
+  const queryClient = useQueryClient();
   const { demoTeamId, demoTeam } = useDemoMode();
   const teamId = demoTeamId || '';
   const { data: players } = useDemoPlayers(teamId);
@@ -31,12 +35,16 @@ export default function DemoTeamDashboard() {
         </div>
       </div>
 
+      <section className="mb-10 grid items-start gap-6 lg:grid-cols-[1fr_1.1fr]">
+        <div><h2 className="font-display text-2xl font-semibold">Eine Variante. Eine Spieleraufgabe. Deine Rückmeldung.</h2><p className="mt-4 leading-relaxed text-muted-foreground">Öffne die Spieleraufgabe und beantworte die Beispielfrage für Spieler 9. Die fiktive Rückmeldung unten und unter «Aufgabenverständnis» reagiert darauf.</p><p className="mt-3 text-sm leading-relaxed text-muted-foreground">Alle Daten sind erfunden. Die Beispielantwort bleibt nur bis zum Neuladen im Browser und wird nicht an den Server gesendet.</p></div>
+        <ProductWalkthrough onAnswer={correct => queryClient.setQueryData(['demo', 'readiness', teamId], demoReadinessForAnswer(correct))} />
+      </section>
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
         {[
-          { label: 'Players', value: totalPlayers, icon: Users, color: 'text-blue-400', href: `/demo/teams/${teamId}/players` },
-          { label: 'Set Pieces', value: totalSetPieces, icon: LayoutDashboard, color: 'text-primary', href: `/demo/teams/${teamId}/templates` },
-          { label: 'Matchdays', value: totalMatchdays, icon: Calendar, color: 'text-amber-400', href: `/demo/teams/${teamId}/matchdays` },
-          { label: 'Ready', value: readiness?.summary?.passed || 0, icon: Activity, color: 'text-emerald-400', href: `/demo/teams/${teamId}/readiness` },
+          { label: 'Spieler', value: totalPlayers, icon: Users, color: 'text-blue-400', href: `/demo/teams/${teamId}/players` },
+          { label: 'Standards', value: totalSetPieces, icon: LayoutDashboard, color: 'text-primary', href: `/demo/teams/${teamId}/templates` },
+          { label: 'Spieltage', value: totalMatchdays, icon: Calendar, color: 'text-amber-400', href: `/demo/teams/${teamId}/matchdays` },
+          { label: 'Aufgabe verstanden', value: readiness?.summary?.passed || 0, icon: Activity, color: 'text-emerald-400', href: `/demo/teams/${teamId}/readiness` },
         ].map((stat, i) => (
           <motion.div key={stat.label} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}>
             <Link href={stat.href}>
@@ -61,15 +69,15 @@ export default function DemoTeamDashboard() {
             <CardContent className="p-6">
               <div className="flex items-center justify-between mb-4">
                 <h2 className="font-display font-bold text-lg text-white flex items-center gap-2">
-                  <Activity className="h-5 w-5 text-primary" /> Readiness Overview
+                  <Activity className="h-5 w-5 text-primary" /> Rückmeldung zum Aufgabenverständnis
                 </h2>
               </div>
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
                 {[
-                  { label: 'Not Opened', value: readiness.summary.notOpened, icon: EyeOff, color: 'text-zinc-400' },
-                  { label: 'Opened', value: readiness.summary.opened, icon: Eye, color: 'text-blue-400' },
-                  { label: 'Passed', value: readiness.summary.passed, icon: CheckCircle2, color: 'text-emerald-400' },
-                  { label: 'Needs Review', value: readiness.summary.needsReview, icon: Activity, color: 'text-amber-400' },
+                  { label: 'Nicht geöffnet', value: readiness.summary.notOpened, icon: EyeOff, color: 'text-zinc-400' },
+                  { label: 'Geöffnet', value: readiness.summary.opened, icon: Eye, color: 'text-blue-400' },
+                  { label: 'Aufgabe verstanden', value: readiness.summary.passed, icon: CheckCircle2, color: 'text-emerald-400' },
+                  { label: 'Nochmals durchgehen', value: readiness.summary.needsReview, icon: Activity, color: 'text-amber-400' },
                 ].map(s => (
                   <div key={s.label} className="text-center p-3 rounded-xl bg-secondary/30">
                     <s.icon className={`h-5 w-5 mx-auto mb-2 ${s.color}`} />
@@ -85,13 +93,13 @@ export default function DemoTeamDashboard() {
 
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}>
         <div className="flex items-center justify-between mb-4">
-          <h2 className="font-display font-bold text-lg text-white">Active Set Pieces</h2>
+          <h2 className="font-display font-bold text-lg text-white">Vorbereitete Standards</h2>
         </div>
         {activePieces.length === 0 ? (
           <Card className="bg-card border-border border-dashed">
             <CardContent className="p-8 text-center">
               <LayoutDashboard className="h-10 w-10 text-muted-foreground mx-auto mb-3" />
-              <p className="text-muted-foreground text-sm">No active set pieces in demo.</p>
+              <p className="text-muted-foreground text-sm">Noch keine vorbereiteten Standards.</p>
             </CardContent>
           </Card>
         ) : (
@@ -114,7 +122,7 @@ export default function DemoTeamDashboard() {
                         <h3 className="font-bold text-sm text-white group-hover:text-primary transition-colors truncate">{sp.title}</h3>
                         <StatusBadge status={sp.status} />
                       </div>
-                      <p className="text-xs text-muted-foreground capitalize">{sp.category.replace(/_/g, ' ')}</p>
+                      <p className="text-xs text-muted-foreground capitalize">{sp.category === 'corner_offensive' ? 'Offensive Ecke' : sp.category.replace(/_/g, ' ')}</p>
                     </CardContent>
                   </Card>
                 </Link>

@@ -6,7 +6,7 @@ import type { SetPieceRole, RoleAssignment } from '@workspace/api-client-react';
 import { EditorCanvas, EditorToolbar, MobileToolDrawer, BottomBar, InspectorPanel, TutorialOverlay, ContextualTip, QuickLegend, PresentationMode, EditorContextMenu, ContextualMiniBar, useEditorStore } from '@/components/editor';
 import type { Point, Annotation, BoardData, EditorCanvasHandle, PitchTheme } from '@/components/editor';
 import { migrateLegacyBoardData } from '@/components/editor/types';
-import { shouldShowTutorial, resetTutorial } from '@/components/editor/TutorialOverlay';
+import { resetTutorial } from '@/components/editor/TutorialOverlay';
 import { resetAllTips } from '@/components/editor/ContextualTip';
 import { StatusBadge } from '@/components/StatusBadge';
 import { Button } from '@/components/ui/button';
@@ -173,12 +173,6 @@ export default function SetPieceEditor() {
       steps: s.steps,
       stepPositions: s.stepPositions,
     };
-  }, []);
-
-  useEffect(() => {
-    if (shouldShowTutorial()) {
-      setShowTutorial(true);
-    }
   }, []);
 
   const setSteps = useEditorStore((s) => s.setSteps);
@@ -851,10 +845,10 @@ export default function SetPieceEditor() {
             {saveState === 'error' && <CloudOff className="h-3 w-3" />}
             {!isMobile && (
               <span>
-                {saveState === 'saved' && 'Saved'}
-                {saveState === 'saving' && 'Saving'}
-                {saveState === 'unsaved' && 'Unsaved'}
-                {saveState === 'error' && 'Error'}
+                {saveState === 'saved' && t('Saved')}
+                {saveState === 'saving' && t('Saving…')}
+                {saveState === 'unsaved' && t('Unsaved')}
+                {saveState === 'error' && t('Error')}
               </span>
             )}
           </div>
@@ -966,7 +960,7 @@ export default function SetPieceEditor() {
                   await updateStatus.mutateAsync({ teamId, setPieceId, data: { status: 'ready' } });
                   refetch();
                 }}>
-                  <ShieldCheck className="w-3 h-3 mr-1" /> Ready
+                  <ShieldCheck className="w-3 h-3 mr-1" /> Für Spieltag freigeben
                 </Button>
               )}
             </>

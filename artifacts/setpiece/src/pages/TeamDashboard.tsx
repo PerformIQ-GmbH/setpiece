@@ -12,10 +12,10 @@ import { t } from '@/lib/i18n';
 export default function TeamDashboard() {
   const [, params] = useRoute('/teams/:teamId');
   const teamId = params?.teamId || '';
-  const { data: team, isLoading: teamLoading } = useGetTeam(teamId);
-  const { data: players } = useListPlayers(teamId);
-  const { data: setPieces } = useListSetPieces(teamId);
-  const { data: matchdays } = useListMatchdays(teamId);
+  const { data: team, isLoading: teamLoading, isError: teamError } = useGetTeam(teamId);
+  const { data: players, isLoading: playersLoading, isError: playersError } = useListPlayers(teamId);
+  const { data: setPieces, isLoading: piecesLoading, isError: piecesError } = useListSetPieces(teamId);
+  const { data: matchdays, isLoading: matchdaysLoading, isError: matchdaysError } = useListMatchdays(teamId);
   const { data: readiness } = useGetReadinessDashboard(teamId);
 
   const activePieces = setPieces?.filter(sp => sp.status === 'active_matchday' || sp.status === 'ready') || [];
@@ -23,7 +23,7 @@ export default function TeamDashboard() {
   const totalSetPieces = setPieces?.length || 0;
   const totalMatchdays = matchdays?.length || 0;
 
-  if (teamLoading) {
+  if (teamLoading || playersLoading || piecesLoading || matchdaysLoading) {
     return (
       <CoachLayout teamId={teamId}>
         <div className="space-y-6">
@@ -32,6 +32,12 @@ export default function TeamDashboard() {
       </CoachLayout>
     );
   }
+
+  if (teamError || playersError || piecesError || matchdaysError) {
+    return <CoachLayout teamId={teamId}><div role="alert" className="py-12"><h1 className="font-display text-2xl font-semibold">Die Teamübersicht ist gerade nicht verfügbar.</h1><p className="mt-3 text-muted-foreground">Prüfe deine Verbindung und lade die Seite erneut.</p><Button className="mt-5" onClick={() => window.location.reload()}>Erneut laden</Button></div></CoachLayout>;
+  }
+
+  const needsSetup = totalPlayers === 0 || totalSetPieces === 0;
 
   return (
     <CoachLayout teamId={teamId} teamName={team?.name}>
@@ -51,12 +57,17 @@ export default function TeamDashboard() {
         </div>
       </div>
 
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+      {needsSetup ? <section className="mb-8 rounded-xl border border-border bg-card p-6 sm:p-8">
+        <h2 className="font-display text-2xl font-semibold">Nächster Schritt: {totalSetPieces === 0 ? 'eine Variante vorbereiten' : 'die ersten Spieler hinzufügen'}</h2>
+        <p className="mt-3 max-w-2xl leading-relaxed text-muted-foreground">Öffne eine Vorlage, weise eure Rollen zu und teste den geteilten Zugang mit einem Spieler. Danach siehst du hier die Rückmeldungen.</p>
+        <ol className="my-6 space-y-2 text-sm leading-relaxed"><li>1. Eine Beispielvariante öffnen und anpassen</li><li>2. Spieler hinzufügen und Rollen zuweisen</li><li>3. Den QR-Link öffnen und die Aufgabe testen</li></ol>
+        <Link href={`/teams/${teamId}/${totalSetPieces === 0 ? 'templates' : 'players'}`}><Button>{totalSetPieces === 0 ? 'Vorlage auswählen' : 'Spieler hinzufügen'} <ArrowRight className="ml-2 h-4 w-4" /></Button></Link>
+      </section> : <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
         {[
           { label: t('Players'), value: totalPlayers, icon: Users, color: 'text-blue-400', href: `/teams/${teamId}/players` },
           { label: t('Set Pieces'), value: totalSetPieces, icon: LayoutDashboard, color: 'text-primary', href: `/teams/${teamId}/templates` },
           { label: t('Matchdays'), value: totalMatchdays, icon: Calendar, color: 'text-amber-400', href: `/teams/${teamId}/matchdays` },
-          { label: t('Ready'), value: readiness?.summary?.passed || 0, icon: Activity, color: 'text-emerald-400', href: `/teams/${teamId}/readiness` },
+          { label: 'Aufgaben verstanden', value: readiness?.summary?.passed || 0, icon: Activity, color: 'text-emerald-400', href: `/teams/${teamId}/readiness` },
         ].map((stat, i) => (
           <motion.div key={stat.label} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}>
             <Link href={stat.href}>
@@ -73,9 +84,9 @@ export default function TeamDashboard() {
             </Link>
           </motion.div>
         ))}
-      </div>
+      </div>}
 
-      {readiness?.summary && (
+      {!needsSetup && readiness?.summary && (
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
           <Card className="bg-card border-border mb-8">
             <CardContent className="p-6">
@@ -106,9 +117,9 @@ export default function TeamDashboard() {
         </motion.div>
       )}
 
-      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25 }}>
+      {!needsSetup && <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25 }}>
         <SetPieceScoreboard teamId={teamId} />
-      </motion.div>
+      </motion.div>}
 
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}>
         <div className="flex items-center justify-between mb-4">

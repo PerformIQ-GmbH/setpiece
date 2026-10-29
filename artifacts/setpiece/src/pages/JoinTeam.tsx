@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useRoute } from 'wouter';
-import { useGetJoinInfo, useJoinTeam } from '@workspace/api-client-react';
+import { useGetJoinInfo, useJoinTeam, getGetJoinInfoQueryKey } from '@workspace/api-client-react';
 import { Button } from '@/components/ui/button';
 import { CheckCircle2, AlertCircle, Loader2, Shield } from 'lucide-react';
 
@@ -10,7 +10,7 @@ export default function JoinTeam() {
   const [, params] = useRoute('/join/:token');
   const token = params?.token || '';
 
-  const { data: teamInfo, isLoading, error } = useGetJoinInfo(token, { query: { enabled: !!token, retry: false } });
+  const { data: teamInfo, isLoading, error } = useGetJoinInfo(token, { query: { queryKey: getGetJoinInfoQueryKey(token), enabled: !!token, retry: false } });
   const joinTeam = useJoinTeam();
 
   const [form, setForm] = useState({

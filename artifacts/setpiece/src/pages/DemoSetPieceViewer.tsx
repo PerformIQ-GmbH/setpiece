@@ -15,9 +15,9 @@ import { useBreakpoint } from '@/hooks/use-mobile';
 import type { PitchTheme } from '@/components/editor';
 
 const THEME_OPTIONS: { value: PitchTheme; label: string; icon: React.ElementType }[] = [
-  { value: 'dark', label: 'Dark', icon: Moon },
-  { value: 'green', label: 'Green', icon: Trees },
-  { value: 'light', label: 'Light', icon: Sun },
+  { value: 'dark', label: 'Dunkel', icon: Moon },
+  { value: 'green', label: 'Grün', icon: Trees },
+  { value: 'light', label: 'Hell', icon: Sun },
 ];
 
 export default function DemoSetPieceViewer() {
@@ -42,7 +42,7 @@ export default function DemoSetPieceViewer() {
   const resetStore = useEditorStore((s) => s.resetStore);
 
   const bp = useBreakpoint();
-  const isMobile = bp === 'mobile';
+  const isMobile = bp !== 'desktop';
 
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [mobileRolesOpen, setMobileRolesOpen] = useState(false);
@@ -93,14 +93,14 @@ export default function DemoSetPieceViewer() {
     });
     observer.observe(el);
     return () => observer.disconnect();
-  }, []);
+  }, [setPiece?.id, isMobile]);
 
   if (isLoading) {
     return (
       <div className="min-h-screen bg-background text-foreground flex items-center justify-center">
         <div className="flex flex-col items-center gap-3">
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
-          <p className="text-muted-foreground text-sm">Loading Tactical Board...</p>
+          <p className="text-muted-foreground text-sm">Taktiktafel wird geladen …</p>
         </div>
       </div>
     );
@@ -109,14 +109,14 @@ export default function DemoSetPieceViewer() {
   if (!setPiece) {
     return (
       <div className="min-h-screen bg-background text-foreground flex items-center justify-center">
-        <p className="text-muted-foreground">Set piece not found.</p>
+        <p className="text-muted-foreground">Diese Demovariante wurde nicht gefunden.</p>
       </div>
     );
   }
 
   const rolesPanel = (
     <div className="p-4">
-      <h2 className="font-display font-bold text-sm text-white mb-3">Roles & Assignments</h2>
+      <h2 className="font-display font-bold text-sm text-white mb-3">Rollen und Spieler</h2>
       <div className="space-y-2">
         {(setPiece.roles || []).map((role: any) => {
           const assignment = setPiece.assignments?.find((a: any) => a.roleId === role.id);
@@ -130,7 +130,7 @@ export default function DemoSetPieceViewer() {
                   {player?.shirtNumber || '?'}
                 </div>
                 <span className="text-xs text-foreground">
-                  {player ? `${player.firstName} ${player.lastName}` : 'Unassigned'}
+                  {player ? `${player.firstName} ${player.lastName}` : 'Noch nicht zugewiesen'}
                 </span>
               </div>
               {role.coachingPoint && (
@@ -143,7 +143,7 @@ export default function DemoSetPieceViewer() {
 
       {setPiece.coachingNotes && (
         <div className="mt-4 p-3 rounded-lg bg-primary/5 border border-primary/20">
-          <p className="text-xs font-semibold text-primary mb-1">Coaching Notes</p>
+          <p className="text-xs font-semibold text-primary mb-1">Trainerhinweise</p>
           <p className="text-xs text-muted-foreground">{setPiece.coachingNotes}</p>
         </div>
       )}
@@ -160,7 +160,7 @@ export default function DemoSetPieceViewer() {
       )}>
         <div className="flex items-center gap-2 min-w-0">
           <Link href={`/demo/teams/${teamId}/templates`}>
-            <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-white rounded-full h-8 w-8 shrink-0">
+            <Button variant="ghost" size="icon" aria-label="Zur Variantenübersicht" className="text-muted-foreground hover:text-white rounded-full h-8 w-8 shrink-0">
               <ArrowLeft className="h-4 w-4" />
             </Button>
           </Link>
@@ -173,7 +173,7 @@ export default function DemoSetPieceViewer() {
               {setPiece.title}
             </h1>
             {!isMobile && (
-              <p className="text-[9px] text-muted-foreground uppercase tracking-wider font-semibold">{setPiece.category.replace(/_/g, ' ')}</p>
+              <p className="text-[9px] text-muted-foreground uppercase tracking-wider font-semibold">{setPiece.category === 'corner_offensive' ? 'Offensive Ecke' : setPiece.category.replace(/_/g, ' ')}</p>
             )}
           </div>
         </div>
@@ -181,7 +181,7 @@ export default function DemoSetPieceViewer() {
         <div className="flex items-center gap-1.5">
           <div className="flex items-center gap-1 px-2 py-0.5 rounded text-[9px] font-bold uppercase tracking-wide bg-amber-500/10 text-amber-400 border border-amber-500/20">
             <Lock className="h-3 w-3" />
-            {!isMobile && <span>Read Only</span>}
+            {!isMobile && <span>Nur ansehen</span>}
           </div>
 
           {!isMobile && (
@@ -191,7 +191,7 @@ export default function DemoSetPieceViewer() {
                   <button
                     key={opt.value}
                     onClick={() => setPitchTheme(opt.value)}
-                    title={`${opt.label} Pitch`}
+                    title={`Spielfeld: ${opt.label}`}
                     className={cn(
                       "w-7 h-6 rounded-md flex items-center justify-center transition-all",
                       pitchTheme === opt.value
@@ -206,7 +206,7 @@ export default function DemoSetPieceViewer() {
 
               <button
                 onClick={() => setShowLegend(!showLegend)}
-                title="Toggle Legend"
+                title="Legende umschalten"
                 className={cn(
                   "w-7 h-7 rounded flex items-center justify-center transition-colors",
                   showLegend ? "text-primary" : "text-muted-foreground hover:text-white"
@@ -223,6 +223,7 @@ export default function DemoSetPieceViewer() {
             <>
               <button
                 onClick={() => setMobileRolesOpen(true)}
+                aria-label="Rollen und Spieler anzeigen"
                 className="w-9 h-9 rounded-xl flex items-center justify-center text-muted-foreground hover:text-white active:scale-95 transition-all"
               >
                 <Users className="w-4 h-4" />
@@ -231,6 +232,8 @@ export default function DemoSetPieceViewer() {
               <div className="relative">
                 <button
                   onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+                  aria-label="Darstellung öffnen"
+                  aria-expanded={mobileMenuOpen}
                   className="w-9 h-9 rounded-xl flex items-center justify-center text-muted-foreground hover:text-white active:scale-95 transition-all"
                 >
                   <MoreVertical className="w-4 h-4" />
@@ -243,7 +246,7 @@ export default function DemoSetPieceViewer() {
                         <StatusBadge status={setPiece.status} />
                       </div>
                       <div className="px-3 py-2 border-b border-border/50">
-                        <p className="text-[9px] text-muted-foreground uppercase tracking-wider mb-1.5">Pitch Theme</p>
+                        <p className="text-[9px] text-muted-foreground uppercase tracking-wider mb-1.5">Spielfelddarstellung</p>
                         <div className="flex gap-1">
                           {THEME_OPTIONS.map(opt => (
                             <button
@@ -265,7 +268,7 @@ export default function DemoSetPieceViewer() {
                         className="w-full text-left px-3 py-2.5 text-[11px] text-muted-foreground hover:text-white hover:bg-secondary transition-colors flex items-center gap-2"
                       >
                         <Info className="w-3.5 h-3.5" />
-                        {showLegend ? 'Hide Legend' : 'Show Legend'}
+                        {showLegend ? 'Legende ausblenden' : 'Legende anzeigen'}
                       </button>
                     </div>
                   </>
@@ -311,7 +314,7 @@ export default function DemoSetPieceViewer() {
       {isMobile && (
         <Drawer open={mobileRolesOpen} onOpenChange={setMobileRolesOpen}>
           <DrawerContent className="bg-card border-white/[0.08] max-h-[80vh]">
-            <DrawerTitle className="sr-only">Roles & Assignments</DrawerTitle>
+            <DrawerTitle className="sr-only">Rollen und Spieler</DrawerTitle>
             <div className="overflow-y-auto max-h-[70vh]">
               {rolesPanel}
             </div>
