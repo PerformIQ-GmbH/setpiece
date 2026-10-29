@@ -16,6 +16,12 @@ export function OffensiveCornerPitch({ width, height, pad = 0, theme = 'light' }
   const t = CORNER_PITCH_THEMES[theme];
   const g = buildPitchGeometry({ width, height, pad, orientation: 'half' });
 
+  const areaOutline = (r: typeof g.boundary) => [r.x, r.y, r.x, r.y + r.height, r.x + r.width, r.y + r.height, r.x + r.width, r.y];
+
+  const goalOutline = (r: typeof g.boundary) => Math.abs(r.y + r.height - g.boundary.y) < 1e-6
+    ? [r.x, r.y + r.height, r.x, r.y, r.x + r.width, r.y, r.x + r.width, r.y + r.height]
+    : [r.x, r.y, r.x, r.y + r.height, r.x + r.width, r.y + r.height, r.x + r.width, r.y];
+
   return (
     <Group>
       <Rect name="pitch-bg" x={0} y={0} width={width} height={height} fill={t.background} cornerRadius={6} />
@@ -23,28 +29,34 @@ export function OffensiveCornerPitch({ width, height, pad = 0, theme = 'light' }
       <Group listening={false}>
         <Rect x={g.boundary.x} y={g.boundary.y} width={g.boundary.width} height={g.boundary.height} fill={t.field} />
 
-        <Rect x={g.boundary.x} y={g.boundary.y} width={g.boundary.width} height={g.boundary.height} stroke={t.lines} strokeWidth={t.lineWidth} />
+        <Rect x={g.boundary.x} y={g.boundary.y} width={g.boundary.width} height={g.boundary.height} stroke={t.lines} strokeWidth={2} />
 
         {g.penaltyAreas.map((r, i) => (
-          <Rect key={`pa-${i}`} x={r.x} y={r.y} width={r.width} height={r.height} stroke={t.lines} strokeWidth={t.lineWidth} />
+          <Line key={`pa-${i}`} points={areaOutline(r)} stroke={t.lines} strokeWidth={2} />
         ))}
         {g.goalAreas.map((r, i) => (
-          <Rect key={`ga-${i}`} x={r.x} y={r.y} width={r.width} height={r.height} stroke={t.lines} strokeWidth={t.lineWidth} />
+          <Line key={`ga-${i}`} points={areaOutline(r)} stroke={t.lines} strokeWidth={2} />
         ))}
         {g.goals.map((r, i) => (
-          <Rect key={`goal-${i}`} x={r.x} y={r.y} width={r.width} height={r.height} fill={t.lines} opacity={0.35} stroke={t.lines} strokeWidth={t.thinLine} />
+          <Group key={`goal-${i}`}>
+            <Rect x={r.x} y={r.y} width={r.width} height={r.height} fill={t.lines} opacity={0.35} />
+            <Line points={goalOutline(r)} stroke={t.lines} strokeWidth={2} />
+          </Group>
         ))}
         {g.penaltySpots.map((p, i) => (
           <Circle key={`ps-${i}`} x={p.x} y={p.y} radius={3.5} fill={t.lines} />
         ))}
         {g.penaltyArcs.map((a, i) => (
-          <Line key={`par-${i}`} points={arcToPoints(a)} stroke={t.lines} strokeWidth={t.lineWidth} lineCap="round" lineJoin="round" />
+          <Line key={`par-${i}`} points={arcToPoints(a)} stroke={t.lines} strokeWidth={2} lineCap="round" lineJoin="round" />
         ))}
 
-        <Line points={[g.halfwayLine.x1, g.halfwayLine.y1, g.halfwayLine.x2, g.halfwayLine.y2]} stroke={t.lines} strokeWidth={t.lineWidth} dash={[12, 6]} />
+        {g.centerArcs.map((arc, i) => (
+          <Line key={`center-arc-${i}`} points={arcToPoints(arc)} stroke={t.lines} strokeWidth={2} />
+        ))}
+        {g.centerSpot && <Circle x={g.centerSpot.x} y={g.centerSpot.y} radius={3.5} fill={t.lines} />}
 
         {g.cornerArcs.map((a, i) => (
-          <Line key={`ca-${i}`} points={arcToPoints(a)} stroke={t.lines} strokeWidth={t.thinLine} lineCap="round" lineJoin="round" />
+          <Line key={`ca-${i}`} points={arcToPoints(a)} stroke={t.lines} strokeWidth={2} lineCap="round" lineJoin="round" />
         ))}
 
         {g.guides.vertical.map((x, i) => (

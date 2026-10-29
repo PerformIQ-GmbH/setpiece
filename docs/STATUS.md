@@ -100,3 +100,7 @@ Das von Vince gelieferte blaue Logo ersetzt den grünen Entwurf in der gemeinsam
 
 Logo-Prüfung: Frontend-Production-Build Exit0. Browser bei375px: beide Original-SVGs geladen, kein horizontaler Überlauf (Dokument367px). Screenshot25-supplied-logo-mobile.png im separaten Auditordner. Keine Funktionsänderung und keine Neuzeichnung der gelieferten Assets.
 
+
+## Spielfeldkorrektur ·29.10.2026
+
+Implementiert: gemeinsame metrische Geometrie, Fit-/Inverse-Abbildung, Snap und aktive Renderwege inklusive Quiz und Druck. 65/65 Regressionen, Workspace-Typecheck/Gesamtbuild und abschliessender Frontendbuild grün. Browservergleich mit fiktiven Daten, mobile Demo sowie erfolgreicher Videoexport. Unabhängiger Review durchgeführt; Kategorienblocker korrigiert. Details, Grenzen und Replit-/Modellbudget: [PITCH-PRECISION-PLAN](PITCH-PRECISION-PLAN.md). Noch kein Merge/Republish dieses Standes.

@@ -1,7 +1,7 @@
 import Konva from 'konva';
 import { migrateLegacyBoardData } from '../components/editor/types';
 import type { Annotation, AnimationStep, EntityMarker, Point } from '../components/editor/types';
-import { arcToPoints, buildPitchGeometry } from './pitchGeometry';
+import { arcToPoints, buildPitchGeometry, pitchOrientationForCategory, type PitchGeometry } from './pitchGeometry';
 
 interface RoleData {
   id: string;
@@ -54,6 +54,13 @@ const PRINT_CORNER_PITCH = {
   thinLine: 1.8,
 };
 
+function areaOutline(r: PitchGeometry['boundary'], g: PitchGeometry, goal = false) {
+  const openTop = goal ? Math.abs(r.y - (g.boundary.y + g.pitchH)) < 1e-6 : Math.abs(r.y - g.boundary.y) < 1e-6;
+  return openTop
+    ? [r.x, r.y, r.x, r.y + r.height, r.x + r.width, r.y + r.height, r.x + r.width, r.y]
+    : [r.x, r.y + r.height, r.x, r.y, r.x + r.width, r.y, r.x + r.width, r.y + r.height];
+}
+
 function drawPremiumPitch(layer: Konva.Layer, w: number, h: number, halfPitch: boolean) {
   const t = PRINT_PITCH;
   const g = buildPitchGeometry({ width: w, height: h, pad: PAD, orientation: halfPitch ? 'half' : 'full' });
@@ -76,9 +83,9 @@ function drawPremiumPitch(layer: Konva.Layer, w: number, h: number, halfPitch: b
 
   layer.add(new Konva.Rect({ x: g.boundary.x, y: g.boundary.y, width: g.boundary.width, height: g.boundary.height, stroke: t.lines, strokeWidth: lw }));
 
-  layer.add(new Konva.Line({
+  if (g.orientation === 'full') layer.add(new Konva.Line({
     points: [g.halfwayLine.x1, g.halfwayLine.y1, g.halfwayLine.x2, g.halfwayLine.y2],
-    stroke: t.lines, strokeWidth: lw, dash: g.isHalfwayDashed ? [14, 8] : undefined,
+    stroke: t.lines, strokeWidth: lw,
   }));
   if (g.centerCircle) {
     layer.add(new Konva.Circle({ x: g.centerCircle.x, y: g.centerCircle.y, radius: g.centerCircle.radius, stroke: t.lines, strokeWidth: lw }));
@@ -88,18 +95,18 @@ function drawPremiumPitch(layer: Konva.Layer, w: number, h: number, halfPitch: b
   }
 
   for (const r of g.penaltyAreas) {
-    layer.add(new Konva.Rect({ x: r.x, y: r.y, width: r.width, height: r.height, stroke: t.lines, strokeWidth: lw }));
+    layer.add(new Konva.Line({ points: areaOutline(r, g), stroke: t.lines, strokeWidth: lw }));
   }
   for (const r of g.goalAreas) {
-    layer.add(new Konva.Rect({ x: r.x, y: r.y, width: r.width, height: r.height, stroke: t.lines, strokeWidth: lw }));
+    layer.add(new Konva.Line({ points: areaOutline(r, g), stroke: t.lines, strokeWidth: lw }));
   }
   for (const r of g.goals) {
-    layer.add(new Konva.Rect({ x: r.x, y: r.y, width: r.width, height: r.height, fill: t.lines, opacity: 0.35, stroke: t.lines, strokeWidth: lw }));
+    layer.add(new Konva.Line({ points: areaOutline(r, g, true), stroke: t.lines, strokeWidth: lw }));
   }
   for (const p of g.penaltySpots) {
     layer.add(new Konva.Circle({ x: p.x, y: p.y, radius: 4, fill: t.lines }));
   }
-  for (const a of g.penaltyArcs) {
+  for (const a of [...g.centerArcs, ...g.penaltyArcs]) {
     layer.add(new Konva.Line({ points: arcToPoints(a), stroke: t.lines, strokeWidth: lw, lineCap: 'round', lineJoin: 'round' }));
   }
   for (const a of g.cornerArcs) {
@@ -116,36 +123,24 @@ function drawCornerPitch(layer: Konva.Layer, w: number, h: number) {
   layer.add(new Konva.Rect({ x: g.boundary.x, y: g.boundary.y, width: g.boundary.width, height: g.boundary.height, stroke: t.lines, strokeWidth: t.lineWidth }));
 
   for (const r of g.penaltyAreas) {
-    layer.add(new Konva.Rect({ x: r.x, y: r.y, width: r.width, height: r.height, stroke: t.lines, strokeWidth: t.lineWidth }));
+    layer.add(new Konva.Line({ points: areaOutline(r, g), stroke: t.lines, strokeWidth: t.lineWidth }));
   }
   for (const r of g.goalAreas) {
-    layer.add(new Konva.Rect({ x: r.x, y: r.y, width: r.width, height: r.height, stroke: t.lines, strokeWidth: t.lineWidth }));
+    layer.add(new Konva.Line({ points: areaOutline(r, g), stroke: t.lines, strokeWidth: t.lineWidth }));
   }
   for (const r of g.goals) {
-    layer.add(new Konva.Rect({ x: r.x, y: r.y, width: r.width, height: r.height, fill: t.lines, opacity: 0.35, stroke: t.lines, strokeWidth: t.thinLine }));
+    layer.add(new Konva.Line({ points: areaOutline(r, g, true), stroke: t.lines, strokeWidth: t.lineWidth }));
   }
   for (const p of g.penaltySpots) {
     layer.add(new Konva.Circle({ x: p.x, y: p.y, radius: 4, fill: t.lines }));
   }
-  for (const a of g.penaltyArcs) {
+  for (const a of [...g.centerArcs, ...g.penaltyArcs]) {
     layer.add(new Konva.Line({ points: arcToPoints(a), stroke: t.lines, strokeWidth: t.lineWidth, lineCap: 'round', lineJoin: 'round' }));
   }
-  layer.add(new Konva.Line({
-    points: [g.halfwayLine.x1, g.halfwayLine.y1, g.halfwayLine.x2, g.halfwayLine.y2],
-    stroke: t.lines, strokeWidth: t.thinLine, dash: [12, 6],
-  }));
+
   for (const a of g.cornerArcs) {
     layer.add(new Konva.Line({ points: arcToPoints(a), stroke: t.lines, strokeWidth: t.thinLine, lineCap: 'round', lineJoin: 'round' }));
   }
-}
-
-function toPixel(pct: Point, w: number, h: number): Point {
-  const pitchW = w - PAD * 2;
-  const pitchH = h - PAD * 2;
-  return {
-    x: PAD + (pct.x / 100) * pitchW,
-    y: PAD + (pct.y / 100) * pitchH,
-  };
 }
 
 // Print-tuned annotation colors: solid, dark, no washed-out tones.
@@ -164,9 +159,8 @@ function tunedColor(input: string, isGhost: boolean): string {
   return input;
 }
 
-function drawAnnotations(layer: Konva.Layer, annotations: Annotation[], w: number, h: number) {
-  const pitchW = w - PAD * 2;
-  const pitchH = h - PAD * 2;
+function drawAnnotations(layer: Konva.Layer, annotations: Annotation[], g: PitchGeometry) {
+  const { pitchW, pitchH } = g;
 
   for (const ann of annotations) {
     const drawColor = tunedColor(ann.color, !!ann.ghost);
@@ -184,7 +178,7 @@ function drawAnnotations(layer: Konva.Layer, annotations: Annotation[], w: numbe
         if (ann.points.length < 2) continue;
         const flat: number[] = [];
         for (const p of ann.points) {
-          const px = toPixel(p, w, h);
+          const px = g.percentToPixel(p);
           flat.push(px.x, px.y);
         }
 
@@ -248,7 +242,7 @@ function drawAnnotations(layer: Konva.Layer, annotations: Annotation[], w: numbe
       }
       case 'zone_circle': {
         if (ann.points.length < 1) continue;
-        const center = toPixel(ann.points[0], w, h);
+        const center = g.percentToPixel(ann.points[0]);
         const r = (ann.radius ?? 10) / 100 * Math.min(pitchW, pitchH);
         layer.add(new Konva.Circle({
           x: center.x, y: center.y, radius: r,
@@ -259,8 +253,8 @@ function drawAnnotations(layer: Konva.Layer, annotations: Annotation[], w: numbe
       }
       case 'zone_rect': {
         if (ann.points.length < 2) continue;
-        const p1 = toPixel(ann.points[0], w, h);
-        const p2 = toPixel(ann.points[1], w, h);
+        const p1 = g.percentToPixel(ann.points[0]);
+        const p2 = g.percentToPixel(ann.points[1]);
         layer.add(new Konva.Rect({
           x: Math.min(p1.x, p2.x), y: Math.min(p1.y, p2.y),
           width: Math.abs(p2.x - p1.x), height: Math.abs(p2.y - p1.y),
@@ -271,7 +265,7 @@ function drawAnnotations(layer: Konva.Layer, annotations: Annotation[], w: numbe
       }
       case 'label': {
         if (ann.points.length < 1) continue;
-        const pos = toPixel(ann.points[0], w, h);
+        const pos = g.percentToPixel(ann.points[0]);
         layer.add(new Konva.Text({
           x: pos.x, y: pos.y,
           text: ann.label || 'Label',
@@ -398,12 +392,11 @@ function drawMarkers(
   steps: AnimationStep[],
   annotations: Annotation[],
   stepPositions: Record<string, Record<string, Point>>,
-  w: number,
-  h: number,
+  g: PitchGeometry,
 ) {
   // Opponents / GK / ball first, players on top.
   for (const ent of entities) {
-    const px = toPixel(ent.position, w, h);
+    const px = g.percentToPixel(ent.position);
     if (ent.type === 'opponent') {
       const group = new Konva.Group({ x: px.x, y: px.y });
       group.add(new Konva.Circle({ radius: MARKER_R, fill: '#7f1d1d', stroke: '#0b1f12', strokeWidth: 3 }));
@@ -432,7 +425,7 @@ function drawMarkers(
 
   for (const role of roles) {
     const pos = computeRolePositionAtStep(role.id, stepIndex, roles, steps, annotations, stepPositions);
-    const px = toPixel(pos, w, h);
+    const px = g.percentToPixel(pos);
     const assignment = assignments.find(a => a.roleId === role.id);
     const player = assignment ? players.find(p => p.id === assignment.playerId) : null;
     const isUnassigned = !assignment;
@@ -491,7 +484,9 @@ export function renderSetPieceSteps(options: RenderOptions): StepImage[] {
   const steps = migrated.steps || [];
 
   const isCornerKick = category.includes('corner');
-  const halfPitch = !isCornerKick && category.includes('free_kick');
+  const orientation = pitchOrientationForCategory(category);
+  const halfPitch = orientation === 'half';
+  const geometry = buildPitchGeometry({ width, height, pad: PAD, orientation });
 
   const container = document.createElement('div');
   container.style.position = 'absolute';
@@ -518,8 +513,8 @@ export function renderSetPieceSteps(options: RenderOptions): StepImage[] {
       stage.add(pitchLayer);
 
       const contentLayer = new Konva.Layer();
-      drawAnnotations(contentLayer, stepAnns, width, height);
-      drawMarkers(contentLayer, roles, assignments, players, entities, si, steps, annotations, stepPositions ?? {}, width, height);
+      drawAnnotations(contentLayer, stepAnns, geometry);
+      drawMarkers(contentLayer, roles, assignments, players, entities, si, steps, annotations, stepPositions ?? {}, geometry);
       stage.add(contentLayer);
 
       const dataUrl = stage.toDataURL({ pixelRatio: 2, mimeType: 'image/png' });

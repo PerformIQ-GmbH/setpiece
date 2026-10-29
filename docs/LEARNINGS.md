@@ -10,3 +10,5 @@ Dauerhafte technische Fallstricke kurz halten. Aktuelle Aufgaben gehören in STA
 - **28.10.2026 · Offline:** Auth-, Zahlungs- und private API-Antworten nicht im Serviceworker speichern. Logout und Nutzerwechsel müssen lokale private Daten beseitigen.
 - **28.10.2026 · Testdaten:** Die bestehende Playwright-Einrichtung schreibt direkt in ihre Datenbank. Eine Development-Domain ist kein Nachweis einer isolierten Datenbank.
 - **28.10.2026 · Release:** Build, Merge und Deployment sind verschiedene Belege. Auch ein Serverstart kann bestehende Migrationen und Seeding auslösen; vor Veröffentlichung Backup und Wiederherstellung prüfen.
+
+- **29.10.2026 · Spielfeld:** Meter auf beiden Achsen gleich skalieren; Linien, Marker, Snap und Eingaben über dieselbe Feldtransformation abbilden. Kategorie-Resolver mit realen Enumwerten testen, nicht nur künstlichen Kurzbezeichnungen.

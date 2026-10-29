@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { StatusBadge } from '@/components/StatusBadge';
 import { Pitch } from '@/components/Pitch';
+import { pitchOrientationForCategory } from '@/utils/pitchGeometry';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Plus, Trash2, Share2, QrCode, ArrowLeft, LayoutDashboard, Copy, Check, Clock, Users, FileDown, Loader2, Pencil, CheckCircle2, AlertTriangle, CircleDashed } from 'lucide-react';
 import { motion } from 'framer-motion';
@@ -779,7 +780,7 @@ export default function MatchdayDetail() {
                     <div className="w-12 shrink-0">
                       <Pitch
                         roles={(detail?.roles ?? []).map(r => ({ id: r.id, name: r.name, startPosition: r.startPosition }))}
-                        halfPitch
+                        halfPitch={pitchOrientationForCategory(sp.category) === 'half'}
                         className="aspect-[3/4] rounded-lg shadow-none border-white/[0.08]"
                       />
                     </div>

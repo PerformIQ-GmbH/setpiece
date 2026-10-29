@@ -73,21 +73,11 @@ export default function DemoSetPieceViewer() {
   useEffect(() => {
     const el = canvasRef.current;
     if (!el) return;
-    const isCorner = setPiece?.category?.includes('corner');
-    const CORNER_RATIO = 654 / 608;
     const observer = new ResizeObserver((entries) => {
       for (const entry of entries) {
         let { width, height } = entry.contentRect;
         width = Math.floor(width);
         height = Math.floor(height);
-        if (isCorner && width > 0 && height > 0) {
-          const fitByWidth = width / CORNER_RATIO;
-          if (fitByWidth <= height) {
-            height = Math.floor(fitByWidth);
-          } else {
-            width = Math.floor(height * CORNER_RATIO);
-          }
-        }
         setCanvasSize({ width, height });
       }
     });

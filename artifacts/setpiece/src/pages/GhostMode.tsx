@@ -11,6 +11,7 @@ import type {
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Pitch } from '@/components/Pitch';
+import { pitchOrientationForCategory } from '@/utils/pitchGeometry';
 import { ArrowLeft, UserMinus, UserPlus, ArrowRight, AlertTriangle, CheckCircle2, Info, Check, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -204,7 +205,7 @@ export default function GhostMode() {
                       startPosition: r.startPosition,
                       color: result.updatedRoleMapping.some(m => m.roleId === r.id) ? '#ef4444' : undefined,
                     }))}
-                    halfPitch={setPiece?.category?.includes('corner') || setPiece?.category?.includes('freekick')}
+                    halfPitch={pitchOrientationForCategory(setPiece?.category ?? '') === 'half'}
                   />
                 </CardContent>
               </Card>
@@ -216,7 +217,7 @@ export default function GhostMode() {
               <CardContent className="p-0">
                 <Pitch
                   roles={afterRoles.length > 0 ? afterRoles : (setPiece?.roles || [])}
-                  halfPitch={setPiece?.category?.includes('corner') || setPiece?.category?.includes('freekick')}
+                  halfPitch={pitchOrientationForCategory(setPiece?.category ?? '') === 'half'}
                 />
               </CardContent>
             </Card>

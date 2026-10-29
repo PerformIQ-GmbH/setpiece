@@ -75,11 +75,11 @@ test('only versioned static build files are cached', async () => {
 });
 
 test('service worker activation removes private caches left by earlier releases', async () => {
-  const sw = serviceWorker({ existing: ['setpiece-v1', 'setpiece-api', 'setpiece-static-v3', 'another-app'] });
+  const sw = serviceWorker({ existing: ['setpiece-v1', 'setpiece-api', 'setpiece-static-v3', 'setpiece-static-v4', 'another-app'] });
   let completed;
   sw.handlers.activate({ waitUntil: value => { completed = value; } });
   await completed;
-  assert.deepEqual(sw.deleted.sort(), ['setpiece-api', 'setpiece-v1']);
+  assert.deepEqual(sw.deleted.sort(), ['setpiece-api', 'setpiece-static-v3', 'setpiece-v1']);
 });
 
 function storage(values) {

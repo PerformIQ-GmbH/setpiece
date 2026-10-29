@@ -9,11 +9,8 @@
 // Coordinate model
 // ----------------
 // The pitch is drawn in portrait: the field width (68 m) runs left→right and the
-// field length runs top→bottom. Meters are mapped into the padded interior with
-// independent per-axis scaling so that the painted lines stay aligned with the
-// 0–100 percentage coordinate space used to position markers. Radial features
-// (circles / arcs) use the width-axis scale so they are deterministic regardless
-// of viewport aspect ratio.
+// field length runs top→bottom. One scale fits the visible field into the viewport.
+// Persisted 0–100 positions refer to that visible full/half field, excluding margins.
 
 export const FIFA_PITCH = {
   fieldLength: 105,
@@ -31,6 +28,10 @@ export const FIFA_PITCH = {
 
 export type PitchOrientation = 'full' | 'half';
 export type AttackDirection = 'up' | 'down';
+
+export function pitchOrientationForCategory(category: string): PitchOrientation {
+  return category.includes('corner') || category.includes('free_kick') ? 'half' : 'full';
+}
 
 export interface GeoPoint {
   x: number;
@@ -90,13 +91,20 @@ export interface PitchGeometry {
   toX: (m: number) => number;
   /** Map a length-axis meter value (measured from the top edge) to a pixel y. */
   toY: (m: number) => number;
-  /** Convert a meter distance to pixels using the width-axis scale. */
+  /** Convert a meter distance to pixels with the same scale on both axes. */
   scale: (m: number) => number;
+  /** Stored percentages refer to the visible field, not the surrounding viewport. */
+  percentToPixel: (point: GeoPoint) => GeoPoint;
+  /** Inverse field transform; values outside the boundary are clamped to 0..100. */
+  pixelToPercent: (point: GeoPoint) => GeoPoint;
+  containsPoint: (point: GeoPoint) => boolean;
   boundary: GeoRect;
   halfwayLine: GeoLine;
-  /** True when the halfway line is the cut edge of a half pitch (draw dashed). */
+  /** Retained for consumers; the true halfway line is always solid. */
   isHalfwayDashed: boolean;
   centerCircle: GeoCircle | null;
+  /** Visible center-circle portion for a half pitch, drawn as an open arc. */
+  centerArcs: GeoArc[];
   centerSpot: GeoPoint | null;
   penaltyAreas: GeoRect[];
   goalAreas: GeoRect[];
@@ -168,21 +176,41 @@ export function buildPitchGeometry(opts: PitchGeometryOptions): PitchGeometry {
   } = opts;
 
   const F = FIFA_PITCH;
-  const pitchW = width - pad * 2;
-  const pitchH = height - pad * 2;
   const visibleLength = orientation === 'full' ? F.fieldLength : F.fieldLength / 2;
   const cxM = F.fieldWidth / 2;
 
-  const toX = (m: number) => pad + (m / F.fieldWidth) * pitchW;
-  const toY = (m: number) => pad + (m / visibleLength) * pitchH;
-  const scale = (m: number) => (m / F.fieldWidth) * pitchW;
-  // Length-axis meter -> pixels (independent of width-axis scaling).
-  const depthPx = (m: number) => (m / visibleLength) * pitchH;
+  // Goals use the existing padding when possible; reserve space even at pad=0.
+  // Cap the clearance for tiny positive viewports so the fitted field stays positive.
+  const edgeInset = Math.min(1, width / 4, height / 4);
+  const fieldInset = Math.min(Math.max(pad, edgeInset), width / 4, height / 4);
+  const goalDepthM = 1.8;
+  const pixelsPerMeter = Math.min(
+    (width - fieldInset * 2) / F.fieldWidth,
+    (height - fieldInset * 2) / visibleLength,
+    (height - edgeInset * 2) / (visibleLength + goalDepthM * 2),
+  );
+  const scale = (m: number) => m * pixelsPerMeter;
+  const pitchW = scale(F.fieldWidth);
+  const pitchH = scale(visibleLength);
+  const leftX = (width - pitchW) / 2;
+  const topY = (height - pitchH) / 2;
+  const rightX = leftX + pitchW;
+  const bottomY = topY + pitchH;
 
-  const topY = pad;
-  const bottomY = pad + pitchH;
-  const leftX = pad;
-  const rightX = pad + pitchW;
+  const toX = (m: number) => leftX + scale(m);
+  const toY = (m: number) => topY + scale(m);
+  const depthPx = scale;
+  const percentToPixel = (point: GeoPoint): GeoPoint => ({
+    x: toX(point.x / 100 * F.fieldWidth),
+    y: toY(point.y / 100 * visibleLength),
+  });
+  const clampPercent = (value: number) => Math.max(0, Math.min(100, value));
+  const pixelToPercent = (point: GeoPoint): GeoPoint => ({
+    x: clampPercent((point.x - leftX) / pitchW * 100),
+    y: clampPercent((point.y - topY) / pitchH * 100),
+  });
+  const containsPoint = (point: GeoPoint) =>
+    point.x >= leftX && point.x <= rightX && point.y >= topY && point.y <= bottomY;
 
   // Half-angle (degrees) where the penalty arc meets the penalty-area edge.
   const arcAngle =
@@ -197,7 +225,7 @@ export function buildPitchGeometry(opts: PitchGeometryOptions): PitchGeometry {
   const cornerArcs: GeoArc[] = [];
 
   const cornerR = scale(F.cornerArcRadius);
-  const goalDepthPx = Math.min(pad * 0.7, scale(1.8));
+  const goalDepthPx = scale(goalDepthM);
 
   const buildEnd = (end: 'top' | 'bottom') => {
     const isTop = end === 'top';
@@ -249,6 +277,7 @@ export function buildPitchGeometry(opts: PitchGeometryOptions): PitchGeometry {
   };
 
   let centerCircle: GeoCircle | null = null;
+  const centerArcs: GeoArc[] = [];
   let centerSpot: GeoPoint | null = null;
   let halfwayLine: GeoLine;
   let isHalfwayDashed: boolean;
@@ -257,7 +286,7 @@ export function buildPitchGeometry(opts: PitchGeometryOptions): PitchGeometry {
   if (orientation === 'full') {
     buildEnd('top');
     buildEnd('bottom');
-    const midY = pad + pitchH / 2;
+    const midY = toY(F.fieldLength / 2);
     halfwayLine = { x1: leftX, y1: midY, x2: rightX, y2: midY };
     isHalfwayDashed = false;
     centerCircle = { x: toX(cxM), y: midY, radius: scale(F.centerCircleRadius) };
@@ -268,7 +297,14 @@ export function buildPitchGeometry(opts: PitchGeometryOptions): PitchGeometry {
     buildEnd(attackingEnd);
     const cutY = attackDirection === 'up' ? bottomY : topY;
     halfwayLine = { x1: leftX, y1: cutY, x2: rightX, y2: cutY };
-    isHalfwayDashed = true;
+    isHalfwayDashed = false;
+    centerSpot = { x: toX(cxM), y: cutY };
+    centerArcs.push({
+      ...centerSpot,
+      radius: scale(F.centerCircleRadius),
+      startAngle: attackDirection === 'up' ? 180 : 0,
+      endAngle: attackDirection === 'up' ? 360 : 180,
+    });
     guideHorizontal =
       attackDirection === 'up'
         ? topY + depthPx(F.penaltyAreaDepth)
@@ -287,10 +323,14 @@ export function buildPitchGeometry(opts: PitchGeometryOptions): PitchGeometry {
     toX,
     toY,
     scale,
+    percentToPixel,
+    pixelToPercent,
+    containsPoint,
     boundary: { x: leftX, y: topY, width: pitchW, height: pitchH },
     halfwayLine,
     isHalfwayDashed,
     centerCircle,
+    centerArcs,
     centerSpot,
     penaltyAreas,
     goalAreas,
