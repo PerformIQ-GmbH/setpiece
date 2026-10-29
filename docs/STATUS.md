@@ -91,3 +91,6 @@ Drei Commits wurden ohne Force-Push auf codex/setpiece-launch-readiness veröffe
 
 Die abschliessende Routenaufteilung besteht Frontend-Typecheck und Production-Build: Haupt-JS 565.19 kB (gzip178.69), vorher1318.31 kB (gzip387.70). Landing inklusive benötigter Konva-Chunks920.24 kB (gzip289.09); bestehende Grössenwarnung bleibt sichtbar. Unabhängiges Frontend-/Betriebsreview meldete keine blockierenden Befunde.
 
+
+Nachtrag29.10.: GitHub-Lauf40848480789 besteht alle Schritte auf ubuntu-latest und windows-latest für66e6101. In Replit bestehen Frozen-Install,46/46Regressionen und Production-Build ebenfalls für66e6101. Die Anwendung wurde nicht neu veröffentlicht; Datenbank-/Stripe-E2E bleibt offen. Beleg im separaten Auditordner: screenshots/24-replit-tests-build-passed.png.
+
