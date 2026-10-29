@@ -84,3 +84,10 @@ Abnahmekriterien und Kostenbelege: [DEPLOYMENT](DEPLOYMENT.md). Ein offener Punk
 
 Replit zeigt getrennte Development- und Production-Datenbanken und für das bestehende Deployment die Region North America. Datenbankregion und Backupziel sind damit noch nicht bestätigt. In der App-Integrationsansicht ist Resend aktiv; eine aktive Stripe-Verbindung fehlt. Vince hat das aktive Stripe-Konto **performIQ** für SETPIECE bestätigt; das eingeschränkte Konto PerformIQ GmbH und Momgenda sind nicht zu verwenden. Keine Zahlung und kein Produktkauf wurden ausgeführt. Keine kostenpflichtige Replit-Agentenarbeit wurde gestartet; das CHF-80-Limit ist kein verifizierter Kontostand.
 
+
+## Auslieferungsbeleg · 29.10.2026
+
+Drei Commits wurden ohne Force-Push auf codex/setpiece-launch-readiness veröffentlicht; Head 66e6101. Entwurf: https://github.com/PerformIQ-GmbH/setpiece/pull/4. GitHub CI-Lauf 40848480789 wurde gestartet. Die Replit-Arbeitskopie wurde bei sauberem Ausgangszustand auf denselben Branch/Commit umgestellt. Frozen-Installation, Regressionen und Build wurden dort gestartet; Ergebnis noch offen. Kein Republish und kein Merge.
+
+Die abschliessende Routenaufteilung besteht Frontend-Typecheck und Production-Build: Haupt-JS 565.19 kB (gzip178.69), vorher1318.31 kB (gzip387.70). Landing inklusive benötigter Konva-Chunks920.24 kB (gzip289.09); bestehende Grössenwarnung bleibt sichtbar. Unabhängiges Frontend-/Betriebsreview meldete keine blockierenden Befunde.
+
