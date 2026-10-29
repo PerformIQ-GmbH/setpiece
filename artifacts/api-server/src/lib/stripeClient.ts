@@ -1,17 +1,12 @@
 import Stripe from 'stripe';
+import type { StripeSync as StripeSyncClient } from 'stripe-replit-sync';
 
-interface StripeConnectionSettings {
-  settings: {
-    publishable: string;
-    secret: string;
-  };
+// Keep requests aligned with the types shipped by our pinned Stripe 20 SDK.
+const STRIPE_API_VERSION = '2025-11-17.clover' satisfies Stripe.LatestApiVersion;
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
-
-interface ConnectorResponse {
-  items?: StripeConnectionSettings[];
-}
-
-let connectionSettings: StripeConnectionSettings | undefined;
 
 async function getCredentials() {
   const hostname = process.env.REPLIT_CONNECTORS_HOSTNAME;
@@ -41,17 +36,21 @@ async function getCredentials() {
     }
   });
 
-  const data: ConnectorResponse = await response.json();
+  if (!response.ok) {
+    throw new Error(`Stripe connector request failed (${response.status})`);
+  }
 
-  connectionSettings = data.items?.[0];
-
-  if (!connectionSettings || (!connectionSettings.settings.publishable || !connectionSettings.settings.secret)) {
+  const data: unknown = await response.json();
+  const connection = isRecord(data) && Array.isArray(data.items) ? data.items[0] : undefined;
+  const settings = isRecord(connection) && isRecord(connection.settings) ? connection.settings : undefined;
+  if (!settings || typeof settings.publishable !== 'string' || !settings.publishable
+    || typeof settings.secret !== 'string' || !settings.secret) {
     throw new Error(`Stripe ${targetEnvironment} connection not found`);
   }
 
   return {
-    publishableKey: connectionSettings.settings.publishable,
-    secretKey: connectionSettings.settings.secret,
+    publishableKey: settings.publishable,
+    secretKey: settings.secret,
   };
 }
 
@@ -59,7 +58,7 @@ export async function getUncachableStripeClient() {
   const { secretKey } = await getCredentials();
 
   return new Stripe(secretKey, {
-    apiVersion: '2025-08-27.basil',
+    apiVersion: STRIPE_API_VERSION,
   });
 }
 
@@ -73,16 +72,9 @@ export async function getStripeSecretKey() {
   return secretKey;
 }
 
-interface StripeSyncInstance {
-  processWebhook(payload: Buffer, signature: string): Promise<void>;
-  runMigrations(): Promise<void>;
-  findOrCreateManagedWebhook(url: string): Promise<{ webhook?: { secret?: string } }>;
-  syncBackfill(): Promise<void>;
-}
+let stripeSync: StripeSyncClient | null = null;
 
-let stripeSync: StripeSyncInstance | null = null;
-
-export async function getStripeSync(): Promise<StripeSyncInstance> {
+export async function getStripeSync(): Promise<StripeSyncClient> {
   if (!stripeSync) {
     const { StripeSync } = await import('stripe-replit-sync');
     const secretKey = await getStripeSecretKey();
@@ -93,7 +85,8 @@ export async function getStripeSync(): Promise<StripeSyncInstance> {
         max: 2,
       },
       stripeSecretKey: secretKey,
-    }) as StripeSyncInstance;
+      stripeApiVersion: STRIPE_API_VERSION,
+    });
   }
   return stripeSync;
 }

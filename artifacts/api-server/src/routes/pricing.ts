@@ -18,15 +18,13 @@ router.get("/pricing", async (_req, res): Promise<void> => {
       ORDER BY pr.unit_amount ASC
     `);
 
-    interface StripePriceRow {
-      price_id: string;
-      metadata: string | Record<string, string>;
-    }
-
-    for (const row of result.rows as StripePriceRow[]) {
+    for (const row of result.rows) {
+      if (typeof row.price_id !== 'string') continue;
       const metadata = typeof row.metadata === 'string' ? JSON.parse(row.metadata) : row.metadata;
-      if (metadata?.tierId === 'solo_coach') soloPriceId = row.price_id;
-      if (metadata?.tierId === 'team') teamPriceId = row.price_id;
+      if (metadata && typeof metadata === 'object' && 'tierId' in metadata) {
+        if (metadata.tierId === 'solo_coach') soloPriceId = row.price_id;
+        if (metadata.tierId === 'team') teamPriceId = row.price_id;
+      }
     }
   } catch {
     // Stripe tables may not exist yet

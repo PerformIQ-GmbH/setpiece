@@ -1,4 +1,4 @@
 #!/bin/bash
 set -e
 pnpm install --frozen-lockfile
-pnpm --filter db push
+# Schema changes require an explicit migration and backup/restore review.

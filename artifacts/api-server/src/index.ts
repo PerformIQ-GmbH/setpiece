@@ -38,7 +38,7 @@ async function initStripe() {
     const webhookResult = await stripeSync.findOrCreateManagedWebhook(
       `${webhookBaseUrl}/api/billing/webhook`,
     );
-    logger.info({ url: webhookResult?.webhook?.url }, "Stripe webhook configured");
+    logger.info({ url: webhookResult.url }, "Stripe webhook configured");
 
     stripeSync
       .syncBackfill()

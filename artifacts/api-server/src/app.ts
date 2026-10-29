@@ -54,6 +54,10 @@ app.use(
   }),
 );
 app.use(cookieParser());
+app.use('/api', (_req, res, next) => {
+  res.set('Cache-Control', 'no-store');
+  next();
+});
 
 app.post(
   '/api/billing/webhook',
@@ -71,7 +75,7 @@ app.post(
 
       if (!Buffer.isBuffer(req.body)) {
         logger.error('Stripe webhook: req.body is not a Buffer');
-        res.status(500).json({ error: 'Webhook processing error' });
+        res.status(400).json({ error: 'Webhook payload must be raw JSON' });
         return;
       }
 
@@ -79,7 +83,8 @@ app.post(
       res.status(200).json({ received: true });
     } catch (error: unknown) {
       logger.error({ err: error instanceof Error ? error.message : String(error) }, 'Webhook error');
-      res.status(400).json({ error: 'Webhook processing error' });
+      const invalidSignature = error instanceof Error && error.name === 'StripeSignatureVerificationError';
+      res.status(invalidSignature ? 400 : 500).json({ error: 'Webhook processing error' });
     }
   }
 );
