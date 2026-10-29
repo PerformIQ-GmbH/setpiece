@@ -94,3 +94,9 @@ Die abschliessende Routenaufteilung besteht Frontend-Typecheck und Production-Bu
 
 Nachtrag29.10.: GitHub-Lauf40848480789 besteht alle Schritte auf ubuntu-latest und windows-latest für66e6101. In Replit bestehen Frozen-Install,46/46Regressionen und Production-Build ebenfalls für66e6101. Die Anwendung wurde nicht neu veröffentlicht; Datenbank-/Stripe-E2E bleibt offen. Beleg im separaten Auditordner: screenshots/24-replit-tests-build-passed.png.
 
+
+## Logoübernahme ·29.10.2026
+Das von Vince gelieferte blaue Logo ersetzt den grünen Entwurf in der gemeinsamen BrandLogo-Komponente für öffentliche Seiten, Traineransicht und Demo. Favicon, Apple-Touch-Icon, PWA-Icons und Open-Graph-Bild stammen aus dem gelieferten Paket; keine Neuzeichnung. Prüfung und Replit-Abgleich werden für diesen Änderungsstand separat bestätigt.
+
+Logo-Prüfung: Frontend-Production-Build Exit0. Browser bei375px: beide Original-SVGs geladen, kein horizontaler Überlauf (Dokument367px). Screenshot25-supplied-logo-mobile.png im separaten Auditordner. Keine Funktionsänderung und keine Neuzeichnung der gelieferten Assets.
+

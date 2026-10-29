@@ -1,5 +1,5 @@
 // Public static assets only. Never persist team, player, auth or billing data.
-const STATIC_CACHE = 'setpiece-static-v3';
+const STATIC_CACHE = 'setpiece-static-v4';
 const BASE_PATH = new URL(self.registration.scope).pathname;
 const OFFLINE_PAGE = BASE_PATH + 'offline.html';
 const PUBLIC_FILES = new Set([
