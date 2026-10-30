@@ -10,7 +10,7 @@ if (!databaseUrl || !base || !/^http:\/\/127\.0\.0\.1:\d+$/.test(base)) throw ne
 const pool = new Pool({ connectionString: databaseUrl });
 try {
   const { rows: [database] } = await pool.query('SELECT current_database() name, (SELECT count(*) FROM users)::int users');
-  assert.equal(database.name, 'setpiece_flow_test');
+  assert.match(database.name, /^setpiece_flow_test(?:_\d+)?$/);
   assert.equal(database.users, 0, 'Use a fresh schema-only test database');
   const code = randomBytes(16).toString('hex').toUpperCase();
   await pool.query('INSERT INTO pilot_access(slot,code_hash) VALUES (1,$1)', [createHash('sha256').update(code).digest('hex')]);
@@ -36,7 +36,7 @@ try {
   assert.equal(active.effectiveTier, 'solo_coach');
   const root = `/teams/${team.id}`;
   const { data: player } = await request(root + '/players', { method: 'POST', status: 201, cookie: coach.cookie, body: { firstName: 'Spieler', lastName: 'Neun', shirtNumber: 9 } });
-  const { data: standard } = await request(root + '/set-pieces', { method: 'POST', status: 201, cookie: coach.cookie, body: { title: 'Fiktiver Eckball', category: 'corner_offensive' } });
+  const { data: standard } = await request(root + '/set-pieces', { method: 'POST', status: 201, cookie: coach.cookie, body: { title: 'Fiktiver Eckball', category: 'offensive_corner_left' } });
   const standardRoot = root + `/set-pieces/${standard.id}`;
   const { data: role } = await request(standardRoot + '/roles', { method: 'POST', status: 201, cookie: coach.cookie, body: { name: 'Erster Pfosten', startPosition: { x: 50, y: 50 } } });
   await request(standardRoot + '/assignments', { method: 'PUT', cookie: coach.cookie, body: { roleId: role.id, playerId: player.id } });

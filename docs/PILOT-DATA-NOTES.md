@@ -7,7 +7,7 @@ Stand 30.10.2026. Vince verlangt echte Spielerdaten im Pilot, nicht nur Pseudony
 - Replit-Konto: Pro 100, USD 100/Monat, automatische Aufladung aus. Vorhandener Tarif, kein neues Abo abgeschlossen. Guthaben am 30.10.: USD 85.22; Gesamtverbrauch der laufenden Periode USD 14.87 über alle Projekte, nicht diesem Auftrag zuordenbar.
 - Die [Replit-Nutzungsbedingungen](https://replit.com/terms-of-service) ordnen Pro dem Commercial Agreement zu. Das veröffentlichte [DPA](https://replit.com/dpa) ist Teil dieses Vertrags und enthält Standardvertragsklauseln. Vertragspartner des konkreten Kontos und schweizerische Ergänzungen/Transferbewertung sind gesondert festzuhalten; öffentliches DPA ist kein Beleg einer individuellen Prüfung.
 - Produktionsdatenbank PostgreSQL 16.15 in AWS us-east-1, USA. Replit-Deployment: North America. Entwicklung und Produktion getrennt. 18 öffentliche Tabellen vor Pilotmigration.
-- Produktionssicherung am 30.10.: pg_dump 16.10, Custom-Format, AES-256-CBC/PBKDF2, ausserhalb Git im geschützten Replit-Home. SHA-256 des verschlüsselten Archivs: `5fe86c3f61cabfa6bc6588ff49af719bc22efa513a380dc78d6f41ac26ada8b8`.
+- Produktionssicherung am 30.10.: pg_dump 16.10, Custom-Format, AES-256-CBC/PBKDF2, ausserhalb Git im geschützten Replit-Home. SHA-256 des verschlüsselten Archivs: `09f6a794f2834283cdb24dbe899515bb64311fa9dca86f2b2206da41bfa97aff`.
 - Rücksicherung in eigene PostgreSQL-16.10-Instanz über privaten Unix-Socket erfolgreich, ein Benutzer/ein Team erhalten. Keine Produktionsrücksicherung. Automatische Replit-Wiederherstellung: letzte sieben Tage; geplante zusätzliche Backups waren aus.
 - Resend-DPA nennt DSG und Schweizer Ergänzungen zu Standardvertragsklauseln: [DPA](https://resend.com/legal/dpa). Kontobestätigungs-/Resetmails enthalten Traineradresse und Sicherheitslink. Keine Spielermails im Kernablauf.
 - Keine neuen Werbetracker eingebaut; Schriften lokal. Spielerzugriff per Besitz des Links, keine Identitätsprüfung durch die Spielerauswahl. Links können widerrufen werden.
@@ -29,3 +29,5 @@ Tests: synthetische Suite ohne Dienste; zusätzlicher echter PostgreSQL-Test mit
 ## Bestätigung durch Vince am 30.10.2026
 
 Replit Pro wird geschäftlich für PerformIQ GmbH genutzt. Für nicht weitergeführte Pilot-Teams: Export anbieten, Team-/Spielerdaten innerhalb von 30 Tagen nach dem 30-tägigen Pilot löschen. Zusätzliche manuelle Pilot-Sicherungen maximal 30 Tage. Operativ als betreuter Vorgang über contact@performiq.ch führen; keine automatische Löschfunktion vorhanden. Schweizer Ergänzungen zum Replit-DPA bleiben vor Echtgeld-/Echtspielerfreigabe zu klären.
+
+Eine erneute Sicherung nach Replit-Neustart wurde auf dem persistenten Projektdatenträger unter .local/setpiece-release zwischengespeichert (ignoriert, niemals committen). Replit-Home ausserhalb des Workspace war nach Neustart nicht erhalten; es ist kein dauerhafter Sicherungsort. Vor Release private lokale Kopie ausserhalb des Repository herstellen.
