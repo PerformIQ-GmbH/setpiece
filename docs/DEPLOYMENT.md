@@ -23,14 +23,14 @@ Stripe und Resend werden über die bestehenden Replit-Verbindungen geladen. Für
 ## Build, Daten und Wiederherstellung
 
 1. Finalen Branch/Commit festhalten und die README-Checks mit Frozen-Install ausführen. CI startet keine App und verbindet keine Datenbank. Schreibende Playwright-Tests erst nach Einrichtung einer eigenen Test-App mit isolierter Testdatenbank ausführen.
-2. Vor der Veröffentlichung Datenbankziel und vorhandene Start-Schreibvorgänge prüfen: `src/index.ts` des API-Servers initialisiert derzeit Stripe-Schema, Enumwerte und Vorlagen. Diese Auditumsetzung autorisiert keine zusätzliche Schemaänderung und keinen pauschalen `drizzle-kit push --force`.
+2. Vor der Veröffentlichung Datenbankziel und vorhandene Start-Schreibvorgänge prüfen: Der API-Start führt keine Stripe-Einrichtung, DDL oder Vorlagen-Seeds aus. Schemaänderungen erfolgen ausschliesslich als geprüfte Migration; kein pauschaler `drizzle-kit push --force`.
 3. Vor jedem Release, der Daten oder Startlogik betrifft, einen konsistenten PostgreSQL-Backupstand erzeugen und verschlüsselt ausserhalb des Repo ablegen. Zeitpunkt, Quellumgebung, Werkzeugversion, Speicherortreferenz und Dateiprüfsumme dokumentieren; keine Verbindungszeichenfolge oder Dateninhalte in Git.
 4. Den Backupstand in eine **neue isolierte Wiederherstellungsdatenbank** einspielen. Tabellen, Zeilenanzahlen und Beziehungen der Kernobjekte vergleichen und den Trainer-/Spielerablauf dort prüfen. Restore-Ziel vor jedem schreibenden Befehl nachweisen. Erst ein erfolgreicher Restore bestätigt die Wiederherstellbarkeit.
 5. Replit-Deployment mit Commit und Deployment-ID zuordnen. Bei Fehlern vorherigen kompatiblen Build wiederherstellen; eine Produktionsdatenbank nicht beiläufig zurücksetzen. Datenrestore braucht einen geprüften Verlustzeitraum und die dafür nötige Freigabe.
 
 Für den Backup-/Restorelauf können PostgreSQLs `pg_dump --format=custom` und `pg_restore --exit-on-error --no-owner` mit geschützten Verbindungsparametern verwendet werden. Toolausgabe auf Fehler prüfen. Backupdateien und Playwright-Sitzungen niemals als öffentliches CI-Artefakt hochladen.
 
-Der pauschale Datenbankschema-Push wurde aus `scripts/post-merge.sh` entfernt; der Hook führt nur noch den Frozen-Install aus. Automatischer Merge oder erfolgreicher Build darf kein ungeprüftes Schema-Push auslösen. Die vorhandenen Schreibvorgänge beim API-Start bleiben separat zu beachten. Bei einer später geplanten Migration gehören genaue SQL-/Schemaänderung, Test auf Kopie, Backup und Rückweg in denselben Releaseauftrag.
+Der pauschale Datenbankschema-Push wurde aus `scripts/post-merge.sh` entfernt; der Hook führt nur noch den Frozen-Install aus. Automatischer Merge oder erfolgreicher Build darf kein ungeprüftes Schema-Push auslösen. Der API-Start wurde von Schemaänderungen, Stripe-Einrichtung und Seeding befreit. Bei einer später geplanten Migration gehören genaue SQL-/Schemaänderung, Test auf Kopie, Backup und Rückweg in denselben Releaseauftrag.
 
 ## Stripe im Testmodus und in Produktion
 
@@ -61,3 +61,9 @@ Synthetische Regressionen ergänzen diese Abnahme, ersetzen aber keine Prüfung 
 | 28.10.2026 | Ausgangsstand dieses Auftrags; noch keine zusätzliche Replit-Ausgabe dokumentiert |                      0.00 |          0.00 |
 
 Die Startzeile bestätigt keinen abgelesenen Replit-Kontostand. Aktuelle Abrechnungsansicht, bestehende Nutzung und Restbetrag sind vor kostenpflichtigen Aktionen zu prüfen; unbekannte Kosten nicht als null verbuchen. Das Ledger fortführen und vor Überschreitung stoppen. Vorgeschlagene Werbebudgets aus dem Audit gehören nicht zu diesem Replit-Budget.
+
+## Pilotfreigabe 30.10.2026
+
+Fünf Codes, Solo Coach für ein Team ab Einlösung während 720 Stunden, ohne Zahlungsangaben oder automatische Verlängerung. Produktionsflag SETPIECE_PILOT_ENABLED=true ist in der API-Artefaktkonfiguration festgelegt; vorher Pilotmigration und Hash-Seed anwenden. Die Migration wurde auf der isolierten Wiederherstellung geprüft. Private Einladungen liegen ausserhalb Git. Konten-/Teamdaten bei Ablauf nicht automatisch entfernen. Bestätigte Vorgabe bei Nichtweiterführung: Export anbieten und Team-/Spielerdaten innerhalb der folgenden 30 Tage löschen; zusätzliche manuelle Pilot-Sicherungen maximal 30 Tage. Echte Spielerdaten erst nach abgeschlossener Vereinsvereinbarung und Ausland-/Anbieterprüfung.
+
+Budgetkontrolle 30.10.: bestehender Replit Pro 100, Auto-reload Off, Restguthaben USD 85.22, periodenweiter Verbrauch USD 14.87 für alle Projekte. Kein neuer kostenpflichtiger Replit-Agent beauftragt; Infrastrukturverbrauch ist damit nicht als null oder ausschliesslich diesem Projekt zugeordnet.

@@ -15,10 +15,10 @@ paths = [ "/" ]
 localPort = 19174
 
 [services.development]
-run = "pnpm --filter @workspace/setpiece run dev"
+run = "npm exec --yes --package=pnpm@11.25.0 -- pnpm --filter @workspace/setpiece run dev"
 
 [services.production]
-build = [ "pnpm", "--filter", "@workspace/setpiece", "run", "build" ]
+build = [ "npm", "exec", "--yes", "--package=pnpm@11.25.0", "--", "pnpm", "--filter", "@workspace/setpiece", "run", "build" ]
 publicDir = "artifacts/setpiece/dist/public"
 serve = "static"
 

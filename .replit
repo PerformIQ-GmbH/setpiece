@@ -14,7 +14,7 @@ router = "application"
 deploymentTarget = "autoscale"
 
 [deployment.postBuild]
-args = ["pnpm", "store", "prune"]
+args = ["npm", "exec", "--yes", "--package=pnpm@11.25.0", "--", "pnpm", "store", "prune"]
 env = { "CI" = "true" }
 
 [workflows]
