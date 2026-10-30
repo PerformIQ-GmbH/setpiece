@@ -33,7 +33,7 @@ export async function redeemPilot(teamId: string, userId: string, code: string) 
         SELECT expires_at FROM pilot_access
         WHERE code_hash = ${hash} AND user_id = ${userId} AND team_id = ${teamId}
       `);
-      if (previous.rows.length) return { expiresAt: previous.rows[0].expires_at as Date };
+      if (previous.rows.length) return { expiresAt: new Date(previous.rows[0].expires_at as string) };
       // One statement claims one slot. Unique user/team constraints also cover competing codes.
       const claimed = await tx.execute(sql`
         UPDATE pilot_access SET user_id = ${userId}, team_id = ${teamId},
@@ -42,7 +42,7 @@ export async function redeemPilot(teamId: string, userId: string, code: string) 
         RETURNING expires_at
       `);
       return claimed.rows.length
-        ? { expiresAt: claimed.rows[0].expires_at as Date }
+        ? { expiresAt: new Date(claimed.rows[0].expires_at as string) }
         : { error: "unavailable" as const };
     });
   } catch (error) {

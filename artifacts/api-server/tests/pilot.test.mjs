@@ -56,6 +56,8 @@ test('disabled pilot does not access the database or change entitlements', async
 });
 
 test('real PostgreSQL claims enforce ownership, five slots, expiry and concurrency', { skip: !pool }, async () => {
+  // Only the verified, purpose-created test database may reset these synthetic fixtures.
+  await pool.query('DROP TABLE IF EXISTS pilot_access,memberships,teams,users');
   await pool.query('CREATE TABLE users (id varchar PRIMARY KEY); CREATE TABLE teams (id varchar PRIMARY KEY, owner_id varchar REFERENCES users(id), tier varchar); CREATE TABLE memberships (team_id varchar REFERENCES teams(id), user_id varchar REFERENCES users(id), role varchar)');
   await pool.query(await readFile(new URL('../../../lib/db/migrations/20261029_pilot_access.sql', import.meta.url), 'utf8'));
   const codes = Array.from({ length: 5 }, () => randomBytes(16).toString('hex').toUpperCase());
