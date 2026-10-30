@@ -5,6 +5,8 @@ packages:
   - scripts
 
 autoInstallPeers: false
+# Replit reinstalls uploaded dependency folders without an interactive terminal.
+confirmModulesPurge: false
 
 catalog:
   '@replit/vite-plugin-cartographer': ^0.5.1
