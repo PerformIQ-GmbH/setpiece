@@ -91,6 +91,11 @@ export interface Team {
   teamColors?: TeamTeamColors;
   ownerId: string;
   tier: string;
+  /** Current usage tier, including an active pilot. tier remains the billing plan. */
+  effectiveTier?: string;
+  /** @nullable */
+  pilotExpiresAt?: string | null;
+  pilotAvailable?: boolean;
   /** @nullable */
   stripeCustomerId?: string | null;
   /** @nullable */

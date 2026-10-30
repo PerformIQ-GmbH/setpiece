@@ -27,6 +27,9 @@ args = ["node", "--enable-source-maps", "artifacts/api-server/dist/index.mjs"]
 [services.production.run.env]
 PORT = "8080"
 NODE_ENV = "production"
+APP_DOMAIN = "setpiece.performiq.ch"
+ALLOWED_ORIGINS = "https://setpiece.performiq.ch"
+SETPIECE_PILOT_ENABLED = "true"
 
 [services.production.health.startup]
 path = "/api/healthz"

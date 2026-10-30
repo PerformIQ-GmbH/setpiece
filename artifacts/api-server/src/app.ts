@@ -2,10 +2,13 @@ import express, { type Express } from "express";
 import cors from "cors";
 import cookieParser from "cookie-parser";
 import pinoHttp from "pino-http";
+import path from "node:path";
 import { authMiddleware } from "./middlewares/authMiddleware";
 import router from "./routes";
+import healthRouter from "./routes/health";
 import { logger } from "./lib/logger";
 import { WebhookHandlers } from "./lib/webhookHandlers";
+import { mountFrontend } from "./lib/frontend";
 
 const app: Express = express();
 
@@ -91,8 +94,13 @@ app.post(
 
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true }));
-app.use(authMiddleware);
+app.use("/api", healthRouter, authMiddleware, router);
+app.use("/api", (_req, res) => {
+  res.status(404).json({ error: "Not found" });
+});
 
-app.use("/api", router);
+if (process.env.NODE_ENV === "production") {
+  mountFrontend(app, path.resolve(import.meta.dirname, "../../setpiece/dist/public"));
+}
 
 export default app;

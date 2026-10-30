@@ -6,6 +6,7 @@ import { useGetPricingData, useGetCurrentAuthUser, useListTeams } from '@workspa
 import type { PricingDataTiersItem } from '@workspace/api-client-react';
 import { Button } from '@/components/ui/button';
 import { Check, Loader2 } from 'lucide-react';
+import { PilotAccessPanel } from '@/components/PilotAccessPanel';
 
 const features: Record<string, string> = {
   '1 team': '1 Team', 'Multiple teams': 'Mehrere Teams',
@@ -37,7 +38,7 @@ function PlanGrid({ onSelect, currentTier, loadingTier, member = false }: {
 }
 
 function MemberPricing() {
-  const { data: teams } = useListTeams();
+  const { data: teams, refetch } = useListTeams();
   const team = teams?.[0];
   const [loadingTier, setLoadingTier] = useState<string | null>(null);
   const [error, setError] = useState('');
@@ -62,10 +63,11 @@ function MemberPricing() {
   };
   return <CoachLayout><div className="mx-auto max-w-6xl">
     <h1 className="font-display text-3xl font-semibold">Dein Tarif</h1>
-    <p className="mb-8 mt-3 text-muted-foreground">{team ? `Abo für: ${team.name}` : 'Erstelle zuerst ein Team, um einen kostenpflichtigen Tarif zu wählen.'}</p>
+    <p className="mb-8 mt-3 text-muted-foreground">{team?.pilotAvailable ? 'Betreuter 30-Tage-Pilot: Aktiviere deinen persönlichen Einladungscode. Während des Pilots ist kein kostenpflichtiger Abschluss möglich.' : team ? `Abo für: ${team.name}` : 'Erstelle zuerst ein Team, um einen Tarif zu wählen.'}</p>
     {params.get('success') === 'true' && <p role="status" className="mb-6 rounded-lg bg-primary/10 p-4 text-sm">Du bist vom Checkout zurück. Dein Tarif wird nach Bestätigung der Zahlung aktualisiert. <Link href="/settings" className="underline">Abo ansehen</Link></p>}
     {params.get('canceled') === 'true' && <p role="status" className="mb-6 rounded-lg bg-secondary p-4 text-sm">Der Checkout wurde abgebrochen. Du kannst später einen Tarif wählen.</p>}
     {error && <p role="alert" className="mb-6 rounded-lg border border-destructive p-4 text-sm">{error} <Link href="/settings" className="underline">Einstellungen öffnen</Link></p>}
+    {team && <PilotAccessPanel team={team} onRedeemed={() => { void refetch(); }} />}
     <PlanGrid member currentTier={team?.tier} onSelect={handleUpgrade} loadingTier={loadingTier ?? (!team ? 'team-loading' : null)} />
     <p className="mt-6 text-sm leading-relaxed text-muted-foreground">Kostenpflichtige Tarife werden monatlich abgerechnet. Massgeblich sind die Angaben im Checkout. Dein bestehendes Abo verwaltest du in den Einstellungen.</p>
     <p className="mt-4 text-sm"><Link href="/kontakt" className="text-primary underline">Fragen zum Tarif?</Link></p>

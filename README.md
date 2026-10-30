@@ -49,7 +49,7 @@ pnpm build
 
 Replit verwendet die Node-24-Konfiguration und den vorhandenen Projekt-Workflow aus `.replit`. Frontend und API müssen über die vorgesehene Replit-Routingkonfiguration zusammen erreichbar sein. Der Runtime-Port kommt aus der jeweiligen Umgebung; `5173` oben ist nur der Build-/Frontend-Prüfwert.
 
-Für eine lokale Frontend-Vorschau nach dem Build `pnpm --filter @workspace/setpiece serve` mit `PORT` und `BASE_PATH` ausführen. Eine vollständige lokale App braucht zusätzlich API-Routing und eine **separate Entwicklungsdatenbank**. Der API-Start kann bestehende Initialisierung und Seeding ausführen; nicht mit einer Produktivverbindung experimentieren.
+Für eine lokale Frontend-Vorschau nach dem Build `pnpm --filter @workspace/setpiece serve` mit `PORT` und `BASE_PATH` ausführen. Eine vollständige lokale App braucht zusätzlich API-Routing und eine **separate Entwicklungsdatenbank**. Der API-Start führt keine Schemaänderungen, Stripe-Einrichtung oder Seed-Schreibvorgänge aus. Schreibende Tests ausschliesslich gegen eine isolierte Testdatenbank ausführen.
 
 Runtime-Variablen, Replit-Verbindungen, Backup und Releaseabnahme stehen in [DEPLOYMENT](docs/DEPLOYMENT.md). Secrets gehören in die geschützte Umgebung, niemals in Git oder `VITE_*`-Variablen. `ADMIN_SECRET` ist abgeschafft und darf in keiner Runtime weitergeführt werden.
 

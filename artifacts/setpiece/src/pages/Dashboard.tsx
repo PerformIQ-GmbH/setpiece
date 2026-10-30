@@ -7,6 +7,7 @@ import { Plus, Users, ShieldAlert, ArrowRight } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Link, useLocation } from 'wouter';
 import { motion } from 'framer-motion';
+import { PilotStatus } from '@/components/PilotAccessPanel';
 
 export default function Dashboard() {
   const { data: teams, isLoading, isError, refetch } = useListTeams();
@@ -110,12 +111,13 @@ export default function Dashboard() {
                       <Users className="h-6 w-6 text-primary" />
                     </div>
                     <span className="text-xs font-medium px-2 py-1 rounded-md bg-secondary text-secondary-foreground border border-border">
-                      {team.tier === 'free' ? 'Kostenlos' : team.tier === 'solo_coach' ? 'Solo Coach' : 'Team'}
+                      {team.effectiveTier === 'solo_coach' && team.tier === 'free' ? 'Solo Coach · Pilot' : team.tier === 'free' ? 'Kostenlos' : team.tier === 'solo_coach' ? 'Solo Coach' : 'Team'}
                     </span>
                   </div>
                   
                   <h3 className="text-2xl font-bold font-display text-white mb-1 group-hover:text-primary transition-colors">{team.name}</h3>
                   <p className="text-sm text-muted-foreground mb-6">Spieler, Standards und Spieltage vorbereiten</p>
+                  <PilotStatus team={team} />
                   
                   <div className="flex items-center text-primary text-sm font-semibold mt-auto pt-4 border-t border-border/50">
                     Team öffnen <ArrowRight className="h-4 w-4 ml-2 group-hover:translate-x-1 transition-transform" />

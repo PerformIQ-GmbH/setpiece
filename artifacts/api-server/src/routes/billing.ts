@@ -104,6 +104,10 @@ router.get("/billing/subscription/:teamId", async (req: Request<{ teamId: string
 });
 
 router.post("/billing/checkout", async (req: Request, res: Response): Promise<void> => {
+  if (process.env.SETPIECE_PILOT_ENABLED === "true") {
+    res.status(503).json({ error: "Paid checkout is unavailable during the free pilot" });
+    return;
+  }
   const { priceId, tierId, teamId } = req.body as { priceId?: string; tierId?: string; teamId?: string };
 
   if (typeof teamId !== "string" || !teamId) {

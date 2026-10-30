@@ -157,6 +157,19 @@ function coachApp() {
   return target;
 }
 const checkoutBody = { teamId: 'team_one', tierId: 'solo_coach', priceId: 'price_solo' };
+test('free pilot never opens paid checkout or creates Stripe records', async () => {
+  const old = process.env.SETPIECE_PILOT_ENABLED;
+  process.env.SETPIECE_PILOT_ENABLED = 'true';
+  try {
+    const result = await request(coachApp(), '/api/billing/checkout', { body: checkoutBody });
+    assert.equal(result.status, 503);
+    assert.equal(state.checkoutCreates, 0);
+    assert.equal(state.customerCreates, 0);
+  } finally {
+    if (old === undefined) delete process.env.SETPIECE_PILOT_ENABLED;
+    else process.env.SETPIECE_PILOT_ENABLED = old;
+  }
+});
 const subscriptionEvent = (id, type = 'customer.subscription.updated', metadata = { teamId: 'team_one' }) =>
   ({ type, data: { object: { id, metadata } } });
 

@@ -8,7 +8,7 @@ router.get("/pricing", async (_req, res): Promise<void> => {
   let soloPriceId: string | null = null;
   let teamPriceId: string | null = null;
 
-  try {
+  if (process.env.SETPIECE_PILOT_ENABLED !== "true") try {
     const result = await db.execute(sql`
       SELECT pr.id as price_id, p.metadata
       FROM stripe.prices pr
