@@ -107,3 +107,13 @@ Implementiert: gemeinsame metrische Geometrie, Fit-/Inverse-Abbildung, Snap und 
 
 Abschlussbeleg Spielfeld: Codecommit90d3974; GitHub CI40922494396 besteht Installation, Typecheck,65Regressionen und Build auf Linux und Windows. Derselbe Codecommit ist in Replit übernommen; dort65/65Tests und Frontendbuild grün (7.46s). Screenshot31-pitch-replit-tests-build.png im separaten Auditordner. Replit-Vorschaubereich zeigte beim abschliessenden Öffnen weiterhin 'Your app is starting'; daher keine zusätzliche Behauptung einer laufenden integrierten Replit-App oder eines Produktionsdeployments. Lokaler Browsernachweis ist separat belegt.
 
+
+## Pilotabnahme 30.10.2026
+
+Fünf persönliche 30-Tage-Piloten umgesetzt; serverseitige Entitlements ohne Änderung des bezahlten Tarifs, zeitlich begrenzte Einlösung und gesperrter kostenpflichtiger Checkout. 74 synthetische Regressionen bestanden, ein zusätzlicher PostgreSQL-Test separat mit Eigentümerprüfung, konkurrierenden Einlösungen, Wiederholung und Ablaufzeit bestanden. Production-Build und Typecheck lokal sowie Replit-Build erfolgreich.
+
+Vollständiger HTTP-Ablauf gegen eine frische isolierte PostgreSQL-Datenbank bestanden: Registrierung zweier fiktiver Trainer, Besitzerprüfung des Pilotcodes, Teamtrennung, Standard/Rolle/Zuweisung, Freigabe, beschränkter Spielerlink, Quiz ohne Antwortleck, 100%-Ergebnis im Trainerdashboard, Linkwiderruf, gesperrter bezahlter Checkout, Logout mit Sessionwiderruf. Keine schreibenden Testfixtures in Produktion. Mailverbindung im isolierten Test deaktiviert; tatsächliche Mailzustellung damit nicht bestätigt. Beleg ausserhalb Git: audit-2026-10-28/32-pilot-smoke.png.
+
+Produktionssicherung erneut erstellt und auf separater PostgreSQL-Instanz erfolgreich wiederhergestellt. Dauerhafte private lokale Kopie mit Windows-DPAPI und Entschlüsselungs-/Hashprüfung gesichert. Betriebsdetails unter PILOT-DATA-NOTES. Replit-Home ausserhalb des Projektdatenträgers war nicht neustartfest und wird nicht als dauerhafter Backuport verwendet.
+
+Vince bestätigt echte Spielerdaten, geschäftliche Nutzung von Replit Pro für PerformIQ und Export/Löschung innerhalb 30 weiterer Tage bei Nichtweiterführung. Vereinsvereinbarung vorbereitet. Schweizer Auslandgarantien des Replit-Vertrags bleiben vor Einladung realer Spieler zu klären. Kein kostenpflichtiger Replit-Agent neu beauftragt. Technische Veröffentlichung und Liveprüfung werden nach tatsächlichem Abschluss unten nachgeführt.
