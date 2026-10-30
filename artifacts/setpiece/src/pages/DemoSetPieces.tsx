@@ -14,8 +14,8 @@ export default function DemoSetPieces() {
   return (
     <DemoLayout teamName={demoTeam?.name}>
       <div className="mb-8">
-        <h1 className="text-3xl font-display font-bold text-white">Set Pieces</h1>
-        <p className="text-muted-foreground mt-1">{setPieces?.length || 0} routines</p>
+        <h1 className="text-3xl font-display font-bold text-white">Standards</h1>
+        <p className="text-muted-foreground mt-1">{setPieces?.length || 0} Variante(n)</p>
       </div>
 
       {isLoading ? (
@@ -42,7 +42,7 @@ export default function DemoSetPieces() {
                       <h3 className="font-bold text-sm text-white group-hover:text-primary transition-colors truncate">{sp.title}</h3>
                       <StatusBadge status={sp.status} />
                     </div>
-                    <p className="text-xs text-muted-foreground capitalize">{sp.category.replace(/_/g, ' ')}</p>
+                    <p className="text-xs text-muted-foreground capitalize">{sp.category === 'corner_offensive' ? 'Offensive Ecke' : sp.category.replace(/_/g, ' ')}</p>
                     {sp.description && <p className="text-xs text-muted-foreground mt-2 line-clamp-2">{sp.description}</p>}
                   </CardContent>
                 </Card>

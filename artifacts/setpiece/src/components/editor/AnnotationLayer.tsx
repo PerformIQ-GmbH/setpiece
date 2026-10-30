@@ -20,7 +20,6 @@ interface AnnotationLayerProps {
   toPct: (px: Point) => Point;
   pitchW: number;
   pitchH: number;
-  pad: number;
   readOnly?: boolean;
   lockedTypes?: { actions?: boolean; zones?: boolean; labels?: boolean };
 }
@@ -72,15 +71,15 @@ function DragHandle({
       onDragStart={snapshotForDrag}
       onDragMove={(e: Konva.KonvaEventObject<DragEvent>) => {
         cancelAnimationFrame(rafRef.current);
-        const abs = e.target.getAbsolutePosition();
+        const pos = e.target.position();
         rafRef.current = requestAnimationFrame(() => {
-          onUpdatePoint(annId, index, toPct({ x: abs.x, y: abs.y }));
+          onUpdatePoint(annId, index, toPct(pos));
         });
       }}
       onDragEnd={(e: Konva.KonvaEventObject<DragEvent>) => {
         cancelAnimationFrame(rafRef.current);
-        const abs = e.target.getAbsolutePosition();
-        onUpdatePoint(annId, index, toPct({ x: abs.x, y: abs.y }));
+        const pos = e.target.position();
+        onUpdatePoint(annId, index, toPct(pos));
       }}
       onClick={(e) => { e.cancelBubble = true; }}
       onTap={(e) => { e.cancelBubble = true; }}
@@ -151,7 +150,7 @@ function RadiusHandle({
   );
 }
 
-export function AnnotationLayer({ annotations, selectedId, focusedRoleId, hasFocusedElement, onSelect, onMove, onUpdatePoint, onUpdateRadius, toPixel, toPct, pitchW, pitchH, pad, readOnly, lockedTypes }: AnnotationLayerProps) {
+export function AnnotationLayer({ annotations, selectedId, focusedRoleId, hasFocusedElement, onSelect, onMove, onUpdatePoint, onUpdateRadius, toPixel, toPct, pitchW, pitchH, readOnly, lockedTypes }: AnnotationLayerProps) {
   const isTypeLocked = (ann: Annotation): boolean => {
     if (readOnly) return true;
     if (!lockedTypes) return false;

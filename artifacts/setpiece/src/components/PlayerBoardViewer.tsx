@@ -6,6 +6,9 @@ import { PremiumPitch } from '@/components/editor/PremiumPitch';
 import { OffensiveCornerPitch } from '@/components/editor/OffensiveCornerPitch';
 import { TeamPlayerMarker, OpponentMarker, GoalkeeperMarker, BallMarker } from '@/components/editor/markers';
 import type { Annotation, EntityMarker, Point } from '@/components/editor/types';
+import { buildPitchGeometry, pitchOrientationForCategory } from '@/utils/pitchGeometry';
+import { AnnotationLayer } from '@/components/editor/AnnotationLayer';
+import { annotationPath, interpolatePath, subPath } from '@/components/editor/pathUtils';
 
 interface RoleData {
   id: string;
@@ -53,18 +56,6 @@ function safe(p: Point): Point {
   };
 }
 
-function interpolatePath(path: Point[], t: number): Point {
-  if (path.length === 0) return { x: 50, y: 50 };
-  if (path.length === 1 || t <= 0) return safe(path[0]);
-  if (t >= 1) return safe(path[path.length - 1]);
-  const totalSegments = path.length - 1;
-  const segIdx = Math.min(Math.floor(t * totalSegments), totalSegments - 1);
-  const segT = t * totalSegments - segIdx;
-  const p0 = path[segIdx];
-  const p1 = path[segIdx + 1];
-  return safe({ x: p0.x + (p1.x - p0.x) * segT, y: p0.y + (p1.y - p0.y) * segT });
-}
-
 const ACCENT = '#22d3ee';
 const ACCENT_GLOW = '#06b6d4';
 
@@ -95,14 +86,10 @@ export function PlayerBoardViewer({
   const { width, height } = dims;
   const PAD = computePad(width);
   const isCornerKick = category.includes('corner');
-  const halfPitch = !isCornerKick && category.includes('free_kick');
-  const pitchW = width - PAD * 2;
-  const pitchH = height - PAD * 2;
-
-  const toPixel = useCallback((pct: { x: number; y: number }) => ({
-    x: PAD + (pct.x / 100) * pitchW,
-    y: PAD + (pct.y / 100) * pitchH,
-  }), [pitchW, pitchH, PAD]);
+  const orientation = pitchOrientationForCategory(category);
+  const halfPitch = orientation === 'half';
+  const geometry = useMemo(() => buildPitchGeometry({ width, height, pad: PAD, orientation }), [width, height, PAD, orientation]);
+  const toPixel = geometry.percentToPixel;
 
   const activeRoleId = useMemo(() => {
     if (explicitActiveRoleId) return explicitActiveRoleId;
@@ -233,7 +220,7 @@ export function PlayerBoardViewer({
           (a.type === 'run_path' || a.type === 'curved_run') &&
           a.points.length >= 2
       );
-      if (linkedRun) return interpolatePath(linkedRun.points, t);
+      if (linkedRun) return interpolatePath(annotationPath(linkedRun.type, linkedRun.points), t);
 
       const unlinkedRuns = stepAnns.filter(
         (a) =>
@@ -251,7 +238,7 @@ export function PlayerBoardViewer({
         ).length;
         const unlinkedIdx = roleIdx - usedLinkedCount;
         if (unlinkedIdx >= 0 && unlinkedIdx < unlinkedRuns.length) {
-          return interpolatePath(unlinkedRuns[unlinkedIdx].points, t);
+          return interpolatePath(annotationPath(unlinkedRuns[unlinkedIdx].type, unlinkedRuns[unlinkedIdx].points), t);
         }
       }
       return startPos;
@@ -307,20 +294,8 @@ export function PlayerBoardViewer({
 
   const selfArrowTracedPoints = useMemo(() => {
     if (!selfArrowFull) return null;
-    const path = selfArrowFull.points;
-    if (path.length < 2) return null;
-    if (progress >= 1) return path;
-    if (progress <= 0) return [path[0]];
-    const totalSegments = path.length - 1;
-    const exact = progress * totalSegments;
-    const lastFullIdx = Math.floor(exact);
-    const segT = exact - lastFullIdx;
-    const head = path.slice(0, lastFullIdx + 1);
-    const p0 = path[lastFullIdx];
-    const p1 = path[lastFullIdx + 1];
-    if (!p1) return head;
-    head.push({ x: p0.x + (p1.x - p0.x) * segT, y: p0.y + (p1.y - p0.y) * segT });
-    return head;
+    const path = annotationPath(selfArrowFull.type, selfArrowFull.points);
+    return progress <= 0 ? [path[0]] : subPath(path, progress);
   }, [selfArrowFull, progress]);
 
   const playerMap = useMemo(() => {
@@ -543,53 +518,25 @@ export function PlayerBoardViewer({
               <PremiumPitch width={width} height={height} halfPitch={halfPitch} pad={PAD} theme="dark" />
             )}
 
-            {/* Background annotations (non-personal) */}
-            <Group>
-              {visibleAnnotations.map((ann: Annotation) => {
-                if (!ann.points || ann.points.length < 2) return null;
-                if (ann.id === selfArrowFull?.id) return null; // drawn separately
-                const isLinkedToActive = ann.linkedRoleId === activeRoleId;
-                const opacity = isLinkedToActive ? 0.85 : activeRoleId ? 0.5 : 0.7;
-                const color = ann.ghost
-                  ? 'rgba(59,130,246,0.5)'
-                  : ann.color || 'rgba(255,255,255,0.6)';
-                const flatPoints = ann.points.flatMap((p) => {
-                  const px = toPixel(p);
-                  return [px.x, px.y];
-                });
-                if (ann.arrowhead) {
-                  return (
-                    <Arrow
-                      key={ann.id}
-                      points={flatPoints}
-                      stroke={color}
-                      strokeWidth={ann.strokeWidth || 2}
-                      opacity={opacity}
-                      dash={ann.dashed ? [6, 4] : undefined}
-                      pointerLength={9}
-                      pointerWidth={8}
-                      fill={color}
-                      listening={false}
-                    />
-                  );
-                }
-                return (
-                  <Line
-                    key={ann.id}
-                    points={flatPoints}
-                    stroke={color}
-                    strokeWidth={ann.strokeWidth || 2}
-                    opacity={opacity}
-                    dash={ann.dashed ? [6, 4] : undefined}
-                    listening={false}
-                  />
-                );
-              })}
-            </Group>
+            {/* Use the editor renderer for paths, zones and labels as well. */}
+            <AnnotationLayer
+              annotations={visibleAnnotations.filter(ann => ann.id !== selfArrowFull?.id)}
+              selectedId={null}
+              focusedRoleId={activeRoleId}
+              hasFocusedElement={!!activeRoleId}
+              onSelect={() => {}}
+              onMove={() => {}}
+              onUpdatePoint={() => {}}
+              toPixel={toPixel}
+              toPct={geometry.pixelToPercent}
+              pitchW={geometry.pitchW}
+              pitchH={geometry.pitchH}
+              readOnly
+            />
 
             {/* Personal arrow — full path as faint ghost + traced progress */}
             {selfArrowFull && (() => {
-              const fullFlat = selfArrowFull.points.flatMap((p) => {
+              const fullFlat = annotationPath(selfArrowFull.type, selfArrowFull.points).flatMap((p) => {
                 const px = toPixel(p);
                 return [px.x, px.y];
               });

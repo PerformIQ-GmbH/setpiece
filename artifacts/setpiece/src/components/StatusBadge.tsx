@@ -16,6 +16,7 @@ const statusStyles: Record<string, string> = {
 
 export function StatusBadge({ status, className }: { status: string; className?: string }) {
   const style = statusStyles[status] || 'bg-secondary text-muted-foreground border-border';
+  const labels: Record<string, string> = { draft: 'Entwurf', ready: 'Freigegeben', active_matchday: 'Am Spieltag', archived: 'Archiviert', active: 'Aktiv', injured: 'Verletzt', suspended: 'Gesperrt', not_opened: 'Nicht geöffnet', opened: 'Geöffnet', passed: 'Aufgabe verstanden', needs_review: 'Nochmals durchgehen' };
   return (
     <span className={cn(
       'px-2.5 py-1 text-[10px] font-bold uppercase rounded-lg border tracking-wider inline-flex items-center gap-1.5',
@@ -32,7 +33,7 @@ export function StatusBadge({ status, className }: { status: string; className?:
         status === 'opened' ? 'bg-blue-400' :
         'bg-muted-foreground'
       )} />
-      {status.replace(/_/g, ' ')}
+      {labels[status] || status.replace(/_/g, ' ')}
     </span>
   );
 }

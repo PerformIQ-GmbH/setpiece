@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { CoachLayout } from '@/components/Layout';
 import { useRoute } from 'wouter';
-import { useGetTeam, useListPlayers, useCreatePlayer, useDeletePlayer, useUpdatePlayer, useListInvites, useCreateInvite, useRevokeInvite } from '@workspace/api-client-react';
+import { useGetTeam, useListPlayers, useCreatePlayer, useDeletePlayer, useUpdatePlayer, useListInvites, useCreateInvite, useRevokeInvite, getListPlayersQueryKey } from '@workspace/api-client-react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { StatusBadge } from '@/components/StatusBadge';
@@ -26,7 +26,7 @@ export default function Players() {
   const [, params] = useRoute('/teams/:teamId/players');
   const teamId = params?.teamId || '';
   const { data: team } = useGetTeam(teamId);
-  const { data: players, refetch } = useListPlayers(teamId, { query: { refetchInterval: 5000 } });
+  const { data: players, refetch } = useListPlayers(teamId, undefined, { query: { queryKey: getListPlayersQueryKey(teamId), refetchInterval: 5000 } });
   const createPlayer = useCreatePlayer();
   const updatePlayer = useUpdatePlayer();
   const deletePlayer = useDeletePlayer();

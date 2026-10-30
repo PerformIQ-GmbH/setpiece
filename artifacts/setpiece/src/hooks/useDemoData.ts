@@ -1,24 +1,18 @@
 import { useQuery } from '@tanstack/react-query';
 
-const BASE = import.meta.env.BASE_URL;
-
-async function demoFetch(path: string) {
-  const res = await fetch(`${BASE}api/demo${path}`);
-  if (!res.ok) throw new Error(`Demo API error: ${res.status}`);
-  return res.json();
-}
+import { demoTeam, demoPlayers, demoSetPiece, demoMatchday, demoReadiness } from '@/lib/demo-fixture';
 
 export function useDemoTeam() {
   return useQuery({
     queryKey: ['demo', 'team'],
-    queryFn: () => demoFetch('/team'),
+    queryFn: () => demoTeam,
   });
 }
 
 export function useDemoPlayers(teamId: string) {
   return useQuery({
     queryKey: ['demo', 'players', teamId],
-    queryFn: () => demoFetch(`/teams/${teamId}/players`),
+    queryFn: () => teamId === demoTeam.id ? demoPlayers : [],
     enabled: !!teamId,
   });
 }
@@ -26,7 +20,7 @@ export function useDemoPlayers(teamId: string) {
 export function useDemoSetPieces(teamId: string) {
   return useQuery({
     queryKey: ['demo', 'set-pieces', teamId],
-    queryFn: () => demoFetch(`/teams/${teamId}/set-pieces`),
+    queryFn: () => teamId === demoTeam.id ? [demoSetPiece] : [],
     enabled: !!teamId,
   });
 }
@@ -34,7 +28,7 @@ export function useDemoSetPieces(teamId: string) {
 export function useDemoSetPiece(teamId: string, setPieceId: string) {
   return useQuery({
     queryKey: ['demo', 'set-piece', teamId, setPieceId],
-    queryFn: () => demoFetch(`/teams/${teamId}/set-pieces/${setPieceId}`),
+    queryFn: () => teamId === demoTeam.id && setPieceId === demoSetPiece.id ? demoSetPiece : null,
     enabled: !!teamId && !!setPieceId,
   });
 }
@@ -42,7 +36,7 @@ export function useDemoSetPiece(teamId: string, setPieceId: string) {
 export function useDemoMatchdays(teamId: string) {
   return useQuery({
     queryKey: ['demo', 'matchdays', teamId],
-    queryFn: () => demoFetch(`/teams/${teamId}/matchdays`),
+    queryFn: () => teamId === demoTeam.id ? [demoMatchday] : [],
     enabled: !!teamId,
   });
 }
@@ -50,7 +44,7 @@ export function useDemoMatchdays(teamId: string) {
 export function useDemoMatchday(teamId: string, matchdayId: string) {
   return useQuery({
     queryKey: ['demo', 'matchday', teamId, matchdayId],
-    queryFn: () => demoFetch(`/teams/${teamId}/matchdays/${matchdayId}`),
+    queryFn: () => teamId === demoTeam.id && matchdayId === demoMatchday.id ? demoMatchday : null,
     enabled: !!teamId && !!matchdayId,
   });
 }
@@ -58,7 +52,7 @@ export function useDemoMatchday(teamId: string, matchdayId: string) {
 export function useDemoReadiness(teamId: string) {
   return useQuery({
     queryKey: ['demo', 'readiness', teamId],
-    queryFn: () => demoFetch(`/teams/${teamId}/readiness`),
+    queryFn: () => teamId === demoTeam.id ? demoReadiness : null,
     enabled: !!teamId,
   });
 }

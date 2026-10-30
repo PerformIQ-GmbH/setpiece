@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { eq, and } from "drizzle-orm";
+import { eq, and, inArray } from "drizzle-orm";
 import {
   db,
   setPiecesTable,
@@ -10,7 +10,7 @@ import {
   playerReadinessTable,
   auditEventsTable,
 } from "@workspace/db";
-import { requireShareToken, isSetPieceInShareScope, parseParam } from "../lib/authorization";
+import { requireShareToken, isSetPieceInShareScope } from "../lib/authorization";
 import { z } from "zod/v4";
 
 const router: IRouter = Router();
@@ -24,6 +24,24 @@ const submitQuizSchema = z.object({
     answer: z.any(),
   })),
 });
+const quizQuerySchema = z.object({
+  setPieceId: z.string().min(1),
+  playerId: z.string().min(1).optional(),
+});
+
+async function findPlayerRole(
+  roles: Array<typeof setPieceRolesTable.$inferSelect>,
+  playerId: string,
+  requestedRoleId?: string,
+) {
+  const candidates = requestedRoleId ? roles.filter((role) => role.id === requestedRoleId) : roles;
+  if (candidates.length === 0) return null;
+  const [assignment] = await db.select().from(roleAssignmentsTable).where(and(
+    eq(roleAssignmentsTable.playerId, playerId),
+    inArray(roleAssignmentsTable.roleId, candidates.map((role) => role.id)),
+  ));
+  return assignment ? candidates.find((role) => role.id === assignment.roleId) ?? null : null;
+}
 
 interface QuizQuestion {
   id: string;
@@ -116,11 +134,15 @@ router.get("/p/:shareToken/quiz", async (req, res): Promise<void> => {
   const link = await requireShareToken(req, res);
   if (!link) return;
 
-  const setPieceId = req.query.setPieceId as string;
-  const playerId = req.query.playerId as string | undefined;
-
-  if (!setPieceId) {
-    res.status(400).json({ error: "setPieceId query parameter is required" });
+  const parsed = quizQuerySchema.safeParse(req.query);
+  if (!parsed.success) {
+    res.status(400).json({ error: "Valid setPieceId and playerId query parameters are required" });
+    return;
+  }
+  const { setPieceId, playerId } = parsed.data;
+  const resolvePlayerId = playerId || (link.playerScope?.length ? link.playerScope[0] : null);
+  if (resolvePlayerId && link.playerScope?.length && !link.playerScope.includes(resolvePlayerId)) {
+    res.status(403).json({ error: "Player not in scope for this link" });
     return;
   }
 
@@ -145,22 +167,15 @@ router.get("/p/:shareToken/quiz", async (req, res): Promise<void> => {
     .where(eq(setPieceRolesTable.setPieceId, setPieceId));
 
   let playerRole: typeof roles[0] | null = null;
-  let roleId: string | null = null;
-
-  const resolvePlayerId = playerId || (link.playerScope?.length ? link.playerScope[0] : null);
-
   if (resolvePlayerId) {
-    for (const role of roles) {
-      const [assignment] = await db
-        .select()
-        .from(roleAssignmentsTable)
-        .where(eq(roleAssignmentsTable.roleId, role.id));
-      if (assignment && assignment.playerId === resolvePlayerId) {
-        playerRole = role;
-        roleId = role.id;
-        break;
-      }
+    const [player] = await db.select({ id: playersTable.id }).from(playersTable).where(and(
+      eq(playersTable.id, resolvePlayerId), eq(playersTable.teamId, link.teamId),
+    ));
+    if (!player) {
+      res.status(403).json({ error: "Player does not belong to this team" });
+      return;
     }
+    playerRole = await findPlayerRole(roles, resolvePlayerId);
   }
 
   const questions = playerRole
@@ -171,7 +186,7 @@ router.get("/p/:shareToken/quiz", async (req, res): Promise<void> => {
 
   res.json({
     setPieceId,
-    roleId,
+    roleId: playerRole?.id ?? null,
     questions: safeQuestions,
   });
 });
@@ -222,22 +237,7 @@ router.post("/p/:shareToken/quiz", async (req, res): Promise<void> => {
     .from(setPieceRolesTable)
     .where(eq(setPieceRolesTable.setPieceId, setPieceId));
 
-  let playerRole: typeof roles[0] | null = null;
-  if (roleId) {
-    const match = roles.find((r) => r.id === roleId);
-    if (match) playerRole = match;
-  } else {
-    for (const role of roles) {
-      const [assignment] = await db
-        .select()
-        .from(roleAssignmentsTable)
-        .where(eq(roleAssignmentsTable.roleId, role.id));
-      if (assignment && assignment.playerId === playerId) {
-        playerRole = role;
-        break;
-      }
-    }
-  }
+  const playerRole = await findPlayerRole(roles, playerId, roleId);
 
   if (!playerRole) {
     res.status(400).json({ error: "No role assignment found for this player on this set piece" });
@@ -253,7 +253,7 @@ router.post("/p/:shareToken/quiz", async (req, res): Promise<void> => {
     .values({
       playerId,
       setPieceId,
-      roleId: roleId || null,
+      roleId: playerRole.id,
       completedAt: new Date(),
       passed,
       score,
@@ -261,34 +261,17 @@ router.post("/p/:shareToken/quiz", async (req, res): Promise<void> => {
     })
     .returning();
 
-  const existingReadiness = await db
-    .select()
-    .from(playerReadinessTable)
-    .where(
-      and(
-        eq(playerReadinessTable.playerId, playerId),
-        eq(playerReadinessTable.setPieceId, setPieceId),
-      ),
-    );
-
-  if (existingReadiness.length > 0) {
-    await db
-      .update(playerReadinessTable)
-      .set({
-        status: passed ? "passed" : "needs_review",
-        quizCompletedAt: new Date(),
-      })
-      .where(eq(playerReadinessTable.id, existingReadiness[0].id));
-  } else {
-    await db.insert(playerReadinessTable).values({
+  await db.insert(playerReadinessTable).values({
       playerId,
       setPieceId,
-      roleId: roleId || null,
+      roleId: playerRole.id,
       status: passed ? "passed" : "needs_review",
       quizCompletedAt: new Date(),
       viewCount: 0,
+    }).onConflictDoUpdate({
+      target: [playerReadinessTable.playerId, playerReadinessTable.setPieceId],
+      set: { roleId: playerRole.id, status: passed ? "passed" : "needs_review", quizCompletedAt: new Date() },
     });
-  }
 
   await db.insert(auditEventsTable).values({
     teamId: link.teamId,

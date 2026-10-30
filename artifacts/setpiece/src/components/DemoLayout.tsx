@@ -9,6 +9,7 @@ import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { cn } from '@/lib/utils';
 import { DemoBanner } from './DemoBanner';
 import { useDemoMode } from '@/contexts/DemoContext';
+import BrandLogo from '@/components/BrandLogo';
 
 interface DemoLayoutProps {
   children: React.ReactNode;
@@ -23,11 +24,11 @@ export function DemoLayout({ children, teamName }: DemoLayoutProps) {
   const isCurrent = (path: string) => location === path || location.startsWith(path + '/');
 
   const teamNav = teamId ? [
-    { icon: LayoutDashboard, label: 'Overview', path: `/demo/teams/${teamId}` },
-    { icon: Users, label: 'Players', path: `/demo/teams/${teamId}/players` },
-    { icon: LayoutDashboard, label: 'Set Pieces', path: `/demo/teams/${teamId}/templates` },
-    { icon: Calendar, label: 'Matchdays', path: `/demo/teams/${teamId}/matchdays` },
-    { icon: Activity, label: 'Readiness', path: `/demo/teams/${teamId}/readiness` },
+    { icon: LayoutDashboard, label: 'Übersicht', path: `/demo/teams/${teamId}` },
+    { icon: Users, label: 'Spieler', path: `/demo/teams/${teamId}/players` },
+    { icon: LayoutDashboard, label: 'Standards', path: `/demo/teams/${teamId}/templates` },
+    { icon: Calendar, label: 'Spieltage', path: `/demo/teams/${teamId}/matchdays` },
+    { icon: Activity, label: 'Aufgabenverständnis', path: `/demo/teams/${teamId}/readiness` },
   ] : [];
 
   if (loading) {
@@ -43,11 +44,11 @@ export function DemoLayout({ children, teamName }: DemoLayoutProps) {
       {teamId && (
         <>
           <Link href="/" className="flex items-center gap-2 px-4 py-2 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors mb-2">
-            <ChevronLeft className="h-3 w-3" /> Back to Home
+            <ChevronLeft className="h-3 w-3" /> Zur Startseite
           </Link>
           {teamName && (
             <div className="px-4 mb-3">
-              <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Demo Team</p>
+              <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Fiktives Demoteam</p>
               <p className="font-display text-sm font-bold text-white truncate">{teamName}</p>
             </div>
           )}
@@ -76,15 +77,12 @@ export function DemoLayout({ children, teamName }: DemoLayoutProps) {
       <div className="flex flex-1 flex-col md:flex-row">
         <div className="md:hidden flex items-center justify-between p-4 border-b border-border bg-card/50 backdrop-blur-md sticky top-0 z-40">
           <div className="flex items-center gap-2">
-            <div className="h-8 w-8 rounded-lg bg-primary flex items-center justify-center">
-              <Move className="h-5 w-5 text-primary-foreground" />
-            </div>
-            <span className="font-display font-bold text-lg tracking-tight">SETPIECE</span>
+            <Link href="/" aria-label="Zur Startseite"><BrandLogo /></Link>
             <span className="text-[9px] bg-primary/20 text-primary px-2 py-0.5 rounded-full font-bold uppercase">Demo</span>
           </div>
           <Sheet>
             <SheetTrigger asChild>
-              <Button variant="ghost" size="icon"><Menu className="h-6 w-6" /></Button>
+              <Button variant="ghost" size="icon" aria-label="Demomenü öffnen"><Menu className="h-6 w-6" /></Button>
             </SheetTrigger>
             <SheetContent side="left" className="bg-card border-r-border w-[280px]">
               <div className="py-6 flex flex-col h-full">
@@ -92,7 +90,7 @@ export function DemoLayout({ children, teamName }: DemoLayoutProps) {
                   <NavLinks />
                 </div>
                 <Link href="/register">
-                  <Button className="w-full">Sign Up Free</Button>
+                  <Button className="w-full">Kostenlos starten</Button>
                 </Link>
               </div>
             </SheetContent>
@@ -100,15 +98,7 @@ export function DemoLayout({ children, teamName }: DemoLayoutProps) {
         </div>
 
         <aside className="hidden md:flex flex-col w-[260px] border-r border-border bg-card/30 backdrop-blur-xl h-[calc(100vh-40px)] sticky top-[40px]">
-          <div className="p-5 flex items-center gap-3">
-            <div className="h-9 w-9 rounded-xl bg-gradient-to-br from-primary to-emerald-600 flex items-center justify-center shadow-lg shadow-primary/20">
-              <Move className="h-5 w-5 text-primary-foreground" />
-            </div>
-            <div>
-              <h1 className="font-display font-bold text-xl tracking-tight text-white leading-none">SETPIECE</h1>
-              <p className="text-[9px] text-primary font-semibold tracking-widest uppercase">Demo Mode</p>
-            </div>
-          </div>
+          <Link href="/" aria-label="Zur Startseite" className="p-5"><BrandLogo /></Link>
 
           <nav className="flex-1 px-3 mt-4 overflow-y-auto">
             <NavLinks />
@@ -116,7 +106,7 @@ export function DemoLayout({ children, teamName }: DemoLayoutProps) {
 
           <div className="p-3 border-t border-border/50">
             <Link href="/register">
-              <Button className="w-full font-semibold">Sign Up Free</Button>
+              <Button className="w-full font-semibold">Kostenlos starten</Button>
             </Link>
           </div>
         </aside>

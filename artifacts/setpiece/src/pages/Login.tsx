@@ -1,14 +1,19 @@
 import React, { useState } from 'react';
 import { Link, useLocation, useSearch } from 'wouter';
+import { PublicLayout } from '@/components/PublicLayout';
 import { Button } from '@/components/ui/button';
-import { Move, Loader2, Eye, EyeOff } from 'lucide-react';
+import { Loader2, Eye, EyeOff } from 'lucide-react';
 import { useGetCurrentAuthUser } from '@workspace/api-client-react';
+import { useQueryClient } from '@tanstack/react-query';
+import { clearClientSession } from '@/lib/session-cleanup';
+import { safeReturnTo } from '@/lib/auth-return-to';
 
 export default function Login() {
+  const queryClient = useQueryClient();
   const [, setLocation] = useLocation();
   const search = useSearch();
   const params = new URLSearchParams(search);
-  const returnTo = params.get('returnTo') || '/dashboard';
+  const returnTo = safeReturnTo(params.get('returnTo'));
   const errorParam = params.get('error');
 
   const { data: auth } = useGetCurrentAuthUser();
@@ -16,8 +21,8 @@ export default function Login() {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const verifiedParam = params.get('verified');
-  const [error, setError] = useState(errorParam ? 'Login failed. Please try again.' : '');
-  const [successMsg] = useState(verifiedParam ? 'Email verified! You can now sign in.' : '');
+  const [error, setError] = useState(errorParam ? 'Die Anmeldung ist fehlgeschlagen. Bitte versuche es erneut.' : '');
+  const [successMsg] = useState(verifiedParam ? 'E-Mail bestätigt. Du kannst dich jetzt anmelden.' : '');
   const [loading, setLoading] = useState(false);
 
   React.useEffect(() => {
@@ -41,34 +46,29 @@ export default function Login() {
 
       const data = await res.json();
       if (!res.ok) {
-        setError(data.error || 'Login failed');
+        setError(res.status === 401 ? 'E-Mail oder Passwort stimmt nicht. Prüfe deine Angaben.' : 'Die Anmeldung ist gerade nicht möglich. Bitte versuche es erneut.');
         setLoading(false);
         return;
       }
 
+      await clearClientSession(queryClient);
       window.location.href = returnTo;
     } catch {
-      setError('Network error. Please try again.');
+      setError('Keine Verbindung. Bitte versuche es erneut.');
       setLoading(false);
     }
   };
 
-  const handleGoogleLogin = () => {
+  const handleGoogleLogin = async () => {
+    await clearClientSession(queryClient);
     window.location.href = `/api/auth/google?returnTo=${encodeURIComponent(returnTo)}`;
   };
 
   return (
-    <div className="min-h-screen bg-background text-foreground flex flex-col items-center justify-center px-4">
+    <PublicLayout><section className="mx-auto flex w-full max-w-md flex-col items-center px-5 py-10 sm:py-16">
       <div className="w-full max-w-sm">
-        <div className="flex items-center justify-center gap-3 mb-8">
-          <div className="h-10 w-10 rounded-xl bg-primary flex items-center justify-center">
-            <Move className="h-6 w-6 text-primary-foreground" />
-          </div>
-          <span className="font-display font-bold text-2xl tracking-tight text-white">SETPIECE</span>
-        </div>
-
         <div className="bg-card border border-border rounded-2xl p-6">
-          <h2 className="text-xl font-display font-bold text-center mb-6">Welcome back</h2>
+          <h2 className="text-xl font-display font-bold text-center mb-6">Willkommen zurück</h2>
 
           {successMsg && (
             <div className="bg-primary/10 border border-primary/30 text-primary text-sm rounded-lg px-4 py-3 mb-4">
@@ -77,20 +77,21 @@ export default function Login() {
           )}
 
           {error && (
-            <div className="bg-destructive/10 border border-destructive/30 text-destructive text-sm rounded-lg px-4 py-3 mb-4">
+            <div role="alert" className="bg-destructive/10 border border-destructive/30 text-foreground text-sm rounded-lg px-4 py-3 mb-4">
               {error}
             </div>
           )}
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label className="text-sm font-medium text-muted-foreground mb-1.5 block">Email</label>
+              <label className="text-sm font-medium text-muted-foreground mb-1.5 block">E-Mail</label>
               <input
                 type="email"
-                value={email}
+                aria-label="E-Mail"
+                  value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="coach@example.com"
-                className="w-full px-4 py-2.5 bg-secondary/50 border border-border rounded-lg text-sm focus:border-primary outline-none transition-colors"
+                className="w-full px-4 py-2.5 bg-secondary/50 border border-border rounded-lg text-base focus:border-primary outline-none transition-colors"
                 required
                 autoComplete="email"
               />
@@ -98,22 +99,24 @@ export default function Login() {
 
             <div>
               <div className="flex items-center justify-between mb-1.5">
-                <label className="text-sm font-medium text-muted-foreground">Password</label>
-                <Link href="/forgot-password" className="text-xs text-primary hover:underline">Forgot?</Link>
+                <label className="text-sm font-medium text-muted-foreground">Passwort</label>
+                <Link href="/forgot-password" className="text-xs text-primary hover:underline">Vergessen?</Link>
               </div>
               <div className="relative">
                 <input
                   type={showPassword ? 'text' : 'password'}
+                  aria-label="Passwort"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  placeholder="Enter your password"
-                  className="w-full px-4 py-2.5 bg-secondary/50 border border-border rounded-lg text-sm focus:border-primary outline-none transition-colors pr-10"
+                  placeholder="Dein Passwort"
+                  className="w-full px-4 py-2.5 bg-secondary/50 border border-border rounded-lg text-base focus:border-primary outline-none transition-colors pr-10"
                   required
                   autoComplete="current-password"
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
+                  aria-label={showPassword ? 'Passwort verbergen' : 'Passwort anzeigen'}
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
                 >
                   {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
@@ -123,7 +126,7 @@ export default function Login() {
 
             <Button type="submit" className="w-full py-2.5 rounded-lg font-semibold" disabled={loading}>
               {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
-              Sign In
+              Anmelden
             </Button>
           </form>
 
@@ -132,7 +135,7 @@ export default function Login() {
               <div className="w-full border-t border-border" />
             </div>
             <div className="relative flex justify-center">
-              <span className="bg-card px-3 text-xs text-muted-foreground">or</span>
+              <span className="bg-card px-3 text-xs text-muted-foreground">oder</span>
             </div>
           </div>
 
@@ -147,23 +150,23 @@ export default function Login() {
               <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
               <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
             </svg>
-            Continue with Google
+            Mit Google fortfahren
           </Button>
         </div>
 
         <p className="text-center text-sm text-muted-foreground mt-6">
-          Don't have an account?{' '}
+          Noch kein Konto?{' '}
           <Link href={`/register${returnTo !== '/dashboard' ? `?returnTo=${encodeURIComponent(returnTo)}` : ''}`} className="text-primary font-medium hover:underline">
-            Sign up
+            Registrieren
           </Link>
         </p>
 
         <div className="text-center mt-4">
           <Link href="/" className="text-xs text-muted-foreground hover:text-foreground">
-            Back to home
+            Zur Startseite
           </Link>
         </div>
       </div>
-    </div>
+    </section></PublicLayout>
   );
 }

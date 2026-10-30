@@ -167,7 +167,7 @@ function PlayerCombobox({ players, assignments, roles, currentRoleId, value, onC
     const a = assignments.find(a => a.playerId === playerId && a.roleId !== currentRoleId);
     if (!a) return null;
     const role = roles.find(r => r.id === a.roleId);
-    return role?.name ?? 'another role';
+    return role?.name ?? 'eine andere Rolle';
   };
 
   return (
@@ -186,14 +186,14 @@ function PlayerCombobox({ players, assignments, roles, currentRoleId, value, onC
             {selectedPlayer.shirtNumber ? `#${selectedPlayer.shirtNumber} ` : ''}{selectedPlayer.firstName} {selectedPlayer.lastName}
           </span>
         ) : (
-          <span className="flex-1">Unassigned</span>
+          <span className="flex-1">Noch nicht zugewiesen</span>
         )}
         {selectedPlayer && (
           <button
             type="button"
             onPointerDown={(e) => { e.stopPropagation(); }}
             onClick={(e) => { e.stopPropagation(); onChange(''); setOpen(false); }}
-            aria-label="Unassign player"
+            aria-label="Spielerzuweisung entfernen"
             className="-m-1 p-1.5 text-muted-foreground hover:text-red-400 transition-colors touch-manipulation"
           >
             <X className="w-4 h-4" />
@@ -214,7 +214,7 @@ function PlayerCombobox({ players, assignments, roles, currentRoleId, value, onC
               ref={inputRef}
               value={search}
               onChange={e => setSearch(e.target.value)}
-              placeholder="Search name or #..."
+              placeholder="Name oder Nummer suchen …"
               className="flex-1 bg-transparent text-[11px] text-foreground outline-none placeholder:text-muted-foreground"
             />
           </div>
@@ -226,7 +226,7 @@ function PlayerCombobox({ players, assignments, roles, currentRoleId, value, onC
                 !value ? "text-primary font-medium" : "text-muted-foreground",
               )}
             >
-              Unassigned
+              Noch nicht zugewiesen
             </button>
             {filteredPlayers.map(p => {
               const takenByRoleName = getAssignedRoleName(p.id);
@@ -267,7 +267,7 @@ function PlayerCombobox({ players, assignments, roles, currentRoleId, value, onC
                     );
                   })()}
                   {p.status === 'injured' && (
-                    <span className="text-[8px] px-1 py-0.5 rounded bg-red-500/10 text-red-400 border border-red-500/20 shrink-0">Injured</span>
+                    <span className="text-[8px] px-1 py-0.5 rounded bg-red-500/10 text-red-400 border border-red-500/20 shrink-0">Verletzt</span>
                   )}
                   {p.status === 'suspended' && (
                     <span className="text-[8px] px-1 py-0.5 rounded bg-red-500/10 text-red-400 border border-red-500/20 shrink-0">Susp.</span>
@@ -640,11 +640,11 @@ function RoleMarkerInspector({ role, assignment, player, linkedAnnotations, play
                 title="Click to rename"
               >{role.name}</h2>
             )}
-            <p className="text-[10px] text-muted-foreground mt-0.5">{assignment ? 'Assigned' : 'Unassigned'}</p>
+            <p className="text-[10px] text-muted-foreground mt-0.5">{assignment ? 'Assigned' : 'Noch nicht zugewiesen'}</p>
           </div>
         </div>
         <div className="flex items-center gap-1.5 mt-3 ml-11">
-          <Button size="sm" variant="ghost" onClick={onDuplicateRole} className="h-7 text-muted-foreground hover:text-white text-[10px] gap-1" title="Duplicate role">
+          <Button size="sm" variant="ghost" onClick={onDuplicateRole} className="h-7 text-muted-foreground hover:text-white text-[10px] gap-1" title="Rolle duplizieren">
             <Copy className="w-3 h-3" /> Duplicate
           </Button>
           <Button size="sm" variant="ghost" onClick={onDeleteRole} className="h-7 text-red-400 hover:text-red-300 hover:bg-red-500/10 text-[10px] gap-1">
@@ -745,7 +745,7 @@ function RoleMarkerInspector({ role, assignment, player, linkedAnnotations, play
               </div>
               {player.status === 'injured' && (
                 <div className="flex items-center gap-1 px-2 py-1 rounded bg-red-500/10 border border-red-500/20">
-                  <span className="text-[9px] text-red-400 font-medium">Injured</span>
+                  <span className="text-[9px] text-red-400 font-medium">Verletzt</span>
                 </div>
               )}
               {player.tags && player.tags.length > 0 && (
@@ -1008,10 +1008,10 @@ function RolesPanel({ roles, assignments, players, activeRoleId, onRoleClick, on
     <>
       <div className="p-4 border-b border-white/[0.06] bg-white/[0.02] flex justify-between items-center">
         <h2 className="font-display font-bold text-sm flex items-center gap-2">
-          <Users className="w-4 h-4 text-primary" /> Roles <span className="text-muted-foreground font-normal">({roles.length})</span>
+          <Users className="w-4 h-4 text-primary" /> Rollen <span className="text-muted-foreground font-normal">({roles.length})</span>
         </h2>
         <Button size="sm" variant="outline" onClick={onAddRole} className="h-7 text-xs rounded-lg">
-          <Plus className="w-3.5 h-3.5 mr-1" /> Add
+          <Plus className="w-3.5 h-3.5 mr-1" /> Hinzufügen
         </Button>
       </div>
 
@@ -1023,9 +1023,9 @@ function RolesPanel({ roles, assignments, players, activeRoleId, onRoleClick, on
             <div className="w-14 h-14 rounded-2xl bg-primary/10 flex items-center justify-center mb-4">
               <UserRound className="w-6 h-6 text-primary" />
             </div>
-            <p className="text-sm text-white font-semibold mb-1">No roles yet</p>
+            <p className="text-sm text-white font-semibold mb-1">Noch keine Rollen</p>
             <p className="text-[11px] text-muted-foreground max-w-[200px] leading-relaxed">
-              Click "Add" or use the Team Player tool to place your first role on the pitch.
+              Füge eine Rolle hinzu oder platziere mit dem Spieler-Werkzeug die erste Rolle auf dem Feld.
             </p>
           </div>
         )}
@@ -1055,7 +1055,7 @@ function RolesPanel({ roles, assignments, players, activeRoleId, onRoleClick, on
                   <button
                     onClick={(e) => { e.stopPropagation(); onDuplicateRole(role.id); }}
                     className="text-muted-foreground hover:text-white p-0.5"
-                    title="Duplicate role"
+                    title="Rolle duplizieren"
                   >
                     <Copy className="w-3 h-3" />
                   </button>
@@ -1080,7 +1080,7 @@ function RolesPanel({ roles, assignments, players, activeRoleId, onRoleClick, on
                 />
                 {!assignment && (
                   <div className="flex items-center gap-1 mt-1 px-1 py-0.5 rounded bg-amber-500/10 border border-amber-500/20">
-                    <span className="text-[8px] text-amber-300 font-medium">Unassigned</span>
+                    <span className="text-[8px] text-amber-300 font-medium">Noch nicht zugewiesen</span>
                   </div>
                 )}
                 {assignedPlayer && (
@@ -1089,7 +1089,7 @@ function RolesPanel({ roles, assignments, players, activeRoleId, onRoleClick, on
                       <span className="text-[8px] px-1 py-0.5 rounded bg-primary/10 text-primary border border-primary/20">#{assignedPlayer.shirtNumber}</span>
                     )}
                     {assignedPlayer.status === 'injured' && (
-                      <span className="text-[8px] px-1 py-0.5 rounded bg-red-500/10 text-red-400 border border-red-500/20">Injured</span>
+                      <span className="text-[8px] px-1 py-0.5 rounded bg-red-500/10 text-red-400 border border-red-500/20">Verletzt</span>
                     )}
                   </div>
                 )}

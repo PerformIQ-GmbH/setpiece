@@ -9,6 +9,10 @@ import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { cn } from '@/lib/utils';
 import { t } from '@/lib/i18n';
+import { useQueryClient } from '@tanstack/react-query';
+import { clearClientSession } from '@/lib/session-cleanup';
+import { useEditorStore } from '@/components/editor/editorStore';
+import BrandLogo from '@/components/BrandLogo';
 
 interface CoachLayoutProps {
   children: React.ReactNode;
@@ -19,9 +23,17 @@ interface CoachLayoutProps {
 export function CoachLayout({ children, teamId, teamName }: CoachLayoutProps) {
   const [location] = useLocation();
   const { data: auth, isLoading } = useGetCurrentAuthUser();
+  const queryClient = useQueryClient();
+  const [signingOut, setSigningOut] = React.useState(false);
 
-  const handleLogout = () => {
-    window.location.href = '/api/logout';
+  const handleLogout = async () => {
+    setSigningOut(true);
+    useEditorStore.getState().resetStore();
+    try {
+      await clearClientSession(queryClient);
+    } finally {
+      window.location.replace(`${import.meta.env.BASE_URL}api/logout`);
+    }
   };
 
   const isCurrent = (path: string) => location === path || location.startsWith(path + '/');
@@ -40,7 +52,7 @@ export function CoachLayout({ children, teamId, teamName }: CoachLayoutProps) {
     { icon: Activity, label: t('Readiness'), path: `/teams/${teamId}/readiness` },
   ] : [];
 
-  if (isLoading) {
+  if (isLoading || signingOut) {
     return <div className="min-h-screen flex items-center justify-center bg-background"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
   }
 
@@ -100,14 +112,11 @@ export function CoachLayout({ children, teamId, teamName }: CoachLayoutProps) {
     <div className="min-h-screen bg-background text-foreground flex flex-col md:flex-row">
       <div className="md:hidden flex items-center justify-between p-4 border-b border-border bg-card/50 backdrop-blur-md sticky top-0 z-40">
         <div className="flex items-center gap-2">
-          <div className="h-8 w-8 rounded-lg bg-primary flex items-center justify-center">
-            <Move className="h-5 w-5 text-primary-foreground" />
-          </div>
-          <span className="font-display font-bold text-lg tracking-tight">SETPIECE</span>
+          <Link href="/dashboard" aria-label="Teamübersicht"><BrandLogo /></Link>
         </div>
         <Sheet>
           <SheetTrigger asChild>
-            <Button variant="ghost" size="icon"><Menu className="h-6 w-6" /></Button>
+            <Button variant="ghost" size="icon" aria-label="Menü öffnen"><Menu className="h-6 w-6" /></Button>
           </SheetTrigger>
           <SheetContent side="left" className="bg-card border-r-border w-[280px]">
             <div className="py-6 flex flex-col h-full">
@@ -123,15 +132,7 @@ export function CoachLayout({ children, teamId, teamName }: CoachLayoutProps) {
       </div>
 
       <aside className="hidden md:flex flex-col w-[260px] border-r border-white/[0.06] bg-card/30 backdrop-blur-xl h-screen sticky top-0">
-        <div className="p-5 flex items-center gap-3">
-          <div className="h-10 w-10 rounded-2xl bg-gradient-to-br from-primary to-emerald-600 flex items-center justify-center shadow-lg shadow-primary/20">
-            <Move className="h-5 w-5 text-primary-foreground" />
-          </div>
-          <div>
-            <h1 className="font-display font-bold text-xl tracking-tight text-white leading-none">SETPIECE</h1>
-            <p className="text-[9px] text-primary font-semibold tracking-[0.2em] uppercase">By PerformIQ</p>
-          </div>
-        </div>
+        <Link href="/dashboard" aria-label="Teamübersicht" className="p-5"><BrandLogo /></Link>
         
         <nav className="flex-1 px-3 mt-4 overflow-y-auto">
           <NavLinks />
@@ -139,11 +140,11 @@ export function CoachLayout({ children, teamId, teamName }: CoachLayoutProps) {
 
         <div className="p-4 border-t border-white/[0.06]">
           <div className="flex items-center gap-3 mb-3 px-1">
-            <img 
-              src={auth.user.profileImageUrl || `https://ui-avatars.com/api/?name=${auth.user.firstName}+${auth.user.lastName}&background=1a1a2e&color=10b981&size=40`} 
+            {auth.user.profileImageUrl ? <img
+              src={auth.user.profileImageUrl}
               alt="Avatar" 
               className="w-9 h-9 rounded-xl border border-white/10" 
-            />
+            /> : <span aria-hidden="true" className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-secondary text-sm font-semibold text-primary">{auth.user.firstName?.[0]}{auth.user.lastName?.[0]}</span>}
             <div className="flex-1 min-w-0">
               <p className="text-sm font-semibold truncate text-foreground">{auth.user.firstName} {auth.user.lastName}</p>
               <p className="text-xs text-muted-foreground truncate">{auth.user.email}</p>

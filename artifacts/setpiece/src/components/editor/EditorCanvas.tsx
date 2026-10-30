@@ -1,4 +1,4 @@
-import { useRef, useCallback, useState, useEffect, useImperativeHandle, forwardRef } from 'react';
+import { useRef, useMemo, useCallback, useState, useEffect, useImperativeHandle, forwardRef } from 'react';
 import { Stage, Layer, Group, Line, Circle as KonvaCircle } from 'react-konva';
 import type Konva from 'konva';
 import { PremiumPitch } from './PremiumPitch';
@@ -8,7 +8,8 @@ import { AnnotationLayer, DrawingPreview } from './AnnotationLayer';
 import { useEditorStore } from './editorStore';
 import type { Point, Annotation, AnnotationType, EditorTool } from './types';
 import { snapPosition, findNearestMarker, buildMarkerRefs } from './snapUtils';
-import { PITCH_ANCHORS } from './snapUtils';
+import { buildPitchAnchors } from './snapUtils';
+import { buildPitchGeometry, pitchOrientationForCategory } from '@/utils/pitchGeometry';
 import { annotationPath, interpolatePath, subPath, easeInOutQuad, distToSegment, REDUCED_MOTION } from './pathUtils';
 
 /** Clamp one axis of the stage pan offset so the pitch never leaves the viewport. */
@@ -87,25 +88,19 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
 }, ref) {
   const PAD = computePad(width);
   const isCornerKick = category.includes('corner');
-  const halfPitch = !isCornerKick && category.includes('free_kick');
+  const orientation = pitchOrientationForCategory(category);
+  const halfPitch = orientation === 'half';
   const pitchTheme = useEditorStore((s) => s.pitchTheme);
   const lightPitch = pitchTheme === 'light';
   const stageRef = useRef<Konva.Stage>(null);
   const [hoveredRoleId, setHoveredRoleId] = useState<string | null>(null);
   const [cursorPoint, setCursorPoint] = useState<Point | null>(null);
 
-  const pitchW = width - PAD * 2;
-  const pitchH = height - PAD * 2;
-
-  const toPixel = useCallback((pct: Point) => ({
-    x: PAD + (pct.x / 100) * pitchW,
-    y: PAD + (pct.y / 100) * pitchH,
-  }), [pitchW, pitchH, PAD]);
-
-  const toPct = useCallback((px: Point) => ({
-    x: Math.max(0, Math.min(100, ((px.x - PAD) / pitchW) * 100)),
-    y: Math.max(0, Math.min(100, ((px.y - PAD) / pitchH) * 100)),
-  }), [pitchW, pitchH, PAD]);
+  const geometry = useMemo(() => buildPitchGeometry({ width, height, pad: PAD, orientation }), [width, height, PAD, orientation]);
+  const { pitchW, pitchH, boundary } = geometry;
+  const toPixel = geometry.percentToPixel;
+  const toPct = geometry.pixelToPercent;
+  const pitchAnchors = useMemo(() => buildPitchAnchors(geometry), [geometry]);
 
   const activeTool = useEditorStore((s) => s.activeTool);
   const annotations = useEditorStore((s) => s.annotations);
@@ -301,8 +296,8 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
   // excluding the dragged marker itself.
   const snapPos = useCallback((pos: Point, excludeId?: string) => {
     const positions = markerRefs.filter(r => r.id !== excludeId).map(r => r.position);
-    return snapPosition(pos, positions, snapEnabled);
-  }, [markerRefs, snapEnabled]);
+    return snapPosition(pos, positions, snapEnabled, undefined, pitchAnchors);
+  }, [markerRefs, snapEnabled, pitchAnchors]);
 
   /** Live magnet + guide feedback while dragging marker `id`. Returns the
    *  position (in pct) the marker should sit at. */
@@ -485,15 +480,18 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
       return;
     }
     const pos = contentPointer();
-    if (!pos) return;
+    if (!pos || !geometry.containsPoint(pos)) {
+      setCursorPoint(null);
+      return;
+    }
     setCursorPoint(toPct(pos));
-  }, [isDrawingTool, readOnly, toPct, cursorPoint, contentPointer, handlePinch]);
+  }, [isDrawingTool, readOnly, toPct, cursorPoint, contentPointer, handlePinch, geometry]);
 
   const handleStageInteraction = useCallback((e: Konva.KonvaEventObject<MouseEvent | TouchEvent>) => {
     if (readOnly) return;
     const isBackground = e.target === stageRef.current || e.target.name() === 'pitch-bg';
     const pos = contentPointer();
-    if (!pos) return;
+    if (!pos || !geometry.containsPoint(pos)) return;
     const pct = toPct(pos);
 
     if (activeTool === 'select') {
@@ -637,7 +635,7 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
   }, [activeTool, toPct, onPitchClick, strokeColor, strokeWidth, showArrowhead, annotations, entities,
     drawingPoints, addDrawingPoint, clearDrawingPoints, addAnnotation, addEntity,
     setSelectedAnnotationId, setSelectedEntityId, isDrawingTool, isEntityTool, onLabelPrompt,
-    deleteAnnotation, deleteEntity, readOnly]);
+    deleteAnnotation, deleteEntity, readOnly, geometry, contentPointer, toPixel, pitchW, pitchH]);
 
   const handleDblClick = useCallback(() => {
     if (readOnly) return;
@@ -893,14 +891,14 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
       {showGrid && (
         <Layer listening={false} opacity={lightPitch ? 0.25 : 0.15}>
           {Array.from({ length: 11 }, (_, i) => {
-            const x = PAD + (i * 10 / 100) * pitchW;
-            return <Line key={`gv${i}`} points={[x, PAD, x, PAD + pitchH]} stroke={gridColor} strokeWidth={0.5} />;
+            const x = boundary.x + (i * 10 / 100) * pitchW;
+            return <Line key={`gv${i}`} points={[x, boundary.y, x, boundary.y + pitchH]} stroke={gridColor} strokeWidth={0.5} />;
           })}
           {Array.from({ length: 11 }, (_, i) => {
-            const y = PAD + (i * 10 / 100) * pitchH;
-            return <Line key={`gh${i}`} points={[PAD, y, PAD + pitchW, y]} stroke={gridColor} strokeWidth={0.5} />;
+            const y = boundary.y + (i * 10 / 100) * pitchH;
+            return <Line key={`gh${i}`} points={[boundary.x, y, boundary.x + pitchW, y]} stroke={gridColor} strokeWidth={0.5} />;
           })}
-          {PITCH_ANCHORS.map((a, i) => {
+          {pitchAnchors.map((a, i) => {
             const px = toPixel(a.pos);
             return <KonvaCircle key={`sa${i}`} x={px.x} y={px.y} radius={3} fill="#10b981" opacity={0.6} />;
           })}
@@ -910,10 +908,10 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
       {dragGuides && (
         <Layer listening={false}>
           {dragGuides.vx !== undefined && (
-            <Line points={[toPixel({ x: dragGuides.vx, y: 0 }).x, PAD, toPixel({ x: dragGuides.vx, y: 0 }).x, PAD + pitchH]} stroke="#10b981" strokeWidth={1} dash={[4, 4]} opacity={0.7} />
+            <Line points={[toPixel({ x: dragGuides.vx, y: 0 }).x, boundary.y, toPixel({ x: dragGuides.vx, y: 0 }).x, boundary.y + pitchH]} stroke="#10b981" strokeWidth={1} dash={[4, 4]} opacity={0.7} />
           )}
           {dragGuides.hy !== undefined && (
-            <Line points={[PAD, toPixel({ x: 0, y: dragGuides.hy }).y, PAD + pitchW, toPixel({ x: 0, y: dragGuides.hy }).y]} stroke="#10b981" strokeWidth={1} dash={[4, 4]} opacity={0.7} />
+            <Line points={[boundary.x, toPixel({ x: 0, y: dragGuides.hy }).y, boundary.x + pitchW, toPixel({ x: 0, y: dragGuides.hy }).y]} stroke="#10b981" strokeWidth={1} dash={[4, 4]} opacity={0.7} />
           )}
           {dragGuides.snap && (
             <KonvaCircle x={toPixel(dragGuides.snap).x} y={toPixel(dragGuides.snap).y} radius={22} stroke="#10b981" strokeWidth={2} dash={[4, 3]} opacity={0.8} />
@@ -937,7 +935,6 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
           toPct={toPct}
           pitchW={pitchW}
           pitchH={pitchH}
-          pad={PAD}
           readOnly={readOnly}
           lockedTypes={{ actions: layerLocked.actions, zones: layerLocked.zones, labels: layerLocked.labels }}
         />

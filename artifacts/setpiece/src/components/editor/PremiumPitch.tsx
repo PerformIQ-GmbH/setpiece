@@ -20,6 +20,14 @@ export function PremiumPitch({ width, height, halfPitch, pad = 24, theme = 'dark
     orientation: halfPitch ? 'half' : 'full',
   });
 
+  // Goal lines are already painted by the boundary; keep box outlines open there.
+  const areaOutline = (r: typeof g.boundary) => Math.abs(r.y - g.boundary.y) < 1e-6
+    ? [r.x, r.y, r.x, r.y + r.height, r.x + r.width, r.y + r.height, r.x + r.width, r.y]
+    : [r.x, r.y + r.height, r.x, r.y, r.x + r.width, r.y, r.x + r.width, r.y + r.height];
+  const goalOutline = (r: typeof g.boundary) => Math.abs(r.y + r.height - g.boundary.y) < 1e-6
+    ? [r.x, r.y + r.height, r.x, r.y, r.x + r.width, r.y, r.x + r.width, r.y + r.height]
+    : [r.x, r.y, r.x, r.y + r.height, r.x + r.width, r.y + r.height, r.x + r.width, r.y];
+
   const stripeCount = 12;
   const stripeH = g.pitchH / stripeCount;
 
@@ -28,7 +36,7 @@ export function PremiumPitch({ width, height, halfPitch, pad = 24, theme = 'dark
       <Rect name="pitch-bg" x={0} y={0} width={width} height={height} fill={t.background} cornerRadius={10} />
 
       <Group listening={false}>
-        <Rect x={g.boundary.x} y={g.boundary.y} width={g.boundary.width} height={g.boundary.height} fill={t.field} cornerRadius={4} />
+        <Rect x={g.boundary.x} y={g.boundary.y} width={g.boundary.width} height={g.boundary.height} fill={t.field} />
 
         {Array.from({ length: stripeCount }).map((_, i) => (
           i % 2 === 0 ? (
@@ -50,7 +58,6 @@ export function PremiumPitch({ width, height, halfPitch, pad = 24, theme = 'dark
           y={g.boundary.y}
           width={g.boundary.width}
           height={g.boundary.height}
-          cornerRadius={4}
           fillRadialGradientStartPoint={{ x: g.boundary.width / 2, y: g.boundary.height / 2 }}
           fillRadialGradientEndPoint={{ x: g.boundary.width / 2, y: g.boundary.height / 2 }}
           fillRadialGradientStartRadius={0}
@@ -62,30 +69,32 @@ export function PremiumPitch({ width, height, halfPitch, pad = 24, theme = 'dark
           }
         />
 
-        <Rect x={g.boundary.x} y={g.boundary.y} width={g.boundary.width} height={g.boundary.height} stroke={t.lines} strokeWidth={2} opacity={t.lineAlpha} cornerRadius={2} />
+        <Rect x={g.boundary.x} y={g.boundary.y} width={g.boundary.width} height={g.boundary.height} stroke={t.lines} strokeWidth={2} opacity={t.lineAlpha} />
 
-        {g.isHalfwayDashed ? (
-          <Line points={[g.halfwayLine.x1, g.halfwayLine.y1, g.halfwayLine.x2, g.halfwayLine.y2]} stroke={t.lines} strokeWidth={2} opacity={t.lineAlpha * 0.6} dash={[10, 5]} />
-        ) : (
-          <Line points={[g.halfwayLine.x1, g.halfwayLine.y1, g.halfwayLine.x2, g.halfwayLine.y2]} stroke={t.lines} strokeWidth={1.5} opacity={t.lineAlpha} />
+        {g.orientation === 'full' && (
+          <Line points={[g.halfwayLine.x1, g.halfwayLine.y1, g.halfwayLine.x2, g.halfwayLine.y2]} stroke={t.lines} strokeWidth={2} opacity={t.lineAlpha} />
         )}
 
+        {g.centerArcs.map((arc, i) => (
+          <Line key={`center-arc-${i}`} points={arcToPoints(arc)} stroke={t.lines} strokeWidth={2} opacity={t.lineAlpha} />
+        ))}
         {g.centerCircle && (
-          <Circle x={g.centerCircle.x} y={g.centerCircle.y} radius={g.centerCircle.radius} stroke={t.lines} strokeWidth={1.5} opacity={t.lineAlpha} />
+          <Circle x={g.centerCircle.x} y={g.centerCircle.y} radius={g.centerCircle.radius} stroke={t.lines} strokeWidth={2} opacity={t.lineAlpha} />
         )}
         {g.centerSpot && (
           <Circle x={g.centerSpot.x} y={g.centerSpot.y} radius={4} fill={t.lines} opacity={t.lineAlpha * 0.8} />
         )}
 
         {g.penaltyAreas.map((r, i) => (
-          <Rect key={`pa-${i}`} x={r.x} y={r.y} width={r.width} height={r.height} stroke={t.lines} strokeWidth={1.5} opacity={t.lineAlpha} />
+          <Line key={`pa-${i}`} points={areaOutline(r)} stroke={t.lines} strokeWidth={2} opacity={t.lineAlpha} />
         ))}
         {g.goalAreas.map((r, i) => (
-          <Rect key={`ga-${i}`} x={r.x} y={r.y} width={r.width} height={r.height} stroke={t.lines} strokeWidth={1.5} opacity={t.lineAlpha} />
+          <Line key={`ga-${i}`} points={areaOutline(r)} stroke={t.lines} strokeWidth={2} opacity={t.lineAlpha} />
         ))}
         {g.goals.map((r, i) => (
           <Group key={`goal-${i}`}>
-            <Rect x={r.x} y={r.y} width={r.width} height={r.height} fill={t.lines} opacity={t.lineAlpha * 0.18} stroke={t.lines} strokeWidth={1.2} />
+            <Rect x={r.x} y={r.y} width={r.width} height={r.height} fill={t.lines} opacity={t.lineAlpha * 0.18} />
+            <Line points={goalOutline(r)} stroke={t.lines} strokeWidth={2} opacity={t.lineAlpha} />
             {/* Net */}
             {Array.from({ length: 5 }, (_, n) => (
               <Line
@@ -108,10 +117,10 @@ export function PremiumPitch({ width, height, halfPitch, pad = 24, theme = 'dark
           <Circle key={`ps-${i}`} x={p.x} y={p.y} radius={3} fill={t.lines} opacity={t.lineAlpha * 0.8} />
         ))}
         {g.penaltyArcs.map((a, i) => (
-          <Line key={`par-${i}`} points={arcToPoints(a)} stroke={t.lines} strokeWidth={1.5} opacity={t.lineAlpha} lineCap="round" lineJoin="round" />
+          <Line key={`par-${i}`} points={arcToPoints(a)} stroke={t.lines} strokeWidth={2} opacity={t.lineAlpha} lineCap="round" lineJoin="round" />
         ))}
         {g.cornerArcs.map((a, i) => (
-          <Line key={`ca-${i}`} points={arcToPoints(a)} stroke={t.lines} strokeWidth={1.2} opacity={t.lineAlpha} lineCap="round" lineJoin="round" />
+          <Line key={`ca-${i}`} points={arcToPoints(a)} stroke={t.lines} strokeWidth={2} opacity={t.lineAlpha} lineCap="round" lineJoin="round" />
         ))}
 
         <Text

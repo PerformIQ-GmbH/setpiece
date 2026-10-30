@@ -1,4 +1,5 @@
 import type { Point, EntityMarker } from './types';
+import { buildPitchGeometry, type PitchGeometry } from '@/utils/pitchGeometry';
 
 export interface MarkerRef {
   id: string;
@@ -6,29 +7,42 @@ export interface MarkerRef {
   position: Point;
 }
 
-export const PITCH_ANCHORS: { label: string; pos: Point }[] = [
-  { label: 'Center', pos: { x: 50, y: 50 } },
-  { label: 'Penalty Spot (top)', pos: { x: 50, y: 12 } },
-  { label: 'Penalty Spot (bottom)', pos: { x: 50, y: 88 } },
-  { label: 'Top-Left Corner', pos: { x: 0, y: 0 } },
-  { label: 'Top-Right Corner', pos: { x: 100, y: 0 } },
-  { label: 'Bottom-Left Corner', pos: { x: 0, y: 100 } },
-  { label: 'Bottom-Right Corner', pos: { x: 100, y: 100 } },
-  { label: 'Goal Left Post (top)', pos: { x: 43.5, y: 0 } },
-  { label: 'Goal Right Post (top)', pos: { x: 56.5, y: 0 } },
-  { label: 'Goal Left Post (bottom)', pos: { x: 43.5, y: 100 } },
-  { label: 'Goal Right Post (bottom)', pos: { x: 56.5, y: 100 } },
-  { label: 'Center Left', pos: { x: 0, y: 50 } },
-  { label: 'Center Right', pos: { x: 100, y: 50 } },
-  { label: 'Box Top-Left (top)', pos: { x: 32, y: 0 } },
-  { label: 'Box Top-Right (top)', pos: { x: 68, y: 0 } },
-  { label: 'Box Bottom-Left (bottom)', pos: { x: 32, y: 100 } },
-  { label: 'Box Bottom-Right (bottom)', pos: { x: 68, y: 100 } },
-  { label: '6-Yard Left (top)', pos: { x: 38.5, y: 0 } },
-  { label: '6-Yard Right (top)', pos: { x: 61.5, y: 0 } },
-  { label: '6-Yard Left (bottom)', pos: { x: 38.5, y: 100 } },
-  { label: '6-Yard Right (bottom)', pos: { x: 61.5, y: 100 } },
-];
+interface PitchAnchor {
+  label: string;
+  pos: Point;
+}
+
+/** Derive every snap target from the same metric geometry as the painted lines. */
+export function buildPitchAnchors(g: PitchGeometry): PitchAnchor[] {
+  const anchors: PitchAnchor[] = [];
+  const add = (label: string, point: Point) => {
+    const pos = g.pixelToPercent(point);
+    if (!anchors.some(a => Math.abs(a.pos.x - pos.x) < 1e-6 && Math.abs(a.pos.y - pos.y) < 1e-6)) {
+      anchors.push({ label, pos });
+    }
+  };
+  const corners = (label: string, r: PitchGeometry['boundary']) => {
+    add(label + ' top left', { x: r.x, y: r.y });
+    add(label + ' top right', { x: r.x + r.width, y: r.y });
+    add(label + ' bottom left', { x: r.x, y: r.y + r.height });
+    add(label + ' bottom right', { x: r.x + r.width, y: r.y + r.height });
+  };
+  corners('Field', g.boundary);
+  if (g.centerSpot) add('Center', g.centerSpot);
+  add('Halfway left', { x: g.halfwayLine.x1, y: g.halfwayLine.y1 });
+  add('Halfway right', { x: g.halfwayLine.x2, y: g.halfwayLine.y2 });
+  g.penaltySpots.forEach((point, i) => add('Penalty spot ' + (i + 1), point));
+  g.penaltyAreas.forEach((r, i) => corners('Penalty area ' + (i + 1), r));
+  g.goalAreas.forEach((r, i) => corners('Goal area ' + (i + 1), r));
+  g.goals.forEach((r, i) => {
+    const y = Math.abs(r.y + r.height - g.boundary.y) < 1e-6 ? g.boundary.y : g.boundary.y + g.pitchH;
+    add('Goal ' + (i + 1) + ' left post', { x: r.x, y });
+    add('Goal ' + (i + 1) + ' right post', { x: r.x + r.width, y });
+  });
+  return anchors;
+}
+
+export const PITCH_ANCHORS = buildPitchAnchors(buildPitchGeometry({ width: 680, height: 1050 }));
 
 const SNAP_THRESHOLD = 2.5;
 
@@ -37,13 +51,14 @@ export function snapPosition(
   markerPositions: Point[],
   enabled: boolean,
   excludePosition?: Point,
+  anchors: PitchAnchor[] = PITCH_ANCHORS,
 ): Point {
   if (!enabled) return pos;
 
   let bestDist = SNAP_THRESHOLD;
   let snapped = pos;
 
-  for (const anchor of PITCH_ANCHORS) {
+  for (const anchor of anchors) {
     const d = Math.hypot(pos.x - anchor.pos.x, pos.y - anchor.pos.y);
     if (d < bestDist) {
       bestDist = d;

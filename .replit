@@ -4,6 +4,9 @@ modules = ["nodejs-24", "python-3.11", "postgresql-16"]
 id = "artifacts/api-server"
 
 [[artifacts]]
+id = "artifacts/setpiece"
+
+[[artifacts]]
 id = "artifacts/mockup-sandbox"
 
 [deployment]
@@ -11,7 +14,7 @@ router = "application"
 deploymentTarget = "autoscale"
 
 [deployment.postBuild]
-args = ["pnpm", "store", "prune"]
+args = ["npm", "exec", "--yes", "--package=pnpm@11.25.0", "--", "pnpm", "store", "prune"]
 env = { "CI" = "true" }
 
 [workflows]
@@ -32,4 +35,3 @@ channel = "stable-25_05"
 [userenv]
 
 [userenv.shared]
-ADMIN_SECRET = "spq-admin-ry44jfii6a"

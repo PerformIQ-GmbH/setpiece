@@ -12,8 +12,8 @@ export default function DemoReadiness() {
   return (
     <DemoLayout teamName={demoTeam?.name}>
       <div className="mb-8">
-        <h1 className="text-3xl font-display font-bold text-white">Player Readiness</h1>
-        <p className="text-muted-foreground mt-1">Track player preparation across set pieces</p>
+        <h1 className="text-3xl font-display font-bold text-white">Aufgabenverständnis</h1>
+        <p className="text-muted-foreground mt-1">Fiktive Rückmeldungen zu den Spieleraufgaben</p>
       </div>
 
       {isLoading ? (
@@ -24,10 +24,10 @@ export default function DemoReadiness() {
             <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-8">
                 {[
-                  { label: 'Not Opened', value: readiness.summary.notOpened, icon: EyeOff, color: 'text-zinc-400', bg: 'bg-zinc-500/10' },
-                  { label: 'Opened', value: readiness.summary.opened, icon: Eye, color: 'text-blue-400', bg: 'bg-blue-500/10' },
-                  { label: 'Passed', value: readiness.summary.passed, icon: CheckCircle2, color: 'text-emerald-400', bg: 'bg-emerald-500/10' },
-                  { label: 'Needs Review', value: readiness.summary.needsReview, icon: Activity, color: 'text-amber-400', bg: 'bg-amber-500/10' },
+                  { label: 'Nicht geöffnet', value: readiness.summary.notOpened, icon: EyeOff, color: 'text-zinc-400', bg: 'bg-zinc-500/10' },
+                  { label: 'Geöffnet', value: readiness.summary.opened, icon: Eye, color: 'text-blue-400', bg: 'bg-blue-500/10' },
+                  { label: 'Aufgabe verstanden', value: readiness.summary.passed, icon: CheckCircle2, color: 'text-emerald-400', bg: 'bg-emerald-500/10' },
+                  { label: 'Nochmals durchgehen', value: readiness.summary.needsReview, icon: Activity, color: 'text-amber-400', bg: 'bg-amber-500/10' },
                 ].map((s, i) => (
                   <motion.div key={s.label} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}>
                     <Card className="bg-card border-border">
@@ -56,9 +56,9 @@ export default function DemoReadiness() {
                         </div>
                         <div>
                           <p className="text-sm font-semibold text-white">
-                            {item.player ? `${item.player.firstName} ${item.player.lastName}` : 'Unknown'}
+                            {item.player ? `${item.player.firstName} ${item.player.lastName}` : 'Unbekannt'}
                           </p>
-                          <p className="text-[10px] text-muted-foreground">Views: {item.viewCount || 0}</p>
+                          <p className="text-[10px] text-muted-foreground">Öffnungen: {item.viewCount || 0}</p>
                         </div>
                       </div>
                       <span className={`text-xs font-bold uppercase px-2 py-1 rounded ${
@@ -67,7 +67,7 @@ export default function DemoReadiness() {
                         item.status === 'opened' ? 'bg-blue-500/10 text-blue-400' :
                         'bg-zinc-500/10 text-zinc-400'
                       }`}>
-                        {item.status?.replace(/_/g, ' ')}
+                        {item.status === 'passed' ? 'Aufgabe verstanden' : item.status === 'needs_review' ? 'Nochmals durchgehen' : item.status === 'opened' ? 'Geöffnet' : 'Nicht geöffnet'}
                       </span>
                     </CardContent>
                   </Card>

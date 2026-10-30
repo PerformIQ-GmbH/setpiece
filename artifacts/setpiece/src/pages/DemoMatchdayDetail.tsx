@@ -29,7 +29,7 @@ export default function DemoMatchdayDetail() {
   if (!matchday) {
     return (
       <DemoLayout teamName={demoTeam?.name}>
-        <p className="text-muted-foreground">Matchday not found.</p>
+        <p className="text-muted-foreground">Dieser Demospieltag wurde nicht gefunden.</p>
       </DemoLayout>
     );
   }
@@ -39,22 +39,22 @@ export default function DemoMatchdayDetail() {
       <div className="mb-6">
         <Link href={`/demo/teams/${teamId}/matchdays`}>
           <Button variant="ghost" size="sm" className="text-muted-foreground mb-3">
-            <ArrowLeft className="h-4 w-4 mr-1" /> All Matchdays
+            <ArrowLeft className="h-4 w-4 mr-1" /> Alle Spieltage
           </Button>
         </Link>
         <h1 className="text-3xl font-display font-bold text-white">{matchday.title}</h1>
         <p className="text-muted-foreground mt-1">
-          {matchday.date ? new Date(matchday.date).toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }) : 'Date TBD'}
-          {matchday.opponent && ` · vs ${matchday.opponent}`}
+          {matchday.date ? new Date(matchday.date).toLocaleDateString('de-CH', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }) : 'Datum noch offen'}
+          {matchday.opponent && ` · gegen ${matchday.opponent}`}
         </p>
         {matchday.notes && <p className="text-sm text-muted-foreground mt-2 italic">"{matchday.notes}"</p>}
       </div>
 
-      <h2 className="font-display font-bold text-lg text-white mb-4">Active Set Pieces</h2>
+      <h2 className="font-display font-bold text-lg text-white mb-4">Vorbereitete Standards</h2>
       {matchday.setPieces?.length === 0 ? (
         <Card className="bg-card border-border border-dashed">
           <CardContent className="p-8 text-center">
-            <p className="text-muted-foreground text-sm">No set pieces assigned to this matchday.</p>
+            <p className="text-muted-foreground text-sm">Diesem Spieltag sind noch keine Standards zugeordnet.</p>
           </CardContent>
         </Card>
       ) : (
@@ -77,7 +77,7 @@ export default function DemoMatchdayDetail() {
                       <h3 className="font-bold text-sm text-white group-hover:text-primary transition-colors truncate">{sp.title}</h3>
                       <StatusBadge status={sp.status} />
                     </div>
-                    <p className="text-xs text-muted-foreground capitalize">{sp.category.replace(/_/g, ' ')}</p>
+                    <p className="text-xs text-muted-foreground capitalize">{sp.category === 'corner_offensive' ? 'Offensive Ecke' : sp.category.replace(/_/g, ' ')}</p>
                   </CardContent>
                 </Card>
               </Link>

@@ -1,11 +1,13 @@
 import { useState } from 'react';
 import { useRoute } from 'wouter';
-import { useGetQuizQuestions, useSubmitQuiz } from '@workspace/api-client-react';
+import { useGetPlayerView, useGetQuizQuestions, useSubmitQuiz } from '@workspace/api-client-react';
 import { Loader2, CheckCircle2, XCircle, ChevronRight, ArrowLeft, Trophy, RotateCcw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Link } from 'wouter';
 import { useToast } from '@/hooks/use-toast';
+import { clientToSvgPoint, PitchLines, SVG_PITCH_HEIGHT, SVG_PITCH_WIDTH } from '@/components/Pitch';
+import { buildPitchGeometry, pitchOrientationForCategory } from '@/utils/pitchGeometry';
 
 export default function PlayerQuiz() {
   const { toast } = useToast();
@@ -18,13 +20,16 @@ export default function PlayerQuiz() {
   const roleId = urlParams.get('roleId') || '';
 
   const { data: quizData, isLoading, error } = useGetQuizQuestions(shareToken, { setPieceId, playerId: playerId || undefined });
+  const { data: sharedData, isLoading: sharedLoading, error: sharedError } = useGetPlayerView(shareToken);
   const submitQuiz = useSubmitQuiz();
 
   const [currentIdx, setCurrentIdx] = useState(0);
   const [answers, setAnswers] = useState<Record<string, unknown>>({});
   const [result, setResult] = useState<{ passed: boolean; score: number; correct?: number; total: number } | null>(null);
 
-  if (isLoading) {
+  const setPiece = sharedData?.setPieces.find(piece => piece.id === setPieceId);
+
+  if (isLoading || sharedLoading) {
     return (
       <div className="min-h-screen bg-[var(--surface-0)] flex flex-col items-center justify-center gap-4">
         <div className="w-12 h-12 rounded-2xl bg-primary/15 flex items-center justify-center">
@@ -35,7 +40,7 @@ export default function PlayerQuiz() {
     );
   }
 
-  if (error || !quizData || !quizData.questions?.length) {
+  if (error || sharedError || !setPiece || !quizData || !quizData.questions?.length) {
     return (
       <div className="min-h-screen bg-[var(--surface-0)] text-white flex flex-col items-center justify-center p-6 text-center">
         <div className="w-20 h-20 rounded-full bg-destructive/10 flex items-center justify-center mb-6">
@@ -54,6 +59,16 @@ export default function PlayerQuiz() {
   const currentQ = questions[currentIdx];
   const isLast = currentIdx === questions.length - 1;
   const hasAnswered = currentQ?.id in answers;
+  const geometry = buildPitchGeometry({
+    width: SVG_PITCH_WIDTH,
+    height: SVG_PITCH_HEIGHT,
+    pad: 3,
+    orientation: pitchOrientationForCategory(setPiece.category),
+  });
+  const currentAnswer = answers[currentQ.id];
+  const answerPoint = currentAnswer && typeof currentAnswer === 'object'
+    ? geometry.percentToPixel(currentAnswer as { x: number; y: number })
+    : null;
 
   const handleAnswer = (answer: unknown) => {
     setAnswers(prev => ({ ...prev, [currentQ.id]: answer }));
@@ -251,26 +266,21 @@ export default function PlayerQuiz() {
                   <p className="text-sm text-muted-foreground mb-4">Tap the approximate area on the pitch</p>
                   <div className="relative aspect-[2/3] bg-emerald-900/80 rounded-xl overflow-hidden border border-white/15">
                     <svg
-                      viewBox="0 0 100 100"
+                      viewBox={`0 0 ${SVG_PITCH_WIDTH} ${SVG_PITCH_HEIGHT}`}
+                      preserveAspectRatio="xMidYMid meet"
                       className="w-full h-full cursor-crosshair"
                       onClick={(e) => {
-                        const rect = e.currentTarget.getBoundingClientRect();
-                        const x = Math.round(((e.clientX - rect.left) / rect.width) * 100);
-                        const y = Math.round(((e.clientY - rect.top) / rect.height) * 100);
-                        handleAnswer({ x, y });
+                        const point = clientToSvgPoint(e.currentTarget, e.clientX, e.clientY);
+                        if (!point || !geometry.containsPoint(point)) return;
+                        handleAnswer(geometry.pixelToPercent(point));
                       }}
                     >
-                      <g stroke="rgba(255,255,255,0.4)" strokeWidth="0.5" fill="none">
-                        <rect x="2" y="2" width="96" height="96" />
-                        <rect x="20" y="2" width="60" height="25" />
-                        <rect x="35" y="2" width="30" height="10" />
-                        <circle cx="50" cy="100" r="15" />
-                      </g>
-                      {answers[currentQ.id] != null && typeof answers[currentQ.id] === 'object' ? (
+                      <PitchLines geometry={geometry} />
+                      {answerPoint ? (
                         <>
                           <circle
-                            cx={(answers[currentQ.id] as { x: number; y: number }).x}
-                            cy={(answers[currentQ.id] as { x: number; y: number }).y}
+                            cx={answerPoint.x}
+                            cy={answerPoint.y}
                             r="6"
                             fill="var(--color-primary)"
                             fillOpacity="0.2"
@@ -278,8 +288,8 @@ export default function PlayerQuiz() {
                             strokeWidth="0.5"
                           />
                           <circle
-                            cx={(answers[currentQ.id] as { x: number; y: number }).x}
-                            cy={(answers[currentQ.id] as { x: number; y: number }).y}
+                            cx={answerPoint.x}
+                            cy={answerPoint.y}
                             r="3"
                             fill="var(--color-primary)"
                             stroke="white"

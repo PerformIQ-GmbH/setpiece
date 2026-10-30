@@ -11,14 +11,17 @@ import {
   passwordResetTokensTable,
   emailVerificationTokensTable,
 } from "@workspace/db";
-import { eq } from "drizzle-orm";
+import { and, eq, gt, isNull } from "drizzle-orm";
 import bcrypt from "bcrypt";
 import crypto from "crypto";
+import { z } from "zod/v4";
 import {
   clearSession,
   getSessionId,
   createSession,
   deleteSession,
+  revokeUserSessions,
+  limitAuthAttempts,
   SESSION_COOKIE,
   SESSION_TTL,
   type SessionData,
@@ -36,11 +39,39 @@ const OAUTH_STATE_COOKIE = "oauth_state";
 
 const router: IRouter = Router();
 
+const emailSchema = z.string().trim().toLowerCase().max(254).email();
+const newPasswordSchema = z.string().min(8).refine((password) => Buffer.byteLength(password, "utf8") <= 72, {
+  message: "Password must be at most 72 UTF-8 bytes",
+});
+const registerSchema = z.object({
+  email: emailSchema,
+  password: newPasswordSchema,
+  firstName: z.string().trim().max(255).optional(),
+  lastName: z.string().trim().max(255).optional(),
+});
+const loginSchema = z.object({ email: emailSchema, password: z.string().min(1).max(1024) });
+const emailBodySchema = z.object({ email: emailSchema });
+const resetPasswordSchema = z.object({ token: z.string().min(1).max(256), password: newPasswordSchema });
+const googleProfileSchema = z.object({
+  id: z.string().min(1),
+  email: emailSchema,
+  verified_email: z.literal(true),
+  given_name: z.string().optional(),
+  family_name: z.string().optional(),
+  picture: z.string().optional(),
+});
+
 function getOrigin(req: Request): string {
-  const proto = req.headers["x-forwarded-proto"] || "https";
-  const host =
-    req.headers["x-forwarded-host"] || req.headers["host"] || "localhost";
-  return `${proto}://${host}`;
+  // Reset tokens and OAuth codes must never be sent to a request-controlled host.
+  const domains = [process.env.APP_DOMAIN,
+    process.env.REPLIT_DEPLOYMENT !== "1" ? process.env.REPLIT_DEV_DOMAIN : undefined,
+    ...process.env.REPLIT_DOMAINS?.split(",") ?? [],
+  ].filter((domain): domain is string => Boolean(domain?.trim())).map(domain => domain.trim().toLowerCase());
+  const header = req.headers["x-forwarded-host"] || req.headers.host;
+  const requested = typeof header === "string" ? header.toLowerCase() : "";
+  // Trusted aliases retain their OAuth state cookie on the same host.
+  const domain = domains.includes(requested) ? requested : domains[0] || "setpiece.performiq.ch";
+  return `https://${domain}`;
 }
 
 function setSessionCookie(res: Response, sid: string) {
@@ -54,7 +85,8 @@ function setSessionCookie(res: Response, sid: string) {
 }
 
 function getSafeReturnTo(value: unknown): string {
-  if (typeof value !== "string" || !value.startsWith("/") || value.startsWith("//")) {
+  if (typeof value !== "string" || !value.startsWith("/") || value.startsWith("//")
+    || value.includes("\\") || /[\u0000-\u001f\u007f]/.test(value)) {
     return "/";
   }
   return value;
@@ -70,7 +102,7 @@ async function issueVerificationEmail(userId: string, email: string, origin: str
   await sendVerificationEmail(email, token, origin);
 }
 
-async function createUserSession(res: Response, user: { id: string; email: string | null; firstName: string | null; lastName: string | null; profileImageUrl: string | null }) {
+async function createUserSession(user: SessionData["user"], database: Pick<typeof db, "insert"> = db) {
   const sessionData: SessionData = {
     user: {
       id: user.id,
@@ -80,9 +112,18 @@ async function createUserSession(res: Response, user: { id: string; email: strin
       profileImageUrl: user.profileImageUrl,
     },
   };
-  const sid = await createSession(sessionData);
-  setSessionCookie(res, sid);
-  return sid;
+  return createSession(sessionData, database);
+}
+
+async function authenticatePassword(email: string, password: string) {
+  return db.transaction(async (tx) => {
+    // Credential changes and session creation take the same user lock. A login
+    // that started before a reset/Google claim cannot leave a later session behind.
+    const [user] = await tx.select().from(usersTable).where(eq(usersTable.email, email)).for("update");
+    if (!user?.passwordHash || !await bcrypt.compare(password, user.passwordHash)) return null;
+    const sid = await createUserSession(user, tx);
+    return { user, sid };
+  });
 }
 
 router.get("/auth/user", (req: Request, res: Response) => {
@@ -94,19 +135,13 @@ router.get("/auth/user", (req: Request, res: Response) => {
 });
 
 router.post("/auth/register", async (req: Request, res: Response) => {
-  const { email, password, firstName, lastName } = req.body;
-
-  if (!email || !password) {
-    res.status(400).json({ error: "Email and password are required" });
+  if (!limitAuthAttempts(req, res, "register")) return;
+  const parsed = registerSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: "Enter a valid email and a password of at least 8 characters (maximum 72 UTF-8 bytes)." });
     return;
   }
-
-  if (password.length < 8) {
-    res.status(400).json({ error: "Password must be at least 8 characters" });
-    return;
-  }
-
-  const emailLower = email.toLowerCase().trim();
+  const { email: emailLower, password, firstName, lastName } = parsed.data;
 
   const [existing] = await db
     .select()
@@ -114,35 +149,13 @@ router.post("/auth/register", async (req: Request, res: Response) => {
     .where(eq(usersTable.email, emailLower));
 
   if (existing) {
-    if (existing.passwordHash) {
-      res.status(409).json({ error: "An account with this email already exists" });
-      return;
-    }
-    const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
-    const [updated] = await db
-      .update(usersTable)
-      .set({
-        passwordHash,
-        firstName: firstName || existing.firstName,
-        lastName: lastName || existing.lastName,
-        authProvider: "email",
-        updatedAt: new Date(),
-      })
-      .where(eq(usersTable.id, existing.id))
-      .returning();
-
-    await createUserSession(res, updated);
-    if (!updated.emailVerified) {
-      await issueVerificationEmail(updated.id, emailLower, getOrigin(req));
-    }
-    res.json({ user: { id: updated.id, email: updated.email, firstName: updated.firstName, lastName: updated.lastName } });
+    res.status(409).json({ error: "An account with this email already exists. Sign in or reset your password." });
     return;
   }
 
   const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
-  const [newUser] = await db
-    .insert(usersTable)
-    .values({
+  const created = await db.transaction(async (tx) => {
+    const [newUser] = await tx.insert(usersTable).values({
       email: emailLower,
       passwordHash,
       firstName: firstName || null,
@@ -150,52 +163,48 @@ router.post("/auth/register", async (req: Request, res: Response) => {
       authProvider: "email",
       emailVerified: false,
     })
-    .returning();
-
-  await createUserSession(res, newUser);
+    .onConflictDoNothing({ target: usersTable.email }).returning();
+    if (!newUser) return null;
+    return { newUser, sid: await createUserSession(newUser, tx) };
+  });
+  if (!created) {
+    res.status(409).json({ error: "An account with this email already exists. Sign in or reset your password." });
+    return;
+  }
+  const { newUser, sid } = created;
+  setSessionCookie(res, sid);
   await issueVerificationEmail(newUser.id, emailLower, getOrigin(req));
   res.status(201).json({ user: { id: newUser.id, email: newUser.email, firstName: newUser.firstName, lastName: newUser.lastName } });
 });
 
 router.post("/auth/login", async (req: Request, res: Response) => {
-  const { email, password } = req.body;
-
-  if (!email || !password) {
-    res.status(400).json({ error: "Email and password are required" });
+  if (!limitAuthAttempts(req, res, "login")) return;
+  const parsed = loginSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: "A valid email and password are required" });
     return;
   }
+  const { email: emailLower, password } = parsed.data;
 
-  const emailLower = email.toLowerCase().trim();
-
-  const [user] = await db
-    .select()
-    .from(usersTable)
-    .where(eq(usersTable.email, emailLower));
-
-  if (!user || !user.passwordHash) {
+  const authenticated = await authenticatePassword(emailLower, password);
+  if (!authenticated) {
     res.status(401).json({ error: "Invalid email or password" });
     return;
   }
 
-  const valid = await bcrypt.compare(password, user.passwordHash);
-  if (!valid) {
-    res.status(401).json({ error: "Invalid email or password" });
-    return;
-  }
-
-  await createUserSession(res, user);
+  const { user, sid } = authenticated;
+  setSessionCookie(res, sid);
   res.json({ user: { id: user.id, email: user.email, firstName: user.firstName, lastName: user.lastName } });
 });
 
 router.post("/auth/forgot-password", async (req: Request, res: Response) => {
-  const { email } = req.body;
-
-  if (!email) {
-    res.status(400).json({ error: "Email is required" });
+  if (!limitAuthAttempts(req, res, "forgot_password")) return;
+  const parsed = emailBodySchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: "A valid email is required" });
     return;
   }
-
-  const emailLower = email.toLowerCase().trim();
+  const emailLower = parsed.data.email;
   const [user] = await db
     .select()
     .from(usersTable)
@@ -217,17 +226,13 @@ router.post("/auth/forgot-password", async (req: Request, res: Response) => {
 });
 
 router.post("/auth/reset-password", async (req: Request, res: Response) => {
-  const { token, password } = req.body;
-
-  if (!token || !password) {
-    res.status(400).json({ error: "Token and password are required" });
+  if (!limitAuthAttempts(req, res, "reset_password")) return;
+  const parsed = resetPasswordSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: "A valid token and a password of at least 8 characters (maximum 72 UTF-8 bytes) are required" });
     return;
   }
-
-  if (password.length < 8) {
-    res.status(400).json({ error: "Password must be at least 8 characters" });
-    return;
-  }
+  const { token, password } = parsed.data;
 
   const [resetToken] = await db
     .select()
@@ -241,16 +246,31 @@ router.post("/auth/reset-password", async (req: Request, res: Response) => {
 
   const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
 
-  await db
-    .update(usersTable)
-    .set({ passwordHash, authProvider: "email", updatedAt: new Date() })
-    .where(eq(usersTable.id, resetToken.userId));
+  const reset = await db.transaction(async (tx) => {
+    const [user] = await tx.select().from(usersTable).where(eq(usersTable.id, resetToken.userId)).for("update");
+    if (!user) return false;
+    const resetAt = new Date();
+    const [consumed] = await tx.update(passwordResetTokensTable)
+      .set({ usedAt: resetAt })
+      .where(and(eq(passwordResetTokensTable.id, resetToken.id), isNull(passwordResetTokensTable.usedAt), gt(passwordResetTokensTable.expiresAt, resetAt)))
+      .returning({ userId: passwordResetTokensTable.userId });
+    if (!consumed) return false;
 
-  await db
-    .update(passwordResetTokensTable)
-    .set({ usedAt: new Date() })
-    .where(eq(passwordResetTokensTable.id, resetToken.id));
+    await tx.update(usersTable)
+      .set({ passwordHash, authProvider: "email", updatedAt: resetAt })
+      .where(eq(usersTable.id, consumed.userId));
+    await tx.update(passwordResetTokensTable)
+      .set({ usedAt: resetAt })
+      .where(eq(passwordResetTokensTable.userId, consumed.userId));
+    await revokeUserSessions(consumed.userId, tx);
+    return true;
+  });
+  if (!reset) {
+    res.status(400).json({ error: "Invalid or expired reset token" });
+    return;
+  }
 
+  res.clearCookie(SESSION_COOKIE, { path: "/" });
   res.json({ message: "Password reset successfully" });
 });
 
@@ -286,14 +306,13 @@ router.get("/auth/verify-email", async (req: Request, res: Response) => {
 });
 
 router.post("/auth/resend-verification", async (req: Request, res: Response) => {
-  const { email } = req.body;
-
-  if (!email) {
-    res.status(400).json({ error: "Email is required" });
+  if (!limitAuthAttempts(req, res, "resend_verification")) return;
+  const parsed = emailBodySchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: "A valid email is required" });
     return;
   }
-
-  const emailLower = email.toLowerCase().trim();
+  const emailLower = parsed.data.email;
   const [user] = await db
     .select()
     .from(usersTable)
@@ -410,44 +429,56 @@ router.get("/auth/google/callback", async (req: Request, res: Response) => {
       return;
     }
 
-    const profile = await userInfoRes.json() as { id: string; email: string; given_name?: string; family_name?: string; picture?: string };
+    const parsedProfile = googleProfileSchema.safeParse(await userInfoRes.json());
+    if (!parsedProfile.success) {
+      res.redirect("/login?error=google_profile_failed");
+      return;
+    }
+    const profile = parsedProfile.data;
+    const emailLower = profile.email;
 
-    const emailLower = profile.email.toLowerCase();
-
-    const [existing] = await db
-      .select()
-      .from(usersTable)
-      .where(eq(usersTable.email, emailLower));
-
-    let dbUser;
-    if (existing) {
-      [dbUser] = await db
-        .update(usersTable)
-        .set({
-          firstName: profile.given_name || existing.firstName,
-          lastName: profile.family_name || existing.lastName,
-          profileImageUrl: profile.picture || existing.profileImageUrl,
-          emailVerified: true,
-          authProvider: existing.passwordHash ? existing.authProvider : "google",
-          updatedAt: new Date(),
-        })
-        .where(eq(usersTable.id, existing.id))
-        .returning();
-    } else {
-      [dbUser] = await db
-        .insert(usersTable)
-        .values({
+    const sid = await db.transaction(async (tx) => {
+      let [existing] = await tx.select().from(usersTable)
+        .where(eq(usersTable.email, emailLower)).for("update");
+      if (!existing) {
+        // A concurrent registration must be claimed under the same user lock.
+        [existing] = await tx.insert(usersTable).values({
           email: emailLower,
           firstName: profile.given_name || null,
           lastName: profile.family_name || null,
           profileImageUrl: profile.picture || null,
           authProvider: "google",
           emailVerified: true,
+        }).onConflictDoNothing({ target: usersTable.email }).returning();
+        if (!existing) {
+          [existing] = await tx.select().from(usersTable)
+            .where(eq(usersTable.email, emailLower)).for("update");
+        }
+      }
+      if (!existing) throw new Error("Google account could not be linked");
+      // An unverified signup cannot retain credentials when Google proves email ownership.
+      if (!existing.emailVerified) {
+        await revokeUserSessions(existing.id, tx);
+        await tx.update(passwordResetTokensTable).set({ usedAt: new Date() })
+          .where(eq(passwordResetTokensTable.userId, existing.id));
+        await tx.update(emailVerificationTokensTable).set({ usedAt: new Date() })
+          .where(eq(emailVerificationTokensTable.userId, existing.id));
+      }
+      const [dbUser] = await tx.update(usersTable)
+        .set({
+          firstName: profile.given_name || existing.firstName,
+          lastName: profile.family_name || existing.lastName,
+          profileImageUrl: profile.picture || existing.profileImageUrl,
+          passwordHash: existing.emailVerified ? existing.passwordHash : null,
+          emailVerified: true,
+          authProvider: existing.emailVerified && existing.passwordHash ? existing.authProvider : "google",
+          updatedAt: new Date(),
         })
+        .where(eq(usersTable.id, existing.id))
         .returning();
-    }
-
-    await createUserSession(res, dbUser);
+      return createUserSession(dbUser, tx);
+    });
+    setSessionCookie(res, sid);
     res.redirect(returnTo);
   } catch (err) {
     req.log.error({ err }, "Google OAuth callback error");
@@ -469,6 +500,7 @@ router.get("/logout", async (req: Request, res: Response) => {
 router.post(
   "/mobile-auth/token-exchange",
   async (req: Request, res: Response) => {
+    if (!limitAuthAttempts(req, res, "login")) return;
     const parsed = ExchangeMobileAuthorizationCodeBody.safeParse(req.body);
     if (!parsed.success) {
       res.status(400).json({ error: "Email and password are required" });
@@ -477,33 +509,13 @@ router.post(
 
     const emailLower = parsed.data.email.toLowerCase().trim();
     const { password } = parsed.data;
-    const [user] = await db
-      .select()
-      .from(usersTable)
-      .where(eq(usersTable.email, emailLower));
-
-    if (!user || !user.passwordHash) {
+    const authenticated = await authenticatePassword(emailLower, password);
+    if (!authenticated) {
       res.status(401).json({ error: "Invalid credentials" });
       return;
     }
 
-    const valid = await bcrypt.compare(password, user.passwordHash);
-    if (!valid) {
-      res.status(401).json({ error: "Invalid credentials" });
-      return;
-    }
-
-    const sessionData: SessionData = {
-      user: {
-        id: user.id,
-        email: user.email,
-        firstName: user.firstName,
-        lastName: user.lastName,
-        profileImageUrl: user.profileImageUrl,
-      },
-    };
-    const sid = await createSession(sessionData);
-    res.json(ExchangeMobileAuthorizationCodeResponse.parse({ token: sid }));
+    res.json(ExchangeMobileAuthorizationCodeResponse.parse({ token: authenticated.sid }));
   },
 );
 

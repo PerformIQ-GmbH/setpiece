@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useRoute, Link } from 'wouter';
-import { useGetPlayerView, useGetPlayerSpecificView, useMarkPlayerReady } from '@workspace/api-client-react';
+import { useGetPlayerView, useGetPlayerSpecificView, useMarkPlayerReady, getGetPlayerSpecificViewQueryKey } from '@workspace/api-client-react';
 import type { PlayerViewDataPlayersItem, PlayerSpecificViewDataSetPiecesItem } from '@workspace/api-client-react';
 import { Loader2, ShieldAlert, ChevronRight, CheckCircle2, Circle, Search, ArrowLeft, Trophy, Eye, HelpCircle } from 'lucide-react';
 import { PlayerBoardViewer } from '@/components/PlayerBoardViewer';
@@ -28,7 +28,7 @@ export default function PlayerPWA() {
   const { data: playerData, isLoading: playerLoading, error: playerError, refetch: refetchPlayer } = useGetPlayerSpecificView(
     shareToken,
     selectedPlayerId || '',
-    { query: { enabled: !!selectedPlayerId } },
+    { query: { queryKey: getGetPlayerSpecificViewQueryKey(shareToken, selectedPlayerId || ''), enabled: !!selectedPlayerId } },
   );
 
   const markReady = useMarkPlayerReady();

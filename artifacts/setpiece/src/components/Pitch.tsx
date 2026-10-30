@@ -1,7 +1,50 @@
 import React from 'react';
 import { cn } from '@/lib/utils';
 import { motion } from 'framer-motion';
-import { arcToSvgPath, buildPitchGeometry } from '@/utils/pitchGeometry';
+import { arcToSvgPath, buildPitchGeometry, type PitchGeometry } from '@/utils/pitchGeometry';
+
+export const SVG_PITCH_WIDTH = 100;
+export const SVG_PITCH_HEIGHT = 150;
+
+/** Invert the actual SVG viewport transform, including any letterboxing. */
+export function clientToSvgPoint(svg: SVGSVGElement, clientX: number, clientY: number) {
+  const matrix = svg.getScreenCTM();
+  if (!matrix) return null;
+  const point = svg.createSVGPoint();
+  point.x = clientX;
+  point.y = clientY;
+  return point.matrixTransform(matrix.inverse());
+}
+
+export function PitchLines({ geometry: g }: { geometry: PitchGeometry }) {
+  // The boundary already paints the goal line; leave that side of each box open.
+  const areaOutline = (r: typeof g.boundary) => Math.abs(r.y - g.boundary.y) < 1e-6
+    ? `M ${r.x} ${r.y} L ${r.x} ${r.y + r.height} L ${r.x + r.width} ${r.y + r.height} L ${r.x + r.width} ${r.y}`
+    : `M ${r.x} ${r.y + r.height} L ${r.x} ${r.y} L ${r.x + r.width} ${r.y} L ${r.x + r.width} ${r.y + r.height}`;
+  const goalOutline = (r: typeof g.boundary) => Math.abs(r.y + r.height - g.boundary.y) < 1e-6
+    ? `M ${r.x} ${r.y + r.height} L ${r.x} ${r.y} L ${r.x + r.width} ${r.y} L ${r.x + r.width} ${r.y + r.height}`
+    : `M ${r.x} ${r.y} L ${r.x} ${r.y + r.height} L ${r.x + r.width} ${r.y + r.height} L ${r.x + r.width} ${r.y}`;
+  return (
+    <g stroke="rgba(255,255,255,0.5)" strokeWidth="0.6" fill="none">
+      <rect x={g.boundary.x} y={g.boundary.y} width={g.boundary.width} height={g.boundary.height} />
+      {g.orientation === 'full' && <line {...g.halfwayLine} />}
+      {g.centerCircle && <circle cx={g.centerCircle.x} cy={g.centerCircle.y} r={g.centerCircle.radius} />}
+      {g.centerArcs.map((a, i) => <path key={`center-${i}`} d={arcToSvgPath(a)} />)}
+      {g.centerSpot && <circle cx={g.centerSpot.x} cy={g.centerSpot.y} r="0.5" fill="rgba(255,255,255,0.6)" />}
+      {g.penaltyAreas.map((r, i) => <path key={`pa-${i}`} d={areaOutline(r)} />)}
+      {g.goalAreas.map((r, i) => <path key={`ga-${i}`} d={areaOutline(r)} />)}
+      {g.goals.map((r, i) => (
+        <g key={`goal-${i}`}>
+          <rect {...r} fill="rgba(255,255,255,0.3)" stroke="none" />
+          <path d={goalOutline(r)} />
+        </g>
+      ))}
+      {g.penaltyArcs.map((a, i) => <path key={`par-${i}`} d={arcToSvgPath(a)} />)}
+      {g.cornerArcs.map((a, i) => <path key={`ca-${i}`} d={arcToSvgPath(a)} />)}
+      {g.penaltySpots.map((p, i) => <circle key={`ps-${i}`} cx={p.x} cy={p.y} r="0.5" fill="rgba(255,255,255,0.6)" />)}
+    </g>
+  );
+}
 
 interface Position {
   x?: number;
@@ -33,15 +76,18 @@ export function Pitch({
   halfPitch = true,
   className
 }: PitchProps) {
-  // SVG coordinates: 0,0 is top left. 100,100 is bottom right.
-  // We'll draw the pitch based on 100x100 relative coordinates.
+  const g = buildPitchGeometry({
+    width: SVG_PITCH_WIDTH,
+    height: SVG_PITCH_HEIGHT,
+    pad: 3,
+    orientation: halfPitch ? 'half' : 'full',
+  });
   
   const handlePitchClick = (e: React.MouseEvent<SVGSVGElement>) => {
     if (!interactive || !onPitchClick) return;
-    const rect = e.currentTarget.getBoundingClientRect();
-    const x = ((e.clientX - rect.left) / rect.width) * 100;
-    const y = ((e.clientY - rect.top) / rect.height) * 100;
-    onPitchClick({ x, y });
+    const point = clientToSvgPoint(e.currentTarget, e.clientX, e.clientY);
+    if (!point || !g.containsPoint(point)) return;
+    onPitchClick(g.pixelToPercent(point));
   };
 
   return (
@@ -49,66 +95,17 @@ export function Pitch({
       <div className="absolute inset-0 opacity-15 bg-[repeating-linear-gradient(0deg,transparent,transparent_10%,#000_10%,#000_20%)] mix-blend-overlay pointer-events-none" />
       
       <svg
-        viewBox="0 0 100 100"
-        preserveAspectRatio="none"
+        viewBox={`0 0 ${SVG_PITCH_WIDTH} ${SVG_PITCH_HEIGHT}`}
+        preserveAspectRatio="xMidYMid meet"
         className="absolute inset-0 w-full h-full cursor-crosshair z-10"
         onClick={handlePitchClick}
       >
-        {/* Pitch Lines — driven by the shared scale-accurate geometry module. */}
-        {(() => {
-          const g = buildPitchGeometry({
-            width: 100,
-            height: 100,
-            pad: 2,
-            orientation: halfPitch ? 'half' : 'full',
-          });
-          return (
-            <g stroke="rgba(255,255,255,0.5)" strokeWidth="0.6" fill="none">
-              {/* Outer bounds */}
-              <rect x={g.boundary.x} y={g.boundary.y} width={g.boundary.width} height={g.boundary.height} />
-
-              {/* Halfway line (dashed when this is a half-pitch cut edge) */}
-              <line
-                x1={g.halfwayLine.x1}
-                y1={g.halfwayLine.y1}
-                x2={g.halfwayLine.x2}
-                y2={g.halfwayLine.y2}
-                strokeDasharray={g.isHalfwayDashed ? '2.5 1.5' : undefined}
-              />
-              {g.centerCircle && (
-                <circle cx={g.centerCircle.x} cy={g.centerCircle.y} r={g.centerCircle.radius} />
-              )}
-              {g.centerSpot && (
-                <circle cx={g.centerSpot.x} cy={g.centerSpot.y} r="0.5" fill="rgba(255,255,255,0.6)" />
-              )}
-
-              {g.penaltyAreas.map((r, i) => (
-                <rect key={`pa-${i}`} x={r.x} y={r.y} width={r.width} height={r.height} />
-              ))}
-              {g.goalAreas.map((r, i) => (
-                <rect key={`ga-${i}`} x={r.x} y={r.y} width={r.width} height={r.height} />
-              ))}
-              {g.goals.map((r, i) => (
-                <rect key={`goal-${i}`} x={r.x} y={r.y} width={r.width} height={r.height} fill="rgba(255,255,255,0.3)" stroke="none" />
-              ))}
-              {g.penaltyArcs.map((a, i) => (
-                <path key={`par-${i}`} d={arcToSvgPath(a)} />
-              ))}
-              {g.cornerArcs.map((a, i) => (
-                <path key={`ca-${i}`} d={arcToSvgPath(a)} />
-              ))}
-              {g.penaltySpots.map((p, i) => (
-                <circle key={`ps-${i}`} cx={p.x} cy={p.y} r="0.5" fill="rgba(255,255,255,0.6)" />
-              ))}
-            </g>
-          );
-        })()}
+        <PitchLines geometry={g} />
 
         {/* Roles and Movement Paths */}
         {roles.map((role) => {
           if (!role.startPosition || role.startPosition.x == null || role.startPosition.y == null) return null;
-          const sx = role.startPosition.x;
-          const sy = role.startPosition.y;
+          const { x: sx, y: sy } = g.percentToPixel({ x: role.startPosition.x, y: role.startPosition.y });
           const isActive = role.id === activeRoleId;
           const color = isActive ? "var(--color-primary)" : role.color || "white";
           
@@ -117,7 +114,7 @@ export function Pitch({
               {/* Movement Path */}
               {role.movementPath && role.movementPath.length > 0 && (
                 <path
-                  d={`M ${sx} ${sy} ${role.movementPath.filter(p => p.x != null && p.y != null).map(p => `L ${p.x} ${p.y}`).join(' ')}`}
+                  d={`M ${sx} ${sy} ${role.movementPath.filter(p => p.x != null && p.y != null).map(p => { const point = g.percentToPixel({ x: p.x!, y: p.y! }); return `L ${point.x} ${point.y}`; }).join(' ')}`}
                   fill="none"
                   stroke={color}
                   strokeWidth="1"

@@ -13,8 +13,8 @@ export default function DemoMatchdays() {
   return (
     <DemoLayout teamName={demoTeam?.name}>
       <div className="mb-8">
-        <h1 className="text-3xl font-display font-bold text-white">Matchdays</h1>
-        <p className="text-muted-foreground mt-1">{matchdays?.length || 0} scheduled</p>
+        <h1 className="text-3xl font-display font-bold text-white">Spieltage</h1>
+        <p className="text-muted-foreground mt-1">{matchdays?.length || 0} vorbereitete Spieltage</p>
       </div>
 
       {isLoading ? (
@@ -25,7 +25,7 @@ export default function DemoMatchdays() {
         <Card className="bg-card border-border border-dashed">
           <CardContent className="p-8 text-center">
             <Calendar className="h-10 w-10 text-muted-foreground mx-auto mb-3" />
-            <p className="text-muted-foreground text-sm">No matchdays in demo.</p>
+            <p className="text-muted-foreground text-sm">Keine Spieltage in der Demo.</p>
           </CardContent>
         </Card>
       ) : (
@@ -42,8 +42,8 @@ export default function DemoMatchdays() {
                       <div>
                         <h3 className="font-bold text-white group-hover:text-primary transition-colors">{md.title}</h3>
                         <p className="text-xs text-muted-foreground">
-                          {md.date ? new Date(md.date).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' }) : 'TBD'}
-                          {md.opponent && ` · vs ${md.opponent}`}
+                          {md.date ? new Date(md.date).toLocaleDateString('de-CH', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' }) : 'Noch offen'}
+                          {md.opponent && ` · gegen ${md.opponent}`}
                         </p>
                       </div>
                     </div>

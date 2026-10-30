@@ -98,6 +98,14 @@ export const ListTeamsResponseItem = zod.object({
     .nullish(),
   ownerId: zod.string(),
   tier: zod.string(),
+  effectiveTier: zod
+    .string()
+    .optional()
+    .describe(
+      "Current usage tier, including an active pilot. tier remains the billing plan.",
+    ),
+  pilotExpiresAt: zod.coerce.date().nullish(),
+  pilotAvailable: zod.boolean().optional(),
   stripeCustomerId: zod.string().nullish(),
   stripeSubscriptionId: zod.string().nullish(),
   stripeSubscriptionStatus: zod.string().nullish(),
@@ -144,6 +152,14 @@ export const GetTeamResponse = zod.object({
     .nullish(),
   ownerId: zod.string(),
   tier: zod.string(),
+  effectiveTier: zod
+    .string()
+    .optional()
+    .describe(
+      "Current usage tier, including an active pilot. tier remains the billing plan.",
+    ),
+  pilotExpiresAt: zod.coerce.date().nullish(),
+  pilotAvailable: zod.boolean().optional(),
   stripeCustomerId: zod.string().nullish(),
   stripeSubscriptionId: zod.string().nullish(),
   stripeSubscriptionStatus: zod.string().nullish(),
@@ -185,6 +201,14 @@ export const UpdateTeamResponse = zod.object({
     .nullish(),
   ownerId: zod.string(),
   tier: zod.string(),
+  effectiveTier: zod
+    .string()
+    .optional()
+    .describe(
+      "Current usage tier, including an active pilot. tier remains the billing plan.",
+    ),
+  pilotExpiresAt: zod.coerce.date().nullish(),
+  pilotAvailable: zod.boolean().optional(),
   stripeCustomerId: zod.string().nullish(),
   stripeSubscriptionId: zod.string().nullish(),
   stripeSubscriptionStatus: zod.string().nullish(),
@@ -1664,6 +1688,14 @@ export const GetMatchPackDataResponse = zod.object({
       .nullish(),
     ownerId: zod.string(),
     tier: zod.string(),
+    effectiveTier: zod
+      .string()
+      .optional()
+      .describe(
+        "Current usage tier, including an active pilot. tier remains the billing plan.",
+      ),
+    pilotExpiresAt: zod.coerce.date().nullish(),
+    pilotAvailable: zod.boolean().optional(),
     stripeCustomerId: zod.string().nullish(),
     stripeSubscriptionId: zod.string().nullish(),
     stripeSubscriptionStatus: zod.string().nullish(),

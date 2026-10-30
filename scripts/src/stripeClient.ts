@@ -1,17 +1,8 @@
 import Stripe from 'stripe';
 
-interface StripeConnectionSettings {
-  settings: {
-    publishable: string;
-    secret: string;
-  };
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
-
-interface ConnectorResponse {
-  items?: StripeConnectionSettings[];
-}
-
-let connectionSettings: StripeConnectionSettings | undefined;
 
 async function getCredentials() {
   const hostname = process.env.REPLIT_CONNECTORS_HOSTNAME;
@@ -41,17 +32,21 @@ async function getCredentials() {
     }
   });
 
-  const data: ConnectorResponse = await response.json();
+  if (!response.ok) {
+    throw new Error(`Stripe connector request failed (${response.status})`);
+  }
 
-  connectionSettings = data.items?.[0];
-
-  if (!connectionSettings || (!connectionSettings.settings.publishable || !connectionSettings.settings.secret)) {
+  const data: unknown = await response.json();
+  const connection = isRecord(data) && Array.isArray(data.items) ? data.items[0] : undefined;
+  const settings = isRecord(connection) && isRecord(connection.settings) ? connection.settings : undefined;
+  if (!settings || typeof settings.publishable !== 'string' || !settings.publishable
+    || typeof settings.secret !== 'string' || !settings.secret) {
     throw new Error(`Stripe ${targetEnvironment} connection not found`);
   }
 
   return {
-    publishableKey: connectionSettings.settings.publishable,
-    secretKey: connectionSettings.settings.secret,
+    publishableKey: settings.publishable,
+    secretKey: settings.secret,
   };
 }
 
@@ -59,7 +54,7 @@ export async function getUncachableStripeClient() {
   const { secretKey } = await getCredentials();
 
   return new Stripe(secretKey, {
-    apiVersion: '2025-08-27.basil',
+    apiVersion: '2025-11-17.clover',
   });
 }
 

@@ -5,6 +5,7 @@ import { db, teamInvitesTable, teamsTable, playersTable } from "@workspace/db";
 import { requireCoachAccess, parseParam } from "../lib/authorization";
 import { getTierLimits } from "../lib/entitlements";
 import { z } from "zod/v4";
+import { teamPilotAccess } from "../lib/pilot";
 
 const router: IRouter = Router();
 
@@ -190,7 +191,8 @@ router.post("/join/:token", async (req, res): Promise<void> => {
       .where(eq(playersTable.teamId, inviteTeamId));
 
     const count = playerCount[0]?.count ?? 0;
-    const limits = getTierLimits(team.tier);
+    const { effectiveTier } = await teamPilotAccess(inviteTeamId, team.tier);
+    const limits = getTierLimits(effectiveTier);
     if (count >= limits.maxPlayers) {
       await tx
         .update(teamInvitesTable)

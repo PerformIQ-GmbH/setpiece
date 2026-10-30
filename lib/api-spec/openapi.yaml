@@ -1557,6 +1557,14 @@ components:
           type: string
         tier:
           type: string
+        effectiveTier:
+          type: string
+          description: Current usage tier, including an active pilot. tier remains the billing plan.
+        pilotExpiresAt:
+          type: [string, 'null']
+          format: date-time
+        pilotAvailable:
+          type: boolean
         stripeCustomerId:
           type: [string, 'null']
         stripeSubscriptionId:

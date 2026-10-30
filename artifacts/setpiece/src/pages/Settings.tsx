@@ -7,6 +7,7 @@ import { Settings as SettingsIcon, Palette, User, CreditCard, Loader2, ExternalL
 import { t, getLangSetting, setLangSetting } from '@/lib/i18n';
 import { useInstallPrompt } from '@/hooks/useInstallPrompt';
 import { motion } from 'framer-motion';
+import { PilotAccessPanel } from '@/components/PilotAccessPanel';
 
 const BASE = import.meta.env.BASE_URL || '/';
 
@@ -113,6 +114,7 @@ export default function Settings() {
           </Card>
         </motion.div>
 
+        {team && <PilotAccessPanel team={team} onRedeemed={() => { void refetch(); }} />}
         {team && (
           <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
             <Card className="bg-card border-border mb-6">
@@ -123,7 +125,7 @@ export default function Settings() {
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm text-muted-foreground">Current Plan</p>
-                    <p className="text-lg font-bold text-white">{TIER_LABELS[team.tier] || team.tier}</p>
+                    <p className="text-lg font-bold text-white">{team.effectiveTier === 'solo_coach' && team.tier === 'free' ? 'Solo Coach · Pilot' : TIER_LABELS[team.tier] || team.tier}</p>
                   </div>
                   {team.tier !== 'free' && team.stripeCustomerId ? (
                     <Button

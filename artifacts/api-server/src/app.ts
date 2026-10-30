@@ -2,10 +2,13 @@ import express, { type Express } from "express";
 import cors from "cors";
 import cookieParser from "cookie-parser";
 import pinoHttp from "pino-http";
+import path from "node:path";
 import { authMiddleware } from "./middlewares/authMiddleware";
 import router from "./routes";
+import healthRouter from "./routes/health";
 import { logger } from "./lib/logger";
 import { WebhookHandlers } from "./lib/webhookHandlers";
+import { mountFrontend } from "./lib/frontend";
 
 const app: Express = express();
 
@@ -54,6 +57,10 @@ app.use(
   }),
 );
 app.use(cookieParser());
+app.use('/api', (_req, res, next) => {
+  res.set('Cache-Control', 'no-store');
+  next();
+});
 
 app.post(
   '/api/billing/webhook',
@@ -71,7 +78,7 @@ app.post(
 
       if (!Buffer.isBuffer(req.body)) {
         logger.error('Stripe webhook: req.body is not a Buffer');
-        res.status(500).json({ error: 'Webhook processing error' });
+        res.status(400).json({ error: 'Webhook payload must be raw JSON' });
         return;
       }
 
@@ -79,15 +86,21 @@ app.post(
       res.status(200).json({ received: true });
     } catch (error: unknown) {
       logger.error({ err: error instanceof Error ? error.message : String(error) }, 'Webhook error');
-      res.status(400).json({ error: 'Webhook processing error' });
+      const invalidSignature = error instanceof Error && error.name === 'StripeSignatureVerificationError';
+      res.status(invalidSignature ? 400 : 500).json({ error: 'Webhook processing error' });
     }
   }
 );
 
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true }));
-app.use(authMiddleware);
+app.use("/api", healthRouter, authMiddleware, router);
+app.use("/api", (_req, res) => {
+  res.status(404).json({ error: "Not found" });
+});
 
-app.use("/api", router);
+if (process.env.NODE_ENV === "production") {
+  mountFrontend(app, path.resolve(import.meta.dirname, "../../setpiece/dist/public"));
+}
 
 export default app;
