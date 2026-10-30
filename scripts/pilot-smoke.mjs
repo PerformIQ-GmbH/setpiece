@@ -40,6 +40,7 @@ try {
   const standardRoot = root + `/set-pieces/${standard.id}`;
   const { data: role } = await request(standardRoot + '/roles', { method: 'POST', status: 201, cookie: coach.cookie, body: { name: 'Erster Pfosten', startPosition: { x: 50, y: 50 } } });
   await request(standardRoot + '/assignments', { method: 'PUT', cookie: coach.cookie, body: { roleId: role.id, playerId: player.id } });
+  await request(standardRoot + '/status', { method: 'PATCH', cookie: coach.cookie, body: { status: 'ready' } });
   await request(root + '/players', { cookie: second.cookie, status: 403 });
   const { data: link } = await request(root + '/share-links', { method: 'POST', status: 201, cookie: coach.cookie, body: { playerScope: [player.id], allowedSetPieceIds: [standard.id] } });
   await request(`/p/${link.token}`);
