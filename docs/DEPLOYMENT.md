@@ -67,3 +67,9 @@ Die Startzeile bestätigt keinen abgelesenen Replit-Kontostand. Aktuelle Abrechn
 Fünf Codes, Solo Coach für ein Team ab Einlösung während 720 Stunden, ohne Zahlungsangaben oder automatische Verlängerung. Produktionsflag SETPIECE_PILOT_ENABLED=true ist in der API-Artefaktkonfiguration festgelegt; vorher Pilotmigration und Hash-Seed anwenden. Die Migration wurde auf der isolierten Wiederherstellung geprüft. Private Einladungen liegen ausserhalb Git. Konten-/Teamdaten bei Ablauf nicht automatisch entfernen. Bestätigte Vorgabe bei Nichtweiterführung: Export anbieten und Team-/Spielerdaten innerhalb der folgenden 30 Tage löschen; zusätzliche manuelle Pilot-Sicherungen maximal 30 Tage. Echte Spielerdaten erst nach abgeschlossener Vereinsvereinbarung und Ausland-/Anbieterprüfung.
 
 Budgetkontrolle 30.10.: bestehender Replit Pro 100, Auto-reload Off, Restguthaben USD 85.22, periodenweiter Verbrauch USD 14.87 für alle Projekte. Kein neuer kostenpflichtiger Replit-Agent beauftragt; Infrastrukturverbrauch ist damit nicht als null oder ausschliesslich diesem Projekt zugeordnet.
+
+## Tatsächlicher Release vom 30.10.2026
+
+App-Commit cb54521825a6a35824b4964ab2683ecdf8a8fc0a ist live. Vorlagenlesezugriff, Health, Authsperren, Pilot-Checkoutblock und Smartphone-Demo auf der öffentlichen Domain verifiziert. Replits automatische Installation verwendet aktuell pnpm 10.26.1; confirmModulesPurge=false erlaubt die nötige nicht-interaktive Neuerstellung generierter Abhängigkeiten. Eigentliche Artefakt-Builds und CI verwenden explizit pnpm 11.25.0. Die Plattforminstallation wurde ohne Terminal und mit Frozen-Lockfile separat geprüft.
+
+Vor späteren Schemaänderungen auch die getrennte Entwicklung berücksichtigen: Replit darf eine ausschliesslich produktiv vorhandene Tabelle sonst als Löschung vorschlagen. Solche Vorschläge stoppen und die geprüfte additive Migration in beiden Umgebungen gezielt abgleichen. Copy development database bleibt ausgeschaltet.

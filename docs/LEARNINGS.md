@@ -12,3 +12,10 @@ Dauerhafte technische Fallstricke kurz halten. Aktuelle Aufgaben gehören in STA
 - **28.10.2026 · Release:** Build, Merge und Deployment sind verschiedene Belege. Auch ein Serverstart kann bestehende Migrationen und Seeding auslösen; vor Veröffentlichung Backup und Wiederherstellung prüfen.
 
 - **29.10.2026 · Spielfeld:** Meter auf beiden Achsen gleich skalieren; Linien, Marker, Snap und Eingaben über dieselbe Feldtransformation abbilden. Kategorie-Resolver mit realen Enumwerten testen, nicht nur künstlichen Kurzbezeichnungen.
+
+## Replit-Veröffentlichung am 30.10.2026
+
+- Replit vergleicht Entwicklungsschema und Produktionsschema. Eine nur produktiv angelegte Tabelle kann als DROP TABLE vorgeschlagen werden. Additive Änderungen nach Backup/Restore gezielt in beiden Umgebungen abgleichen; Löschvorschläge nicht pauschal bestätigen und keine Entwicklungsdaten nach Produktion kopieren.
+- Home ausserhalb des Workspace war nach Neustart flüchtig. Backups nicht dort als dauerhaft gesichert ansehen. Verschlüsselte lokale Kopie ausserhalb Git mit Hash-/Entschlüsselungsprüfung anlegen. Temporäre Wiederherstellungsdaten vor dem Deployment aus dem Projekt entfernen.
+- Replits interner Installer 10.26.1 läuft vor Artefakt-Buildbefehlen und übernimmt Produktionsvariablen nicht zwingend. confirmModulesPurge=false in pnpm-workspace.yaml löste ERR_PNPM_ABORTED_REMOVE_MODULES_DIR_NO_TTY; Frozen-Install mit geschlossener Standardeingabe wirklich prüfen. Artefaktbefehle bleiben auf pnpm 11.25.0 gepinnt.
+- Öffentliche Fonts, Icons und Manifest über Vites BASE_URL adressieren, damit direkte Spielerlinks sie finden. Gebaute HTML-Pfade prüfen.

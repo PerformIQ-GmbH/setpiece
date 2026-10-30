@@ -1,119 +1,60 @@
 # Status · SETPIECE
 
-**Stand 28.10.2026: Auditverbesserungen sind implementiert und lokal geprüft; abschliessende Routenoptimierung wird integriert. Es liegt noch kein belegter neuer Produktionsrelease vor.**
+**Stand 30.10.2026, 19:02 UTC: technisch live und öffentlich verifiziert unter https://setpiece.performiq.ch/.**
 
-Ausgangsstand des Audits: Commit `6b238c59267efbf285359c0a80dbf7ac824d9403` auf `main`. Arbeitsbranch: `codex/setpiece-launch-readiness`. Der Detailaudit vom 28.10.2026 liegt im separaten Arbeitsordner `audit-2026-10-28`; er enthält interne Befunde und Sitzungsbelege.
+## Aktueller Produktionsstand
 
-## Implementiert beziehungsweise in Integration
+| Schritt | Beleg |
+| --- | --- |
+| Implementiert | Auditkorrekturen, bereitgestellte blaue Marke, metrische Spielfeldgeometrie, fünf persönliche 30-Tage-Piloten und Replit-Konfiguration |
+| Geprüft | 74 synthetische Regressionen; zusätzlicher echter PostgreSQL-Test für Einlösung/Parallelität; vollständiger isolierter Trainer-/Spielerablauf |
+| Gemergt | PR #4 und #5 in PerformIQ-GmbH/setpiece |
+| Deployed | Runtime-Commit cb54521825a6a35824b4964ab2683ecdf8a8fc0a; Replit bestätigte «Congratulations! Your project is live» am 30.10.2026; öffentliche Abnahme bis 19:02 UTC |
+| Live verifiziert | Neue deutsche Startseite mit bereitgestelltem Logo, öffentliche Demo, Smartphonebreite 390 px, Quizantwort → fiktive Trainer-Rückmeldung, korrigierte Spielfeldlinien |
 
-| Bereich                                  | Aktueller Beleg und Grenze                                                                                              |
-| ---------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
-| Auth und Identität                       | Lokale Änderungen und synthetische Regressionen vorhanden; vollständige Freigabe des integrierten Standes folgt         |
-| Billing und Webhooks                     | Lokale Änderungen und Billingtests vorhanden; echte Stripe-Testmodusabnahme offen                                       |
-| Quiz und Bereitschaft                    | Lokale Prüfungen von Team-/Rollenbezug und erwarteten Aufgaben vorhanden; finaler Kerndurchlauf offen                   |
-| Offline, Demo und öffentliche Oberfläche | Lokale Änderungen vorhanden; Browser-/Geräteprüfung wird separat ergänzt                                                |
-| Zusammenarbeit und Betrieb               | AGENTS.md, README, Workflow-, Entscheidungs-, Lern- und Deploymentdokumentation sowie CI hinzugefügt; GitHub-Lauf offen |
+GitHub-Prüfung für PR #5, Head eb71c585ecb57575fa94bd9df2afc0af2c3ec4df: [CI 41109559149](https://github.com/PerformIQ-GmbH/setpiece/actions/runs/41109559149), Linux und Windows erfolgreich. PR #4: [CI 41106476564](https://github.com/PerformIQ-GmbH/setpiece/actions/runs/41106476564) erfolgreich. Die späteren Dokumentationsänderungen sind kein weiterer App-Release.
 
-## Tatsächlich geprüft
+## Liveprüfungen ohne schreibende Testfixtures
 
-| Prüfung                                          | Ergebnis                                      | Nachweisgrenze                                                                 |
-| ------------------------------------------------ | --------------------------------------------- | ------------------------------------------------------------------------------ |
-| Lokale Runtime                                   | Node `24.22.1`, pnpm `11.25.0`                | Versionsabfrage am 28.10.2026 durch Leo                                        |
-| Bibliotheks-Typecheck                            | `tsc --build` grün                            | Von Alex am 28.10.2026 gemeldet; kein vollständiger Workspace-/Buildnachweis   |
-| Windows-Installation                             | Native Pakete mit pnpm 11.25 installierbar    | Von Alex am 28.10.2026 gemeldet; endgültiger Frozen-Install-/CI-Nachweis folgt |
-| Gesamt-Typecheck, Regressionen, Production-Build | Gesamtbuild Exit 0 und 46/46 Regressionen grün | Lokal am 28.10.2026; abschliessender Frontendbuild nach Routenaufteilung separat ergänzen |
-| Browser und kleine Ansichten | Landing und Registrierung bei 375 × 812 ohne seitlichen Überlauf; Demoquiz aktualisiert Trainerübersicht und Readiness | Desktop-Browser mit Viewportprüfung; keine echte Geräte-/Produktionsdatenabnahme |
+- /api/healthz: 200, JSON; /api/auth/user: 200; privater Teamendpunkt ohne Sitzung: 401. Private API-Antworten tragen no-store.
+- /api/templates: 200 mit zehn Vorlagen. Damit ist auch ein tatsächlicher Datenbanklesezugriff in der Produktions-App bestätigt.
+- /api/pricing: 200, keine buchbaren Stripe-Preis-IDs im Pilotmodus.
+- Alter Admin-Tarifendpunkt: 404; bezahlter Checkout: 503 im Pilotmodus. Keine Livezahlung durchgeführt.
+- /demo, /login, lokale Schriftdateien und absolute Schrift-/Iconpfade bei tiefen Links erfolgreich erreichbar.
+- Öffentliche Demo mit fiktiven Daten: Antwort für Spieler 9 erhöht die passende Trainer-Rückmeldung von eins auf zwei. Keine Demoantwort wird serverseitig gespeichert.
+- Smartphoneansicht und Spielfeld geprüft; keine physische iPhone-/Android-Abnahme in diesem Lauf.
 
-## Auslieferung und Repo-Umzug
+Belege ausserhalb Git im Arbeitsordner audit-2026-10-28: 32-pilot-smoke.png, 33-replit-live-confirmation.png, 35-live-mobile.jpg, 36-live-mobile-demo.jpg, 37-live-home.jpg, 38-live-mobile-pitch.jpg.
 
-Dokumentationsprüfung durch Leo am 28.10.2026: alle sechs Markdowndateien und der CI-Workflow mit dem vorhandenen Prettier verarbeitet; lokale Dokumentlinks erfolgreich aufgelöst. Die beiden verwendeten Actions-Referenzen wurden am offiziellen Git-Remote geprüft und auf ihre Commits festgelegt. Das ist noch kein ausgeführter GitHub-Actions-Lauf.
+## Fünf Testtrainer
 
-| Schritt          | Status                              | Erforderlicher Beleg                                                                                                                                    |
-| ---------------- | ----------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| GitHub-Transfer  | Erfolgreich bestätigt am 28.10.2026 | [PerformIQ-GmbH/setpiece](https://github.com/PerformIQ-GmbH/setpiece); Alex hat UI-Owner, Connector-Adminrechte sowie Remotewechsel und Fetch bestätigt |
-| PR und CI        | Noch nicht belegt                   | PR-URL, Head-SHA und grüner Linux-/Windows-Lauf                                                                                                         |
-| Gemergt          | Noch nicht belegt                   | Merge-SHA und Zeitpunkt                                                                                                                                 |
-| Deployed         | Noch nicht belegt                   | Replit-Deployment-ID/URL und zugeordneter Commit                                                                                                        |
-| Live verifiziert | Noch nicht belegt                   | Öffentliche Domain, Zeitpunkt und geprüfte Abläufe                                                                                                      |
+Vince organisiert fünf Trainer. Jeder erhält einen eigenen zufälligen Einladungscode. Solo Coach gilt für ein kostenloses Team während 720 Stunden ab Einlösung; keine Zahlungsangaben und kein automatisches kostenpflichtiges Abo. Wiederholung verlängert nicht, bezahlte Tarife werden nicht verändert. Fünf Hashes wurden in Produktion eingerichtet; vor Veröffentlichung waren alle fünf Plätze unbenutzt. Klartextcodes und die Startanleitung liegen privat ausserhalb Git.
 
-Auch der Replit-Remote wurde erfolgreich auf das Organisationsrepo umgestellt. Replit war unverändert und hatte nur den leeren Publish-Commit `7a55712` vor `origin/main`; dieser wurde im lokalen Replit-Branch `backup/replit-published-2026-10-28` gesichert. Kein neuer Code wurde zu diesem Zeitpunkt deployed.
+Der vollständige HTTP-Abnahmelauf nutzte eine frische isolierte Datenbank: Registrierung zweier fiktiver Trainer → Eigentümerprüfung des Pilotcodes → Teamtrennung → Standard → Rolle/Zuweisung → Freigabe → beschränkter Spielerlink → Quiz → korrektes Trainerergebnis → Linkwiderruf → gesperrter Checkout → Logout mit Sessionwiderruf. Mailversand war dort deaktiviert.
 
-`origin` wurde auf `https://github.com/PerformIQ-GmbH/setpiece.git` umgestellt und erfolgreich abgerufen. Alte Verweise auf `zinna10/setpiece` sind historische Auditquellen. Die öffentliche Domain ist `https://setpiece.performiq.ch/`; ihre Erreichbarkeit beweist nicht, dass diese lokalen Änderungen veröffentlicht sind.
+## Sicherung und Betrieb
 
-## Offene Abnahme
+Produktionssicherung im PostgreSQL-Custom-Format erstellt und in eine separate PostgreSQL-Instanz erfolgreich zurückgespielt. Dauerhafte private lokale Kopie mit Windows-DPAPI geschützt; Entschlüsselungsprobe und Archiv-Hash stimmen überein. Replit-Wiederherstellung umfasst derzeit sieben Tage. Details und Fristen: [PILOT-DATA-NOTES](PILOT-DATA-NOTES.md).
 
-- Vollständigen Kernablauf und Team-/Rollenisolation mit fiktiven Konten auf kleinen Ansichten und echten Mobilgeräten prüfen.
-- Logout, Identitätswechsel und Offlinezustand auf einem gemeinsam verwendeten Gerät abnehmen.
-- Stripe-Testmodus inklusive DB-Fehler, Retry, doppelter/verspäteter Ereignisse und Kündigung durchlaufen; Test-/Live-Zuordnung belegen.
-- Veröffentlichten Adminschlüssel in allen Runtime-Umgebungen entfernen beziehungsweise rotieren; Backup, Restore und Mailzustellung nachweisen.
-- Kontakt, Datenschutz, Löschung und Messung fachlich bestätigen; erst danach betreuten Pilot und gegebenenfalls separat freigegebene Werbung starten.
+Replits erster Veröffentlichungsversuch schlug automatisch die Löschung der neuen Pilot-Tabelle vor, weil sie in der Entwicklung fehlte. Dieser Vorgang wurde abgebrochen, nicht bestätigt. Anschliessend dieselbe additive Tabelle auch in der getrennten Entwicklungsdatenbank angelegt; keine Produktionsdaten durch Entwicklungsdaten ersetzt. Die kopierten Testdaten/Sicherungszwischenstände wurden vor Deployment aus dem Projekt entfernt.
 
-## Pilotmessung mit vorhandenen Daten
+Replits interner pnpm-10.26.1-Installer brauchte confirmModulesPurge=false für den nicht-interaktiven Austausch generierter Abhängigkeiten. Exakter Frozen-Install ohne Terminal auf Replit erfolgreich (13.8 Sekunden), danach Production-Build erfolgreich. CI und Artefakt-Builds verwenden pnpm 11.25.0. Die zusätzliche Produktionsvariable CI=true allein erreichte den automatischen Installationsschritt nicht.
 
-Gezielte Quellcodeprüfung durch Leo am 28.10.2026; keine Produktivdaten abgefragt und kein neues Tracking eingebaut. Ein betreuter Pilot kann vorhandene Teamereignisse, Quizdaten und den tatsächlichen Stripe-Zustand zusammenführen:
+Die bestehende Resend-Verbindung ist vorhanden, konfigurierter Absender setpiece@performiq.ch. Tatsächliche Zustellung einer Bestätigungs-/Resetmail wurde nicht durch Versand an einen realen Empfänger getestet.
 
-| Schritt                    | Vorhandenes Signal                                                                                 | Aussagegrenze                                                                                                                                                                                                     |
-| -------------------------- | -------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Erster Standard und Teilen | `set_piece_created` sowie `share_link_generated` in `audit_events`, jeweils mit Team und Zeitpunkt | Kein eigenes Erstereignis; frühesten Eintrag je Pilotteam bestimmen. Auch Duplikate erzeugen `set_piece_created`                                                                                                  |
-| Spielerzugriff und Quiz    | `share_links.last_accessed_at`, `readiness_changed`, `quiz_submitted` und `quiz_attempts`          | Linkzeitpunkt wird bei jedem gültigen Share-API-Aufruf überschrieben. `view_count` steigt beim expliziten Rückmeldungs-POST; kein vollständiger Verlauf reiner Ansichten und kein Beweis einer eindeutigen Person |
-| Trainer sieht Rückmeldung  | Aktuelle Readiness im Teamdashboard                                                                | Kein Ereignis für das Öffnen des Trainerergebnisses; im betreuten Durchlauf beobachten und bestätigen                                                                                                             |
-| Zahlung / Abo              | Aktueller Team-Tarif, Stripe-Kunden-/Abo-ID und Abo-Status; Stripe-Ereignisse und Rechnungen       | Kein Subscription-Auditereignis. Bezahlten Tarif oder `past_due` nicht als Beweis einer erfolgreich bezahlten Rechnung zählen                                                                                     |
-| Nutzung in weiterer Woche  | Neue Standards, Rollenänderungen oder Quizabgaben anhand ihrer Zeitpunkte                          | Wiederholtes reines Lesen wird damit nicht vollständig sichtbar; beim Pilot nachfassen                                                                                                                            |
+## Vor Nutzung mit echten Spielerdaten und vor bezahltem Angebot offen
 
-Der Team-Auditendpunkt liefert höchstens 200 neueste Einträge je Anfrage und hat keine Pagination; er ist kein vollständiger Kohortenexport. Für reine Registrierungen existiert `users.created_at`, aber kein Registration-Auditereignis. Kanal-/UTM-Zuordnung und Besuchsereignisse wurden im geprüften Anwendungscode nicht gefunden. Damit ist ein beobachteter Produktpilot möglich; eine automatische Kanal→Aktivierung→bezahlte Rechnung-Auswertung ist noch nicht belegt.
+1. Vince verlangt echte Spielerdaten. Vereinsvertretung, Information von Spielern/gegebenenfalls Eltern und [Pilotvereinbarung](pilot/VEREINBARUNG-ENTWURF.md) vor deren Eingabe abschliessen. Keine Gesundheits-/Verletzungsdaten im Pilot.
+2. Replit Pro wird laut Vince geschäftlich für PerformIQ GmbH genutzt. Schweizer Auslandgarantien/Ergänzungen zu den Anbieterbedingungen noch bestätigen lassen. Eine konkrete Anfrage ist vorbereitet; kein Versand ohne ausdrückliche Freigabe. Das öffentliche DPA allein ist keine individuelle Prüfung.
+3. Bestätigte Aufbewahrung: bei Nichtweiterführung Export anbieten und Team-/Spielerdaten innerhalb weiterer 30 Tage nach Pilotende betreut löschen; zusätzliche manuelle Pilot-Sicherungen maximal 30 Tage. Keine automatische Löschfunktion oder abgeschlossene Kontolöschung behaupten.
+4. Erste tatsächliche Mailzustellung und Nutzung auf den realen Geräten der Trainer abnehmen. Vollständiger Selbstbedienungs-Export und Konto-/Teamlöschung stehen nicht zur Verfügung; Berechtigungsprüfung und betreute Bearbeitung über contact@performiq.ch.
+5. Stripe-Verbindung, Kontozuordnung, Testmodus, Webhook-Retry/Kündigung und Livepreise vor Aktivieren bezahlter Abschlüsse separat abnehmen. Im Pilot ist Checkout ausdrücklich gesperrt.
+6. Alter gemeinsamer Adminschlüssel ist im Code abgeschafft, der Live-Endpunkt entfernt. Entfernung alter gespeicherter Secret-Kopien bleibt betrieblich zu bestätigen.
 
-Quellen: [Auditmodell](../lib/db/src/schema/auditEvents.ts), [Auditendpunkt](../artifacts/api-server/src/routes/audit.ts), [Standards](../artifacts/api-server/src/routes/setPieces.ts), [Sharing](../artifacts/api-server/src/routes/sharing.ts), [Quiz](../artifacts/api-server/src/routes/quiz.ts), [Webhookabgleich](../artifacts/api-server/src/lib/webhookHandlers.ts).
+Kein Ads-Kauf und kein neuer kostenpflichtiger Replit-Agentauftrag erfolgt. Letzter abgelesener Kontostand: USD 85.22 Restguthaben und USD 14.87 periodenweiter Verbrauch über alle Projekte, Auto-reload aus. Infrastrukturverbrauch dieses Laufs nicht einzeln zugeordnet und nicht als null verbucht.
 
-## Offene Anbieter-, Aufbewahrungs- und Datenabläufe
+## Verlauf
 
-Die öffentliche SETPIECE-Seite unter `/datenschutz` nennt die vollständige Erklärung ausdrücklich als ausstehend. Die Firmenwebsite ist keine Bestätigung der SETPIECE-Infrastruktur: Angaben zu GCP/Schweiz dürfen nicht auf das Replit-Produkt übertragen werden.
-
-| Offener Punkt                 | Konkreter Abschlussbeleg                                                                                                                                                                                                                                                                                                                                                            |
-| ----------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Verantwortlichkeiten          | Zuständigkeit zwischen PerformIQ und Verein, Informationsweg zu Spielern/Junioren sowie zuständige Kontaktperson bestätigen; die daraus abgeleitete SETPIECE-Erklärung fachlich freigeben                                                                                                                                                                                           |
-| Hosting und Datenbank         | Tatsächliche Replit-Deployment- und PostgreSQL-Anbieter/Regionen, Backupziel, Zugriffsberechtigte und zugehörige Verträge/Unterauftragnehmer nachweisen; keine ungeprüfte Speicherortzusage                                                                                                                                                                                         |
-| Weitere Dienste               | Tatsächlich verbundene Stripe- und Resend-Konten, Google OAuth sowie deren verarbeitete Daten und Aufbewahrung dokumentieren. Google Fonts ist in HTML/CSS extern eingebunden und gehört ebenfalls in die bestätigte Anbieterliste                                                                                                                                                  |
-| Fristen und Bereinigung       | Fristen und zuständigen Bereinigungsablauf für Konten, Teams/Spieler, Quizantworten, Auditdaten/Logs, Sessions/Tokens und Backups festlegen und testen. Eine Ablaufzeit ist kein Nachweis einer vollständigen Datenbereinigung; ein zentraler Retention-/Purge-Ablauf wurde im Anwendungscode nicht gefunden                                                                        |
-| Auskunft, Export und Löschung | Identitätsprüfung, zuständigen Support, vollständige Lösch-/Exportprüfung mit Testkonto und Umgang mit Backups sowie Stripe/Resend belegen. Der vorhandene Spieler-DELETE entfernt verknüpfte Quiz-/Readinessdatensätze per Cascade; Spieler-IDs in Audit-JSON-Metadaten werden dadurch nicht automatisch entfernt. Ein vollständiger Konto-/Team-Löschablauf ist noch nicht belegt |
-
-Quellen: [Produktinformationen](../artifacts/setpiece/src/pages/PublicInfo.tsx), [Spielerlöschung](../artifacts/api-server/src/routes/players.ts), [Quizschema](../lib/db/src/schema/quizAttempts.ts), [Readinessschema](../lib/db/src/schema/playerReadiness.ts), [Sitzungen und Tokens](../lib/db/src/schema/auth.ts). Dies dokumentiert offene Arbeit und setzt keine neuen Speicherfristen oder Datenprozesse fest.
-
-Abnahmekriterien und Kostenbelege: [DEPLOYMENT](DEPLOYMENT.md). Ein offener Punkt wird erst mit tatsächlichem Nachweis geschlossen.
-
-## Replit- und Stripe-Abgleich · 28.10.2026
-
-Replit zeigt getrennte Development- und Production-Datenbanken und für das bestehende Deployment die Region North America. Datenbankregion und Backupziel sind damit noch nicht bestätigt. In der App-Integrationsansicht ist Resend aktiv; eine aktive Stripe-Verbindung fehlt. Vince hat das aktive Stripe-Konto **performIQ** für SETPIECE bestätigt; das eingeschränkte Konto PerformIQ GmbH und Momgenda sind nicht zu verwenden. Keine Zahlung und kein Produktkauf wurden ausgeführt. Keine kostenpflichtige Replit-Agentenarbeit wurde gestartet; das CHF-80-Limit ist kein verifizierter Kontostand.
-
-
-## Auslieferungsbeleg · 29.10.2026
-
-Drei Commits wurden ohne Force-Push auf codex/setpiece-launch-readiness veröffentlicht; Head 66e6101. Entwurf: https://github.com/PerformIQ-GmbH/setpiece/pull/4. GitHub CI-Lauf 40848480789 wurde gestartet. Die Replit-Arbeitskopie wurde bei sauberem Ausgangszustand auf denselben Branch/Commit umgestellt. Frozen-Installation, Regressionen und Build wurden dort gestartet; Ergebnis noch offen. Kein Republish und kein Merge.
-
-Die abschliessende Routenaufteilung besteht Frontend-Typecheck und Production-Build: Haupt-JS 565.19 kB (gzip178.69), vorher1318.31 kB (gzip387.70). Landing inklusive benötigter Konva-Chunks920.24 kB (gzip289.09); bestehende Grössenwarnung bleibt sichtbar. Unabhängiges Frontend-/Betriebsreview meldete keine blockierenden Befunde.
-
-
-Nachtrag29.10.: GitHub-Lauf40848480789 besteht alle Schritte auf ubuntu-latest und windows-latest für66e6101. In Replit bestehen Frozen-Install,46/46Regressionen und Production-Build ebenfalls für66e6101. Die Anwendung wurde nicht neu veröffentlicht; Datenbank-/Stripe-E2E bleibt offen. Beleg im separaten Auditordner: screenshots/24-replit-tests-build-passed.png.
-
-
-## Logoübernahme ·29.10.2026
-Das von Vince gelieferte blaue Logo ersetzt den grünen Entwurf in der gemeinsamen BrandLogo-Komponente für öffentliche Seiten, Traineransicht und Demo. Favicon, Apple-Touch-Icon, PWA-Icons und Open-Graph-Bild stammen aus dem gelieferten Paket; keine Neuzeichnung. Prüfung und Replit-Abgleich werden für diesen Änderungsstand separat bestätigt.
-
-Logo-Prüfung: Frontend-Production-Build Exit0. Browser bei375px: beide Original-SVGs geladen, kein horizontaler Überlauf (Dokument367px). Screenshot25-supplied-logo-mobile.png im separaten Auditordner. Keine Funktionsänderung und keine Neuzeichnung der gelieferten Assets.
-
-
-## Spielfeldkorrektur ·29.10.2026
-
-Implementiert: gemeinsame metrische Geometrie, Fit-/Inverse-Abbildung, Snap und aktive Renderwege inklusive Quiz und Druck. 65/65 Regressionen, Workspace-Typecheck/Gesamtbuild und abschliessender Frontendbuild grün. Browservergleich mit fiktiven Daten, mobile Demo sowie erfolgreicher Videoexport. Unabhängiger Review durchgeführt; Kategorienblocker korrigiert. Details, Grenzen und Replit-/Modellbudget: [PITCH-PRECISION-PLAN](PITCH-PRECISION-PLAN.md). Noch kein Merge/Republish dieses Standes.
-
-Abschlussbeleg Spielfeld: Codecommit90d3974; GitHub CI40922494396 besteht Installation, Typecheck,65Regressionen und Build auf Linux und Windows. Derselbe Codecommit ist in Replit übernommen; dort65/65Tests und Frontendbuild grün (7.46s). Screenshot31-pitch-replit-tests-build.png im separaten Auditordner. Replit-Vorschaubereich zeigte beim abschliessenden Öffnen weiterhin 'Your app is starting'; daher keine zusätzliche Behauptung einer laufenden integrierten Replit-App oder eines Produktionsdeployments. Lokaler Browsernachweis ist separat belegt.
-
-
-## Pilotabnahme 30.10.2026
-
-Fünf persönliche 30-Tage-Piloten umgesetzt; serverseitige Entitlements ohne Änderung des bezahlten Tarifs, zeitlich begrenzte Einlösung und gesperrter kostenpflichtiger Checkout. 74 synthetische Regressionen bestanden, ein zusätzlicher PostgreSQL-Test separat mit Eigentümerprüfung, konkurrierenden Einlösungen, Wiederholung und Ablaufzeit bestanden. Production-Build und Typecheck lokal sowie Replit-Build erfolgreich.
-
-Vollständiger HTTP-Ablauf gegen eine frische isolierte PostgreSQL-Datenbank bestanden: Registrierung zweier fiktiver Trainer, Besitzerprüfung des Pilotcodes, Teamtrennung, Standard/Rolle/Zuweisung, Freigabe, beschränkter Spielerlink, Quiz ohne Antwortleck, 100%-Ergebnis im Trainerdashboard, Linkwiderruf, gesperrter bezahlter Checkout, Logout mit Sessionwiderruf. Keine schreibenden Testfixtures in Produktion. Mailverbindung im isolierten Test deaktiviert; tatsächliche Mailzustellung damit nicht bestätigt. Beleg ausserhalb Git: audit-2026-10-28/32-pilot-smoke.png.
-
-Produktionssicherung erneut erstellt und auf separater PostgreSQL-Instanz erfolgreich wiederhergestellt. Dauerhafte private lokale Kopie mit Windows-DPAPI und Entschlüsselungs-/Hashprüfung gesichert. Betriebsdetails unter PILOT-DATA-NOTES. Replit-Home ausserhalb des Projektdatenträgers war nicht neustartfest und wird nicht als dauerhafter Backuport verwendet.
-
-Vince bestätigt echte Spielerdaten, geschäftliche Nutzung von Replit Pro für PerformIQ und Export/Löschung innerhalb 30 weiterer Tage bei Nichtweiterführung. Vereinsvereinbarung vorbereitet. Schweizer Auslandgarantien des Replit-Vertrags bleiben vor Einladung realer Spieler zu klären. Kein kostenpflichtiger Replit-Agent neu beauftragt. Technische Veröffentlichung und Liveprüfung werden nach tatsächlichem Abschluss unten nachgeführt.
+- 28.10.: Auditbasis main 6b238c59267efbf285359c0a80dbf7ac824d9403; Organisationstransfer nach PerformIQ-GmbH bestätigt.
+- 29.10.: bereitgestelltes Logo und Spielfeldkorrekturen integriert; Geometrie-, SVG-, Export- und Browserbelege im Auditordner.
+- 30.10.: 30-Tage-Pilot, Sicherung/Restore, Gesamtabnahme, PR #4/#5 und Replit-Deployment. Alte abweichende Replit-main-Stände in Backup-Branches erhalten; kein Force-Push.
