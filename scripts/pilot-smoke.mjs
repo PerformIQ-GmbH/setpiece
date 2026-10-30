@@ -56,9 +56,10 @@ try {
   const { data: readiness } = await request(root + '/readiness', { cookie: coach.cookie });
   assert.equal(readiness.summary.passed, 1);
   await request(root + `/share-links/${link.id}/revoke`, { method: 'POST', cookie: coach.cookie });
-  await request(`/p/${link.token}`, { status: 410 });
+  await request(`/p/${link.token}`, { status: 403 });
   await request('/billing/checkout', { method: 'POST', cookie: coach.cookie, status: 503, body: { teamId: team.id, tierId: 'solo_coach' } });
-  await request('/auth/logout', { method: 'POST', cookie: coach.cookie });
+  const logout = await fetch(base + '/api/logout', { headers: { cookie: coach.cookie }, redirect: 'manual' });
+  assert.equal(logout.status, 302);
   await request('/teams', { cookie: coach.cookie, status: 401 });
   console.log('PILOT_SMOKE_OK: registration, owner-only pilot, team isolation, standard, role assignment, scoped link, quiz, trainer result, revocation, paid-checkout block, logout.');
 } finally { await pool.end(); }
