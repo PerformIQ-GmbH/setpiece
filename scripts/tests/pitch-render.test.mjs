@@ -4,6 +4,7 @@ import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
 import { createRequire } from 'node:module';
 import * as geometry from '../../artifacts/setpiece/src/utils/pitchGeometry.ts';
+import * as interaction from '../../artifacts/setpiece/src/components/editor/editorInteraction.ts';
 
 const ts = createRequire(import.meta.url)('typescript');
 function load(relative, mocks, globals = {}) {
@@ -28,6 +29,7 @@ test('PDF renderer keeps player and annotation positions on the same metric fiel
       const { renderSetPieceSteps } = load('utils/offscreenPitchRenderer.ts', {
         konva: Konva, './pitchGeometry': geometry,
         '../components/editor/types': { migrateLegacyBoardData: data => data },
+        '../components/editor/editorInteraction': interaction,
       }, { document: { createElement: () => ({ style: {} }), body: { appendChild() {}, removeChild() {} } } });
       const orientation = category === 'throw_in' ? 'full' : 'half';
       const expected = geometry.buildPitchGeometry({ width, height, pad: 36, orientation });

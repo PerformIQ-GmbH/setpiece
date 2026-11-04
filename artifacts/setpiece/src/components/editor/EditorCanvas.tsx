@@ -4,9 +4,11 @@ import type Konva from 'konva';
 import { PremiumPitch } from './PremiumPitch';
 import { OffensiveCornerPitch } from './OffensiveCornerPitch';
 import { TeamPlayerMarker, OpponentMarker, GoalkeeperMarker, BallMarker } from './markers';
-import { AnnotationLayer, DrawingPreview } from './AnnotationLayer';
+import { AnnotationLayer, AnnotationHandles, DrawingPreview } from './AnnotationLayer';
 import { useEditorStore } from './editorStore';
 import type { Point, Annotation, AnnotationType, EditorTool } from './types';
+import { finalizeDrawingPoints, findRoleRun, moveAnnotationGeometry } from './editorInteraction';
+import { editorKeyboardBlocked } from './keyboardScope';
 import { snapPosition, findNearestMarker, buildMarkerRefs } from './snapUtils';
 import { buildPitchAnchors } from './snapUtils';
 import { buildPitchGeometry, pitchOrientationForCategory } from '@/utils/pitchGeometry';
@@ -74,6 +76,7 @@ export interface EditorCanvasHandle {
   finishDrawing: () => void;
   getLastDrawingPointScreen: () => { x: number; y: number } | null;
   getStage: () => Konva.Stage | null;
+  pointToScreen: (point: Point) => Point | null;
 }
 
 function computePad(width: number): number {
@@ -95,6 +98,13 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
   const stageRef = useRef<Konva.Stage>(null);
   const [hoveredRoleId, setHoveredRoleId] = useState<string | null>(null);
   const [cursorPoint, setCursorPoint] = useState<Point | null>(null);
+
+  useEffect(() => {
+    const container = stageRef.current?.container();
+    if (!container || readOnly) return;
+    container.tabIndex = 0;
+    container.setAttribute('aria-label', 'Taktikfeld');
+  }, [readOnly]);
 
   const geometry = useMemo(() => buildPitchGeometry({ width, height, pad: PAD, orientation }), [width, height, PAD, orientation]);
   const { pitchW, pitchH, boundary } = geometry;
@@ -235,23 +245,8 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
     startPos: Point,
     t: number
   ): Point => {
-    const linkedRun = stepAnns.find(
-      a => a.linkedRoleId === roleId && (a.type === 'run_path' || a.type === 'curved_run') && a.points.length >= 2
-    );
+    const linkedRun = findRoleRun(roleId, stepAnns);
     if (linkedRun) return interpolatePath(annotationPath(linkedRun.type, linkedRun.points), t);
-
-    const unlinkedRuns = stepAnns.filter(
-      a => !a.linkedRoleId && (a.type === 'run_path' || a.type === 'curved_run') && a.points.length >= 2
-    );
-    const roleIdx = roles.findIndex(r => r.id === roleId);
-    const usedLinkedCount = stepAnns.filter(
-      a => a.linkedRoleId && (a.type === 'run_path' || a.type === 'curved_run') && a.points.length >= 2
-    ).length;
-    const unlinkedIdx = roleIdx - usedLinkedCount;
-    if (unlinkedIdx >= 0 && unlinkedIdx < unlinkedRuns.length) {
-      const run = unlinkedRuns[unlinkedIdx];
-      return interpolatePath(annotationPath(run.type, run.points), t);
-    }
 
     return startPos;
   };
@@ -332,13 +327,14 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
     return { x: px.x * view.scale + view.x, y: px.y * view.scale + view.y };
   }, [view, toPct, toPixel, applyDragSnap]);
 
-  const finishDrawing = useCallback(() => {
+  const finishDrawing = useCallback((completedPoints?: Point[]) => {
+    const points = completedPoints ?? useEditorStore.getState().drawingPoints;
     const drawingTools = ['run_path', 'curved_run', 'pass_line', 'curved_cross'];
     if (!drawingTools.includes(activeTool)) {
       clearDrawingPoints();
       return;
     }
-    if (drawingPoints.length < 2) {
+    if (points.length < 2) {
       clearDrawingPoints();
       return;
     }
@@ -353,34 +349,32 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
     const semanticDashed = isRunType ? true : isPassType ? false : isDashed;
     const semanticArrowhead = isRunType || isPassType ? true : showArrowhead;
 
-    const pts = [...drawingPoints];
-    const startMarker = findNearestMarker(pts[0], markerRefs);
-    const endMarker = findNearestMarker(pts[pts.length - 1], markerRefs);
-
-    if (startMarker) pts[0] = startMarker.position;
-    if (endMarker) pts[pts.length - 1] = endMarker.position;
+    const binding = finalizeDrawingPoints(points, markerRefs, snapEnabled, isRunType);
 
     const ann: Annotation = {
       id: crypto.randomUUID(),
       type: toolType,
-      points: pts,
+      ...binding,
       color: strokeColor,
       strokeWidth,
       dashed: semanticDashed,
       arrowhead: semanticArrowhead,
       layerOrder: annotations.length,
-      snappedStartRef: startMarker?.id,
-      snappedEndRef: endMarker?.id,
     };
-
-    if (isRunType && startMarker?.type === 'role' && !ann.linkedRoleId) {
-      ann.linkedRoleId = startMarker.id;
-    }
 
     addAnnotation(ann);
     clearDrawingPoints();
     setCursorPoint(null);
-  }, [drawingPoints, activeTool, strokeColor, strokeWidth, isDashed, showArrowhead, annotations.length, addAnnotation, clearDrawingPoints, markerRefs]);
+  }, [drawingPoints, activeTool, strokeColor, strokeWidth, isDashed, showArrowhead, annotations.length, addAnnotation, clearDrawingPoints, markerRefs, snapEnabled]);
+
+  const pointToScreen = useCallback((point: Point): Point | null => {
+    const container = stageRef.current?.container();
+    if (!container) return null;
+    const rect = container.getBoundingClientRect();
+    const px = toPixel(point);
+    const v = useEditorStore.getState().view;
+    return { x: rect.left + px.x * v.scale + v.x, y: rect.top + px.y * v.scale + v.y };
+  }, [toPixel]);
 
   useImperativeHandle(ref, () => ({
     toDataURL: (config) => {
@@ -400,15 +394,10 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
     getLastDrawingPointScreen: () => {
       const pts = useEditorStore.getState().drawingPoints;
       if (pts.length === 0) return null;
-      const lastPt = pts[pts.length - 1];
-      const px = toPixel(lastPt);
-      const container = stageRef.current?.container();
-      if (!container) return null;
-      const rect = container.getBoundingClientRect();
-      const v = useEditorStore.getState().view;
-      return { x: rect.left + px.x * v.scale + v.x, y: rect.top + px.y * v.scale + v.y };
+      return pointToScreen(pts[pts.length - 1]);
     },
-  }), [finishDrawing, toPixel]);
+    pointToScreen,
+  }), [finishDrawing, pointToScreen]);
 
   // Pointer position in stage-content coordinates (zoom/pan aware).
   const contentPointer = useCallback((): Point | null => {
@@ -417,6 +406,45 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
   }, []);
 
   const pinchRef = useRef<{ dist: number; center: { x: number; y: number } } | null>(null);
+  const drawingGestureRef = useRef<{ start: Point; screenStart: Point; dragged: boolean } | null>(null);
+  const suppressDrawingClickRef = useRef(false);
+
+  // Straight actions support both a quick drag and the accessible two-click flow.
+  // No board snapshot is taken until the finished annotation is added.
+  const handleDrawingStart = useCallback((e: Konva.KonvaEventObject<MouseEvent | TouchEvent>) => {
+    if (!readOnly) stageRef.current?.container().focus({ preventScroll: true });
+    suppressDrawingClickRef.current = false;
+    if (readOnly || !['run_path', 'pass_line'].includes(activeTool)) return;
+    if ('button' in e.evt && e.evt.button !== 0) return;
+    if ('touches' in e.evt && e.evt.touches.length !== 1) return;
+    const state = useEditorStore.getState();
+    if (state.drawingPoints.length || state.layerLocked.actions || !state.layerVisibility.actions) return;
+    const position = contentPointer();
+    const screenStart = stageRef.current?.getPointerPosition();
+    if (!position || !screenStart || !geometry.containsPoint(position)) return;
+    drawingGestureRef.current = { start: toPct(position), screenStart, dragged: false };
+  }, [activeTool, readOnly, contentPointer, geometry, toPct]);
+
+  const cancelDrawingGesture = useCallback(() => {
+    if (drawingGestureRef.current?.dragged) clearDrawingPoints();
+    drawingGestureRef.current = null;
+    setCursorPoint(null);
+  }, [clearDrawingPoints]);
+
+  const handleDrawingEnd = useCallback(() => {
+    pinchRef.current = null;
+    const gesture = drawingGestureRef.current;
+    drawingGestureRef.current = null;
+    if (!gesture?.dragged) return;
+    suppressDrawingClickRef.current = true;
+    const position = contentPointer();
+    if (!position || !geometry.containsPoint(position)) {
+      clearDrawingPoints();
+      setCursorPoint(null);
+      return;
+    }
+    finishDrawing([gesture.start, toPct(position)]);
+  }, [contentPointer, geometry, toPct, finishDrawing, clearDrawingPoints]);
 
   const handleWheel = useCallback((e: Konva.KonvaEventObject<WheelEvent>) => {
     e.evt.preventDefault();
@@ -474,7 +502,10 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
   }, [setView, width, height]);
 
   const handleMouseMove = useCallback((e: Konva.KonvaEventObject<MouseEvent | TouchEvent>) => {
-    if ('touches' in e.evt && handlePinch(e as Konva.KonvaEventObject<TouchEvent>)) return;
+    if ('touches' in e.evt && handlePinch(e as Konva.KonvaEventObject<TouchEvent>)) {
+      cancelDrawingGesture();
+      return;
+    }
     if (!isDrawingTool || readOnly) {
       if (cursorPoint) setCursorPoint(null);
       return;
@@ -484,10 +515,21 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
       setCursorPoint(null);
       return;
     }
-    setCursorPoint(toPct(pos));
-  }, [isDrawingTool, readOnly, toPct, cursorPoint, contentPointer, handlePinch, geometry]);
+    const gesture = drawingGestureRef.current;
+    const pointer = stageRef.current?.getPointerPosition();
+    if (gesture && pointer && !gesture.dragged &&
+        Math.hypot(pointer.x - gesture.screenStart.x, pointer.y - gesture.screenStart.y) >= 6) {
+      gesture.dragged = true;
+      useEditorStore.getState().setDrawingPoints([gesture.start]);
+    }
+    setCursorPoint(snapPos(toPct(pos)));
+  }, [isDrawingTool, readOnly, toPct, cursorPoint, contentPointer, handlePinch, geometry, snapPos, cancelDrawingGesture]);
 
   const handleStageInteraction = useCallback((e: Konva.KonvaEventObject<MouseEvent | TouchEvent>) => {
+    if (suppressDrawingClickRef.current) {
+      suppressDrawingClickRef.current = false;
+      return;
+    }
     if (readOnly) return;
     const isBackground = e.target === stageRef.current || e.target.name() === 'pitch-bg';
     const pos = contentPointer();
@@ -589,7 +631,11 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
     if (isDrawingTool) {
       const ds = useEditorStore.getState();
       if (ds.layerLocked.actions || !ds.layerVisibility.actions) return;
-      addDrawingPoint(pct);
+      if (!isCurved && ds.drawingPoints.length === 1) {
+        finishDrawing([ds.drawingPoints[0], pct]);
+      } else {
+        addDrawingPoint(snapPos(pct));
+      }
       return;
     }
 
@@ -635,7 +681,7 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
   }, [activeTool, toPct, onPitchClick, strokeColor, strokeWidth, showArrowhead, annotations, entities,
     drawingPoints, addDrawingPoint, clearDrawingPoints, addAnnotation, addEntity,
     setSelectedAnnotationId, setSelectedEntityId, isDrawingTool, isEntityTool, onLabelPrompt,
-    deleteAnnotation, deleteEntity, readOnly, geometry, contentPointer, toPixel, pitchW, pitchH]);
+    deleteAnnotation, deleteEntity, readOnly, geometry, contentPointer, toPixel, pitchW, pitchH, isCurved, finishDrawing, snapPos]);
 
   const handleDblClick = useCallback(() => {
     if (readOnly) return;
@@ -646,16 +692,37 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      const ae = document.activeElement as HTMLElement | null;
-      if (ae && (ae.tagName === 'INPUT' || ae.tagName === 'TEXTAREA' || ae.isContentEditable)) return;
+      if (editorKeyboardBlocked(e)) return;
       if (readOnly || useEditorStore.getState().presentationMode) return;
       const state = useEditorStore.getState();
+
+      if ((e.metaKey || e.ctrlKey) && !e.altKey && e.key.toLowerCase() === 'd') {
+        const annotation = state.annotations.find(ann => ann.id === state.selectedAnnotationId);
+        const entity = state.entities.find(ent => ent.id === state.selectedEntityId);
+        if (!annotation && !entity) return;
+        e.preventDefault();
+        if (annotation) {
+          state.addAnnotation({ ...moveAnnotationGeometry(annotation, 3, 3), id: crypto.randomUUID(), layerOrder: state.annotations.length });
+        } else if (entity) {
+          const id = crypto.randomUUID();
+          state.addEntity({ ...entity, id, position: {
+            x: Math.min(100, entity.position.x + 3), y: Math.min(100, entity.position.y + 3),
+          } });
+          state.setSelectedEntityId(id);
+        }
+        return;
+      }
+      // Leave modified navigation and browser commands to their native owner.
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
 
       if (e.key === 'Enter' && isDrawingTool && drawingPoints.length >= 2) {
         finishDrawing();
         return;
       }
       if (e.key === 'Escape') {
+        drawingGestureRef.current = null;
+        setCursorPoint(null);
+        state.setActiveTool('select');
         clearDrawingPoints();
         setSelectedAnnotationId(null);
         setSelectedEntityId(null);
@@ -688,12 +755,12 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
         if (state.selectedEntityId) {
           const ent = state.entities.find(en => en.id === state.selectedEntityId);
           if (ent) {
-            updateEntity(ent.id, {
-              position: {
-                x: Math.max(0, Math.min(100, ent.position.x + dx)),
-                y: Math.max(0, Math.min(100, ent.position.y + dy)),
-              },
-            });
+            const position = {
+              x: Math.max(0, Math.min(100, ent.position.x + dx)),
+              y: Math.max(0, Math.min(100, ent.position.y + dy)),
+            };
+            state.updateSnappedAnnotations(ent.id, position, state.steps[state.animation.activeStepIndex]?.id);
+            updateEntity(ent.id, { position });
           }
         } else if (state.selectedAnnotationId) {
           moveAnnotation(state.selectedAnnotationId, dx, dy);
@@ -873,9 +940,14 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
       onTap={handleStageInteraction}
       onDblClick={handleDblClick}
       onDblTap={handleDblClick}
+      onMouseDown={handleDrawingStart}
+      onTouchStart={handleDrawingStart}
+      onMouseUp={handleDrawingEnd}
       onMouseMove={handleMouseMove}
       onTouchMove={handleMouseMove}
-      onTouchEnd={() => { pinchRef.current = null; }}
+      onTouchEnd={handleDrawingEnd}
+      onTouchCancel={cancelDrawingGesture}
+      onMouseLeave={cancelDrawingGesture}
       onWheel={handleWheel}
       onContextMenu={handleContextMenu}
       style={{ cursor: isDrawingTool ? 'crosshair' : isEntityTool ? 'cell' : activeTool === 'erase' ? 'not-allowed' : 'default', touchAction: 'none' }}
@@ -921,9 +993,10 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
 
       {/* While erasing, shapes must not swallow clicks — the stage handler
           does the hit-testing and deletion. */}
-      <Layer listening={activeTool !== 'erase'}>
+      <Layer listening={activeTool === 'select'}>
         <AnnotationLayer
           annotations={filteredAnnotations}
+          showHandles={false}
           selectedId={selectedAnnotationId}
           focusedRoleId={activeRoleId}
           hasFocusedElement={hasFocusedElement}
@@ -940,8 +1013,8 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
         />
 
         {isDrawingTool && drawingPoints.length >= 1 && (() => {
-          const startSnap = findNearestMarker(drawingPoints[0], markerRefs);
-          const endSnap = drawingPoints.length >= 2 ? findNearestMarker(drawingPoints[drawingPoints.length - 1], markerRefs) : null;
+          const startSnap = snapEnabled ? findNearestMarker(drawingPoints[0], markerRefs) : null;
+          const endSnap = snapEnabled && drawingPoints.length >= 2 ? findNearestMarker(drawingPoints[drawingPoints.length - 1], markerRefs) : null;
           const startSnapPx = startSnap ? toPixel(startSnap.position) : null;
           const endSnapPx = endSnap ? toPixel(endSnap.position) : null;
           return (
@@ -967,7 +1040,7 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
         })()}
       </Layer>
 
-      <Layer listening={activeTool !== 'erase'}>
+      <Layer listening={activeTool === 'select'}>
         {entities.map((ent) => {
           const layerKey = ent.type === 'opponent' ? 'opponents' : ent.type === 'ball' ? 'ball' : 'team';
           if (!layerVisibility[layerKey]) return null;
@@ -977,7 +1050,7 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
           const isSelected = ent.id === selectedEntityId;
           const isDimmed = hasFocusedElement && !isSelected;
 
-          const canInteract = !readOnly && !isLocked;
+          const canInteract = !readOnly && !isLocked && activeTool === 'select';
 
           const entityDragProps = canInteract ? {
             dragBoundFunc: makeDragBound(ent.id),
@@ -1100,7 +1173,7 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
           const isUnassigned = !assignment;
           const isDimmed = hasFocusedElement && !isActive;
           const isLocked = layerLocked.team;
-          const roleInteractive = !readOnly && !isLocked;
+          const roleInteractive = !readOnly && !isLocked && activeTool === 'select';
 
           const compactLabel = compact ? undefined : role.name;
           const compactLastName = compact
@@ -1139,6 +1212,20 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
             />
           );
         })}
+      </Layer>
+      <Layer listening={!readOnly && activeTool === 'select'}>
+        <AnnotationHandles
+          annotations={filteredAnnotations}
+          selectedId={selectedAnnotationId}
+          onUpdatePoint={updateAnnotationPoint}
+          onUpdateRadius={updateAnnotationRadius}
+          toPixel={toPixel}
+          toPct={toPct}
+          pitchW={pitchW}
+          pitchH={pitchH}
+          readOnly={readOnly}
+          lockedTypes={{ actions: layerLocked.actions, zones: layerLocked.zones, labels: layerLocked.labels }}
+        />
       </Layer>
     </Stage>
   );

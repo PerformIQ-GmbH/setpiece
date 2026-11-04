@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import type { EditorTool, EditorMode, PitchTheme, Annotation, EntityMarker, Point, AnimationStep } from './types';
 import { BASIC_TOOLS, createDefaultStep } from './types';
+import { moveAnnotationGeometry, updateAnnotationEndpoint } from './editorInteraction';
 
 interface AnimationState {
   playing: boolean;
@@ -238,7 +239,8 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     const ann = activeStep && !annotation.stepId
       ? { ...annotation, stepId: activeStep.id }
       : annotation;
-    return { ...pushSnap(s), annotations: [...s.annotations, ann] };
+    return { ...pushSnap(s), annotations: [...s.annotations, ann], activeTool: 'select',
+      selectedAnnotationId: ann.id, selectedEntityId: null, drawingPoints: [] };
   }),
   updateAnnotation: (id, updates) => set((s) => ({
     annotations: s.annotations.map((a) => (a.id === id ? { ...a, ...updates } : a)),
@@ -251,25 +253,13 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   moveAnnotation: (id, dxPct, dyPct) => set((s) => ({
     annotations: s.annotations.map((a) => {
       if (a.id !== id) return a;
-      return {
-        ...a,
-        points: a.points.map((p) => ({
-          x: Math.max(0, Math.min(100, p.x + dxPct)),
-          y: Math.max(0, Math.min(100, p.y + dyPct)),
-        })),
-      };
+      return moveAnnotationGeometry(a, dxPct, dyPct);
     }),
   })),
   updateAnnotationPoint: (id, pointIndex, newPos) => set((s) => ({
     annotations: s.annotations.map((a) => {
       if (a.id !== id) return a;
-      if (pointIndex < 0 || pointIndex >= a.points.length) return a;
-      const pts = [...a.points];
-      pts[pointIndex] = {
-        x: Math.max(0, Math.min(100, newPos.x)),
-        y: Math.max(0, Math.min(100, newPos.y)),
-      };
-      return { ...a, points: pts };
+      return updateAnnotationEndpoint(a, pointIndex, newPos);
     }),
   })),
   updateAnnotationRadius: (id, radius) => set((s) => ({

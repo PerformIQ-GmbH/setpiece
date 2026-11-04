@@ -8,6 +8,7 @@ import { TeamPlayerMarker, OpponentMarker, GoalkeeperMarker, BallMarker } from '
 import type { Annotation, EntityMarker, Point } from '@/components/editor/types';
 import { buildPitchGeometry, pitchOrientationForCategory } from '@/utils/pitchGeometry';
 import { AnnotationLayer } from '@/components/editor/AnnotationLayer';
+import { findRoleRun } from '@/components/editor/editorInteraction';
 import { annotationPath, interpolatePath, subPath } from '@/components/editor/pathUtils';
 
 interface RoleData {
@@ -210,40 +211,13 @@ export function PlayerBoardViewer({
   };
 
   // ─── Position computation per step ──────────────────────────────
-  // Mirrors EditorCanvas.resolvePositionForStep: linked runs first, then fall
-  // back to unlinked runs assigned to roles in declaration order.
+  // Only explicit role assignments animate a player, in every board view.
   const resolvePositionForStep = useCallback(
     (roleId: string, stepAnns: Annotation[], startPos: Point, t: number): Point => {
-      const linkedRun = stepAnns.find(
-        (a) =>
-          a.linkedRoleId === roleId &&
-          (a.type === 'run_path' || a.type === 'curved_run') &&
-          a.points.length >= 2
-      );
-      if (linkedRun) return interpolatePath(annotationPath(linkedRun.type, linkedRun.points), t);
-
-      const unlinkedRuns = stepAnns.filter(
-        (a) =>
-          !a.linkedRoleId &&
-          (a.type === 'run_path' || a.type === 'curved_run') &&
-          a.points.length >= 2
-      );
-      if (unlinkedRuns.length > 0) {
-        const roleIdx = roles.findIndex((r) => r.id === roleId);
-        const usedLinkedCount = stepAnns.filter(
-          (a) =>
-            a.linkedRoleId &&
-            (a.type === 'run_path' || a.type === 'curved_run') &&
-            a.points.length >= 2
-        ).length;
-        const unlinkedIdx = roleIdx - usedLinkedCount;
-        if (unlinkedIdx >= 0 && unlinkedIdx < unlinkedRuns.length) {
-          return interpolatePath(annotationPath(unlinkedRuns[unlinkedIdx].type, unlinkedRuns[unlinkedIdx].points), t);
-        }
-      }
-      return startPos;
+      const run = findRoleRun(roleId, stepAnns);
+      return run ? interpolatePath(annotationPath(run.type, run.points), t) : startPos;
     },
-    [roles]
+    []
   );
 
   const computeRolePosition = useCallback(

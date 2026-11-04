@@ -1,4 +1,5 @@
 import Konva from 'konva';
+import { findRoleRun } from '../components/editor/editorInteraction';
 import { migrateLegacyBoardData } from '../components/editor/types';
 import type { Annotation, AnimationStep, EntityMarker, Point } from '../components/editor/types';
 import { arcToPoints, buildPitchGeometry, pitchOrientationForCategory, type PitchGeometry } from './pitchGeometry';
@@ -280,30 +281,13 @@ function drawAnnotations(layer: Konva.Layer, annotations: Annotation[], g: Pitch
 
 function resolvePositionForStep(
   roleId: string,
-  roles: RoleData[],
   stepAnns: Annotation[],
   startPos: Point,
 ): Point {
-  const linkedRun = stepAnns.find(
-    a => a.linkedRoleId === roleId && (a.type === 'run_path' || a.type === 'curved_run') && a.points.length >= 2
-  );
+  const linkedRun = findRoleRun(roleId, stepAnns);
   if (linkedRun) {
     const last = linkedRun.points[linkedRun.points.length - 1];
-    return { x: last?.x ?? startPos.x, y: last?.y ?? startPos.y };
-  }
-
-  const unlinkedRuns = stepAnns.filter(
-    a => !a.linkedRoleId && (a.type === 'run_path' || a.type === 'curved_run') && a.points.length >= 2
-  );
-  const roleIdx = roles.findIndex(r => r.id === roleId);
-  const usedLinkedCount = stepAnns.filter(
-    a => a.linkedRoleId && (a.type === 'run_path' || a.type === 'curved_run') && a.points.length >= 2
-  ).length;
-  const unlinkedIdx = roleIdx - usedLinkedCount;
-  if (unlinkedIdx >= 0 && unlinkedIdx < unlinkedRuns.length) {
-    const run = unlinkedRuns[unlinkedIdx];
-    const last = run.points[run.points.length - 1];
-    return { x: last?.x ?? startPos.x, y: last?.y ?? startPos.y };
+    return { x: last.x, y: last.y };
   }
 
   return startPos;
@@ -337,7 +321,7 @@ function computeRolePositionAtStep(
       cur = stepPositions[prevSid][roleId];
     }
     const prevAnns = annotations.filter(a => a.stepId === prevSid);
-    const endOfRun = resolvePositionForStep(roleId, roles, prevAnns, cur);
+    const endOfRun = resolvePositionForStep(roleId, prevAnns, cur);
     if (endOfRun.x !== cur.x || endOfRun.y !== cur.y) cur = endOfRun;
   }
 

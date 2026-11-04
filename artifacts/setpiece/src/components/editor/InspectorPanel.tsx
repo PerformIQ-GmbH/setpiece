@@ -2,7 +2,7 @@ import { useState, useRef, useEffect, useMemo, useLayoutEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { useEditorStore } from './editorStore';
 import { ANNOTATION_COLORS } from './types';
-import type { Annotation, EntityMarker } from './types';
+import type { Annotation, AnnotationType, EntityMarker } from './types';
 import { cn } from '@/lib/utils';
 import { Users, Layers, Trash2, Copy, Plus, ChevronDown, ChevronRight, ArrowLeft, UserRound, Info, Search, X, Sparkles, Loader2, Wand2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -419,14 +419,16 @@ function AnnotationInspector({ annotation, onUpdate, onDelete, roles }: {
           </CollapsibleSection>
         )}
 
-        <CollapsibleSection title="Color">
+        <CollapsibleSection title="Farbe">
           <div className="flex flex-wrap gap-1.5">
-            {ANNOTATION_COLORS.map((c) => (
+            {ANNOTATION_COLORS.map((c, index) => (
               <button
                 key={c}
-                onClick={() => onUpdate({ color: c })}
+                title={`Farbe: ${['Weiss', 'Grün', 'Rot', 'Blau', 'Orange', 'Violett', 'Pink', 'Türkis'][index]}`}
+                aria-label={`Farbe: ${['Weiss', 'Grün', 'Rot', 'Blau', 'Orange', 'Violett', 'Pink', 'Türkis'][index]}`}
+                onClick={() => { if (annotation.color !== c) { useEditorStore.getState().snapshotBoard(); onUpdate({ color: c }); } }}
                 className={cn(
-                  "w-6 h-6 rounded-full border-2 transition-all",
+                  "w-7 h-7 rounded-full border-2 transition-all",
                   annotation.color === c ? "border-white scale-110" : "border-transparent hover:border-white/40"
                 )}
                 style={{ backgroundColor: c }}
@@ -438,16 +440,13 @@ function AnnotationInspector({ annotation, onUpdate, onDelete, roles }: {
         {!['label', 'zone_circle', 'zone_rect'].includes(annotation.type) && (() => {
           const isSemantic = ['run_path', 'curved_run', 'pass_line', 'curved_cross'].includes(annotation.type);
           return (
-            <CollapsibleSection title="Style">
+            <CollapsibleSection title="Linienstil">
               <div className="space-y-3">
                 {isSemantic ? (
-                  <div className="flex items-start gap-2 p-2 rounded-lg bg-primary/5 border border-primary/10">
-                    <Info className="w-3 h-3 text-primary mt-0.5 shrink-0" />
-                    <div className="text-[10px] text-primary/80 leading-snug">
-                      <p className="font-medium">{annotation.dashed ? 'Dashed' : 'Solid'} • Arrowhead {annotation.arrowhead ? 'on' : 'off'}</p>
-                      <p className="text-muted-foreground mt-0.5">Style locked by action type convention</p>
-                    </div>
-                  </div>
+                  <button
+                    onClick={() => { const conversions: Record<string, AnnotationType> = { run_path: 'pass_line', pass_line: 'run_path', curved_run: 'curved_cross', curved_cross: 'curved_run' }; const type = conversions[annotation.type]; useEditorStore.getState().snapshotBoard(); onUpdate({ type, dashed: type === 'run_path' || type === 'curved_run', arrowhead: true }); }}
+                    className="min-h-10 px-3 rounded border border-border text-xs font-semibold hover:bg-secondary"
+                  >{annotation.type === 'run_path' || annotation.type === 'curved_run' ? 'In Pass umwandeln' : 'In Lauf umwandeln'}</button>
                 ) : (
                   <>
                     <div className="space-y-1">
@@ -484,7 +483,7 @@ function AnnotationInspector({ annotation, onUpdate, onDelete, roles }: {
                 )}
 
                 <div className="space-y-1">
-                  <label className="text-[10px] text-muted-foreground">Thickness</label>
+                  <label className="text-[10px] text-muted-foreground">Linienstärke</label>
                   <input
                     type="range" min={1} max={8} step={0.5}
                     value={annotation.strokeWidth}
@@ -520,12 +519,12 @@ function AnnotationInspector({ annotation, onUpdate, onDelete, roles }: {
                 onChange={(e) => onUpdate({ linkedRoleId: e.target.value || undefined })}
                 className="w-full bg-secondary border border-border rounded-lg px-2 py-1.5 text-[11px] text-foreground focus:outline-none focus:border-primary"
               >
-                <option value="">None (auto-assign)</option>
+                <option value="">Keine Rolle – freie Zeichnung</option>
                 {roles.map(r => (
                   <option key={r.id} value={r.id}>{r.name}</option>
                 ))}
               </select>
-              <p className="text-[9px] text-muted-foreground">Player animates along this path</p>
+              <p className="text-[10px] text-muted-foreground">Nur die gewählte Rolle bewegt sich entlang dieses Laufwegs.</p>
             </div>
           </CollapsibleSection>
         )}
