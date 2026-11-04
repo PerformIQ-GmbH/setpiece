@@ -8,6 +8,8 @@ Arbeitsstand 04.11.2026: Erste Editorverbesserungen im Zweig `improve/editor-wor
 
 Abschlussprüfung am 04.11.: 89 Tests bestanden, ein PostgreSQL-Test bewusst übersprungen, keine Fehler; vollständiger Typecheck/Produktionsbuild erfolgreich. Desktop-Browserabläufe und Darstellung bei 390 px geprüft; physische Touchgeräte und die letzte mobile Ziehgeste bleiben offen. Details und Screenshots im Lieferstatus.
 
+Die erste Lieferung ist als [PR #6](https://github.com/PerformIQ-GmbH/setpiece/pull/6) im Entwurf gesichert, Implementierungscommit `664ee9c9b0194bd5224a62280ede969b37ce54c3`. GitHub-CI läuft auf Linux und Windows; noch kein Merge oder Deployment. Der lokale Auditserver auf Port 5175 ist beendet.
+
 Editor-Audit vom 31.10.2026: Originaleditor lokal mit ausschliesslich fiktiven In-Memory-Daten bei Desktop- und Smartphonebreite bedient. Linienkörper-Drag, Einstieg am Spieler, Farbauswahl und phasenübergreifende Gegnerpositionen als konkrete Probleme bestätigt. [Audit und priorisierter Plan](EDITOR-AUDIT-2026-10-31.md). Entwicklungseinstieg unter tests/editor-audit.html; keine Änderungen am Produktionseditor, kein neuer Release.
 
 | Schritt | Beleg |

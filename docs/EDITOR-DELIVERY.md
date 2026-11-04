@@ -72,6 +72,6 @@ Mit den fünf Trainern dieselben Aufgaben vor/nach dem Ausbau prüfen: aus Vorla
 
 ## Auslieferung und Budget
 
-Implementiert und lokal geprüft bedeutet noch keinen neuen Live-Release. Merge, CI, Replit-Deployment und öffentliche Abnahme separat in STATUS nachtragen. Keine neue Schemaänderung in dieser ersten Lieferung. Kein bezahlter Replit-Agentauftrag, kein Ads-Kauf und keine neue Aufladung für diese Etappe.
+Erste Lieferung: [PR #6 als Entwurf](https://github.com/PerformIQ-GmbH/setpiece/pull/6), Implementierungscommit `664ee9c9b0194bd5224a62280ede969b37ce54c3`. GitHub prüft Linux und Windows. Implementiert und lokal geprüft bedeutet noch keinen neuen Live-Release. Merge, CI, Replit-Deployment und öffentliche Abnahme separat in STATUS nachtragen. Keine neue Schemaänderung in dieser ersten Lieferung. Kein bezahlter Replit-Agentauftrag, kein Ads-Kauf und keine neue Aufladung für diese Etappe.
 
 Die gstack-Startskripte sind in der lokalen Installation unvollständig. Die vorhandene Review-Checkliste wurde gelesen; Diff, unabhängige Agentenbefunde, Tests und Browserbelege werden direkt geprüft. Keine neue Skillinstallation als Nebenarbeit und keine Behauptung eines vollständig gelaufenen gstack-Automatikworkflows.
