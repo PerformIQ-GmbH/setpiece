@@ -73,6 +73,7 @@ export function BottomBar({ mobile = false, onUndo, onRedo, canUndo, canRedo, on
   const selectedAnnotationId = useEditorStore((s) => s.selectedAnnotationId);
   const selectedEntityId = useEditorStore((s) => s.selectedEntityId);
   const deleteAnnotation = useEditorStore((s) => s.deleteAnnotation);
+  const updateAnnotation = useEditorStore((s) => s.updateAnnotation);
   const deleteEntity = useEditorStore((s) => s.deleteEntity);
   const annotations = useEditorStore((s) => s.annotations);
   const entities = useEditorStore((s) => s.entities);
@@ -102,7 +103,7 @@ export function BottomBar({ mobile = false, onUndo, onRedo, canUndo, canRedo, on
     ? `${ENTITY_TYPE_LABELS[selectedEnt.type] || selectedEnt.type}${selectedEnt.shirtNumber ? ` #${selectedEnt.shirtNumber}` : ''}`
     : null;
 
-  const showStyleControls = (isDrawTool || selectedAnn) && (editorMode === 'advanced' || isDrawTool);
+  const showStyleControls = isDrawTool || !!selectedAnn;
   const activeStep = steps[animation.activeStepIndex];
   const activeStepAnns = activeStep ? annotations.filter(a => a.stepId === activeStep.id) : [];
 
@@ -430,30 +431,33 @@ export function BottomBar({ mobile = false, onUndo, onRedo, canUndo, canRedo, on
             <div className="w-px h-5 bg-border shrink-0" />
 
             <div className="flex items-center gap-1 shrink-0">
-              {ANNOTATION_COLORS.map((c) => (
+              {ANNOTATION_COLORS.map((c, index) => (
                 <button
                   key={c}
-                  onClick={() => setStrokeColor(c)}
+                title={`Farbe: ${['Weiss', 'Grün', 'Rot', 'Blau', 'Orange', 'Violett', 'Pink', 'Türkis'][index]}`}
+                aria-label={`Farbe: ${['Weiss', 'Grün', 'Rot', 'Blau', 'Orange', 'Violett', 'Pink', 'Türkis'][index]}`}
+                  onClick={() => { if (!selectedAnn) setStrokeColor(c); else if (selectedAnn.color !== c) { useEditorStore.getState().snapshotBoard(); updateAnnotation(selectedAnn.id, { color: c }); } }}
                   className={cn(
-                    "w-5 h-5 rounded-full border-2 transition-all",
-                    strokeColor === c ? "border-white scale-110" : "border-transparent hover:border-white/40"
+                    "w-7 h-7 rounded-full border-2 transition-all",
+                    (selectedAnn?.color ?? strokeColor) === c ? "border-white scale-110" : "border-transparent hover:border-white/40"
                   )}
                   style={{ backgroundColor: c }}
                 />
               ))}
             </div>
 
-            {editorMode === 'advanced' && !semanticLocked && (
+            {(editorMode === 'advanced' || selectedAnn) && (
               <>
                 <div className="w-px h-5 bg-border shrink-0" />
                 <div className="flex items-center gap-1 shrink-0">
                   {WIDTHS.map((w) => (
                     <button
                       key={w}
-                      onClick={() => setStrokeWidth(w)}
+                      onClick={() => { if (!selectedAnn) setStrokeWidth(w); else if (selectedAnn.strokeWidth !== w) { useEditorStore.getState().snapshotBoard(); updateAnnotation(selectedAnn.id, { strokeWidth: w }); } }}
+                      title={`Linienstärke ${w}`} aria-label={`Linienstärke ${w}`}
                       className={cn(
                         "w-7 h-7 rounded flex items-center justify-center transition-all",
-                        strokeWidth === w ? "bg-primary/20 text-primary" : "text-muted-foreground hover:bg-secondary"
+                        (selectedAnn?.strokeWidth ?? strokeWidth) === w ? "bg-primary/20 text-primary" : "text-muted-foreground hover:bg-secondary"
                       )}
                     >
                       <div className="rounded-full bg-current" style={{ width: w * 2, height: w * 2 }} />
@@ -461,7 +465,7 @@ export function BottomBar({ mobile = false, onUndo, onRedo, canUndo, canRedo, on
                   ))}
                 </div>
 
-                <div className="w-px h-5 bg-border shrink-0" />
+                {!semanticLocked && !selectedAnn && <><div className="w-px h-5 bg-border shrink-0" />
 
                 <button
                   onClick={() => setShowArrowhead(!showArrowhead)}
@@ -483,14 +487,14 @@ export function BottomBar({ mobile = false, onUndo, onRedo, canUndo, canRedo, on
                   )}
                 >
                   <Minus className="w-3.5 h-3.5" strokeDasharray={forceDashed ? "3 3" : undefined} />
-                </button>
+                </button></>}
               </>
             )}
 
             {semanticLocked && (
               <>
                 <div className="w-px h-5 bg-border shrink-0" />
-                <span className="text-[9px] text-muted-foreground/60 italic shrink-0">Style locked by action type</span>
+                <span className="text-[9px] text-muted-foreground/60 italic shrink-0">Linienstil durch Lauf oder Pass bestimmt</span>
               </>
             )}
           </>

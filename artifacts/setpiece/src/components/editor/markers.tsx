@@ -41,21 +41,21 @@ function usePopIn() {
 }
 
 export function TeamPlayerMarker({
-  x, y, isSelected, isHovered, isDimmed, isUnassigned, label, lastName, shirtNumber, lightPitch,
+  x, y, isSelected, isHovered, isUnassigned, label, lastName, shirtNumber, lightPitch,
   draggable, dragBoundFunc, onDragStart, onDragMove, onDragEnd, onClick, onTap, onMouseEnter, onMouseLeave,
 }: MarkerProps) {
   const popRef = usePopIn();
   const fill = lightPitch ? '#059669' : '#0d3320';
-  const borderDefault = lightPitch ? '#047857' : '#166534';
+  const borderDefault = '#d1fae5';
   const borderHover = lightPitch ? '#10b981' : '#34d399';
   const borderSelected = '#10b981';
   const labelColor = lightPitch ? '#065f46' : '#ffffff';
   const shadowColor = lightPitch ? 'rgba(0,0,0,0.25)' : '#000';
   const unassignedOpacity = isUnassigned ? 0.65 : 1;
-  const dimOpacity = isDimmed ? 0.35 : unassignedOpacity;
+  const dimOpacity = unassignedOpacity;
 
   const unassignedFill = lightPitch ? '#6b7280' : '#1f2937';
-  const unassignedBorder = lightPitch ? '#9ca3af' : '#4b5563';
+  const unassignedBorder = '#e5e7eb';
 
   const effectiveFill = isUnassigned ? unassignedFill : fill;
   const effectiveBorderDefault = isUnassigned ? unassignedBorder : borderDefault;
@@ -106,7 +106,7 @@ export function TeamPlayerMarker({
           fontSize={15}
           fontFamily="Inter, sans-serif"
           fontStyle="bold"
-          fill={lightPitch ? '#9ca3af' : '#6b7280'}
+          fill="#ffffff"
           align="center"
           verticalAlign="middle"
           width={R * 2}
@@ -216,7 +216,7 @@ export function TeamPlayerMarker({
 }
 
 export function OpponentMarker({
-  x, y, isSelected, isHovered, isDimmed, label, shirtNumber, lightPitch,
+  x, y, isSelected, isHovered, label, shirtNumber, lightPitch,
   draggable, dragBoundFunc, onDragStart, onDragMove, onDragEnd, onClick, onTap, onMouseEnter, onMouseLeave,
 }: MarkerProps) {
   const popRef = usePopIn();
@@ -226,7 +226,7 @@ export function OpponentMarker({
   const borderSelected = '#ef4444';
   const labelColor = lightPitch ? '#991b1b' : '#fca5a5';
   const shadowColor = lightPitch ? 'rgba(0,0,0,0.25)' : '#000';
-  const dimOpacity = isDimmed ? 0.35 : 1;
+  const dimOpacity = 1;
 
   return (
     <Group
@@ -291,18 +291,18 @@ export function OpponentMarker({
 }
 
 export function GoalkeeperMarker({
-  x, y, isSelected, isHovered, isDimmed, label, shirtNumber, lightPitch,
+  x, y, isSelected, isHovered, label, shirtNumber, lightPitch,
   draggable, dragBoundFunc, onDragStart, onDragMove, onDragEnd, onClick, onTap, onMouseEnter, onMouseLeave,
 }: MarkerProps) {
   const popRef = usePopIn();
   const fill = lightPitch ? '#059669' : '#0d3320';
-  const borderDefault = lightPitch ? '#047857' : '#166534';
+  const borderDefault = '#d1fae5';
   const borderHover = lightPitch ? '#10b981' : '#34d399';
   const borderSelected = '#10b981';
   const textColor = '#ffffff';
   const labelColor = lightPitch ? '#065f46' : '#a7f3d0';
   const shadowColor = lightPitch ? 'rgba(0,0,0,0.25)' : '#000';
-  const dimOpacity = isDimmed ? 0.35 : 1;
+  const dimOpacity = 1;
 
   return (
     <Group
@@ -367,11 +367,11 @@ export function GoalkeeperMarker({
 }
 
 export function BallMarker({
-  x, y, isSelected, isDimmed, lightPitch, draggable, dragBoundFunc, onDragStart, onDragMove, onDragEnd, onClick, onTap, flightScale = 1,
+  x, y, isSelected, lightPitch, draggable, dragBoundFunc, onDragStart, onDragMove, onDragEnd, onClick, onTap, flightScale = 1,
 }: Omit<MarkerProps, 'shirtNumber' | 'label' | 'isHovered' | 'isUnassigned' | 'lastName'> & { isSelected?: boolean; flightScale?: number }) {
   const br = 10;
   const ringColor = lightPitch ? '#333' : '#ffffff';
-  const dimOpacity = isDimmed ? 0.35 : 1;
+  const dimOpacity = 1;
   return (
     <Group
       x={x} y={y} draggable={draggable}

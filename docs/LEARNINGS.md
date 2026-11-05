@@ -2,6 +2,10 @@
 
 Dauerhafte technische Fallstricke kurz halten. Aktuelle Aufgaben gehören in STATUS, Geschäftsentscheide in DECISIONS.
 
+- **04.11.2026 · Zeicheninteraktion:** Auswahlgriffe müssen über Spieler-Markern liegen, sonst greift man den Spieler statt des gebundenen Endpunkts. Schwebende Leisten mit ihrer tatsächlichen Höhe ausserhalb der Griffe positionieren. Nach Werkzeugwahl muss ein Feldklick den Tastaturfokus zurück auf das Canvas setzen; Texteingaben und Dialoge behalten ihre native Bedienung.
+
+- **31.10.2026 · Editor:** Zeitliche Phasen und alternative Varianten sind unterschiedliche Strukturen. Gegner/Ball/Torwart sind aktuell global positioniert; Alternativen brauchen unabhängige Positionen und versionierte Spielerbestätigungen. Interaktionsfehler im echten Editor nachstellen: Der vermutete Radiererfehler war durch bestehendes Layer-Hit-Testing bereits behoben, während Auswahl-Drag und Farbregler widersprüchlich bleiben.
+
 - **28.10.2026 · Versionen:** Node 24 und die pnpm-Version aus package.json verwenden. Ein pnpm-Majorwechsel kann Workspace-Einstellungen, Peerauflösung und Lockfileverhalten verändern; Installation und Build gemeinsam prüfen.
 - **28.10.2026 · Windows:** Native Buildpakete müssen für das Betriebssystem erlaubt sein. Ein Windows-Binaryfehler beweist keinen Fehler des Linux-/Replit-Builds; beide Zielsysteme separat prüfen.
 - **28.10.2026 · Codegenerierung:** OpenAPI ist Quelle für generierte Clients und Zod-Schemas. Zusätzliche Schemaexporte nicht unter gleichem Namen über den Paketindex erneut exportieren.

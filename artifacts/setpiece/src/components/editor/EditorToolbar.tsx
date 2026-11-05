@@ -22,31 +22,31 @@ export interface ToolDef {
 }
 
 export const SELECT_TOOLS: ToolDef[] = [
-  { tool: 'select', icon: MousePointer2, label: t('Select & Move') },
+  { tool: 'select', icon: MousePointer2, label: 'Auswählen / verschieben (V)' },
 ];
 
 export const ENTITY_TOOLS: ToolDef[] = [
-  { tool: 'team_player', icon: UserRound, label: t('Team Player') },
-  { tool: 'opponent', icon: UserX, label: t('Opponent') },
-  { tool: 'ball', icon: Circle, label: t('Ball') },
+  { tool: 'team_player', icon: UserRound, label: 'Spieler (P)' },
+  { tool: 'opponent', icon: UserX, label: 'Gegner (O)' },
+  { tool: 'ball', icon: Circle, label: 'Ball (B)' },
 ];
 
 export const ACTION_TOOLS: ToolDef[] = [
-  { tool: 'run_path', icon: Minus, label: t('Run Path (dashed)') },
-  { tool: 'pass_line', icon: MoveRight, label: t('Pass Line (solid)') },
+  { tool: 'run_path', icon: Minus, label: 'Lauf (R)' },
+  { tool: 'pass_line', icon: MoveRight, label: 'Pass (L)' },
 ];
 
 export const ADVANCED_ENTITY_TOOLS: ToolDef[] = [
-  { tool: 'goalkeeper', icon: Shield, label: t('Goalkeeper') },
+  { tool: 'goalkeeper', icon: Shield, label: 'Torwart (G)' },
 ];
 
 export const ADVANCED_ACTION_TOOLS: ToolDef[] = [
-  { tool: 'curved_run', icon: Spline, label: t('Curved Run') },
-  { tool: 'curved_cross', icon: CornerDownRight, label: t('Curved Cross') },
-  { tool: 'zone_circle', icon: Circle, label: t('Circle Zone') },
-  { tool: 'zone_rect', icon: Square, label: t('Rectangle Zone') },
-  { tool: 'label', icon: Type, label: t('Text Label') },
-  { tool: 'erase', icon: Eraser, label: t('Delete Selected') },
+  { tool: 'curved_run', icon: Spline, label: 'Gebogener Lauf (C)' },
+  { tool: 'curved_cross', icon: CornerDownRight, label: 'Gebogener Pass (X)' },
+  { tool: 'zone_circle', icon: Circle, label: 'Kreiszone (Z)' },
+  { tool: 'zone_rect', icon: Square, label: 'Rechteckzone (U)' },
+  { tool: 'label', icon: Type, label: 'Text (T)' },
+  { tool: 'erase', icon: Eraser, label: 'Radierer (E)' },
 ];
 
 function ToolButton({ tool, icon: Icon, label, compact }: ToolDef & { compact?: boolean }) {
@@ -359,8 +359,9 @@ export function MobileToolDrawer({ onUndo, onRedo, canUndo, canRedo, onMirror }:
     <Drawer open={open} onOpenChange={setOpen}>
       <DrawerTrigger asChild>
         <button
+          aria-label="Werkzeuge öffnen"
           className={cn(
-            "w-10 h-10 rounded-xl flex items-center justify-center transition-all border",
+            "w-11 h-11 rounded-xl flex items-center justify-center transition-all border",
             "bg-white/[0.06] border-white/[0.1] text-white active:scale-95"
           )}
         >
@@ -368,7 +369,7 @@ export function MobileToolDrawer({ onUndo, onRedo, canUndo, canRedo, onMirror }:
         </button>
       </DrawerTrigger>
       <DrawerContent className="bg-card border-border max-h-[70vh]">
-        <DrawerTitle className="sr-only">Tools</DrawerTitle>
+        <DrawerTitle className="sr-only">Werkzeuge</DrawerTitle>
         <div className="p-4 pb-6 overflow-y-auto">
           <div className="grid grid-cols-1 gap-1">
             <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider px-3 mb-1">Select</p>

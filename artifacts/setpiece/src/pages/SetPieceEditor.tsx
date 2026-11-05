@@ -23,6 +23,7 @@ import type { Breakpoint } from '@/hooks/use-mobile';
 import { useToast } from '@/hooks/use-toast';
 import { useConfirm } from '@/hooks/use-confirm';
 import { t } from '@/lib/i18n';
+import { editorKeyboardBlocked } from '@/components/editor/keyboardScope';
 
 type SaveState = 'saved' | 'saving' | 'unsaved' | 'error';
 
@@ -73,6 +74,7 @@ export default function SetPieceEditor() {
   const [editingTitle, setEditingTitle] = useState(false);
   const [titleDraft, setTitleDraft] = useState('');
   const [helpOpen, setHelpOpen] = useState(false);
+  const [shortcutsOpen, setShortcutsOpen] = useState(false);
 
   const showTutorial = useEditorStore((s) => s.showTutorial);
   const setShowTutorial = useEditorStore((s) => s.setShowTutorial);
@@ -348,10 +350,15 @@ export default function SetPieceEditor() {
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      const ae = document.activeElement as HTMLElement | null;
-      if (ae && (ae.tagName === 'INPUT' || ae.tagName === 'TEXTAREA' || ae.isContentEditable)) return;
-      if ((e.metaKey || e.ctrlKey) && e.key === 'z' && !e.shiftKey) { e.preventDefault(); handleUndo(); }
-      if ((e.metaKey || e.ctrlKey) && (e.key === 'y' || (e.key === 'z' && e.shiftKey))) { e.preventDefault(); handleRedo(); }
+      if (editorKeyboardBlocked(e) || e.altKey) return;
+      const key = e.key.toLowerCase();
+      if ((e.metaKey || e.ctrlKey) && key === 'z' && !e.shiftKey) { e.preventDefault(); handleUndo(); }
+      if ((e.metaKey || e.ctrlKey) && (key === 'y' || (key === 'z' && e.shiftKey))) { e.preventDefault(); handleRedo(); }
+      if (e.key === '?' && !e.metaKey && !e.ctrlKey && !e.altKey) {
+        e.preventDefault();
+        setShortcutsOpen(true);
+        setHelpOpen(false);
+      }
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
@@ -738,7 +745,11 @@ export default function SetPieceEditor() {
   };
 
   const handleRoleClick = useCallback((id: string) => {
-    const newId = id === activeRoleId ? null : id;
+    const state = useEditorStore.getState();
+    const roleAlreadySelected = id === activeRoleId && !state.selectedAnnotationId && !state.selectedEntityId;
+    const newId = roleAlreadySelected ? null : id;
+    state.setSelectedAnnotationId(null);
+    state.setSelectedEntityId(null);
     setActiveRoleId(newId);
     if (newId && isMobile) {
       setMobileInspectorOpen(true);
@@ -892,8 +903,8 @@ export default function SetPieceEditor() {
               <div className="relative">
                 <button
                   onClick={() => setHelpOpen(!helpOpen)}
-                  title="Help"
-                  aria-label="Help Menu"
+                  title="Hilfe und Tastaturkürzel (?)"
+                  aria-label="Hilfe und Tastaturkürzel"
                   className="w-7 h-7 rounded flex items-center justify-center text-muted-foreground hover:text-white transition-colors"
                 >
                   <HelpCircle className="w-3.5 h-3.5" />
@@ -903,6 +914,12 @@ export default function SetPieceEditor() {
                     <div className="fixed inset-0 z-40" onClick={() => setHelpOpen(false)} />
                     <div className="absolute right-0 top-full mt-1 w-48 bg-card border border-border rounded-xl shadow-xl z-50 py-1.5">
                       <button
+                        onClick={() => { setShortcutsOpen(true); setHelpOpen(false); }}
+                        className="w-full text-left px-3 py-2.5 text-xs text-foreground hover:bg-secondary transition-colors"
+                      >
+                        Tastaturkürzel <kbd className="float-right">?</kbd>
+                      </button>
+                      <button
                         onClick={() => {
                           resetTutorial();
                           setShowTutorial(true);
@@ -910,7 +927,7 @@ export default function SetPieceEditor() {
                         }}
                         className="w-full text-left px-3 py-2 text-[11px] text-muted-foreground hover:text-white hover:bg-secondary transition-colors"
                       >
-                        Show Tutorial Again
+                        Einführung nochmals zeigen
                       </button>
                       <button
                         onClick={() => {
@@ -920,7 +937,7 @@ export default function SetPieceEditor() {
                         }}
                         className="w-full text-left px-3 py-2 text-[11px] text-muted-foreground hover:text-white hover:bg-secondary transition-colors"
                       >
-                        {showTips ? 'Hide Tool Tips' : 'Show Tool Tips'}
+                        {showTips ? 'Bedienhinweise ausblenden' : 'Bedienhinweise anzeigen'}
                       </button>
                       <button
                         onClick={() => { setShowLegend(!showLegend); setHelpOpen(false); }}
@@ -972,6 +989,7 @@ export default function SetPieceEditor() {
               <div className="relative">
                 <button
                   onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+                  aria-label="Weitere Editoraktionen"
                   className="w-9 h-9 rounded-xl flex items-center justify-center text-muted-foreground hover:text-white active:scale-95 transition-all"
                 >
                   <MoreVertical className="w-4 h-4" />
@@ -1002,6 +1020,13 @@ export default function SetPieceEditor() {
                           ))}
                         </div>
                       </div>
+
+                      <button
+                        onClick={() => { setShortcutsOpen(true); setMobileMenuOpen(false); }}
+                        className="w-full text-left px-3 py-2.5 text-xs text-foreground hover:bg-secondary transition-colors flex items-center gap-2"
+                      >
+                        <HelpCircle className="w-4 h-4" /> Tastaturkürzel und Bedienung
+                      </button>
 
                       <button
                         onClick={() => { setShowLegend(!showLegend); setMobileMenuOpen(false); }}
@@ -1156,7 +1181,7 @@ export default function SetPieceEditor() {
               </div>
             )}
 
-            <ContextualMiniBar canvasRef={canvasRef} />
+            <ContextualMiniBar canvasRef={canvasRef} pointToScreen={point => canvasHandleRef.current?.pointToScreen(point) ?? null} />
 
             {/* Zoom controls */}
             {!presentationMode && (
@@ -1270,6 +1295,30 @@ export default function SetPieceEditor() {
         open={showTutorial}
         onClose={() => setShowTutorial(false)}
       />
+
+      <Dialog open={shortcutsOpen} onOpenChange={setShortcutsOpen}>
+        <DialogContent className="bg-card border-border sm:max-w-lg max-h-[85vh] overflow-y-auto">
+          <DialogHeader><DialogTitle>Tastaturkürzel</DialogTitle></DialogHeader>
+          <p className="text-sm text-muted-foreground">Zeichne mit der Maus oder wähle dein Werkzeug mit der Tastatur. Kürzel bleiben beim Schreiben und in Dialogen aus.</p>
+          <dl className="divide-y divide-border text-sm">
+            {[
+              ['V', 'Auswählen und verschieben'],
+              ['R / L', 'Laufweg / Passlinie'],
+              ['P / O / B / G', 'Spieler / Gegner / Ball / Torwart'],
+              ['C / X', 'Gebogener Lauf / gebogener Pass'],
+              ['Z / U / T / E', 'Kreiszone / Rechteckzone / Text / Radierer'],
+              ['Enter / Rücktaste', 'Mehrpunktlinie abschliessen / letzten Punkt entfernen'],
+              ['Esc', 'Zeichnen abbrechen und zur Auswahl wechseln'],
+              ['Pfeile / Umschalt + Pfeile', 'Linien, Gegner und Ball fein / gröber verschieben'],
+              ['Strg/Cmd + D', 'Ausgewählte Zeichnung oder Objekt duplizieren'],
+              ['Entf', 'Ausgewählte Zeichnung oder Objekt löschen'],
+              ['Strg/Cmd + Z', 'Rückgängig'],
+              ['Strg/Cmd + Umschalt + Z', 'Wiederholen (unter Windows auch Strg + Y)'],
+              ['Leertaste', 'Animation abspielen oder anhalten'],
+            ].map(([keys, action]) => <div key={keys} className="grid grid-cols-[minmax(0,1fr)_minmax(0,1.25fr)] gap-4 py-2.5"><dt className="font-medium text-foreground">{keys}</dt><dd className="text-muted-foreground">{action}</dd></div>)}
+          </dl>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={roleFormOpen} onOpenChange={setRoleFormOpen}>
         <DialogContent className="bg-card border-white/[0.08] sm:max-w-sm rounded-2xl">

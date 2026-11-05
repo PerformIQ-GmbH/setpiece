@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { useEditorStore } from './editorStore';
+import { moveAnnotationGeometry } from './editorInteraction';
 import type { AnnotationType } from './types';
 import { Trash2, Copy, ArrowRightLeft, Layers } from 'lucide-react';
 
@@ -39,9 +40,8 @@ export function EditorContextMenu() {
   const handleDuplicate = () => {
     if (ann) {
       const newAnn = {
-        ...ann,
+        ...moveAnnotationGeometry(ann, 3, 3),
         id: crypto.randomUUID(),
-        points: ann.points.map(p => ({ x: p.x + 3, y: p.y + 3 })),
       };
       addAnnotation(newAnn);
     }
@@ -58,6 +58,7 @@ export function EditorContextMenu() {
     };
     const newType = conversions[ann.type];
     if (newType) {
+      useEditorStore.getState().snapshotBoard();
       const isRun = newType === 'run_path' || newType === 'curved_run';
       updateAnnotation(ann.id, {
         type: newType,
@@ -83,10 +84,10 @@ export function EditorContextMenu() {
 
   const isConvertible = ann && ['run_path', 'pass_line', 'curved_run', 'curved_cross'].includes(ann.type);
   const typeLabels: Record<string, string> = {
-    run_path: 'Pass Line',
-    pass_line: 'Run Path',
-    curved_run: 'Curved Cross',
-    curved_cross: 'Curved Run',
+    run_path: 'Pass',
+    pass_line: 'Lauf',
+    curved_run: 'gebogenen Pass',
+    curved_cross: 'gebogenen Lauf',
   };
 
   const menuWidth = 180;
@@ -114,7 +115,7 @@ export function EditorContextMenu() {
               onClick={handleConvertType}
               className="w-full text-left px-3 py-1.5 text-[11px] text-foreground hover:bg-secondary flex items-center gap-2 transition-colors"
             >
-              <ArrowRightLeft className="w-3 h-3 text-muted-foreground" /> Convert to {typeLabels[ann.type]}
+              <ArrowRightLeft className="w-3 h-3 text-muted-foreground" /> In {typeLabels[ann.type]} umwandeln
             </button>
           )}
 
