@@ -413,7 +413,7 @@ function quizFixture(initial, link = { teamId: "team", playerScope: ["player"] }
   return { db, ...h };
 }
 const quizData = () => ({
-  playersTable: [{ id: "player", teamId: "team" }], setPiecesTable: [{ id: "piece", teamId: "team", title: "Corner" }],
+  playersTable: [{ id: "player", teamId: "team" }], setPiecesTable: [{ id: "piece", teamId: "team", title: "Corner", status: "ready" }],
   setPieceRolesTable: [{ id: "own-role", setPieceId: "piece", name: "Near post", startPosition: { x: 10, y: 20 }, coachingPoint: null }, { id: "other-role", setPieceId: "piece", name: "Other", startPosition: null, coachingPoint: null }],
   roleAssignmentsTable: [{ roleId: "own-role", playerId: "player" }, { roleId: "other-role", playerId: "other-player" }],
 });
@@ -445,6 +445,16 @@ test("quiz questions enforce player scope; foreign-team pieces and revoked links
   const revoked = quizFixture(quizData(), null);
   assert.equal((await invoke(revoked.routes, "POST /p/:shareToken/quiz", request({}))).statusCode, 403);
   assert.equal(revoked.db.calls.length, 0);
+});
+
+test("a scoped link cannot open or grade an unpublished legacy set piece", async () => {
+  const f = quizFixture(quizData());
+  f.db.data.setPiecesTable[0].status = "draft";
+  const quiz = "/p/:shareToken/quiz";
+  const scope = { playerId: "player", setPieceId: "piece", roleId: "own-role" };
+  assert.equal((await invoke(f.routes, `GET ${quiz}`, request({}, { query: scope }))).statusCode, 409);
+  assert.equal((await invoke(f.routes, `POST ${quiz}`, request({ ...scope, answers: [] }))).statusCode, 409);
+  assert.equal(f.db.data.quizAttemptsTable.length, 0);
 });
 
 function readinessFixture(initial) {

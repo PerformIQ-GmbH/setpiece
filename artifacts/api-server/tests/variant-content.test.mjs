@@ -59,6 +59,17 @@ test('publication validates required variants; any pending required task prevent
   assert.equal(taskReadiness(task, [completed(task, { roleId: 'other-role' })], 'player', 'piece').status, 'not_opened');
 });
 
+test('publication rejects malformed animation data and player access excludes unpublished legacy content', () => {
+  for (const changes of [{ steps: 42 }, { steps: [null] }, { annotations: [{ points: [null] }] }, { entities: [{ position: null }] }]) {
+    const piece = fixture();
+    Object.assign(piece.boardData.variants[0], changes);
+    assert.throws(() => publishContent(piece, [role]), RangeError);
+  }
+  const legacy = { ...fixture(), boardData: { annotations: [], entities: [] } };
+  assert.ok(playerContent(legacy, [role]));
+  for (const status of ['draft', 'archived']) assert.equal(playerContent({ ...legacy, status }, [role]), null);
+});
+
 test('player task board contains only selected geometry and signals, while legacy boards remain intact', () => {
   const piece = fixture();
   piece.boardData.privateExtension = 'editor-only';

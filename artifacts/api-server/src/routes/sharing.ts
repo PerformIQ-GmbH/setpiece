@@ -177,7 +177,7 @@ router.get("/p/:shareToken", async (req, res): Promise<void> => {
       category: sp.category,
       status: sp.status,
       previewImageUrl: sp.previewImageUrl,
-      boardData: defaultTask?.boardData ?? content.piece.boardData,
+      boardData: defaultTask?.boardData ?? (isVariantBoard(content.piece.boardData) ? null : content.piece.boardData),
       publishedVersion: content.publication?.version,
       requiredVariantIds: content.publication?.requiredVariantIds,
       coachingNotes: content.piece.coachingNotes,

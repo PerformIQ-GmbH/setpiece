@@ -67,7 +67,23 @@ export function publishContent(piece: Piece, roles: ContentRole[], requestedIds?
   if (!variants.length || variants.some(v => !v || typeof v.id !== "string" || !v.id || typeof v.name !== "string" || !v.name.trim()) || new Set(variants.map(v => v.id)).size !== variants.length) {
     throw new PublicationValidationError("Valid, unique variants are required for publication");
   }
-  if (boardData.defaultVariantId && !variants.some(v => v.id === boardData.defaultVariantId)) throw new PublicationValidationError("Unknown default variant");
+  for (const variant of variants) {
+    const steps = variant.steps ?? [];
+    if (!Array.isArray(steps) || steps.some(step => !step || typeof step.id !== "string" || !step.id || !Number.isFinite(step.sortOrder)) ||
+      new Set(steps.map(step => step.id)).size !== steps.length) {
+      throw new PublicationValidationError("Each variant requires valid, unique animation steps");
+    }
+    if (variant.annotations != null && (!Array.isArray(variant.annotations) ||
+      variant.annotations.some(annotation => !annotation || !Array.isArray(annotation.points) ||
+        annotation.points.some((point: Json | null) => !point || !Number.isFinite(point.x) || !Number.isFinite(point.y))))) {
+      throw new PublicationValidationError("Variant annotations require valid points");
+    }
+    if (variant.entities != null && (!Array.isArray(variant.entities) ||
+      variant.entities.some(entity => !entity?.position || !Number.isFinite(entity.position.x) || !Number.isFinite(entity.position.y)))) {
+      throw new PublicationValidationError("Variant markers require valid positions");
+    }
+  }
+  if (boardData.defaultVariantId != null && !variants.some(v => v.id === boardData.defaultVariantId)) throw new PublicationValidationError("Unknown default variant");
   const requiredVariantIds = requestedIds ?? variants.map(v => v.id);
   if (!Array.isArray(requiredVariantIds) || !requiredVariantIds.length || new Set(requiredVariantIds).size !== requiredVariantIds.length || requiredVariantIds.some(id => !variants.some(v => v.id === id))) {
     throw new PublicationValidationError("Required variants must belong to this set piece");
@@ -77,9 +93,9 @@ export function publishContent(piece: Piece, roles: ContentRole[], requestedIds?
 }
 
 export function playerContent(piece: Piece, roles: ContentRole[]): { piece: Piece; roles: ContentRole[]; publication?: PublishedContent } | null {
+  if (piece.status !== "ready" && piece.status !== "active_matchday") return null;
   const publication = piece.boardData?.publishedContent as PublishedContent | undefined;
   if (publication) {
-    if (piece.status !== "ready" && piece.status !== "active_matchday") return null;
     // Deleted/reassigned roles cannot be resurrected by a publication snapshot.
     return { publication, piece: { ...piece, ...publication, boardData: publication.boardData }, roles: publication.roles.filter(role => roles.some(current => current.id === role.id)) };
   }
