@@ -7,7 +7,7 @@
  */
 
 export interface PlayerReadinessStatus {
-  id: string;
+  id?: string;
   playerId: string;
   setPieceId: string;
   /** @nullable */
@@ -19,7 +19,11 @@ export interface PlayerReadinessStatus {
   readyAt?: Date | null;
   /** @nullable */
   quizCompletedAt?: Date | null;
-  viewCount: number;
-  createdAt: Date;
-  updatedAt: Date;
+  viewCount?: number;
+  createdAt?: Date;
+  updatedAt?: Date;
+  variantId?: string;
+  variantName?: string;
+  contentVersion?: string;
+  roleName?: string;
 }

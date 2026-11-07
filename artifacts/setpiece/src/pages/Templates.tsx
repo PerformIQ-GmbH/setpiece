@@ -2,14 +2,19 @@ import { useState } from 'react';
 import { CoachLayout } from '@/components/Layout';
 import { useRoute, useLocation } from 'wouter';
 import { useGetTeam, useListTemplates, useListSetPieces, useCreateSetPiece, useCloneSetPiece } from '@workspace/api-client-react';
+import { getListSetPieceCollectionsQueryKey, useListSetPieceCollections, useCreateSetPieceCollection, useUpdateSetPieceCollection, useDeleteSetPieceCollection } from '@workspace/api-client-react';
+import type { SetPieceCollection } from '@workspace/api-client-react';
+import { useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { StatusBadge } from '@/components/StatusBadge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Plus, ArrowRight, Sparkles, LayoutDashboard, Copy, Loader2 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { Link } from 'wouter';
 import { useToast } from '@/hooks/use-toast';
+import { useConfirm } from '@/hooks/use-confirm';
 
 const CATEGORIES = [
   'all',
@@ -27,23 +32,102 @@ const CATEGORIES = [
   'defensive_throw_in',
 ];
 
+function categoryLabel(category: string) {
+  return category.replace(/_/g, ' ');
+}
+
 export default function Templates() {
   const [, params] = useRoute('/teams/:teamId/templates');
   const teamId = params?.teamId || '';
+  return <TeamPlaybook key={teamId} teamId={teamId} />;
+}
+
+function TeamPlaybook({ teamId }: { teamId: string }) {
   const [, setLocation] = useLocation();
   const { data: team } = useGetTeam(teamId);
   const { data: templates } = useListTemplates();
   const { data: setPieces, refetch: refetchSP } = useListSetPieces(teamId);
+  const collectionsQuery = useListSetPieceCollections(teamId);
+  const createCollection = useCreateSetPieceCollection();
+  const updateCollection = useUpdateSetPieceCollection();
+  const deleteCollection = useDeleteSetPieceCollection();
+  const queryClient = useQueryClient();
+  const confirm = useConfirm();
   const createSP = useCreateSetPiece();
   const cloneSP = useCloneSetPiece();
   const { toast } = useToast();
   const [cloningId, setCloningId] = useState<string | null>(null);
 
   const [category, setCategory] = useState('all');
+  const [pieceSearch, setPieceSearch] = useState('');
+  const [pieceCategory, setPieceCategory] = useState('all');
+  const [collectionId, setCollectionId] = useState('');
+  const [collectionForm, setCollectionForm] = useState<{ id?: string; name: string; setPieceIds: string[] } | null>(null);
+  const [collectionError, setCollectionError] = useState('');
   const [blankOpen, setBlankOpen] = useState(false);
   const [form, setForm] = useState({ title: '', category: 'offensive_corner_left' });
 
   const filteredTemplates = templates?.filter(t => category === 'all' || t.category === category) || [];
+  const pieceCategories = [...new Set(setPieces?.map(piece => piece.category))].sort();
+  const query = pieceSearch.trim().toLowerCase();
+  const collections = [...(collectionsQuery.data ?? [])].sort((a, b) => a.name.localeCompare(b.name));
+  const activeCollection = collections.find(item => item.id === collectionId);
+  const collectionBusy = createCollection.isPending || updateCollection.isPending || deleteCollection.isPending;
+  const collectionKey = getListSetPieceCollectionsQueryKey(teamId);
+  const filteredPieces = setPieces?.filter(piece =>
+    (!activeCollection || activeCollection.setPieceIds.includes(piece.id)) &&
+    (pieceCategory === 'all' || piece.category === pieceCategory) &&
+    piece.title.toLowerCase().includes(query)
+  ) ?? [];
+
+  const editCollection = (collection?: SetPieceCollection) => {
+    setCollectionError('');
+    setCollectionForm({
+      id: collection?.id,
+      name: collection?.name ?? '',
+      setPieceIds: setPieces?.filter(piece => collection?.setPieceIds.includes(piece.id)).map(piece => piece.id) ?? [],
+    });
+  };
+
+  const saveCollection = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!collectionForm || !collectionForm.name.trim()) return;
+    const data = { name: collectionForm.name.trim(), setPieceIds: collectionForm.setPieceIds };
+    setCollectionError('');
+    try {
+      const saved = collectionForm.id
+        ? await updateCollection.mutateAsync({ teamId, collectionId: collectionForm.id, data })
+        : await createCollection.mutateAsync({ teamId, data });
+      queryClient.setQueryData<SetPieceCollection[]>(collectionKey, items =>
+        [...(items ?? []).filter(item => item.id !== saved.id), saved]);
+      void queryClient.invalidateQueries({ queryKey: collectionKey });
+      setCollectionId(saved.id);
+      setPieceSearch('');
+      setPieceCategory('all');
+      setCollectionForm(null);
+    } catch {
+      setCollectionError('Could not save the collection. Check your connection and try again.');
+    }
+  };
+
+  const removeCollection = async (collection: SetPieceCollection) => {
+    if (!await confirm({
+      title: 'Delete collection?',
+      description: `“${collection.name}” will be removed. Its set pieces will stay in the playbook.`,
+      confirmText: 'Delete collection',
+      destructive: true,
+    })) return;
+    setCollectionError('');
+    try {
+      await deleteCollection.mutateAsync({ teamId, collectionId: collection.id });
+      queryClient.setQueryData<SetPieceCollection[]>(collectionKey, items => items?.filter(item => item.id !== collection.id));
+      void queryClient.invalidateQueries({ queryKey: collectionKey });
+      setCollectionId('');
+      setCollectionForm(null);
+    } catch {
+      setCollectionError('Could not delete the collection. Check your connection and try again.');
+    }
+  };
 
   const useTemplate = async (templateId: string, title: string, cat: string) => {
     const sp = await createSP.mutateAsync({ teamId, data: { title, category: cat, templateId } });
@@ -85,12 +169,95 @@ export default function Templates() {
         </Button>
       </div>
 
-      {setPieces && setPieces.length > 0 && (
-        <div className="mb-8">
-          <h2 className="font-display font-bold text-base text-white mb-3">Your Set Pieces ({setPieces.length})</h2>
+      {setPieces && (setPieces.length > 0 || collections.length > 0) && (
+        <section className="mb-8" aria-labelledby="your-set-pieces">
+          <h2 id="your-set-pieces" className="font-display font-bold text-base text-white mb-3">Your Set Pieces ({setPieces.length})</h2>
+          {collectionsQuery.isError && <p role="status" className="mb-3 text-sm text-muted-foreground">Collections could not be loaded. <button type="button" className="underline" onClick={() => void collectionsQuery.refetch()}>Retry</button></p>}
+          {collectionsQuery.data && (
+            <div className="mb-4 flex flex-wrap items-end gap-2">
+              <label className="block w-full space-y-1 sm:max-w-xs">
+                <span className="text-sm font-medium">Collection</span>
+                <select value={activeCollection?.id ?? ''} disabled={collectionBusy || !!collectionForm} onChange={event => {
+                  setCollectionId(event.target.value);
+                  setCollectionError('');
+                  setPieceSearch('');
+                  setPieceCategory('all');
+                }} className="block h-10 w-full rounded-xl border border-white/10 bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30">
+                  <option value="">All set pieces</option>
+                  {collections.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}
+                </select>
+              </label>
+              <Button type="button" variant="outline" disabled={collectionBusy || !!collectionForm} onClick={() => editCollection()}>New collection</Button>
+              {activeCollection && <Button type="button" variant="ghost" disabled={collectionBusy || !!collectionForm} onClick={() => editCollection(activeCollection)}>Edit collection</Button>}
+            </div>
+          )}
+          {collectionForm && (
+            <form onSubmit={saveCollection} className="mb-4 space-y-3 rounded-xl border border-border p-4">
+              <h3 className="text-sm font-semibold">{collectionForm.id ? 'Edit collection' : 'New collection'}</h3>
+              <fieldset disabled={collectionBusy} className="min-w-0 space-y-3">
+                <label className="block max-w-sm space-y-1">
+                  <span className="text-sm font-medium">Collection name</span>
+                  <Input required maxLength={80} autoFocus placeholder="e.g. Corners against zonal marking" value={collectionForm.name} onChange={event => setCollectionForm({ ...collectionForm, name: event.target.value })} />
+                </label>
+                <fieldset className="min-w-0">
+                  <legend className="mb-1 text-sm font-medium">Set pieces in this collection</legend>
+                  <div className="max-h-52 overflow-y-auto divide-y divide-border rounded-lg border border-border">
+                    {setPieces.map(piece => {
+                      const checked = collectionForm.setPieceIds.includes(piece.id);
+                      return <label key={piece.id} className="flex min-h-11 items-center gap-3 px-3 py-2 text-sm">
+                        <input type="checkbox" className="size-4 shrink-0 accent-primary" checked={checked} disabled={!checked && collectionForm.setPieceIds.length >= 100} onChange={event => setCollectionForm({
+                          ...collectionForm,
+                          setPieceIds: event.target.checked ? [...collectionForm.setPieceIds, piece.id] : collectionForm.setPieceIds.filter(id => id !== piece.id),
+                        })} />
+                        <span className="min-w-0 break-words">{piece.title}</span>
+                      </label>;
+                    })}
+                    {setPieces.length === 0 && <p className="p-3 text-sm text-muted-foreground">There are no set pieces in the playbook yet.</p>}
+                  </div>
+                  {collectionForm.setPieceIds.length >= 100 && <p className="mt-1 text-sm text-muted-foreground">A collection can hold up to 100 set pieces.</p>}
+                </fieldset>
+                <div className="flex flex-wrap gap-2">
+                  <Button type="submit" size="sm" disabled={!collectionForm.name.trim()}>{collectionBusy ? 'Saving…' : 'Save collection'}</Button>
+                  <Button type="button" size="sm" variant="ghost" onClick={() => { setCollectionForm(null); setCollectionError(''); }}>Cancel</Button>
+                  {activeCollection && collectionForm.id === activeCollection.id && (
+                    <Button type="button" size="sm" variant="ghost" onClick={() => void removeCollection(activeCollection)}>Delete collection</Button>
+                  )}
+                </div>
+              </fieldset>
+            </form>
+          )}
+          {collectionError && <p role="alert" className="mb-3 text-sm text-destructive">{collectionError}</p>}
+          <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-end">
+            <label className="block w-full space-y-1 sm:max-w-xs">
+              <span className="text-sm font-medium">Search your set pieces</span>
+              <Input type="search" value={pieceSearch} onChange={e => setPieceSearch(e.target.value)} placeholder="Search by title" />
+            </label>
+            <label className="block space-y-1">
+              <span className="text-sm font-medium">Category</span>
+              <select value={pieceCategory} onChange={e => setPieceCategory(e.target.value)} className="block h-10 w-full rounded-xl border border-white/10 bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30 sm:w-auto">
+                <option value="all">All categories</option>
+                {pieceCategories.map(cat => <option key={cat} value={cat}>{categoryLabel(cat)}</option>)}
+              </select>
+            </label>
+          </div>
+          <div className="mb-3 flex min-h-8 flex-wrap items-center gap-x-3">
+            <p role="status" className="text-sm text-muted-foreground">
+              {filteredPieces.length === 0
+                ? activeCollection && !setPieces.some(piece => activeCollection.setPieceIds.includes(piece.id))
+                  ? 'This collection has no set pieces yet.'
+                  : 'No set pieces match your filters.'
+                : `${filteredPieces.length} of ${setPieces.length} shown`}
+            </p>
+            {(pieceSearch || pieceCategory !== 'all') && (
+              <Button type="button" variant="ghost" size="sm" onClick={() => {
+                setPieceSearch('');
+                setPieceCategory('all');
+              }}>Clear filters</Button>
+            )}
+          </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {setPieces.map((sp, idx) => (
-              <motion.div key={sp.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: idx * 0.03 }}>
+            {filteredPieces.map(sp => (
+              <div key={sp.id}>
                 <Link href={`/teams/${teamId}/set-pieces/${sp.id}/editor`}>
                   <Card className="bg-card border-border hover:border-primary/30 transition-all cursor-pointer group overflow-hidden">
                     <div className="aspect-[16/9] bg-emerald-950/40 border-b border-border/50 relative flex items-center justify-center">
@@ -115,14 +282,14 @@ export default function Templates() {
                           <StatusBadge status={sp.status} />
                         </div>
                       </div>
-                      <p className="text-xs text-muted-foreground capitalize">{sp.category.replace(/_/g, ' ')}</p>
+                      <p className="text-xs text-muted-foreground capitalize">{categoryLabel(sp.category)}</p>
                     </CardContent>
                   </Card>
                 </Link>
-              </motion.div>
+              </div>
             ))}
           </div>
-        </div>
+        </section>
       )}
 
       <div className="mb-4">

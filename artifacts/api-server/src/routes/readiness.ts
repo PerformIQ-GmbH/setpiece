@@ -1,10 +1,12 @@
 import { Router, type IRouter } from "express";
 import { and, eq, inArray } from "drizzle-orm";
-import { db, playersTable, playerReadinessTable, matchdaySetPiecesTable, matchdaysTable, setPiecesTable, setPieceRolesTable, roleAssignmentsTable } from "@workspace/db";
+import { db, playersTable, playerReadinessTable, matchdaySetPiecesTable, matchdaysTable, setPiecesTable, setPieceRolesTable, roleAssignmentsTable, quizAttemptsTable } from "@workspace/db";
 import { requireTeamAccess } from "../lib/authorization";
 import { z } from "zod/v4";
+import { playerContent, variantTask, taskReadiness, isVariantBoard } from "../lib/variantContent";
 
 const router: IRouter = Router();
+type ReadinessRow = { id: string; playerId: string; setPieceId: string; roleId: string | null; status: string; [key: string]: unknown };
 
 const readinessQuerySchema = z.object({
   matchdayId: z.string().optional(),
@@ -62,6 +64,9 @@ router.get("/teams/:teamId/readiness", async (req, res): Promise<void> => {
   const storedReadiness = players.length === 0 ? [] : await db.select().from(playerReadinessTable)
     .where(inArray(playerReadinessTable.playerId, players.map((player) => player.id)));
 
+  const pieces = await db.select().from(setPiecesTable).where(and(...pieceConditions));
+  const currentRoles = pieces.length ? await db.select().from(setPieceRolesTable).where(inArray(setPieceRolesTable.setPieceId, pieces.map(piece => piece.id))) : [];
+  const attempts = players.length && pieces.some(piece => piece.boardData?.publishedContent) ? await db.select().from(quizAttemptsTable).where(inArray(quizAttemptsTable.playerId, players.map(player => player.id))) : [];
   const playersWithReadiness = [];
   let notOpened = 0;
   let opened = 0;
@@ -75,12 +80,22 @@ router.get("/teams/:teamId/readiness", async (req, res): Promise<void> => {
       assignments.push(assignment);
       tasksBySetPiece.set(assignment.setPieceId, assignments);
     }
-    const readiness: Array<typeof playerReadinessTable.$inferSelect> = [...tasksBySetPiece.values()].map((assignments) => {
+    const readiness = [...tasksBySetPiece.values()].flatMap<ReadinessRow>((assignments) => {
       const stored = storedReadiness.find((r) => r.playerId === player.id && r.setPieceId === assignments[0].setPieceId);
-      if (stored && assignments.some((assignment) => assignment.roleId === stored.roleId)) return stored;
+      const piece = pieces.find(piece => piece.id === assignments[0].setPieceId);
+      if (piece && (isVariantBoard(piece.boardData) || piece.boardData?.publishedContent)) {
+        const content = playerContent(piece, currentRoles.filter(role => role.setPieceId === piece.id));
+        if (!content?.publication) return [{ id: `pending:${player.id}:${piece.id}`, playerId: player.id, setPieceId: piece.id, roleId: assignments[0].roleId, status: "not_opened" }];
+        if (isVariantBoard(content.piece.boardData)) return assignments.flatMap<ReadinessRow>(assignment => {
+          const role = content.roles.find(role => role.id === assignment.roleId);
+          if (!role) return [{ id: `pending:${player.id}:${piece.id}:${assignment.roleId}`, playerId: player.id, setPieceId: piece.id, roleId: assignment.roleId, status: "not_opened" }];
+          return content.publication!.requiredVariantIds.map(id => taskReadiness(variantTask(content.piece, role, id), attempts, player.id, piece.id));
+        });
+      }
+      if (stored && assignments.some((assignment) => assignment.roleId === stored.roleId)) return [stored];
       const task = assignments[0];
       // Missing or previously reassigned work is pending; GET must never create database records.
-      return {
+      return [{
         id: `pending:${player.id}:${task.setPieceId}`,
         playerId: player.id,
         setPieceId: task.setPieceId,
@@ -93,7 +108,7 @@ router.get("/teams/:teamId/readiness", async (req, res): Promise<void> => {
         lastSeenSetPieceId: null,
         createdAt: task.createdAt,
         updatedAt: task.updatedAt,
-      };
+      }];
     });
 
     playersWithReadiness.push({ player, readiness });

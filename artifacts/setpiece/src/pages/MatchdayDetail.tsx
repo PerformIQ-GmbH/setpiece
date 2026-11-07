@@ -3,6 +3,7 @@ import { CoachLayout } from '@/components/Layout';
 import { useRoute, Link } from 'wouter';
 import { useGetTeam, useGetMatchday, useListSetPieces, useListPlayers, useAddSetPieceToMatchday, useRemoveSetPieceFromMatchday, useCreateShareLink, useListShareLinks, getSetPiece } from '@workspace/api-client-react';
 import type { Player, CreateShareLinkBody, SetPieceRole, RoleAssignment, SetPieceDetail } from '@workspace/api-client-react';
+import { getListSetPieceCollectionsQueryKey, useListSetPieceCollections } from '@workspace/api-client-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
@@ -32,6 +33,10 @@ export default function MatchdayDetail() {
   const createShareLink = useCreateShareLink();
 
   const [addOpen, setAddOpen] = useState(false);
+  const [collectionId, setCollectionId] = useState('');
+  const { data: collections } = useListSetPieceCollections(teamId, {
+    query: { queryKey: getListSetPieceCollectionsQueryKey(teamId), enabled: addOpen },
+  });
   const [shareOpen, setShareOpen] = useState(false);
   const [exportingPDF, setExportingPDF] = useState(false);
 
@@ -565,6 +570,8 @@ export default function MatchdayDetail() {
 
   const matchdayPieceIds = matchday?.setPieces?.map(sp => sp.id) || [];
   const availablePieces = allSetPieces?.filter(sp => !matchdayPieceIds.includes(sp.id) && sp.status !== 'archived') || [];
+  const selectedCollection = collections?.find(item => item.id === collectionId);
+  const pickerPieces = selectedCollection ? availablePieces.filter(piece => selectedCollection.setPieceIds.includes(piece.id)) : availablePieces;
 
   const handleAdd = async (spId: string) => {
     await addToMatchday.mutateAsync({ teamId, matchdayId, data: { setPieceId: spId } });
@@ -839,11 +846,20 @@ export default function MatchdayDetail() {
       <Dialog open={addOpen} onOpenChange={setAddOpen}>
         <DialogContent className="bg-card border-white/[0.08] sm:max-w-md max-h-[70vh] overflow-y-auto rounded-2xl">
           <DialogHeader><DialogTitle>Add Set Piece to Match Pack</DialogTitle></DialogHeader>
-          {availablePieces.length === 0 ? (
-            <p className="text-sm text-muted-foreground py-6 text-center">All set pieces are already in this match pack.</p>
+          {!!collections?.length && (
+            <label className="block space-y-1">
+              <span className="text-sm font-medium">Collection</span>
+              <select value={selectedCollection?.id ?? ''} onChange={event => setCollectionId(event.target.value)} className="block h-10 w-full rounded-xl border border-white/10 bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30">
+                <option value="">All set pieces</option>
+                {[...collections].sort((a, b) => a.name.localeCompare(b.name)).map(item => <option key={item.id} value={item.id}>{item.name}</option>)}
+              </select>
+            </label>
+          )}
+          {pickerPieces.length === 0 ? (
+            <p className="text-sm text-muted-foreground py-6 text-center">{selectedCollection ? 'No available set pieces in this collection.' : 'No set pieces available to add.'}</p>
           ) : (
             <div className="space-y-2 pt-2">
-              {availablePieces.map(sp => (
+              {pickerPieces.map(sp => (
                 <button key={sp.id} onClick={() => handleAdd(sp.id)} className="w-full flex items-center justify-between p-4 rounded-xl bg-white/[0.03] border border-white/[0.06] hover:border-primary/30 hover:bg-white/[0.05] transition-all text-left active:scale-[0.99]">
                   <div>
                     <p className="font-semibold text-sm text-white">{sp.title}</p>

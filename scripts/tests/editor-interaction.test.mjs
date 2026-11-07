@@ -2,6 +2,7 @@ import test, { beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
+import * as boardVariants from '../../artifacts/setpiece/src/components/editor/boardVariants.ts';
 import * as editorTypes from '../../artifacts/setpiece/src/components/editor/types.ts';
 import * as interaction from '../../artifacts/setpiece/src/components/editor/editorInteraction.ts';
 import * as geometry from '../../artifacts/setpiece/src/utils/pitchGeometry.ts';
@@ -28,7 +29,7 @@ function loadEditor(file, dependencies, globals = {}) {
 }
 
 const { useEditorStore: store } = loadEditor('editorStore.ts', {
-  zustand: appRequire('zustand'), './types': editorTypes, './editorInteraction': interaction,
+  zustand: appRequire('zustand'), './types': editorTypes, './editorInteraction': interaction, './boardVariants.ts': boardVariants,
 });
 const state = () => store.getState();
 const point = (x, y) => ({ x, y });
@@ -289,7 +290,7 @@ test('context-menu type conversion is an undoable action preserving curve geomet
   assert.deepEqual(getLine(), original);
 });
 
-test('exported later phases preserve free-role positions and carry forward only explicitly assigned runs', () => {
+function capturePitchRenderer() {
   const stages = [];
   const Konva = Object.fromEntries(['Stage', 'Layer', 'Rect', 'Line', 'Circle', 'Group', 'Text', 'Arrow'].map(kind => [kind, class {
     constructor(attrs = {}) { this.kind = kind; this.attrs = attrs; this.children = []; if (kind === 'Stage') stages.push(this); }
@@ -299,9 +300,14 @@ test('exported later phases preserve free-role positions and carry forward only 
   }]));
   const { renderSetPieceSteps } = loadEditor('../../utils/offscreenPitchRenderer.ts', {
     konva: Konva, './pitchGeometry': geometry,
-    '../components/editor/types': editorTypes,
+    '../components/editor/boardVariants': boardVariants,
     '../components/editor/editorInteraction': interaction,
   }, { document: { createElement: () => ({ style: {} }), body: { appendChild() {}, removeChild() {} } } });
+  return { renderSetPieceSteps, stages };
+}
+
+test('exported later phases preserve free-role positions and carry forward only explicitly assigned runs', () => {
+  const { renderSetPieceSteps, stages } = capturePitchRenderer();
   const boardData = {
     annotations: [line({ id: 'free', points: [point(10, 10), point(90, 90)] }), line({ id: 'assigned', linkedRoleId: 'role-b', points: [point(30, 30), point(50, 60)] })],
     entities: [], steps: [{ id: 'phase-a', label: 'Anfang', sortOrder: 0 }, { id: 'phase-b', label: 'Danach', sortOrder: 1 }], stepPositions: {},
@@ -319,4 +325,99 @@ test('exported later phases preserve free-role positions and carry forward only 
     assert.ok(Math.abs(groups[index].attrs.y - pixel.y) < 1e-6);
   }
   assert.deepEqual(boardData, original, 'rendering never rewrites the saved board');
+});
+
+test('PDF uses the default variant unless requested, then draws each entity and role at that variant’s phase positions', () => {
+  const { renderSetPieceSteps, stages } = capturePitchRenderer();
+  const roles = [{ id: 'role-a', name: 'A', startPosition: point(10, 10) }];
+  const entities = [
+    { id: 'opponent', type: 'opponent', position: point(15, 25) },
+    { id: 'keeper', type: 'goalkeeper', position: point(25, 15) },
+    { id: 'ball', type: 'ball', position: point(35, 35) },
+  ];
+  const a = boardVariants.loadBoardData({ entities, steps: [
+    { id: 'a-1', label: 'A1', sortOrder: 0 }, { id: 'a-2', label: 'A2', sortOrder: 1 },
+  ] }, roles).variants[0];
+  const b = boardVariants.duplicateBoardVariant(a);
+  b.steps.forEach((step, index) => { step.label = `B${index + 1}`; });
+  const b2 = b.steps[1].id;
+  const later = [point(75, 25), point(25, 85), point(50, 55), point(80, 70)];
+  b.entityStepPositions[b2] = Object.fromEntries(entities.map((entity, index) => [entity.id, later[index]]));
+  b.stepPositions[b2]['role-a'] = later[3];
+  const boardData = boardVariants.projectBoardVariant({ variants: [a, b], defaultVariantId: a.id }, b.id);
+  const options = { width: 700, height: 900, category: 'offensive_corner_left', boardData, roles };
+  assert.deepEqual(renderSetPieceSteps(options).map(image => image.stepLabel), ['A1', 'A2']);
+  assert.deepEqual(renderSetPieceSteps({ ...options, variantId: b.id }).map(image => image.stepLabel), ['B1', 'B2']);
+  const g = geometry.buildPitchGeometry({ width: 700, height: 900, pad: 36, orientation: 'half' });
+  const markers = stage => stage.children[1].children
+    .filter(node => (node.kind === 'Group' && node.attrs.x != null) || (node.kind === 'Circle' && node.attrs.radius === 13))
+    .map(({ attrs: { x, y } }) => ({ x, y }));
+  const initial = [...entities.map(entity => entity.position), roles[0].startPosition];
+  for (const stage of stages.slice(0, 3)) assert.deepEqual(markers(stage), initial.map(g.percentToPixel));
+  assert.deepEqual(markers(stages[3]), later.map(g.percentToPixel));
+});
+
+test('phase ball positions fall back to the original marker and passes animate only their own ball', () => {
+  const balls = [
+    { id: 'ball-a', type: 'ball', position: point(10, 10) },
+    { id: 'ball-b', type: 'ball', position: point(20, 20) },
+    { id: 'ball-c', type: 'ball', position: point(30, 30) },
+  ];
+  const positions = { 'phase-b': { 'ball-b': point(80, 70) } };
+  assert.deepEqual(interaction.entityPositionAtStep(balls[1], 'phase-a', positions), point(20, 20));
+  assert.deepEqual(interaction.entityPositionAtStep(balls[1], 'phase-b', positions), point(80, 70));
+  const free = line({ type: 'pass_line' });
+  const bound = line({ type: 'curved_cross', snappedStartRef: 'ball-b' });
+  assert.equal(interaction.findBallPass('ball-a', balls, [bound, free]), free);
+  assert.equal(interaction.findBallPass('ball-b', balls, [free, bound]), bound);
+  assert.equal(interaction.findBallPass('ball-c', balls, [free, bound]), undefined);
+});
+
+
+test('variants: copied opponent phase, run and role task remain isolated through switch, undo and reload', () => {
+  state().loadBoardData({ steps: [{ id: 'phase-a', label: 'Setup', sortOrder: 0 }, { id: 'phase-b', label: 'Run', sortOrder: 1 }], annotations: [boundLine()], entities: [{ id: 'opponent', type: 'opponent', position: point(60, 40) }], outcomes: [{ id: 'goal', at: '2026-11-05', result: 'goal' }], publishedContent: { version: 'published' } }, [{ id: 'role-a', startPosition: point(20, 30) }]);
+  const aId = state().activeVariantId, a = structuredClone(state().serializeBoardData().variants[0]);
+  state().duplicateVariant(aId, 'B');
+  const bId = state().activeVariantId;
+  assert.notEqual(aId, bId);
+  state().setActiveStepIndex(1);
+  const phase = state().steps[1].id;
+  state().beginDrag(); state().updateEntity('opponent', { position: point(85, 70) }); state().commitDrag();
+  assert.deepEqual(state().entities[0].position, point(60, 40), 'phase two movement cannot overwrite phase one base');
+  assert.deepEqual(state().entityStepPositions[phase].opponent, point(85, 70));
+  state().undo(); assert.deepEqual(state().entityStepPositions[phase].opponent, point(60, 40));
+  state().redo(); assert.deepEqual(state().entityStepPositions[phase].opponent, point(85, 70));
+  state().moveAnnotation(state().annotations[0].id, 5, 5);
+  state().setVariantRoleTask('role-a', { description: 'Different run' });
+  state().updateActiveVariant({ teamSignal: 'Two arms', recognitionCue: 'Man marking' });
+  const b = structuredClone(state().serializeBoardData().variants.find(v => v.id === bId));
+  state().switchVariant(aId);
+  assert.deepEqual(state().serializeBoardData().variants.find(v => v.id === aId), a);
+  state().undo(); assert.equal(state().activeVariantId, bId);
+  assert.deepEqual(state().serializeBoardData().variants.find(v => v.id === bId), b);
+  const saved = state().serializeBoardData(); state().loadBoardData(saved);
+  assert.deepEqual(state().serializeBoardData(), saved);
+  assert.equal(state().serializeBoardData().publishedContent.version, 'published');
+  assert.equal(state().serializeBoardData().outcomes[0].id, 'goal');
+});
+
+test('variants: required/default metadata and deletion undo retain both independent boards', () => {
+  state().loadBoardData({ annotations: [boundLine()], entities: [], steps: [{ id: 'phase-a', label: 'Setup', sortOrder: 0 }] });
+  const aId = state().activeVariantId;
+  state().duplicateVariant(aId, 'B'); const bId = state().activeVariantId;
+  state().setDefaultVariant(bId); state().setVariantRequired(aId, false);
+  assert.deepEqual(state().requiredVariantIds, [bId]);
+  state().setVariantRequired(bId, false); assert.deepEqual(state().requiredVariantIds, [bId], 'at least one required variant remains');
+  state().deleteVariant(bId); assert.equal(state().variants.length, 1); assert.equal(state().defaultVariantId, aId);
+  state().undo(); assert.equal(state().variants.length, 2); assert.equal(state().defaultVariantId, bId); assert.deepEqual(state().requiredVariantIds, [bId]);
+  state().redo(); assert.equal(state().variants.length, 1);
+  state().deleteVariant(aId); assert.equal(state().variants.length, 1, 'last variant cannot be deleted');
+});
+
+test('phase deletion removes its actions and role/entity maps and undo restores all of them', () => {
+  state().loadBoardData({ annotations: [boundLine()], entities: [{ id: 'ball-a', type: 'ball', position: point(50, 50) }], steps: [{ id: 'phase-a', label: 'Setup', sortOrder: 0 }, { id: 'phase-b', label: 'Run', sortOrder: 1 }] }, [{ id: 'role-a', startPosition: point(20, 30) }]);
+  const before = state().serializeBoardData();
+  state().deleteStep('phase-a');
+  assert.equal(state().annotations.length, 0); assert.equal(state().stepPositions['phase-a'], undefined); assert.equal(state().entityStepPositions['phase-a'], undefined);
+  state().undo(); assert.deepEqual(state().serializeBoardData(), before);
 });

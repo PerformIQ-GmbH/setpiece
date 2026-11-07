@@ -1,3 +1,5 @@
+import { loadBoardData } from './boardVariants.ts';
+
 export type EditorTool =
   | 'select'
   | 'team_player'
@@ -65,13 +67,58 @@ export interface SetPieceOutcome {
   result: 'goal' | 'chance' | 'none';
 }
 
+export type StepPositions = Record<string, Record<string, Point>>;
+
+export interface VariantRoleTask {
+  description?: string;
+  coachingPoint?: string;
+}
+
+export interface BoardVariant {
+  id: string;
+  name: string;
+  recognitionCue: string;
+  teamSignal: string;
+  roleTasks: Record<string, VariantRoleTask>;
+  annotations: Annotation[];
+  entities: EntityMarker[];
+  steps: AnimationStep[];
+  stepPositions: StepPositions;
+  entityStepPositions: StepPositions;
+  [key: string]: unknown;
+}
+
+export interface RolePositionSource {
+  id: string;
+  startPosition?: { x?: number | null; y?: number | null } | null;
+  position?: Point | null;
+}
+
 export interface BoardData {
+  schemaVersion?: 2;
+  activeVariantId?: string;
+  defaultVariantId?: string;
+  variants?: BoardVariant[];
+  requiredVariantIds?: string[];
   annotations: Annotation[];
   entities: EntityMarker[];
   steps?: AnimationStep[];
   stepPositions?: Record<string, Record<string, Point>>;
+  entityStepPositions?: StepPositions;
   /** Season log of goals/chances produced by this routine. */
   outcomes?: SetPieceOutcome[];
+  [key: string]: unknown;
+}
+
+export interface VariantBoardData extends BoardData {
+  schemaVersion: 2;
+  activeVariantId: string;
+  defaultVariantId: string;
+  variants: BoardVariant[];
+  requiredVariantIds: string[];
+  steps: AnimationStep[];
+  stepPositions: StepPositions;
+  entityStepPositions: StepPositions;
 }
 
 export function readOutcomes(boardData: unknown): SetPieceOutcome[] {
@@ -127,33 +174,7 @@ export function createDefaultStep(): AnimationStep {
 }
 
 export function migrateLegacyBoardData(bd: Partial<BoardData>): BoardData {
-  const annotations = Array.isArray(bd.annotations) ? [...bd.annotations] : [];
-  const entities = Array.isArray(bd.entities) ? bd.entities : [];
-  let steps = Array.isArray(bd.steps) && bd.steps.length > 0 ? [...bd.steps] : [];
-
-  if (steps.length === 0) {
-    const defaultStep = createDefaultStep();
-    steps = [defaultStep];
-  }
-
-  steps.sort((a, b) => a.sortOrder - b.sortOrder);
-
-  const validStepIds = new Set(steps.map(s => s.id));
-  const fallbackStepId = steps[0].id;
-
-  for (const ann of annotations) {
-    if (!ann.stepId || !validStepIds.has(ann.stepId)) {
-      ann.stepId = fallbackStepId;
-    }
-  }
-
-  const stepPositions = (bd as Record<string, unknown>).stepPositions;
-  const validStepPositions: Record<string, Record<string, Point>> =
-    stepPositions && typeof stepPositions === 'object' && !Array.isArray(stepPositions)
-      ? stepPositions as Record<string, Record<string, Point>>
-      : {};
-
-  return { annotations, entities, steps, stepPositions: validStepPositions };
+  return loadBoardData(bd);
 }
 
 export interface PitchThemeColors {

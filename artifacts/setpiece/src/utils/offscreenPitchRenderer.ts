@@ -1,7 +1,7 @@
 import Konva from 'konva';
-import { findRoleRun } from '../components/editor/editorInteraction';
-import { migrateLegacyBoardData } from '../components/editor/types';
-import type { Annotation, AnimationStep, EntityMarker, Point } from '../components/editor/types';
+import { entityPositionAtStep, rolePositionAtStep } from '../components/editor/editorInteraction';
+import { loadBoardData, projectBoardVariant } from '../components/editor/boardVariants';
+import type { Annotation, VariantBoardData, BoardData } from '../components/editor/types';
 import { arcToPoints, buildPitchGeometry, pitchOrientationForCategory, type PitchGeometry } from './pitchGeometry';
 
 interface RoleData {
@@ -23,7 +23,8 @@ interface PlayerData {
 }
 
 interface RenderOptions {
-  boardData: Record<string, unknown>;
+  boardData: Partial<BoardData>;
+  variantId?: string;
   roles: RoleData[];
   assignments?: AssignmentData[];
   players?: PlayerData[];
@@ -279,59 +280,6 @@ function drawAnnotations(layer: Konva.Layer, annotations: Annotation[], g: Pitch
   }
 }
 
-function resolvePositionForStep(
-  roleId: string,
-  stepAnns: Annotation[],
-  startPos: Point,
-): Point {
-  const linkedRun = findRoleRun(roleId, stepAnns);
-  if (linkedRun) {
-    const last = linkedRun.points[linkedRun.points.length - 1];
-    return { x: last.x, y: last.y };
-  }
-
-  return startPos;
-}
-
-function computeRolePositionAtStep(
-  roleId: string,
-  stepIndex: number,
-  roles: RoleData[],
-  steps: AnimationStep[],
-  annotations: Annotation[],
-  stepPositions: Record<string, Record<string, Point>>,
-): Point {
-  const role = roles.find(r => r.id === roleId);
-  const basePos = { x: role?.startPosition?.x ?? 50, y: role?.startPosition?.y ?? 50 };
-  const sortedStepIds = steps.map(s => s.id);
-  const clampedIndex = Math.max(0, Math.min(stepIndex, sortedStepIds.length - 1));
-
-  if (clampedIndex === 0) {
-    const sid0 = sortedStepIds[0];
-    if (sid0 && stepPositions[sid0]?.[roleId]) {
-      return stepPositions[sid0][roleId];
-    }
-    return basePos;
-  }
-
-  let cur = basePos;
-  for (let i = 0; i < clampedIndex; i++) {
-    const prevSid = sortedStepIds[i];
-    if (prevSid && stepPositions[prevSid]?.[roleId]) {
-      cur = stepPositions[prevSid][roleId];
-    }
-    const prevAnns = annotations.filter(a => a.stepId === prevSid);
-    const endOfRun = resolvePositionForStep(roleId, prevAnns, cur);
-    if (endOfRun.x !== cur.x || endOfRun.y !== cur.y) cur = endOfRun;
-  }
-
-  const targetSid = sortedStepIds[clampedIndex];
-  if (targetSid && stepPositions[targetSid]?.[roleId]) {
-    return stepPositions[targetSid][roleId];
-  }
-  return cur;
-}
-
 function drawTextWithBackdrop(
   layer: Konva.Layer,
   text: string,
@@ -371,19 +319,16 @@ function drawMarkers(
   roles: RoleData[],
   assignments: AssignmentData[],
   players: PlayerData[],
-  entities: EntityMarker[],
+  board: VariantBoardData,
   stepIndex: number,
-  steps: AnimationStep[],
-  annotations: Annotation[],
-  stepPositions: Record<string, Record<string, Point>>,
   g: PitchGeometry,
 ) {
   // Opponents / GK / ball first, players on top.
-  for (const ent of entities) {
-    const px = g.percentToPixel(ent.position);
+  for (const ent of board.entities) {
+    const px = g.percentToPixel(entityPositionAtStep(ent, board.steps[stepIndex].id, board.entityStepPositions));
     if (ent.type === 'opponent') {
       const group = new Konva.Group({ x: px.x, y: px.y });
-      group.add(new Konva.Circle({ radius: MARKER_R, fill: '#7f1d1d', stroke: '#0b1f12', strokeWidth: 3 }));
+      group.add(new Konva.Circle({ radius: MARKER_R, fill: '#7f1d1d', stroke: '#fca5a5', strokeWidth: 3 }));
       group.add(new Konva.Text({
         text: String(ent.shirtNumber ?? ''),
         fontSize: 22, fontFamily: 'Inter, sans-serif', fontStyle: 'bold',
@@ -408,7 +353,7 @@ function drawMarkers(
   }
 
   for (const role of roles) {
-    const pos = computeRolePositionAtStep(role.id, stepIndex, roles, steps, annotations, stepPositions);
+    const pos = rolePositionAtStep(role, stepIndex, board.steps, board.annotations, board.stepPositions);
     const px = g.percentToPixel(pos);
     const assignment = assignments.find(a => a.roleId === role.id);
     const player = assignment ? players.find(p => p.id === assignment.playerId) : null;
@@ -455,6 +400,7 @@ export interface StepImage {
 export function renderSetPieceSteps(options: RenderOptions): StepImage[] {
   const {
     boardData,
+    variantId,
     roles,
     assignments = [],
     players = [],
@@ -463,9 +409,10 @@ export function renderSetPieceSteps(options: RenderOptions): StepImage[] {
     height = RENDER_H,
   } = options;
 
-  const migrated = migrateLegacyBoardData(boardData as any);
-  const { annotations, entities, stepPositions } = migrated;
-  const steps = migrated.steps || [];
+  const migrated = loadBoardData(boardData, roles);
+  const selectedId = variantId ?? migrated.defaultVariantId;
+  const board = migrated.activeVariantId === selectedId ? migrated : projectBoardVariant(migrated, selectedId);
+  const { annotations, steps } = board;
 
   const isCornerKick = category.includes('corner');
   const orientation = pitchOrientationForCategory(category);
@@ -498,7 +445,7 @@ export function renderSetPieceSteps(options: RenderOptions): StepImage[] {
 
       const contentLayer = new Konva.Layer();
       drawAnnotations(contentLayer, stepAnns, geometry);
-      drawMarkers(contentLayer, roles, assignments, players, entities, si, steps, annotations, stepPositions ?? {}, geometry);
+      drawMarkers(contentLayer, roles, assignments, players, board, si, geometry);
       stage.add(contentLayer);
 
       const dataUrl = stage.toDataURL({ pixelRatio: 2, mimeType: 'image/png' });

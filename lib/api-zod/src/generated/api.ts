@@ -563,6 +563,119 @@ export const GetTemplateResponse = zod.object({
 });
 
 /**
+ * @summary List the team's coaching collections
+ */
+export const ListSetPieceCollectionsParams = zod.object({
+  teamId: zod.coerce.string(),
+});
+
+export const listSetPieceCollectionsResponseOneNameMax = 80;
+
+export const listSetPieceCollectionsResponseOneSetPieceIdsItemMax = 255;
+
+export const listSetPieceCollectionsResponseOneSetPieceIdsMax = 100;
+
+export const ListSetPieceCollectionsResponseItem = zod
+  .object({
+    name: zod.string().min(1).max(listSetPieceCollectionsResponseOneNameMax),
+    setPieceIds: zod
+      .array(
+        zod
+          .string()
+          .min(1)
+          .max(listSetPieceCollectionsResponseOneSetPieceIdsItemMax),
+      )
+      .max(listSetPieceCollectionsResponseOneSetPieceIdsMax),
+  })
+  .and(
+    zod.object({
+      id: zod.string(),
+      teamId: zod.string(),
+    }),
+  );
+export const ListSetPieceCollectionsResponse = zod.array(
+  ListSetPieceCollectionsResponseItem,
+);
+
+/**
+ * @summary Create a coaching collection
+ */
+export const CreateSetPieceCollectionParams = zod.object({
+  teamId: zod.coerce.string(),
+});
+
+export const createSetPieceCollectionBodyNameMax = 80;
+
+export const createSetPieceCollectionBodySetPieceIdsItemMax = 255;
+
+export const createSetPieceCollectionBodySetPieceIdsMax = 100;
+
+export const CreateSetPieceCollectionBody = zod.object({
+  name: zod.string().min(1).max(createSetPieceCollectionBodyNameMax),
+  setPieceIds: zod
+    .array(
+      zod.string().min(1).max(createSetPieceCollectionBodySetPieceIdsItemMax),
+    )
+    .max(createSetPieceCollectionBodySetPieceIdsMax),
+});
+
+/**
+ * @summary Replace the name and membership of a coaching collection
+ */
+export const UpdateSetPieceCollectionParams = zod.object({
+  teamId: zod.coerce.string(),
+  collectionId: zod.coerce.string(),
+});
+
+export const updateSetPieceCollectionBodyNameMax = 80;
+
+export const updateSetPieceCollectionBodySetPieceIdsItemMax = 255;
+
+export const updateSetPieceCollectionBodySetPieceIdsMax = 100;
+
+export const UpdateSetPieceCollectionBody = zod.object({
+  name: zod.string().min(1).max(updateSetPieceCollectionBodyNameMax),
+  setPieceIds: zod
+    .array(
+      zod.string().min(1).max(updateSetPieceCollectionBodySetPieceIdsItemMax),
+    )
+    .max(updateSetPieceCollectionBodySetPieceIdsMax),
+});
+
+export const updateSetPieceCollectionResponseOneNameMax = 80;
+
+export const updateSetPieceCollectionResponseOneSetPieceIdsItemMax = 255;
+
+export const updateSetPieceCollectionResponseOneSetPieceIdsMax = 100;
+
+export const UpdateSetPieceCollectionResponse = zod
+  .object({
+    name: zod.string().min(1).max(updateSetPieceCollectionResponseOneNameMax),
+    setPieceIds: zod
+      .array(
+        zod
+          .string()
+          .min(1)
+          .max(updateSetPieceCollectionResponseOneSetPieceIdsItemMax),
+      )
+      .max(updateSetPieceCollectionResponseOneSetPieceIdsMax),
+  })
+  .and(
+    zod.object({
+      id: zod.string(),
+      teamId: zod.string(),
+    }),
+  );
+
+/**
+ * @summary Delete a coaching collection
+ */
+export const DeleteSetPieceCollectionParams = zod.object({
+  teamId: zod.coerce.string(),
+  collectionId: zod.coerce.string(),
+});
+
+/**
  * @summary List set pieces for a team
  */
 export const ListSetPiecesParams = zod.object({
@@ -721,6 +834,7 @@ export const UpdateSetPieceStatusParams = zod.object({
 
 export const UpdateSetPieceStatusBody = zod.object({
   status: zod.enum(["draft", "ready", "active_matchday", "archived"]),
+  requiredVariantIds: zod.array(zod.string()).optional(),
 });
 
 export const UpdateSetPieceStatusResponse = zod.object({
@@ -1443,7 +1557,7 @@ export const GetPlayerSpecificViewResponse = zod.object({
       readiness: zod
         .union([
           zod.object({
-            id: zod.string(),
+            id: zod.string().optional(),
             playerId: zod.string(),
             setPieceId: zod.string(),
             roleId: zod.string().nullish(),
@@ -1451,12 +1565,59 @@ export const GetPlayerSpecificViewResponse = zod.object({
             lastOpenedAt: zod.coerce.date().nullish(),
             readyAt: zod.coerce.date().nullish(),
             quizCompletedAt: zod.coerce.date().nullish(),
-            viewCount: zod.number(),
-            createdAt: zod.coerce.date(),
-            updatedAt: zod.coerce.date(),
+            viewCount: zod.number().optional(),
+            createdAt: zod.coerce.date().optional(),
+            updatedAt: zod.coerce.date().optional(),
+            variantId: zod.string().optional(),
+            variantName: zod.string().optional(),
+            contentVersion: zod.string().optional(),
+            roleName: zod.string().optional(),
           }),
           zod.null(),
         ])
+        .optional(),
+      publishedVersion: zod.string().optional(),
+      requiredVariantIds: zod.array(zod.string()).optional(),
+      tasks: zod
+        .array(
+          zod.object({
+            id: zod.string(),
+            playerId: zod.string(),
+            setPieceId: zod.string(),
+            roleId: zod.string(),
+            variantId: zod.string(),
+            variantName: zod.string(),
+            contentVersion: zod.string(),
+            status: zod.string(),
+            quizCompletedAt: zod.coerce.date().nullish(),
+            playerRole: zod.object({
+              id: zod.string(),
+              setPieceId: zod.string(),
+              name: zod.string(),
+              description: zod.string().nullish(),
+              startPosition: zod
+                .object({
+                  x: zod.number().optional(),
+                  y: zod.number().optional(),
+                })
+                .nullish(),
+              movementPath: zod
+                .array(
+                  zod.object({
+                    x: zod.number().optional(),
+                    y: zod.number().optional(),
+                  }),
+                )
+                .nullish(),
+              coachingPoint: zod.string().nullish(),
+              sortOrder: zod.number(),
+              createdAt: zod.coerce.date(),
+              updatedAt: zod.coerce.date(),
+            }),
+            boardData: zod.object({}).passthrough(),
+            required: zod.boolean(),
+          }),
+        )
         .optional(),
     }),
   ),
@@ -1473,6 +1634,8 @@ export const MarkPlayerReadyBody = zod.object({
   playerId: zod.string(),
   setPieceId: zod.string(),
   roleId: zod.string().optional(),
+  variantId: zod.string().optional(),
+  contentVersion: zod.string().optional(),
   status: zod
     .enum(["ready", "needs_review"])
     .optional()
@@ -1482,7 +1645,7 @@ export const MarkPlayerReadyBody = zod.object({
 });
 
 export const MarkPlayerReadyResponse = zod.object({
-  id: zod.string(),
+  id: zod.string().optional(),
   playerId: zod.string(),
   setPieceId: zod.string(),
   roleId: zod.string().nullish(),
@@ -1490,9 +1653,13 @@ export const MarkPlayerReadyResponse = zod.object({
   lastOpenedAt: zod.coerce.date().nullish(),
   readyAt: zod.coerce.date().nullish(),
   quizCompletedAt: zod.coerce.date().nullish(),
-  viewCount: zod.number(),
-  createdAt: zod.coerce.date(),
-  updatedAt: zod.coerce.date(),
+  viewCount: zod.number().optional(),
+  createdAt: zod.coerce.date().optional(),
+  updatedAt: zod.coerce.date().optional(),
+  variantId: zod.string().optional(),
+  variantName: zod.string().optional(),
+  contentVersion: zod.string().optional(),
+  roleName: zod.string().optional(),
 });
 
 /**
@@ -1505,11 +1672,16 @@ export const GetQuizQuestionsParams = zod.object({
 export const GetQuizQuestionsQueryParams = zod.object({
   setPieceId: zod.coerce.string(),
   playerId: zod.coerce.string().optional(),
+  roleId: zod.coerce.string().optional(),
+  variantId: zod.coerce.string().optional(),
 });
 
 export const GetQuizQuestionsResponse = zod.object({
   setPieceId: zod.string(),
   roleId: zod.string().nullish(),
+  variantId: zod.string().optional(),
+  contentVersion: zod.string().optional(),
+  publishedVersion: zod.string().optional(),
   questions: zod.array(
     zod.object({
       id: zod.string(),
@@ -1531,6 +1703,8 @@ export const SubmitQuizBody = zod.object({
   playerId: zod.string(),
   setPieceId: zod.string(),
   roleId: zod.string().optional(),
+  variantId: zod.string().optional(),
+  contentVersion: zod.string().optional(),
   answers: zod.array(
     zod.object({
       questionId: zod.string(),
@@ -1544,6 +1718,8 @@ export const SubmitQuizResponse = zod.object({
   score: zod.number(),
   correct: zod.number().optional(),
   total: zod.number(),
+  variantId: zod.string().optional(),
+  contentVersion: zod.string().optional(),
 });
 
 /**
@@ -1586,7 +1762,7 @@ export const GetReadinessDashboardResponse = zod.object({
       }),
       readiness: zod.array(
         zod.object({
-          id: zod.string(),
+          id: zod.string().optional(),
           playerId: zod.string(),
           setPieceId: zod.string(),
           roleId: zod.string().nullish(),
@@ -1594,9 +1770,13 @@ export const GetReadinessDashboardResponse = zod.object({
           lastOpenedAt: zod.coerce.date().nullish(),
           readyAt: zod.coerce.date().nullish(),
           quizCompletedAt: zod.coerce.date().nullish(),
-          viewCount: zod.number(),
-          createdAt: zod.coerce.date(),
-          updatedAt: zod.coerce.date(),
+          viewCount: zod.number().optional(),
+          createdAt: zod.coerce.date().optional(),
+          updatedAt: zod.coerce.date().optional(),
+          variantId: zod.string().optional(),
+          variantName: zod.string().optional(),
+          contentVersion: zod.string().optional(),
+          roleName: zod.string().optional(),
         }),
       ),
     }),

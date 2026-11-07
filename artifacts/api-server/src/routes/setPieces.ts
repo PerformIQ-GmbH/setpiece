@@ -15,6 +15,7 @@ import { checkEntitlement } from "../lib/entitlements";
 import { evaluateRolesForPlayers } from "../lib/roleSuitability";
 import { inArray } from "drizzle-orm";
 import { z } from "zod/v4";
+import { isVariantBoard, publishContent, preservePublication, preserveLegacyPublication, remapBoardRoleIds, withoutPublication, PublicationValidationError } from "../lib/variantContent";
 
 const router: IRouter = Router();
 
@@ -37,6 +38,7 @@ const updateSetPieceSchema = z.object({
 
 const updateStatusSchema = z.object({
   status: z.enum(["draft", "ready", "active_matchday", "archived"]),
+  requiredVariantIds: z.array(z.string().min(1)).min(1).optional(),
 });
 
 const listSetPiecesQuerySchema = z.object({
@@ -105,7 +107,7 @@ router.post("/teams/:teamId/set-pieces", async (req, res): Promise<void> => {
       title,
       category: category as typeof setPiecesTable.$inferInsert.category,
       description: description || null,
-      boardData: finalBoardData || null,
+      boardData: finalBoardData ? withoutPublication(finalBoardData) : null,
       coachingNotes: coachingNotes || null,
       createdBy: req.user!.id,
       updatedBy: req.user!.id,
@@ -186,38 +188,42 @@ router.patch("/teams/:teamId/set-pieces/:setPieceId", async (req, res): Promise<
   }
 
   const setPieceId = parseParam(req.params.setPieceId);
+  const piece = await db.transaction(async (tx) => {
+    const [existing] = await tx
+      .select()
+      .from(setPiecesTable)
+      .where(and(eq(setPiecesTable.id, setPieceId), eq(setPiecesTable.teamId, teamId))).for("update");
 
-  const [existing] = await db
-    .select()
-    .from(setPiecesTable)
-    .where(and(eq(setPiecesTable.id, setPieceId), eq(setPiecesTable.teamId, teamId)));
+    if (!existing) return undefined;
 
-  if (!existing) {
-    res.status(404).json({ error: "Set piece not found" });
-    return;
-  }
+    const data = parsed.data;
+    const updates: Record<string, unknown> = {
+      updatedBy: req.user!.id,
+    };
+    if (data.title !== undefined) updates.title = data.title;
+    if (data.description !== undefined) updates.description = data.description;
+    if (data.boardData !== undefined) updates.boardData = preservePublication(data.boardData, existing.boardData);
+    if (isVariantBoard(data.boardData) && !isVariantBoard(existing.boardData) && !existing.boardData?.publishedContent && (existing.status === "ready" || existing.status === "active_matchday")) {
+      const roles = await tx.select().from(setPieceRolesTable).where(eq(setPieceRolesTable.setPieceId, setPieceId));
+      updates.boardData = { ...(updates.boardData as Record<string, unknown>), publishedContent: preserveLegacyPublication(existing, roles) };
+    }
+    if (data.previewImageUrl !== undefined) updates.previewImageUrl = data.previewImageUrl;
+    if (data.coachingNotes !== undefined) updates.coachingNotes = data.coachingNotes;
 
-  const data = parsed.data;
-  const updates: Record<string, unknown> = {
-    updatedBy: req.user!.id,
-  };
-  if (data.title !== undefined) updates.title = data.title;
-  if (data.description !== undefined) updates.description = data.description;
-  if (data.boardData !== undefined) updates.boardData = data.boardData;
-  if (data.previewImageUrl !== undefined) updates.previewImageUrl = data.previewImageUrl;
-  if (data.coachingNotes !== undefined) updates.coachingNotes = data.coachingNotes;
+    if (data.boardData !== undefined) {
+      updates.lastSavedBoardSnapshot = existing.boardData;
+      updates.versionNumber = existing.versionNumber + 1;
+    }
 
-  if (data.boardData !== undefined) {
-    updates.lastSavedBoardSnapshot = existing.boardData;
-    updates.versionNumber = existing.versionNumber + 1;
-  }
+    const [piece] = await tx
+      .update(setPiecesTable)
+      .set(updates)
+      .where(eq(setPiecesTable.id, setPieceId))
+      .returning();
 
-  const [piece] = await db
-    .update(setPiecesTable)
-    .set(updates)
-    .where(eq(setPiecesTable.id, setPieceId))
-    .returning();
-
+    return piece;
+  });
+  if (!piece) { res.status(404).json({ error: "Set piece not found" }); return; }
   res.json(piece);
 });
 
@@ -249,19 +255,36 @@ router.patch("/teams/:teamId/set-pieces/:setPieceId/status", async (req, res): P
   }
 
   const setPieceId = parseParam(req.params.setPieceId);
-  const { status } = parsed.data;
+  const result = await db.transaction(async (tx) => {
+    const { status, requiredVariantIds } = parsed.data;
+    const [existing] = await tx.select().from(setPiecesTable).where(and(eq(setPiecesTable.id, setPieceId), eq(setPiecesTable.teamId, teamId))).for("update");
+    if (!existing) return { ok: false, status: 404, error: "Set piece not found" } as const;
+    let boardData = existing.boardData;
+    if ((status === "ready" || status === "active_matchday") && isVariantBoard(boardData)) {
+      const roles = await tx.select().from(setPieceRolesTable).where(eq(setPieceRolesTable.setPieceId, setPieceId));
+      try {
+        const published = publishContent(existing, roles, requiredVariantIds ?? boardData?.requiredVariantIds as string[] | undefined);
+        boardData = { ...boardData, publishedContent: published };
+      } catch (error) {
+        if (!(error instanceof PublicationValidationError)) throw error;
+        return { ok: false, status: 400, error: error.message } as const;
+      }
+    }
 
-  const [piece] = await db
-    .update(setPiecesTable)
-    .set({ status, updatedBy: req.user!.id })
-    .where(and(eq(setPiecesTable.id, setPieceId), eq(setPiecesTable.teamId, teamId)))
-    .returning();
+    const [piece] = await tx
+      .update(setPiecesTable)
+      .set({ status, boardData, updatedBy: req.user!.id })
+      .where(and(eq(setPiecesTable.id, setPieceId), eq(setPiecesTable.teamId, teamId)))
+      .returning();
 
-  if (!piece) {
-    res.status(404).json({ error: "Set piece not found" });
+    if (!piece) return { ok: false, status: 404, error: "Set piece not found" } as const;
+    return { ok: true, piece } as const;
+  });
+  if (!result.ok) {
+    res.status(result.status).json({ error: result.error });
     return;
   }
-  res.json(piece);
+  res.json(result.piece);
 });
 
 router.get("/teams/:teamId/set-pieces/:setPieceId/match-pack", async (req, res): Promise<void> => {
@@ -365,7 +388,7 @@ router.post("/teams/:teamId/set-pieces/:setPieceId/clone", async (req, res): Pro
         title: clonedTitle,
         category: source.category,
         description: source.description,
-        boardData: source.boardData,
+        boardData: source.boardData ? withoutPublication(source.boardData) : null,
         coachingNotes: source.coachingNotes,
         status: "draft",
         createdBy: req.user!.id,
@@ -394,6 +417,12 @@ router.post("/teams/:teamId/set-pieces/:setPieceId/clone", async (req, res): Pro
         })
         .returning();
       roleIdMap.set(sr.id, newRole.id);
+    }
+
+    if (source.boardData) {
+      const boardData = remapBoardRoleIds(source.boardData, roleIdMap);
+      await tx.update(setPiecesTable).set({ boardData }).where(eq(setPiecesTable.id, cloned.id));
+      cloned.boardData = boardData;
     }
 
     for (const sr of sourceRoles) {

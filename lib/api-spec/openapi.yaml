@@ -556,6 +556,72 @@ paths:
                 $ref: "#/components/schemas/SetPieceTemplate"
 
   # ─── Set Pieces ───
+  /teams/{teamId}/set-piece-collections:
+    parameters:
+      - $ref: "#/components/parameters/TeamId"
+    get:
+      operationId: listSetPieceCollections
+      tags: [setPieces]
+      summary: List the team's coaching collections
+      responses:
+        "200":
+          description: Team collections
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/SetPieceCollection"
+    post:
+      operationId: createSetPieceCollection
+      tags: [setPieces]
+      summary: Create a coaching collection
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SetPieceCollectionInput"
+      responses:
+        "201":
+          description: Collection created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SetPieceCollection"
+  /teams/{teamId}/set-piece-collections/{collectionId}:
+    parameters:
+      - $ref: "#/components/parameters/TeamId"
+      - name: collectionId
+        in: path
+        required: true
+        schema:
+          type: string
+    put:
+      operationId: updateSetPieceCollection
+      tags: [setPieces]
+      summary: Replace the name and membership of a coaching collection
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SetPieceCollectionInput"
+      responses:
+        "200":
+          description: Collection updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SetPieceCollection"
+    delete:
+      operationId: deleteSetPieceCollection
+      tags: [setPieces]
+      summary: Delete a coaching collection
+      responses:
+        "204":
+          description: Collection removed without deleting set pieces
+
   /teams/{teamId}/set-pieces:
     get:
       operationId: listSetPieces
@@ -1104,6 +1170,14 @@ paths:
         - name: playerId
           in: query
           required: false
+          schema:
+            type: string
+        - name: roleId
+          in: query
+          schema:
+            type: string
+        - name: variantId
+          in: query
           schema:
             type: string
       responses:
@@ -1753,6 +1827,32 @@ components:
           format: date-time
 
     # ─── Set Piece ───
+    SetPieceCollectionInput:
+      type: object
+      required: [name, setPieceIds]
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 80
+        setPieceIds:
+          type: array
+          maxItems: 100
+          items:
+            type: string
+            minLength: 1
+            maxLength: 255
+    SetPieceCollection:
+      allOf:
+        - $ref: "#/components/schemas/SetPieceCollectionInput"
+        - type: object
+          required: [id, teamId]
+          properties:
+            id:
+              type: string
+            teamId:
+              type: string
+
     SetPiece:
       type: object
       required: [id, teamId, title, category, status, versionNumber, createdAt, updatedAt]
@@ -1868,6 +1968,10 @@ components:
         status:
           type: string
           enum: [draft, ready, active_matchday, archived]
+        requiredVariantIds:
+          type: array
+          items:
+            type: string
 
     # ─── Set Piece Role ───
     SetPieceRole:
@@ -2518,10 +2622,51 @@ components:
                   - $ref: "#/components/schemas/PlayerReadinessStatus"
                   - type: 'null'
 
+              publishedVersion:
+                type: string
+              requiredVariantIds:
+                type: array
+                items:
+                  type: string
+              tasks:
+                type: array
+                items:
+                  $ref: "#/components/schemas/PlayerVariantTask"
+
+    PlayerVariantTask:
+      type: object
+      required: [id, playerId, setPieceId, roleId, variantId, variantName, contentVersion, status, playerRole, boardData, required]
+      properties:
+        id:
+          type: string
+        playerId:
+          type: string
+        setPieceId:
+          type: string
+        roleId:
+          type: string
+        variantId:
+          type: string
+        variantName:
+          type: string
+        contentVersion:
+          type: string
+        status:
+          type: string
+        quizCompletedAt:
+          type: [string, 'null']
+          format: date-time
+        playerRole:
+          $ref: "#/components/schemas/SetPieceRole"
+        boardData:
+          type: object
+        required:
+          type: boolean
+
     # ─── Readiness ───
     PlayerReadinessStatus:
       type: object
-      required: [id, playerId, setPieceId, status, viewCount, createdAt, updatedAt]
+      required: [playerId, setPieceId, status]
       properties:
         id:
           type: string
@@ -2550,6 +2695,14 @@ components:
         updatedAt:
           type: string
           format: date-time
+        variantId:
+          type: string
+        variantName:
+          type: string
+        contentVersion:
+          type: string
+        roleName:
+          type: string
     MarkReadyBody:
       type: object
       required: [playerId, setPieceId]
@@ -2559,6 +2712,10 @@ components:
         setPieceId:
           type: string
         roleId:
+          type: string
+        variantId:
+          type: string
+        contentVersion:
           type: string
         status:
           type: string
@@ -2607,6 +2764,12 @@ components:
           type: string
         roleId:
           type: [string, 'null']
+        variantId:
+          type: string
+        contentVersion:
+          type: string
+        publishedVersion:
+          type: string
         questions:
           type: array
           items:
@@ -2632,6 +2795,10 @@ components:
           type: string
         roleId:
           type: string
+        variantId:
+          type: string
+        contentVersion:
+          type: string
         answers:
           type: array
           items:
@@ -2654,6 +2821,11 @@ components:
           type: integer
         total:
           type: integer
+
+        variantId:
+          type: string
+        contentVersion:
+          type: string
 
     # ─── Ghost Mode ───
     GhostSubstitutionRequest:

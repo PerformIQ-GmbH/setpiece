@@ -1,14 +1,20 @@
 # Status · SETPIECE
 
-**Stand 30.10.2026, 19:02 UTC: technisch live und öffentlich verifiziert unter https://setpiece.performiq.ch/.**
+**Stand 07.11.2026: Erstes Editorupdate live und öffentlich verifiziert unter https://setpiece.performiq.ch/.**
 
 ## Aktueller Produktionsstand
 
-Arbeitsstand 04.11.2026: Erste Editorverbesserungen im Zweig `improve/editor-workflow` umgesetzt: Linienkörper und Endpunktgriffe, Zeichnen ab Marker, konsistente Farben/Undo, Kontrast, Tastaturhilfe sowie explizite Laufwegzuordnung in Editor/Spieleransicht/Export. [Lieferstatus, Modelle, Abnahme und Folgeaufträge](EDITOR-DELIVERY.md). Noch kein neuer Produktionsrelease; Varianten/Signale und eigene Rollen per Pfeiltasten sind offen.
+Das erste Editorupdate verbessert das Ziehen von Linien und Endpunkten, das Zeichnen ab Spieler und Ball, den Kontrast, die Tastaturhilfe sowie die Laufwegzuordnung in Editor, Spieleransicht und Export. [Lieferstatus, Modelle und Abnahme](EDITOR-DELIVERY.md).
 
-Abschlussprüfung am 04.11.: 89 Tests bestanden, ein PostgreSQL-Test bewusst übersprungen, keine Fehler; vollständiger Typecheck/Produktionsbuild erfolgreich. Desktop-Browserabläufe und Darstellung bei 390 px geprüft; physische Touchgeräte und die letzte mobile Ziehgeste bleiben offen. Details und Screenshots im Lieferstatus.
+Am 04.11. bestanden 89 Tests und der Produktionsbuild. Ein PostgreSQL-Test wurde ohne separate Testdatenbank übersprungen. Desktop und 390 px wurden im Browser geprüft, einschliesslich Passziehen ab Ball am 05.11. Ein physisches Touchgerät wurde dafür noch nicht eingesetzt.
 
-Die erste Lieferung ist als [PR #6](https://github.com/PerformIQ-GmbH/setpiece/pull/6) im Entwurf gesichert, Implementierungscommit `664ee9c9b0194bd5224a62280ede969b37ce54c3`. GitHub-CI läuft auf Linux und Windows; noch kein Merge oder Deployment. Der lokale Auditserver auf Port 5175 ist beendet.
+Am 05.11. wurde [PR #6](https://github.com/PerformIQ-GmbH/setpiece/pull/6) nach grüner [CI auf Linux und Windows](https://github.com/PerformIQ-GmbH/setpiece/actions/runs/41906378360) als `6f734842e823889ec596aa447875230deee9148d` gemergt. Replit veröffentlichte am 07.11. den Arbeitsstand `e89ff8bcf9035d734bf4313e07afffbce786f17c` mit identischem Dateibaum. Das JavaScript-Bundle wechselte, der Gesundheitsendpunkt antwortete mit HTTP 200 und die fiktive Demo verarbeitete die Spielerantwort bis zur Rückmeldung. Die früheren Pilotbelege unten beschreiben den Release vom 30.10.
+
+Auf `feature/editor-variants` sind eigene Gegnerpositionen und Spieleraufträge pro Variante, ein getrennter Entwurf mit ausdrücklicher Spielerfreigabe sowie Quiz und Rückmeldung je Aufgabe umgesetzt. Der Trainerablauf mit Variantenkopie, Phase, Pfeiltaste und Rollenauftrag wurde lokal geprüft. Die Varianten und Signalfiguren gehören zu späteren Veröffentlichungen.
+
+Im lokalen Trainer-Playbook können eigene Standards nach Titel und vorhandener Kategorie gefiltert werden. Trefferzahl, kombinierte Filter und Zurücksetzen wurden mit fiktiven Daten bei 390 und 1366 px im Browser geprüft. Die Vorlagen haben weiterhin ihren eigenen Filter. Diese Änderung ist noch nicht veröffentlicht.
+
+Lokale Playbook-Sammlungen: Trainer können pro Team benannte Sammlungen anlegen, bearbeiten und löschen und die Auswahl beim Hinzufügen von Standards zu einem Spieltag filtern. Sammlungen ändern weder den Status eines Standards noch seine Freigabe. API-Regression prüft Teamtrennung und Trainerrechte. Die additive Migration `lib/db/migrations/20261107_set_piece_collections.sql` wurde in einer isolierten PostgreSQL-Instanz (PGlite) geprüft; vor Veröffentlichung muss sie auf der Zielumgebung angewandt werden.
 
 Editor-Audit vom 31.10.2026: Originaleditor lokal mit ausschliesslich fiktiven In-Memory-Daten bei Desktop- und Smartphonebreite bedient. Linienkörper-Drag, Einstieg am Spieler, Farbauswahl und phasenübergreifende Gegnerpositionen als konkrete Probleme bestätigt. [Audit und priorisierter Plan](EDITOR-AUDIT-2026-10-31.md). Entwicklungseinstieg unter tests/editor-audit.html; keine Änderungen am Produktionseditor, kein neuer Release.
 

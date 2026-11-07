@@ -9,4 +9,6 @@
 export type GetQuizQuestionsParams = {
   setPieceId: string;
   playerId?: string;
+  roleId?: string;
+  variantId?: string;
 };

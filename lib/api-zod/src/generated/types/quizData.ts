@@ -11,5 +11,8 @@ export interface QuizData {
   setPieceId: string;
   /** @nullable */
   roleId?: string | null;
+  variantId?: string;
+  contentVersion?: string;
+  publishedVersion?: string;
   questions: QuizDataQuestionsItem[];
 }

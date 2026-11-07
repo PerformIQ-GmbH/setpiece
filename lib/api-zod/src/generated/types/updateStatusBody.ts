@@ -9,4 +9,5 @@ import type { UpdateStatusBodyStatus } from "./updateStatusBodyStatus";
 
 export interface UpdateStatusBody {
   status: UpdateStatusBodyStatus;
+  requiredVariantIds?: string[];
 }

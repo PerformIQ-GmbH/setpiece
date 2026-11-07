@@ -72,6 +72,10 @@ Mit den fünf Trainern dieselben Aufgaben vor/nach dem Ausbau prüfen: aus Vorla
 
 ## Auslieferung und Budget
 
-Erste Lieferung: [PR #6 als Entwurf](https://github.com/PerformIQ-GmbH/setpiece/pull/6), Implementierungscommit `664ee9c9b0194bd5224a62280ede969b37ce54c3`. GitHub prüft Linux und Windows. Implementiert und lokal geprüft bedeutet noch keinen neuen Live-Release. Merge, CI, Replit-Deployment und öffentliche Abnahme separat in STATUS nachtragen. Keine neue Schemaänderung in dieser ersten Lieferung. Kein bezahlter Replit-Agentauftrag, kein Ads-Kauf und keine neue Aufladung für diese Etappe.
+Die erste Lieferung ist seit dem 07.11.2026 live. [PR #6](https://github.com/PerformIQ-GmbH/setpiece/pull/6) wurde nach erfolgreichen Windows- und Linux-Prüfungen gemergt. Die Pass-Ziehgeste bei 390 px wurde am 05.11. im Browser bestanden. Den Replit-Stand und die öffentliche Abnahme hält [STATUS](STATUS.md) fest.
+
+Die Variantenlieferung wird getrennt geprüft. Trainer können A kopieren und in B Phasen, Gegnerpositionen, Auftrag, Gegnerhinweis und Teamsignal bearbeiten. Im lokalen Browser blieben die Positionen in A beim Wechsel unverändert. Der Export rendert die ausgewählte Variante, während die Spieleransicht die ausdrücklich veröffentlichte Fassung erhält. Signalfiguren als sichtbare Posen auf dem Feld sind der nächste Ausbau.
+
+Am 05.11. zeigte Replit für alle Projekte USD 184.31 Restguthaben und USD 0.31 Verbrauch im Zeitraum 04.11.–03.12. bis zur Ablesung. Für das Editorupdate wurde das bestehende Autoscale-Deployment verwendet. Die projektbezogenen Hostingkosten dieses Releases waren bei Ablesung noch offen.
 
 Die gstack-Startskripte sind in der lokalen Installation unvollständig. Die vorhandene Review-Checkliste wurde gelesen; Diff, unabhängige Agentenbefunde, Tests und Browserbelege werden direkt geprüft. Keine neue Skillinstallation als Nebenarbeit und keine Behauptung eines vollständig gelaufenen gstack-Automatikworkflows.

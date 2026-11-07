@@ -31,6 +31,10 @@ window.fetch = async (input, init) => {
   if (url.pathname === '/api/teams/demo-team') return reply(demoTeam);
   const base = '/api/teams/demo-team/set-pieces/demo-corner';
   if (url.pathname === base + '/role-suggestions') return reply({ roles: [] });
+  if (url.pathname === base + '/status' && method === 'PATCH') {
+    piece.status = body.status;
+    return reply(piece);
+  }
   if (url.pathname === base) {
     if (method === 'PATCH') Object.assign(piece, body);
     return reply(piece);
@@ -51,9 +55,17 @@ function AuditState() {
   const entities = useEditorStore(s => s.entities);
   const selected = useEditorStore(s => s.selectedAnnotationId);
   const drawing = useEditorStore(s => s.drawingPoints);
+  const variants = useEditorStore(s => s.variants);
+  const activeVariantId = useEditorStore(s => s.activeVariantId);
+  const stepPositions = useEditorStore(s => s.stepPositions);
+  const entityStepPositions = useEditorStore(s => s.entityStepPositions);
+  const activeStepIndex = useEditorStore(s => s.animation.activeStepIndex);
   return <details style={{position:'fixed',right:8,bottom:8,zIndex:100,background:'#101b21',color:'white',fontSize:11,maxWidth:310}}>
     <summary>Lokaler Audit · nur fiktive Daten</summary>
-    <pre style={{maxHeight:220,overflow:'auto',whiteSpace:'pre-wrap'}}>{JSON.stringify({selected,drawing,annotations,entities}, null, 1)}</pre>
+    <pre style={{maxHeight:220,overflow:'auto',whiteSpace:'pre-wrap'}}>{JSON.stringify({
+      selected, drawing, annotations, entities, activeVariantId, activeStepIndex, stepPositions, entityStepPositions,
+      variants: variants.map(({ id, name, recognitionCue, teamSignal, roleTasks }) => ({ id, name, recognitionCue, teamSignal, roleTasks })),
+    }, null, 1)}</pre>
   </details>;
 }
 const path = '/teams/demo-team/set-pieces/demo-corner/editor';

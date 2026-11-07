@@ -4,7 +4,6 @@ import { useDemoMode } from '@/contexts/DemoContext';
 import { useDemoSetPiece, useDemoPlayers } from '@/hooks/useDemoData';
 import { EditorCanvas, QuickLegend, useEditorStore } from '@/components/editor';
 import type { BoardData } from '@/components/editor';
-import { migrateLegacyBoardData } from '@/components/editor/types';
 import { StatusBadge } from '@/components/StatusBadge';
 import { Button } from '@/components/ui/button';
 import { Drawer, DrawerContent, DrawerTitle } from '@/components/ui/drawer';
@@ -33,12 +32,7 @@ export default function DemoSetPieceViewer() {
   const setPitchTheme = useEditorStore((s) => s.setPitchTheme);
   const showLegend = useEditorStore((s) => s.showLegend);
   const setShowLegend = useEditorStore((s) => s.setShowLegend);
-  const setAnnotations = useEditorStore((s) => s.setAnnotations);
-  const setEntities = useEditorStore((s) => s.setEntities);
-  const annotations = useEditorStore((s) => s.annotations);
-  const entities = useEditorStore((s) => s.entities);
-  const steps = useEditorStore((s) => s.steps);
-  const setSteps = useEditorStore((s) => s.setSteps);
+  const loadBoardData = useEditorStore((s) => s.loadBoardData);
   const resetStore = useEditorStore((s) => s.resetStore);
 
   const bp = useBreakpoint();
@@ -56,12 +50,8 @@ export default function DemoSetPieceViewer() {
     if (boardDataLoadedRef.current === setPiece.id) return;
     resetStore();
     if (setPiece.boardData && typeof setPiece.boardData === 'object') {
-      const bd = migrateLegacyBoardData(setPiece.boardData as Partial<BoardData>);
-      setAnnotations(bd.annotations);
-      setEntities(bd.entities);
-      if (bd.steps && bd.steps.length > 0) {
-        setSteps(bd.steps);
-      }
+      const board = setPiece.boardData as Partial<BoardData>;
+      loadBoardData({ ...board, activeVariantId: board.defaultVariantId }, setPiece.roles);
     }
     boardDataLoadedRef.current = setPiece.id;
   }, [setPiece?.id]);

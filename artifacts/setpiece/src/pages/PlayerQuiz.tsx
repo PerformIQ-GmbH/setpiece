@@ -18,8 +18,10 @@ export default function PlayerQuiz() {
   const setPieceId = urlParams.get('setPieceId') || '';
   const playerId = urlParams.get('playerId') || '';
   const roleId = urlParams.get('roleId') || '';
+  const variantId = urlParams.get('variantId') || '';
+  const contentVersion = urlParams.get('contentVersion') || '';
 
-  const { data: quizData, isLoading, error } = useGetQuizQuestions(shareToken, { setPieceId, playerId: playerId || undefined });
+  const { data: quizData, isLoading, error } = useGetQuizQuestions(shareToken, { setPieceId, playerId: playerId || undefined, roleId: roleId || undefined, variantId: variantId || undefined });
   const { data: sharedData, isLoading: sharedLoading, error: sharedError } = useGetPlayerView(shareToken);
   const submitQuiz = useSubmitQuiz();
 
@@ -53,6 +55,14 @@ export default function PlayerQuiz() {
         </Link>
       </div>
     );
+  }
+
+  if ((variantId || quizData.variantId) && (!variantId || quizData.variantId !== variantId || !contentVersion || quizData.contentVersion !== contentVersion)) {
+    return <div className="min-h-screen bg-[var(--surface-0)] text-white flex flex-col items-center justify-center p-6 text-center gap-4">
+      <h1 className="text-xl font-bold">Aufgabe wurde geändert</h1>
+      <p>Bitte öffne die aktuelle Aufgabe erneut, bevor du das Quiz startest.</p>
+      <Link href={`/p/${shareToken}`}><Button variant="outline">Zurück zu den Aufgaben</Button></Link>
+    </div>;
   }
 
   const questions = quizData.questions;
@@ -96,6 +106,8 @@ export default function PlayerQuiz() {
           playerId,
           setPieceId,
           roleId: roleId || undefined,
+          variantId: variantId || undefined,
+          contentVersion: contentVersion || undefined,
           answers: formattedAnswers,
         },
       });
@@ -103,7 +115,7 @@ export default function PlayerQuiz() {
     } catch (e) {
       console.error(e);
       toast({
-        title: 'Could not submit quiz, please try again.',
+        title: 'Quiz konnte nicht gespeichert werden. Bitte öffne die Aufgabe erneut und versuche es nochmals.',
         variant: 'destructive',
       });
     }

@@ -9,6 +9,7 @@ import {
   setPieceRolesTable,
   roleAssignmentsTable,
   playerReadinessTable,
+  quizAttemptsTable,
   playersTable,
   auditEventsTable,
   matchdaySetPiecesTable,
@@ -16,6 +17,7 @@ import {
 import { requireCoachAccess, requireHeadCoachAccess, requireShareToken, isSetPieceInShareScope, parseParam } from "../lib/authorization";
 import { checkEntitlement } from "../lib/entitlements";
 import { z } from "zod/v4";
+import { playerContent, variantTask, taskScopeAnswer, taskReadiness, aggregateTaskStatus, isVariantBoard } from "../lib/variantContent";
 
 const router: IRouter = Router();
 
@@ -30,6 +32,8 @@ const markReadySchema = z.object({
   playerId: z.string().min(1),
   setPieceId: z.string().min(1),
   roleId: z.string().optional(),
+  variantId: z.string().min(1).optional(),
+  contentVersion: z.string().min(1).optional(),
   status: z.enum(["ready", "needs_review"]).optional(),
 });
 
@@ -155,7 +159,7 @@ router.get("/p/:shareToken", async (req, res): Promise<void> => {
       .from(setPieceRolesTable)
       .where(eq(setPieceRolesTable.setPieceId, spId));
 
-    const allAssignments = [];
+    const allAssignments: Array<typeof roleAssignmentsTable.$inferSelect> = [];
     for (const role of roles) {
       const assigns = await db
         .select()
@@ -164,15 +168,20 @@ router.get("/p/:shareToken", async (req, res): Promise<void> => {
       allAssignments.push(...assigns);
     }
 
+    const content = playerContent(sp, roles);
+    if (!content) continue;
+    const defaultTask = content.roles[0] ? variantTask(content.piece, content.roles[0]) : null;
     setPiecesResult.push({
       id: sp.id,
-      title: sp.title,
+      title: content.piece.title,
       category: sp.category,
       status: sp.status,
       previewImageUrl: sp.previewImageUrl,
-      boardData: sp.boardData,
-      coachingNotes: sp.coachingNotes,
-      roles,
+      boardData: defaultTask?.boardData ?? (isVariantBoard(content.piece.boardData) ? null : content.piece.boardData),
+      publishedVersion: content.publication?.version,
+      requiredVariantIds: content.publication?.requiredVariantIds,
+      coachingNotes: content.piece.coachingNotes,
+      roles: content.roles,
       assignments: allAssignments,
     });
   }
@@ -274,7 +283,7 @@ router.get("/p/:shareToken/player/:playerId", async (req, res): Promise<void> =>
         ),
       );
 
-    const allAssignments = [];
+    const allAssignments: Array<typeof roleAssignmentsTable.$inferSelect> = [];
     for (const role of roles) {
       const assigns = await db
         .select()
@@ -285,18 +294,32 @@ router.get("/p/:shareToken/player/:playerId", async (req, res): Promise<void> =>
 
     if (!playerRole) continue;
 
+    const content = playerContent(sp, roles);
+    if (!content) continue;
+    const assignedRoles = content.roles.filter(role => allAssignments.some(a => a.roleId === role.id && a.playerId === playerId));
+    if (!assignedRoles.length) continue;
+    const defaultTask = variantTask(content.piece, assignedRoles[0]);
+    const attempts = content.publication ? await db.select().from(quizAttemptsTable).where(and(eq(quizAttemptsTable.playerId, playerId), eq(quizAttemptsTable.setPieceId, spId))) : [];
+    const tasks = content.publication && isVariantBoard(content.piece.boardData) ? assignedRoles.flatMap(role => (content.publication!.boardData.variants as Array<{ id: string }>).map(variant => {
+      const task = variantTask(content.piece, role, variant.id);
+      return { ...taskReadiness(task, attempts, playerId, spId), playerRole: task.role, boardData: task.boardData, required: content.publication!.requiredVariantIds.includes(variant.id) };
+    })) : undefined;
+    const currentReadiness = tasks ? { ...(readiness ?? {}), playerId, setPieceId: spId, roleId: assignedRoles[0].id, status: aggregateTaskStatus(tasks.filter(task => task.required)) } : readiness?.roleId === assignedRoles[0].id ? readiness : null;
     setPiecesResult.push({
       id: sp.id,
-      title: sp.title,
+      title: content.piece.title,
       category: sp.category,
       status: sp.status,
       previewImageUrl: sp.previewImageUrl,
-      boardData: sp.boardData,
-      coachingNotes: sp.coachingNotes,
-      roles,
+      boardData: defaultTask?.boardData ?? content.piece.boardData,
+      publishedVersion: content.publication?.version,
+      requiredVariantIds: content.publication?.requiredVariantIds,
+      coachingNotes: content.piece.coachingNotes,
+      roles: content.roles,
       assignments: allAssignments,
-      playerRole,
-      readiness: readiness || null,
+      playerRole: defaultTask.role,
+      tasks,
+      readiness: currentReadiness || null,
     });
   }
 
@@ -321,7 +344,7 @@ router.post("/p/:shareToken/ready", async (req, res): Promise<void> => {
     return;
   }
 
-  const { playerId, setPieceId, roleId, status } = parsed.data;
+  const { playerId, setPieceId, roleId, status, variantId, contentVersion } = parsed.data;
   const targetStatus = status === "needs_review" ? "needs_review" : "opened";
 
   if (link.playerScope && link.playerScope.length > 0 && !link.playerScope.includes(playerId)) {
@@ -352,6 +375,25 @@ router.post("/p/:shareToken/ready", async (req, res): Promise<void> => {
     return;
   }
 
+  const roles = await db.select().from(setPieceRolesTable).where(eq(setPieceRolesTable.setPieceId, setPieceId));
+  const content = playerContent(sp, roles);
+  if (!content) { res.status(409).json({ error: "Set piece has no published content" }); return; }
+  let assignedRole = null;
+  for (const role of content.roles.filter(role => !roleId || role.id === roleId)) {
+    const [assignment] = await db.select().from(roleAssignmentsTable).where(and(eq(roleAssignmentsTable.roleId, role.id), eq(roleAssignmentsTable.playerId, playerId)));
+    if (assignment) { assignedRole = role; break; }
+  }
+  if (!assignedRole) { res.status(400).json({ error: "No role assignment found for this player" }); return; }
+  let task;
+  try { task = variantTask(content.piece, assignedRole, variantId); }
+  catch { res.status(400).json({ error: "Unknown variant" }); return; }
+  if (task.contentVersion) {
+    if (!variantId || !roleId || contentVersion !== task.contentVersion) { res.status(409).json({ error: "Task changed; reload the published variant" }); return; }
+    const [attempt] = await db.insert(quizAttemptsTable).values({ playerId, setPieceId, roleId: assignedRole.id, completedAt: new Date(), passed: false, answers: [taskScopeAnswer(task, targetStatus, "confirmation")] }).returning();
+    res.json(taskReadiness(task, [attempt], playerId, setPieceId));
+    return;
+  }
+
   const existing = await db
     .select()
     .from(playerReadinessTable)
@@ -373,7 +415,7 @@ router.post("/p/:shareToken/ready", async (req, res): Promise<void> => {
         lastOpenedAt: new Date(),
         viewCount: existing[0].viewCount + 1,
         readyAt: isNeedsReview ? existing[0].readyAt : new Date(),
-        roleId: roleId || existing[0].roleId,
+        roleId: assignedRole.id,
       })
       .where(eq(playerReadinessTable.id, existing[0].id))
       .returning();
@@ -383,7 +425,7 @@ router.post("/p/:shareToken/ready", async (req, res): Promise<void> => {
       .values({
         playerId,
         setPieceId,
-        roleId: roleId || null,
+        roleId: assignedRole.id,
         status: targetStatus,
         lastOpenedAt: new Date(),
         readyAt: isNeedsReview ? null : new Date(),

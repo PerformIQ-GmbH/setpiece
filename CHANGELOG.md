@@ -1,11 +1,20 @@
 # Änderungen
 
-## Editorverbesserungen · in Arbeit · 04.11.2026
+## Playbook-Sammlungen · unveröffentlicht
+
+- Eigene Standards nach Titel und Kategorie finden und in benannten Teamsammlungen organisieren. Sammlungen stehen bei der Auswahl von Standards für einen Spieltag als Filter bereit.
+
+## Varianten und Phasen · unveröffentlicht
+
+- Standards als eigenständige Alternativen kopieren und Gegner, Ball und Spieler pro Phase positionieren. Rollen behalten ihre Zuweisung und erhalten je Variante einen eigenen Auftrag.
+- Gegnermerkmal und Teamsignal festhalten, eine Startvariante wählen und erforderliche Aufgaben ausdrücklich veröffentlichen. Quiz und Rückmeldung gehören zur konkreten veröffentlichten Rolle und Variante.
+- Spieler per Pfeiltaste fein verschieben und die gewählte Variante als PDF ausgeben.
+
+## Editorverbesserungen · 07.11.2026
 
 - Lauf- und Passlinien direkt am Spieler/Ball ziehen oder mit zwei Klicks zeichnen, danach sofort bearbeiten. Ausgewählte Linienkörper und Endpunktgriffe lassen sich gezielt bewegen.
 - Farben und Linienstärken bearbeiten die Auswahl konsistent; Umwandlung, Duplizieren und Korrektur sind rückgängig machbar. Auswahl lässt den übrigen taktischen Kontext sichtbar.
 - Sichtbare Werkzeugkürzel, Tastaturhilfe und geschützte Texteingaben/Dialoge. Freie Skizzen bewegen keine zufälligen Spieler mehr; explizite Rollenpfade stimmen in Editor, Spieleransicht und Export überein.
-- Varianten mit unabhängigen Gegnerphasen und Signalfiguren sind als nächste Lieferung geplant. Diese Änderungen sind bis zur getrennt belegten Auslieferung nicht live.
 
 ## Betreuter Pilot · 30.10.2026
 

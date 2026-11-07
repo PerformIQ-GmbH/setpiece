@@ -11,5 +11,7 @@ export interface SubmitQuizBody {
   playerId: string;
   setPieceId: string;
   roleId?: string;
+  variantId?: string;
+  contentVersion?: string;
   answers: SubmitQuizBodyAnswersItem[];
 }
