@@ -72,6 +72,8 @@ import type {
   RoleSuggestionsBody,
   RoleSuggestionsResponse,
   SetPiece,
+  SetPieceCollection,
+  SetPieceCollectionInput,
   SetPieceDetail,
   SetPieceRole,
   SetPieceTemplate,
@@ -2432,6 +2434,395 @@ export function useGetTemplate<
 
   return { ...query, queryKey: queryOptions.queryKey };
 }
+
+/**
+ * @summary List the team's coaching collections
+ */
+export const getListSetPieceCollectionsUrl = (teamId: string) => {
+  return `/api/teams/${teamId}/set-piece-collections`;
+};
+
+export const listSetPieceCollections = async (
+  teamId: string,
+  options?: RequestInit,
+): Promise<SetPieceCollection[]> => {
+  return customFetch<SetPieceCollection[]>(
+    getListSetPieceCollectionsUrl(teamId),
+    {
+      ...options,
+      method: "GET",
+    },
+  );
+};
+
+export const getListSetPieceCollectionsQueryKey = (teamId: string) => {
+  return [`/api/teams/${teamId}/set-piece-collections`] as const;
+};
+
+export const getListSetPieceCollectionsQueryOptions = <
+  TData = Awaited<ReturnType<typeof listSetPieceCollections>>,
+  TError = ErrorType<unknown>,
+>(
+  teamId: string,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof listSetPieceCollections>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getListSetPieceCollectionsQueryKey(teamId);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof listSetPieceCollections>>
+  > = ({ signal }) =>
+    listSetPieceCollections(teamId, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!teamId,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof listSetPieceCollections>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type ListSetPieceCollectionsQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listSetPieceCollections>>
+>;
+export type ListSetPieceCollectionsQueryError = ErrorType<unknown>;
+
+/**
+ * @summary List the team's coaching collections
+ */
+
+export function useListSetPieceCollections<
+  TData = Awaited<ReturnType<typeof listSetPieceCollections>>,
+  TError = ErrorType<unknown>,
+>(
+  teamId: string,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof listSetPieceCollections>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getListSetPieceCollectionsQueryOptions(teamId, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Create a coaching collection
+ */
+export const getCreateSetPieceCollectionUrl = (teamId: string) => {
+  return `/api/teams/${teamId}/set-piece-collections`;
+};
+
+export const createSetPieceCollection = async (
+  teamId: string,
+  setPieceCollectionInput: SetPieceCollectionInput,
+  options?: RequestInit,
+): Promise<SetPieceCollection> => {
+  return customFetch<SetPieceCollection>(
+    getCreateSetPieceCollectionUrl(teamId),
+    {
+      ...options,
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...options?.headers },
+      body: JSON.stringify(setPieceCollectionInput),
+    },
+  );
+};
+
+export const getCreateSetPieceCollectionMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createSetPieceCollection>>,
+    TError,
+    { teamId: string; data: BodyType<SetPieceCollectionInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof createSetPieceCollection>>,
+  TError,
+  { teamId: string; data: BodyType<SetPieceCollectionInput> },
+  TContext
+> => {
+  const mutationKey = ["createSetPieceCollection"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof createSetPieceCollection>>,
+    { teamId: string; data: BodyType<SetPieceCollectionInput> }
+  > = (props) => {
+    const { teamId, data } = props ?? {};
+
+    return createSetPieceCollection(teamId, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type CreateSetPieceCollectionMutationResult = NonNullable<
+  Awaited<ReturnType<typeof createSetPieceCollection>>
+>;
+export type CreateSetPieceCollectionMutationBody =
+  BodyType<SetPieceCollectionInput>;
+export type CreateSetPieceCollectionMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Create a coaching collection
+ */
+export const useCreateSetPieceCollection = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createSetPieceCollection>>,
+    TError,
+    { teamId: string; data: BodyType<SetPieceCollectionInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof createSetPieceCollection>>,
+  TError,
+  { teamId: string; data: BodyType<SetPieceCollectionInput> },
+  TContext
+> => {
+  return useMutation(getCreateSetPieceCollectionMutationOptions(options));
+};
+
+/**
+ * @summary Replace the name and membership of a coaching collection
+ */
+export const getUpdateSetPieceCollectionUrl = (
+  teamId: string,
+  collectionId: string,
+) => {
+  return `/api/teams/${teamId}/set-piece-collections/${collectionId}`;
+};
+
+export const updateSetPieceCollection = async (
+  teamId: string,
+  collectionId: string,
+  setPieceCollectionInput: SetPieceCollectionInput,
+  options?: RequestInit,
+): Promise<SetPieceCollection> => {
+  return customFetch<SetPieceCollection>(
+    getUpdateSetPieceCollectionUrl(teamId, collectionId),
+    {
+      ...options,
+      method: "PUT",
+      headers: { "Content-Type": "application/json", ...options?.headers },
+      body: JSON.stringify(setPieceCollectionInput),
+    },
+  );
+};
+
+export const getUpdateSetPieceCollectionMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateSetPieceCollection>>,
+    TError,
+    {
+      teamId: string;
+      collectionId: string;
+      data: BodyType<SetPieceCollectionInput>;
+    },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof updateSetPieceCollection>>,
+  TError,
+  {
+    teamId: string;
+    collectionId: string;
+    data: BodyType<SetPieceCollectionInput>;
+  },
+  TContext
+> => {
+  const mutationKey = ["updateSetPieceCollection"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof updateSetPieceCollection>>,
+    {
+      teamId: string;
+      collectionId: string;
+      data: BodyType<SetPieceCollectionInput>;
+    }
+  > = (props) => {
+    const { teamId, collectionId, data } = props ?? {};
+
+    return updateSetPieceCollection(teamId, collectionId, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type UpdateSetPieceCollectionMutationResult = NonNullable<
+  Awaited<ReturnType<typeof updateSetPieceCollection>>
+>;
+export type UpdateSetPieceCollectionMutationBody =
+  BodyType<SetPieceCollectionInput>;
+export type UpdateSetPieceCollectionMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Replace the name and membership of a coaching collection
+ */
+export const useUpdateSetPieceCollection = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateSetPieceCollection>>,
+    TError,
+    {
+      teamId: string;
+      collectionId: string;
+      data: BodyType<SetPieceCollectionInput>;
+    },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof updateSetPieceCollection>>,
+  TError,
+  {
+    teamId: string;
+    collectionId: string;
+    data: BodyType<SetPieceCollectionInput>;
+  },
+  TContext
+> => {
+  return useMutation(getUpdateSetPieceCollectionMutationOptions(options));
+};
+
+/**
+ * @summary Delete a coaching collection
+ */
+export const getDeleteSetPieceCollectionUrl = (
+  teamId: string,
+  collectionId: string,
+) => {
+  return `/api/teams/${teamId}/set-piece-collections/${collectionId}`;
+};
+
+export const deleteSetPieceCollection = async (
+  teamId: string,
+  collectionId: string,
+  options?: RequestInit,
+): Promise<void> => {
+  return customFetch<void>(
+    getDeleteSetPieceCollectionUrl(teamId, collectionId),
+    {
+      ...options,
+      method: "DELETE",
+    },
+  );
+};
+
+export const getDeleteSetPieceCollectionMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof deleteSetPieceCollection>>,
+    TError,
+    { teamId: string; collectionId: string },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof deleteSetPieceCollection>>,
+  TError,
+  { teamId: string; collectionId: string },
+  TContext
+> => {
+  const mutationKey = ["deleteSetPieceCollection"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof deleteSetPieceCollection>>,
+    { teamId: string; collectionId: string }
+  > = (props) => {
+    const { teamId, collectionId } = props ?? {};
+
+    return deleteSetPieceCollection(teamId, collectionId, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type DeleteSetPieceCollectionMutationResult = NonNullable<
+  Awaited<ReturnType<typeof deleteSetPieceCollection>>
+>;
+
+export type DeleteSetPieceCollectionMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Delete a coaching collection
+ */
+export const useDeleteSetPieceCollection = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof deleteSetPieceCollection>>,
+    TError,
+    { teamId: string; collectionId: string },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof deleteSetPieceCollection>>,
+  TError,
+  { teamId: string; collectionId: string },
+  TContext
+> => {
+  return useMutation(getDeleteSetPieceCollectionMutationOptions(options));
+};
 
 /**
  * @summary List set pieces for a team

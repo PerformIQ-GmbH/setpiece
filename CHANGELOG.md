@@ -1,5 +1,9 @@
 # Änderungen
 
+## Playbook-Sammlungen · unveröffentlicht
+
+- Eigene Standards nach Titel und Kategorie finden und in benannten Teamsammlungen organisieren. Sammlungen stehen bei der Auswahl von Standards für einen Spieltag als Filter bereit.
+
 ## Varianten und Phasen · unveröffentlicht
 
 - Standards als eigenständige Alternativen kopieren und Gegner, Ball und Spieler pro Phase positionieren. Rollen behalten ihre Zuweisung und erhalten je Variante einen eigenen Auftrag.

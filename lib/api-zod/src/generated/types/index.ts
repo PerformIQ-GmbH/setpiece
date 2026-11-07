@@ -105,6 +105,8 @@ export * from "./roleSuggestionsBody";
 export * from "./roleSuggestionsResponse";
 export * from "./setPiece";
 export * from "./setPieceBoardData";
+export * from "./setPieceCollection";
+export * from "./setPieceCollectionInput";
 export * from "./setPieceDetail";
 export * from "./setPieceDetailBoardData";
 export * from "./setPieceDetailLastSavedBoardSnapshot";

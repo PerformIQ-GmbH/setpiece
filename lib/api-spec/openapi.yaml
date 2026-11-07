@@ -556,6 +556,72 @@ paths:
                 $ref: "#/components/schemas/SetPieceTemplate"
 
   # ─── Set Pieces ───
+  /teams/{teamId}/set-piece-collections:
+    parameters:
+      - $ref: "#/components/parameters/TeamId"
+    get:
+      operationId: listSetPieceCollections
+      tags: [setPieces]
+      summary: List the team's coaching collections
+      responses:
+        "200":
+          description: Team collections
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/SetPieceCollection"
+    post:
+      operationId: createSetPieceCollection
+      tags: [setPieces]
+      summary: Create a coaching collection
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SetPieceCollectionInput"
+      responses:
+        "201":
+          description: Collection created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SetPieceCollection"
+  /teams/{teamId}/set-piece-collections/{collectionId}:
+    parameters:
+      - $ref: "#/components/parameters/TeamId"
+      - name: collectionId
+        in: path
+        required: true
+        schema:
+          type: string
+    put:
+      operationId: updateSetPieceCollection
+      tags: [setPieces]
+      summary: Replace the name and membership of a coaching collection
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SetPieceCollectionInput"
+      responses:
+        "200":
+          description: Collection updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SetPieceCollection"
+    delete:
+      operationId: deleteSetPieceCollection
+      tags: [setPieces]
+      summary: Delete a coaching collection
+      responses:
+        "204":
+          description: Collection removed without deleting set pieces
+
   /teams/{teamId}/set-pieces:
     get:
       operationId: listSetPieces
@@ -1761,6 +1827,32 @@ components:
           format: date-time
 
     # ─── Set Piece ───
+    SetPieceCollectionInput:
+      type: object
+      required: [name, setPieceIds]
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 80
+        setPieceIds:
+          type: array
+          maxItems: 100
+          items:
+            type: string
+            minLength: 1
+            maxLength: 255
+    SetPieceCollection:
+      allOf:
+        - $ref: "#/components/schemas/SetPieceCollectionInput"
+        - type: object
+          required: [id, teamId]
+          properties:
+            id:
+              type: string
+            teamId:
+              type: string
+
     SetPiece:
       type: object
       required: [id, teamId, title, category, status, versionNumber, createdAt, updatedAt]

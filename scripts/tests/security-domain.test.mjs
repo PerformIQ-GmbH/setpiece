@@ -15,6 +15,7 @@ const schema = Object.fromEntries(Object.entries({
   usersTable: ["id", "email", "passwordHash"], sessionsTable: ["sid", "sess", "expire"],
   passwordResetTokensTable: ["id", "userId", "token", "usedAt", "expiresAt"], emailVerificationTokensTable: ["id", "userId", "usedAt"],
   playersTable: ["id", "teamId"], setPiecesTable: ["id", "teamId", "status"],
+  membershipsTable: ["userId", "teamId", "role"], setPieceCollectionsTable: ["id", "teamId"],
   setPieceRolesTable: ["id", "setPieceId", "createdAt", "updatedAt"],
   roleAssignmentsTable: ["roleId", "playerId"], quizAttemptsTable: ["id", "playerId", "setPieceId", "roleId"], auditEventsTable: ["id"],
   playerReadinessTable: ["id", "playerId", "setPieceId"], matchdaysTable: ["id", "teamId"], matchdaySetPiecesTable: ["matchdayId", "setPieceId"],
@@ -166,6 +167,50 @@ function authFixture(initial = {}, clock = Date, googleProfile) {
   return { db, ...h, auth, hashes, sentEmails };
 }
 async function invoke(routes, method, req) { const res = response(); await routes[method](req, res); return res; }
+
+test("coaching collections keep membership and edits inside the team without touching set piece status", async () => {
+  const db = database({
+    membershipsTable: [
+      { userId: "coach", teamId: "A", role: "assistant_coach" },
+      { userId: "player", teamId: "A", role: "player" },
+    ],
+    setPiecesTable: [
+      { id: "corner", teamId: "A", status: "ready" },
+      { id: "foreign-piece", teamId: "B", status: "ready" },
+    ],
+    setPieceCollectionsTable: [{ id: "foreign", teamId: "B", name: "Private", setPieceIds: ["foreign-piece"] }],
+  });
+  const h = harness();
+  const mocks = { "@workspace/db": { db, ...schema }, "drizzle-orm": orm };
+  const auth = load("artifacts/api-server/src/lib/authorization.ts", mocks);
+  load("artifacts/api-server/src/routes/setPieceCollections.ts", {
+    ...mocks, express: h.express, "zod/v4": require("zod/v4"), "../lib/authorization": auth,
+  });
+  const call = (method, { userId = "coach", teamId = "A", collectionId, body } = {}) =>
+    invoke(h.routes, `${method} /teams/:teamId/set-piece-collections${collectionId ? "/:collectionId" : ""}`,
+      request(body, { params: { teamId, collectionId }, user: { id: userId }, isAuthenticated: () => !!userId }));
+  assert.equal((await call("GET", { userId: "" })).statusCode, 401);
+  assert.equal((await call("GET", { userId: "player" })).statusCode, 403);
+  assert.equal((await call("GET", { teamId: "B" })).statusCode, 403);
+  assert.equal((await call("POST", { body: { name: "  ", setPieceIds: [] } })).statusCode, 400);
+  assert.equal((await call("POST", { body: { name: "Corners", setPieceIds: ["foreign-piece"] } })).statusCode, 400);
+  const created = await call("POST", { body: { name: "  Corners  ", setPieceIds: ["corner", "corner"] } });
+  assert.equal(created.statusCode, 201);
+  assert.equal(created.body.name, "Corners");
+  assert.equal(created.body.setPieceIds.join(","), "corner");
+  assert.deepEqual((await call("GET")).body.map(item => item.id), [created.body.id]);
+  assert.equal((await call("PUT", { collectionId: "foreign", body: { name: "Overwrite", setPieceIds: ["corner"] } })).statusCode, 404);
+  await call("DELETE", { collectionId: "foreign" });
+  const edited = await call("PUT", { collectionId: created.body.id, body: { name: "Zonal marking", setPieceIds: [] } });
+  assert.equal(edited.statusCode, 200);
+  assert.equal(edited.body.name, "Zonal marking");
+  assert.equal(edited.body.setPieceIds.length, 0);
+  assert.equal((await call("DELETE", { collectionId: created.body.id })).statusCode, 204);
+  assert.equal((await call("GET")).body.length, 0);
+  assert.equal(db.data.setPieceCollectionsTable[0].name, "Private");
+  assert.equal(db.data.setPiecesTable[0].status, "ready");
+  assert.equal(db.calls.some(call => call.action !== "select" && call.table === "setPiecesTable"), false);
+});
 
 test("registration refuses an existing Google identity without changing credentials or issuing a session", async () => {
   const f = authFixture({ usersTable: [{ id: "google-user", email: "coach@example.invalid", passwordHash: null, authProvider: "google", emailVerified: true }] });

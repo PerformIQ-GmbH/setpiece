@@ -563,6 +563,119 @@ export const GetTemplateResponse = zod.object({
 });
 
 /**
+ * @summary List the team's coaching collections
+ */
+export const ListSetPieceCollectionsParams = zod.object({
+  teamId: zod.coerce.string(),
+});
+
+export const listSetPieceCollectionsResponseOneNameMax = 80;
+
+export const listSetPieceCollectionsResponseOneSetPieceIdsItemMax = 255;
+
+export const listSetPieceCollectionsResponseOneSetPieceIdsMax = 100;
+
+export const ListSetPieceCollectionsResponseItem = zod
+  .object({
+    name: zod.string().min(1).max(listSetPieceCollectionsResponseOneNameMax),
+    setPieceIds: zod
+      .array(
+        zod
+          .string()
+          .min(1)
+          .max(listSetPieceCollectionsResponseOneSetPieceIdsItemMax),
+      )
+      .max(listSetPieceCollectionsResponseOneSetPieceIdsMax),
+  })
+  .and(
+    zod.object({
+      id: zod.string(),
+      teamId: zod.string(),
+    }),
+  );
+export const ListSetPieceCollectionsResponse = zod.array(
+  ListSetPieceCollectionsResponseItem,
+);
+
+/**
+ * @summary Create a coaching collection
+ */
+export const CreateSetPieceCollectionParams = zod.object({
+  teamId: zod.coerce.string(),
+});
+
+export const createSetPieceCollectionBodyNameMax = 80;
+
+export const createSetPieceCollectionBodySetPieceIdsItemMax = 255;
+
+export const createSetPieceCollectionBodySetPieceIdsMax = 100;
+
+export const CreateSetPieceCollectionBody = zod.object({
+  name: zod.string().min(1).max(createSetPieceCollectionBodyNameMax),
+  setPieceIds: zod
+    .array(
+      zod.string().min(1).max(createSetPieceCollectionBodySetPieceIdsItemMax),
+    )
+    .max(createSetPieceCollectionBodySetPieceIdsMax),
+});
+
+/**
+ * @summary Replace the name and membership of a coaching collection
+ */
+export const UpdateSetPieceCollectionParams = zod.object({
+  teamId: zod.coerce.string(),
+  collectionId: zod.coerce.string(),
+});
+
+export const updateSetPieceCollectionBodyNameMax = 80;
+
+export const updateSetPieceCollectionBodySetPieceIdsItemMax = 255;
+
+export const updateSetPieceCollectionBodySetPieceIdsMax = 100;
+
+export const UpdateSetPieceCollectionBody = zod.object({
+  name: zod.string().min(1).max(updateSetPieceCollectionBodyNameMax),
+  setPieceIds: zod
+    .array(
+      zod.string().min(1).max(updateSetPieceCollectionBodySetPieceIdsItemMax),
+    )
+    .max(updateSetPieceCollectionBodySetPieceIdsMax),
+});
+
+export const updateSetPieceCollectionResponseOneNameMax = 80;
+
+export const updateSetPieceCollectionResponseOneSetPieceIdsItemMax = 255;
+
+export const updateSetPieceCollectionResponseOneSetPieceIdsMax = 100;
+
+export const UpdateSetPieceCollectionResponse = zod
+  .object({
+    name: zod.string().min(1).max(updateSetPieceCollectionResponseOneNameMax),
+    setPieceIds: zod
+      .array(
+        zod
+          .string()
+          .min(1)
+          .max(updateSetPieceCollectionResponseOneSetPieceIdsItemMax),
+      )
+      .max(updateSetPieceCollectionResponseOneSetPieceIdsMax),
+  })
+  .and(
+    zod.object({
+      id: zod.string(),
+      teamId: zod.string(),
+    }),
+  );
+
+/**
+ * @summary Delete a coaching collection
+ */
+export const DeleteSetPieceCollectionParams = zod.object({
+  teamId: zod.coerce.string(),
+  collectionId: zod.coerce.string(),
+});
+
+/**
  * @summary List set pieces for a team
  */
 export const ListSetPiecesParams = zod.object({

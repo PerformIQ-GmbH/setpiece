@@ -221,6 +221,21 @@ export interface SetPieceTemplate {
   updatedAt: string;
 }
 
+export interface SetPieceCollectionInput {
+  /**
+   * @minLength 1
+   * @maxLength 80
+   */
+  name: string;
+  /** @maxItems 100 */
+  setPieceIds: string[];
+}
+
+export type SetPieceCollection = SetPieceCollectionInput & {
+  id: string;
+  teamId: string;
+};
+
 /**
  * @nullable
  */

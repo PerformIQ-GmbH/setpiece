@@ -12,6 +12,10 @@ Am 05.11. wurde [PR #6](https://github.com/PerformIQ-GmbH/setpiece/pull/6) nach 
 
 Auf `feature/editor-variants` sind eigene Gegnerpositionen und Spieleraufträge pro Variante, ein getrennter Entwurf mit ausdrücklicher Spielerfreigabe sowie Quiz und Rückmeldung je Aufgabe umgesetzt. Der Trainerablauf mit Variantenkopie, Phase, Pfeiltaste und Rollenauftrag wurde lokal geprüft. Die Varianten und Signalfiguren gehören zu späteren Veröffentlichungen.
 
+Im lokalen Trainer-Playbook können eigene Standards nach Titel und vorhandener Kategorie gefiltert werden. Trefferzahl, kombinierte Filter und Zurücksetzen wurden mit fiktiven Daten bei 390 und 1366 px im Browser geprüft. Die Vorlagen haben weiterhin ihren eigenen Filter. Diese Änderung ist noch nicht veröffentlicht.
+
+Lokale Playbook-Sammlungen: Trainer können pro Team benannte Sammlungen anlegen, bearbeiten und löschen und die Auswahl beim Hinzufügen von Standards zu einem Spieltag filtern. Sammlungen ändern weder den Status eines Standards noch seine Freigabe. API-Regression prüft Teamtrennung und Trainerrechte. Die additive Migration `lib/db/migrations/20261107_set_piece_collections.sql` wurde in einer isolierten PostgreSQL-Instanz (PGlite) geprüft; vor Veröffentlichung muss sie auf der Zielumgebung angewandt werden.
+
 Editor-Audit vom 31.10.2026: Originaleditor lokal mit ausschliesslich fiktiven In-Memory-Daten bei Desktop- und Smartphonebreite bedient. Linienkörper-Drag, Einstieg am Spieler, Farbauswahl und phasenübergreifende Gegnerpositionen als konkrete Probleme bestätigt. [Audit und priorisierter Plan](EDITOR-AUDIT-2026-10-31.md). Entwicklungseinstieg unter tests/editor-audit.html; keine Änderungen am Produktionseditor, kein neuer Release.
 
 | Schritt | Beleg |

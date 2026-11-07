@@ -4,6 +4,7 @@ export * from "./memberships";
 export * from "./players";
 export * from "./setPieceTemplates";
 export * from "./setPieces";
+export * from "./setPieceCollections";
 export * from "./setPieceRoles";
 export * from "./roleAssignments";
 export * from "./playerReadiness";
