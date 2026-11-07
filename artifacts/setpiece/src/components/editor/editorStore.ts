@@ -1,7 +1,8 @@
 import { create } from 'zustand';
-import type { EditorTool, EditorMode, PitchTheme, Annotation, EntityMarker, Point, AnimationStep } from './types';
-import { BASIC_TOOLS, createDefaultStep } from './types';
-import { moveAnnotationGeometry, updateAnnotationEndpoint } from './editorInteraction';
+import type { EditorTool, EditorMode, PitchTheme, Annotation, EntityMarker, Point, AnimationStep, BoardData, BoardVariant, RolePositionSource, StepPositions, VariantBoardData, VariantRoleTask } from './types';
+import { BASIC_TOOLS } from './types';
+import { findRoleRun, moveAnnotationGeometry, updateAnnotationEndpoint } from './editorInteraction';
+import { loadBoardData, serializeBoardData, projectBoardVariant, duplicateBoardVariant } from './boardVariants.ts';
 
 interface AnimationState {
   playing: boolean;
@@ -16,6 +17,13 @@ interface BoardSnapshot {
   entities: EntityMarker[];
   steps: AnimationStep[];
   stepPositions: Record<string, Record<string, Point>>;
+  entityStepPositions: StepPositions;
+  variants: BoardVariant[];
+  activeVariantId: string;
+  defaultVariantId: string;
+  requiredVariantIds: string[];
+  boardExtras: Record<string, unknown>;
+  animation: AnimationState;
 }
 
 /** One undoable action. 'board' entries restore local board state; 'role'
@@ -34,6 +42,20 @@ interface ViewState {
 }
 
 interface EditorState {
+  variants: BoardVariant[];
+  activeVariantId: string;
+  defaultVariantId: string;
+  requiredVariantIds: string[];
+  boardExtras: Record<string, unknown>;
+  loadBoardData: (board: Partial<BoardData> | null | undefined, roles?: RolePositionSource[]) => void;
+  serializeBoardData: () => VariantBoardData;
+  switchVariant: (id: string) => void;
+  duplicateVariant: (id?: string, name?: string) => void;
+  deleteVariant: (id: string) => void;
+  setDefaultVariant: (id: string) => void;
+  setVariantRequired: (id: string, required: boolean) => void;
+  updateActiveVariant: (updates: Partial<Pick<BoardVariant, 'name' | 'recognitionCue' | 'teamSignal'>>) => void;
+  setVariantRoleTask: (roleId: string, patch: VariantRoleTask) => void;
   editorMode: EditorMode;
   setEditorMode: (mode: EditorMode) => void;
 
@@ -95,6 +117,9 @@ interface EditorState {
   stepPositions: Record<string, Record<string, Point>>;
   setStepPositions: (sp: Record<string, Record<string, Point>>) => void;
   setStepRolePosition: (stepId: string, roleId: string, pos: Point) => void;
+  entityStepPositions: StepPositions;
+  setEntityStepPositions: (positions: StepPositions) => void;
+  setStepEntityPosition: (stepId: string, entityId: string, pos: Point) => void;
 
   steps: AnimationStep[];
   setSteps: (steps: AnimationStep[]) => void;
@@ -143,7 +168,7 @@ interface EditorState {
   undo: () => UndoEntry | null;
   redo: () => UndoEntry | null;
 
-  mirrorBoard: () => void;
+  mirrorBoard: (roles?: RolePositionSource[]) => void;
 
   contextMenu: { x: number; y: number; targetType: 'annotation' | 'entity' | 'role'; targetId: string } | null;
   setContextMenu: (menu: { x: number; y: number; targetType: 'annotation' | 'entity' | 'role'; targetId: string } | null) => void;
@@ -174,15 +199,42 @@ function getStoredTips(): boolean {
   return true;
 }
 
-const defaultStep = createDefaultStep();
+const initialBoard = loadBoardData({});
 
 // All board mutations replace objects immutably, so a snapshot can safely hold
 // references to the current arrays/maps.
-const takeSnap = (s: Pick<EditorState, 'annotations' | 'entities' | 'steps' | 'stepPositions'>): BoardSnapshot => ({
+const takeSnap = (s: EditorState): BoardSnapshot => ({
   annotations: s.annotations,
   entities: s.entities,
   steps: s.steps,
   stepPositions: s.stepPositions,
+  entityStepPositions: s.entityStepPositions,
+  variants: s.variants,
+  activeVariantId: s.activeVariantId,
+  defaultVariantId: s.defaultVariantId,
+  requiredVariantIds: s.requiredVariantIds,
+  boardExtras: s.boardExtras,
+  animation: s.animation,
+});
+
+const boardFromState = (s: EditorState): VariantBoardData => ({
+  ...s.boardExtras, schemaVersion: 2, variants: s.variants,
+  activeVariantId: s.activeVariantId, defaultVariantId: s.defaultVariantId,
+  requiredVariantIds: s.requiredVariantIds,
+  annotations: s.annotations, entities: s.entities, steps: s.steps,
+  stepPositions: s.stepPositions, entityStepPositions: s.entityStepPositions,
+});
+
+const workingBoard = (board: VariantBoardData) => ({
+  variants: board.variants, activeVariantId: board.activeVariantId, defaultVariantId: board.defaultVariantId,
+  requiredVariantIds: board.requiredVariantIds,
+  annotations: board.annotations, entities: board.entities, steps: board.steps,
+  stepPositions: board.stepPositions, entityStepPositions: board.entityStepPositions,
+});
+
+const resetInteraction = (s: EditorState) => ({
+  selectedAnnotationId: null, selectedEntityId: null, drawingPoints: [], contextMenu: null,
+  animation: { ...s.animation, activeStepIndex: 0, progress: 0, playing: false },
 });
 
 const pushSnap = (s: EditorState): Pick<EditorState, 'undoStack' | 'redoStack'> => ({
@@ -193,6 +245,60 @@ const pushSnap = (s: EditorState): Pick<EditorState, 'undoStack' | 'redoStack'> 
 let pendingDragSnap: BoardSnapshot | null = null;
 
 export const useEditorStore = create<EditorState>((set, get) => ({
+  variants: initialBoard.variants,
+  activeVariantId: initialBoard.activeVariantId,
+  defaultVariantId: initialBoard.defaultVariantId,
+  requiredVariantIds: initialBoard.requiredVariantIds,
+  boardExtras: {},
+  loadBoardData: (input, roles) => {
+    const board = loadBoardData(input, roles);
+    const managed = new Set(['schemaVersion', 'variants', 'activeVariantId', 'defaultVariantId', 'requiredVariantIds',
+      'annotations', 'entities', 'steps', 'stepPositions', 'entityStepPositions']);
+    pendingDragSnap = null;
+    set(s => ({ ...workingBoard(board), ...resetInteraction(s), undoStack: [], redoStack: [],
+      boardExtras: Object.fromEntries(Object.entries(board).filter(([key]) => !managed.has(key))) }));
+  },
+  serializeBoardData: () => serializeBoardData(boardFromState(get())),
+  switchVariant: (id) => set(s => {
+    if (id === s.activeVariantId || !s.variants.some(variant => variant.id === id)) return {};
+    const board = serializeBoardData(boardFromState(s));
+    pendingDragSnap = null;
+    return { ...pushSnap(s), ...workingBoard(projectBoardVariant(board, id)), ...resetInteraction(s) };
+  }),
+  duplicateVariant: (id, name) => set(s => {
+    const board = serializeBoardData(boardFromState(s));
+    const source = board.variants.find(variant => variant.id === (id ?? s.activeVariantId));
+    if (!source) return {};
+    const copy = duplicateBoardVariant(source, name);
+    pendingDragSnap = null;
+    return { ...pushSnap(s), ...workingBoard(projectBoardVariant({ ...board, variants: [...board.variants, copy],
+      requiredVariantIds: [...board.requiredVariantIds, copy.id] }, copy.id)),
+      ...resetInteraction(s) };
+  }),
+  deleteVariant: (id) => set(s => {
+    if (s.variants.length <= 1 || !s.variants.some(variant => variant.id === id)) return {};
+    const board = serializeBoardData(boardFromState(s));
+    board.variants = board.variants.filter(variant => variant.id !== id);
+    if (board.defaultVariantId === id) board.defaultVariantId = board.variants[0].id;
+    if (board.activeVariantId === id) board.activeVariantId = board.defaultVariantId;
+    board.requiredVariantIds = board.requiredVariantIds.filter(requiredId => requiredId !== id);
+    if (!board.requiredVariantIds.length) board.requiredVariantIds = [board.defaultVariantId];
+    pendingDragSnap = null;
+    return { ...pushSnap(s), ...workingBoard(projectBoardVariant(board, board.activeVariantId)), ...resetInteraction(s) };
+  }),
+  setDefaultVariant: (id) => set(s => s.defaultVariantId !== id && s.variants.some(variant => variant.id === id)
+    ? { ...pushSnap(s), defaultVariantId: id } : {}),
+  setVariantRequired: (id, required) => set(s => {
+    if (!s.variants.some(variant => variant.id === id) || s.requiredVariantIds.includes(id) === required ||
+      (!required && s.requiredVariantIds.length <= 1)) return {};
+    return { ...pushSnap(s), requiredVariantIds: required ? [...s.requiredVariantIds, id]
+      : s.requiredVariantIds.filter(requiredId => requiredId !== id) };
+  }),
+  updateActiveVariant: (updates) => set(s => ({ ...pushSnap(s),
+    variants: s.variants.map(variant => variant.id === s.activeVariantId ? { ...variant, ...updates } : variant) })),
+  setVariantRoleTask: (roleId, patch) => set(s => ({ ...pushSnap(s),
+    variants: s.variants.map(variant => variant.id === s.activeVariantId ? { ...variant,
+      roleTasks: { ...variant.roleTasks, [roleId]: { ...variant.roleTasks[roleId], ...patch } } } : variant) })),
   editorMode: getStoredEditorMode(),
   setEditorMode: (mode) => {
     try { localStorage.setItem('setpiece-editor-mode', mode); } catch {}
@@ -288,13 +394,24 @@ export const useEditorStore = create<EditorState>((set, get) => ({
 
   entities: [],
   setEntities: (entities) => set({ entities }),
-  addEntity: (entity) => set((s) => ({ ...pushSnap(s), entities: [...s.entities, entity] })),
-  updateEntity: (id, updates) => set((s) => ({
-    entities: s.entities.map((e) => (e.id === id ? { ...e, ...updates } : e)),
-  })),
+  addEntity: (entity) => set((s) => ({ ...pushSnap(s), entities: [...s.entities, entity],
+    entityStepPositions: Object.fromEntries(s.steps.map(step => [step.id,
+      { ...s.entityStepPositions[step.id], [entity.id]: { ...entity.position } }])) })),
+  updateEntity: (id, updates) => set((s) => {
+    const step = s.steps[s.animation.activeStepIndex];
+    const { position, ...metadata } = updates;
+    return {
+      entities: s.entities.map(entity => entity.id === id ? { ...entity, ...metadata,
+        ...(position && s.animation.activeStepIndex === 0 ? { position: { ...position } } : {}) } : entity),
+      ...(position && step ? { entityStepPositions: { ...s.entityStepPositions,
+        [step.id]: { ...s.entityStepPositions[step.id], [id]: { ...position } } } } : {}),
+    };
+  }),
   deleteEntity: (id) => set((s) => ({
     ...pushSnap(s),
     entities: s.entities.filter((e) => e.id !== id),
+    entityStepPositions: Object.fromEntries(Object.entries(s.entityStepPositions).map(([stepId, positions]) =>
+      [stepId, Object.fromEntries(Object.entries(positions).filter(([entityId]) => entityId !== id))])),
     selectedEntityId: s.selectedEntityId === id ? null : s.selectedEntityId,
   })),
 
@@ -320,11 +437,19 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   setStepRolePosition: (stepId, roleId, pos) => set((s) => ({
     stepPositions: {
       ...s.stepPositions,
-      [stepId]: { ...(s.stepPositions[stepId] || {}), [roleId]: pos },
+      [stepId]: { ...(s.stepPositions[stepId] || {}), [roleId]: { ...pos } },
     },
   })),
+  entityStepPositions: initialBoard.entityStepPositions,
+  setEntityStepPositions: (positions) => set({ entityStepPositions: positions }),
+  setStepEntityPosition: (stepId, entityId, pos) => set(s => ({
+    entityStepPositions: { ...s.entityStepPositions,
+      [stepId]: { ...s.entityStepPositions[stepId], [entityId]: { ...pos } } },
+    entities: stepId === s.steps[0]?.id
+      ? s.entities.map(entity => entity.id === entityId ? { ...entity, position: { ...pos } } : entity) : s.entities,
+  })),
 
-  steps: [defaultStep],
+  steps: initialBoard.steps,
   setSteps: (steps) => set({ steps }),
   addStep: () => set((s) => {
     const maxOrder = s.steps.reduce((max, st) => Math.max(max, st.sortOrder), -1);
@@ -333,24 +458,40 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       label: `Step ${s.steps.length + 1}`,
       sortOrder: maxOrder + 1,
     };
-    return { ...pushSnap(s), steps: [...s.steps, newStep] };
+    const previousStepId = s.steps[s.steps.length - 1]?.id;
+    const positions = structuredClone(s.stepPositions[previousStepId] ?? {});
+    const previousAnnotations = s.annotations.filter(annotation => annotation.stepId === previousStepId);
+    for (const roleId of Object.keys(positions)) {
+      const run = findRoleRun(roleId, previousAnnotations);
+      if (run) positions[roleId] = { ...run.points[run.points.length - 1] };
+    }
+    return { ...pushSnap(s), steps: [...s.steps, newStep],
+      stepPositions: { ...s.stepPositions, [newStep.id]: positions },
+      entityStepPositions: { ...s.entityStepPositions, [newStep.id]: Object.fromEntries(
+        s.entities.map(entity => [entity.id, { ...(s.entityStepPositions[previousStepId]?.[entity.id] ?? entity.position) }])) },
+    };
   }),
   updateStep: (id, updates) => set((s) => ({
     steps: s.steps.map((st) => (st.id === id ? { ...st, ...updates } : st)),
   })),
   deleteStep: (id) => set((s) => {
-    if (s.steps.length <= 1) return s;
+    if (s.steps.length <= 1 || !s.steps.some(step => step.id === id)) return {};
     const filtered = s.steps.filter((st) => st.id !== id);
-    const fallbackId = filtered[0]?.id;
+    const activeStepId = s.steps[s.animation.activeStepIndex]?.id;
     return {
       ...pushSnap(s),
       steps: filtered,
-      annotations: s.annotations.map((a) =>
-        a.stepId === id ? { ...a, stepId: fallbackId } : a
-      ),
+      annotations: s.annotations.filter(annotation => annotation.stepId !== id),
+      stepPositions: Object.fromEntries(Object.entries(s.stepPositions).filter(([stepId]) => stepId !== id)),
+      entityStepPositions: Object.fromEntries(Object.entries(s.entityStepPositions).filter(([stepId]) => stepId !== id)),
+      selectedAnnotationId: null,
+      selectedEntityId: null,
+      drawingPoints: [],
       animation: {
         ...s.animation,
-        activeStepIndex: Math.min(s.animation.activeStepIndex, filtered.length - 1),
+        progress: 0, playing: false,
+        activeStepIndex: activeStepId === id ? Math.min(s.animation.activeStepIndex, filtered.length - 1)
+          : Math.max(0, filtered.findIndex(step => step.id === activeStepId)),
       },
     };
   }),
@@ -366,6 +507,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     newSteps.sort((a, b) => a.sortOrder - b.sortOrder);
     const newIdx = newSteps.findIndex((st) => st.id === id);
     return {
+      ...pushSnap(s),
       steps: newSteps,
       animation: { ...s.animation, activeStepIndex: newIdx >= 0 ? newIdx : s.animation.activeStepIndex },
     };
@@ -489,11 +631,12 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       redoStack: [...s.redoStack, redoEntry],
       selectedAnnotationId: null,
       selectedEntityId: null,
+      drawingPoints: [],
       animation: {
         ...s.animation,
         playing: false,
         progress: 0,
-        activeStepIndex: Math.min(s.animation.activeStepIndex, entry.snap.steps.length - 1),
+        activeStepIndex: Math.min(entry.snap.animation.activeStepIndex, entry.snap.steps.length - 1),
       },
     });
     return entry;
@@ -512,23 +655,38 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       undoStack: [...s.undoStack, undoEntry],
       selectedAnnotationId: null,
       selectedEntityId: null,
+      drawingPoints: [],
       animation: {
         ...s.animation,
         playing: false,
         progress: 0,
-        activeStepIndex: Math.min(s.animation.activeStepIndex, entry.snap.steps.length - 1),
+        activeStepIndex: Math.min(entry.snap.animation.activeStepIndex, entry.snap.steps.length - 1),
       },
     });
     return entry;
   },
 
-  mirrorBoard: () => set((s) => {
+  mirrorBoard: (roles = []) => set((s) => {
     const mirroredStepPositions: Record<string, Record<string, Point>> = {};
     for (const [stepId, roleMap] of Object.entries(s.stepPositions)) {
       mirroredStepPositions[stepId] = {};
       for (const [roleId, pos] of Object.entries(roleMap)) {
         mirroredStepPositions[stepId][roleId] = { x: 100 - pos.x, y: pos.y };
       }
+    }
+    const firstStepId = s.steps[0]?.id;
+    if (firstStepId && roles.length) {
+      const firstPositions = mirroredStepPositions[firstStepId] ??= {};
+      for (const role of roles) {
+        if (firstPositions[role.id]) continue;
+        const position = role.startPosition ?? role.position;
+        firstPositions[role.id] = { x: 100 - (position?.x ?? 50), y: position?.y ?? 50 };
+      }
+    }
+    const mirroredEntityPositions: StepPositions = {};
+    for (const [stepId, entityMap] of Object.entries(s.entityStepPositions)) {
+      mirroredEntityPositions[stepId] = Object.fromEntries(Object.entries(entityMap).map(([entityId, position]) =>
+        [entityId, { x: 100 - position.x, y: position.y }]));
     }
     return {
       ...pushSnap(s),
@@ -541,6 +699,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
         position: { x: 100 - e.position.x, y: e.position.y },
       })),
       stepPositions: mirroredStepPositions,
+      entityStepPositions: mirroredEntityPositions,
     };
   }),
 
@@ -548,17 +707,15 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   setContextMenu: (menu) => set({ contextMenu: menu }),
 
   resetStore: () => {
-    const fresh = createDefaultStep();
+    const fresh = loadBoardData({});
     pendingDragSnap = null;
     set({
+      ...workingBoard(fresh),
+      boardExtras: {},
       activeTool: 'select',
       selectedAnnotationId: null,
       selectedEntityId: null,
-      annotations: [],
-      entities: [],
       drawingPoints: [],
-      stepPositions: {},
-      steps: [fresh],
       animation: { playing: false, progress: 0, speed: 1, activeStepIndex: 0, playMode: 'step' },
       contextMenu: null,
       presentationMode: false,

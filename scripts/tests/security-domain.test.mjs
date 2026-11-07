@@ -4,6 +4,7 @@ import fs from "node:fs";
 import path from "node:path";
 import vm from "node:vm";
 import crypto from "node:crypto";
+import * as variantContent from "../../artifacts/api-server/src/lib/variantContent.ts";
 import { createRequire } from "node:module";
 import { fileURLToPath } from "node:url";
 
@@ -15,7 +16,7 @@ const schema = Object.fromEntries(Object.entries({
   passwordResetTokensTable: ["id", "userId", "token", "usedAt", "expiresAt"], emailVerificationTokensTable: ["id", "userId", "usedAt"],
   playersTable: ["id", "teamId"], setPiecesTable: ["id", "teamId", "status"],
   setPieceRolesTable: ["id", "setPieceId", "createdAt", "updatedAt"],
-  roleAssignmentsTable: ["roleId", "playerId"], quizAttemptsTable: ["id"], auditEventsTable: ["id"],
+  roleAssignmentsTable: ["roleId", "playerId"], quizAttemptsTable: ["id", "playerId", "setPieceId", "roleId"], auditEventsTable: ["id"],
   playerReadinessTable: ["id", "playerId", "setPieceId"], matchdaysTable: ["id", "teamId"], matchdaySetPiecesTable: ["matchdayId", "setPieceId"],
 }).map(([name, columns]) => [name, { name, ...Object.fromEntries(columns.map((column) => [column, { table: name, column }])) }]));
 const orm = {
@@ -127,11 +128,12 @@ function load(relative, mocks, clock = Date, globals = {}) {
 }
 function harness() {
   const routes = {};
-  return { routes, express: { Router: () => ({ get(url, handler) { routes[`GET ${url}`] = handler; }, post(url, handler) { routes[`POST ${url}`] = handler; } }) } };
+  return { routes, express: { Router: () => Object.fromEntries(["get", "post", "patch", "put", "delete"].map(method => [method, (url, handler) => { routes[`${method.toUpperCase()} ${url}`] = handler; }])) } };
 }
 function response() {
   return { statusCode: 200, headers: {}, cookies: [], cleared: [],
     status(code) { this.statusCode = code; return this; }, json(body) { this.body = body; return this; },
+    sendStatus(code) { this.statusCode = code; return this; },
     setHeader(name, val) { this.headers[name] = val; }, cookie(...args) { this.cookies.push(args); },
     clearCookie(...args) { this.cleared.push(args); }, redirect(url) { this.redirected = url; },
   };
@@ -360,6 +362,7 @@ function quizFixture(initial, link = { teamId: "team", playerScope: ["player"] }
   const db = database(initial); const h = harness();
   load("artifacts/api-server/src/routes/quiz.ts", {
     express: h.express, "@workspace/db": { db, ...schema }, "drizzle-orm": orm, "zod/v4": require("zod/v4"),
+    "../lib/variantContent": variantContent,
     "../lib/authorization": { async requireShareToken(_req, res) { if (!link) res.status(403).json({ error: "revoked" }); return link; }, async isSetPieceInShareScope() { return true; } },
   });
   return { db, ...h };
@@ -403,6 +406,7 @@ function readinessFixture(initial) {
   const db = database(initial); const h = harness();
   load("artifacts/api-server/src/routes/readiness.ts", {
     express: h.express, "@workspace/db": { db, ...schema }, "drizzle-orm": orm, "zod/v4": require("zod/v4"),
+    "../lib/variantContent": variantContent,
     "../lib/authorization": { async requireTeamAccess() { return "team"; } },
   });
   return { db, ...h };
@@ -440,4 +444,226 @@ test("readiness rejects foreign-team matchday filters", async () => {
   const f = readinessFixture({ ...readinessData(), matchdaysTable: [{ id: "match", teamId: "foreign-team" }] });
   const res = await invoke(f.routes, "GET /teams/:teamId/readiness", request({}, { query: { matchdayId: "match" } }));
   assert.equal(res.statusCode, 404);
+});
+
+function publishedQuizData() {
+  const data = quizData();
+  const piece = data.setPiecesTable[0];
+  piece.status = "ready";
+  piece.boardData = { schemaVersion: 2, defaultVariantId: "A", activeVariantId: "B", variants: ["A", "B"].map(id => ({ id, name: id, recognitionCue: "Zonal", teamSignal: "One arm", roleTasks: {}, annotations: [], entities: [], steps: [{ id: "phase", sortOrder: 0 }], stepPositions: { phase: { "own-role": id === "A" ? { x: 10, y: 20 } : { x: 80, y: 90 } } }, entityStepPositions: {} })) };
+  piece.boardData.publishedContent = variantContent.publishContent(piece, data.setPieceRolesTable);
+  return data;
+}
+const quizQuery = (variantId = "A") => request({}, { query: { setPieceId: "piece", playerId: "player", roleId: "own-role", variantId } });
+const answerTask = task => ({ playerId: "player", setPieceId: "piece", roleId: "own-role", variantId: task.variantId, contentVersion: task.contentVersion, answers: [{ questionId: "q1_start_zone", answer: task.variantId === "A" ? { x: 10, y: 20 } : { x: 80, y: 90 } }, { questionId: "q3_understand", answer: true }] });
+
+test("published quiz grades the selected variant, rejects wrong/stale scopes, and never writes unscoped completion", async () => {
+  const f = quizFixture(publishedQuizData());
+  const a = (await invoke(f.routes, "GET /p/:shareToken/quiz", quizQuery("A"))).body;
+  const b = (await invoke(f.routes, "GET /p/:shareToken/quiz", quizQuery("B"))).body;
+  assert.notEqual(a.contentVersion, b.contentVersion);
+  assert.equal((await invoke(f.routes, "GET /p/:shareToken/quiz", quizQuery("outside"))).statusCode, 400);
+  assert.equal((await invoke(f.routes, "POST /p/:shareToken/quiz", request({ ...answerTask(a), variantId: "B" }))).statusCode, 409);
+  assert.equal((await invoke(f.routes, "POST /p/:shareToken/quiz", request({ ...answerTask(a), roleId: undefined }))).statusCode, 409);
+  assert.equal(f.db.data.quizAttemptsTable.length, 0);
+  const passed = await invoke(f.routes, "POST /p/:shareToken/quiz", request(answerTask(b)));
+  assert.equal(passed.body.passed, true);
+  assert.equal(f.db.data.playerReadinessTable.length, 0);
+  assert.equal(f.db.data.quizAttemptsTable[0].answers.at(-1).answer.variantId, "B");
+  f.db.data.roleAssignmentsTable = [];
+  assert.equal((await invoke(f.routes, "POST /p/:shareToken/quiz", request(answerTask(a)))).statusCode, 400);
+});
+
+test("draft saves cannot change published quiz; republishing B invalidates only B and rejects its stale answer", async () => {
+  const f = quizFixture(publishedQuizData());
+  const a = (await invoke(f.routes, "GET /p/:shareToken/quiz", quizQuery("A"))).body;
+  const b = (await invoke(f.routes, "GET /p/:shareToken/quiz", quizQuery("B"))).body;
+  const piece = f.db.data.setPiecesTable[0];
+  piece.boardData.variants[1].teamSignal = "Two arms";
+  assert.equal((await invoke(f.routes, "GET /p/:shareToken/quiz", quizQuery("B"))).body.contentVersion, b.contentVersion);
+  piece.boardData.publishedContent = variantContent.publishContent(piece, f.db.data.setPieceRolesTable);
+  assert.equal((await invoke(f.routes, "GET /p/:shareToken/quiz", quizQuery("A"))).body.contentVersion, a.contentVersion);
+  assert.notEqual((await invoke(f.routes, "GET /p/:shareToken/quiz", quizQuery("B"))).body.contentVersion, b.contentVersion);
+  assert.equal((await invoke(f.routes, "POST /p/:shareToken/quiz", request(answerTask(b)))).statusCode, 409);
+  f.db.data.setPieceRolesTable = [];
+  assert.equal((await invoke(f.routes, "POST /p/:shareToken/quiz", request(answerTask(a)))).statusCode, 400);
+});
+
+test("trainer readiness requires each published mandatory role/variant, ignores legacy passed, and reopens only changed B", async () => {
+  const data = publishedQuizData();
+  data.playerReadinessTable = [{ id: "old", playerId: "player", setPieceId: "piece", roleId: "own-role", status: "passed" }];
+  const piece = data.setPiecesTable[0], role = data.setPieceRolesTable[0];
+  const content = variantContent.playerContent(piece, [role]);
+  const a = variantContent.variantTask(content.piece, role, "A"), b = variantContent.variantTask(content.piece, role, "B");
+  const attempt = task => ({ playerId: "player", setPieceId: "piece", roleId: role.id, passed: true, completedAt: new Date(), answers: [variantContent.taskScopeAnswer(task, "passed")] });
+  data.quizAttemptsTable = [attempt(a)];
+  const f = readinessFixture(data);
+  let res = await invoke(f.routes, "GET /teams/:teamId/readiness", request());
+  assert.equal(res.body.summary.passed, 0);
+  assert.deepEqual(Array.from(res.body.players[0].readiness, r => r.status), ["passed", "not_opened"]);
+  f.db.data.quizAttemptsTable.push(attempt(b));
+  assert.equal((await invoke(f.routes, "GET /teams/:teamId/readiness", request())).body.summary.passed, 1);
+  const stored = f.db.data.setPiecesTable[0];
+  stored.boardData.variants[1].teamSignal = "Changed";
+  stored.boardData.publishedContent = variantContent.publishContent(stored, f.db.data.setPieceRolesTable);
+  res = await invoke(f.routes, "GET /teams/:teamId/readiness", request());
+  assert.deepEqual(Array.from(res.body.players[0].readiness, r => r.status), ["passed", "not_opened"]);
+  assert.ok(f.db.calls.every(call => call.action === "select"));
+});
+
+function sharingFixture(initial) {
+  const db = database(initial), h = harness();
+  load("artifacts/api-server/src/routes/sharing.ts", {
+    express: h.express, "@workspace/db": { db, ...schema }, "drizzle-orm": orm, crypto, "zod/v4": require("zod/v4"),
+    "../lib/variantContent": variantContent, "../lib/entitlements": {},
+    "../lib/authorization": { async requireShareToken() { return { teamId: "team", playerScope: ["player"] }; }, async isSetPieceInShareScope() { return true; } },
+  });
+  return { db, ...h };
+}
+test("player projection offers separate frozen tasks and confirmation checks role, variant and version", async () => {
+  const f = sharingFixture(publishedQuizData());
+  f.db.data.setPiecesTable[0].boardData.variants[1].teamSignal = "Unpublished";
+  const res = await invoke(f.routes, "GET /p/:shareToken/player/:playerId", request({}, { params: { playerId: "player" } }));
+  const piece = res.body.setPieces[0];
+  assert.equal(piece.tasks.length, 2);
+  assert.equal(piece.boardData.activeVariantId, "A");
+  assert.equal(piece.tasks[1].boardData.teamSignal, "One arm");
+  const a = piece.tasks[0];
+  const body = { playerId: "player", setPieceId: "piece", roleId: a.roleId, variantId: a.variantId, contentVersion: a.contentVersion };
+  assert.equal((await invoke(f.routes, "POST /p/:shareToken/ready", request({ ...body, variantId: "outside" }))).statusCode, 400);
+  assert.equal((await invoke(f.routes, "POST /p/:shareToken/ready", request({ ...body, contentVersion: "forged" }))).statusCode, 409);
+  assert.equal((await invoke(f.routes, "POST /p/:shareToken/ready", request({ ...body, roleId: "other-role" }))).statusCode, 400);
+  const opened = await invoke(f.routes, "POST /p/:shareToken/ready", request(body));
+  assert.equal(opened.body.status, "opened");
+  assert.equal(f.db.data.playerReadinessTable.length, 0);
+  const after = await invoke(f.routes, "GET /p/:shareToken/player/:playerId", request({}, { params: { playerId: "player" } }));
+  assert.deepEqual(Array.from(after.body.setPieces[0].tasks, t => t.status), ["opened", "not_opened"]);
+  assert.equal(after.body.setPieces[0].readiness.status, "not_opened");
+});
+
+function publishingFixture(initial) {
+  const db = database(initial), h = harness();
+  load("artifacts/api-server/src/routes/setPieces.ts", {
+    express: h.express, "@workspace/db": { db, ...schema }, "drizzle-orm": orm, "zod/v4": require("zod/v4"),
+    "../lib/variantContent": variantContent, "../lib/entitlements": { async checkEntitlement() { return true; } }, "../lib/roleSuitability": {},
+    "../lib/authorization": { async requireCoachAccess() { return "team"; }, async requireHeadCoachAccess() { return "team"; }, parseParam: value => value },
+  });
+  return { db, ...h };
+}
+const pieceRequest = body => request(body, { params: { setPieceId: "piece" }, user: { id: "coach" } });
+test("publication and autosave serialize under row lock and forged or stale client snapshots never replace publication", async () => {
+  const f = publishingFixture(publishedQuizData());
+  const oldBoard = structuredClone(f.db.data.setPiecesTable[0].boardData);
+  f.db.data.setPiecesTable[0].boardData.variants[1].teamSignal = "New published signal";
+  const [published, saved] = await Promise.all([
+    invoke(f.routes, "PATCH /teams/:teamId/set-pieces/:setPieceId/status", pieceRequest({ status: "ready", requiredVariantIds: ["B"] })),
+    invoke(f.routes, "PATCH /teams/:teamId/set-pieces/:setPieceId", pieceRequest({ boardData: { ...oldBoard, publishedContent: { version: "forged" } } })),
+  ]);
+  assert.equal(published.statusCode, 200); assert.equal(saved.statusCode, 200);
+  const final = f.db.data.setPiecesTable[0].boardData;
+  assert.equal(final.variants[1].teamSignal, "One arm", "autosave remains a draft edit");
+  assert.equal(final.publishedContent.boardData.variants[1].teamSignal, "New published signal");
+  assert.deepEqual(Array.from(final.publishedContent.requiredVariantIds), ["B"]);
+  assert.equal(f.db.calls.filter(c => c.action === "lock" && c.table === "setPiecesTable").length, 2);
+  const invalid = await invoke(f.routes, "PATCH /teams/:teamId/set-pieces/:setPieceId/status", pieceRequest({ status: "ready", requiredVariantIds: ["outside"] }));
+  assert.equal(invalid.statusCode, 400);
+});
+
+
+for (const legacyStatus of ["ready", "active_matchday"]) test(`first V2 autosave preserves ${legacyStatus} legacy board, quiz and readiness until explicit publication`, async () => {
+  const data = quizData();
+  data.setPiecesTable[0].status = legacyStatus;
+  data.setPiecesTable[0].boardData = { annotations: [], entities: [], legacyMarker: "shared content" };
+  data.playerReadinessTable = [{ id: "done", playerId: "player", setPieceId: "piece", roleId: "own-role", status: "passed" }];
+  const f = publishingFixture(data);
+  const upgraded = publishedQuizData().setPiecesTable[0].boardData;
+  const save = await invoke(f.routes, "PATCH /teams/:teamId/set-pieces/:setPieceId", pieceRequest({ boardData: upgraded }));
+  assert.equal(save.statusCode, 200);
+  const stored = f.db.data.setPiecesTable[0];
+  assert.equal(stored.boardData.schemaVersion, 2);
+  assert.equal(stored.boardData.publishedContent.boardData.schemaVersion, undefined);
+  assert.equal(stored.boardData.publishedContent.boardData.legacyMarker, "shared content");
+  const playerFixture = sharingFixture(f.db.data);
+  const player = await invoke(playerFixture.routes, "GET /p/:shareToken/player/:playerId", request({}, { params: { playerId: "player" } }));
+  assert.equal(player.body.setPieces[0].boardData.legacyMarker, "shared content");
+  assert.equal(player.body.setPieces[0].tasks, undefined);
+  assert.equal(player.body.setPieces[0].readiness.status, "passed");
+  const quiz = quizFixture(f.db.data);
+  const response = await invoke(quiz.routes, "POST /p/:shareToken/quiz", request({ playerId: "player", setPieceId: "piece", roleId: "own-role", answers: [{ questionId: "q1_start_zone", answer: { x: 10, y: 20 } }, { questionId: "q3_understand", answer: true }] }));
+  assert.equal(response.body.passed, true);
+  const ready = readinessFixture(f.db.data);
+  assert.equal((await invoke(ready.routes, "GET /teams/:teamId/readiness", request())).body.summary.passed, 1);
+  await invoke(f.routes, "PATCH /teams/:teamId/set-pieces/:setPieceId/status", pieceRequest({ status: "ready" }));
+  assert.equal(f.db.data.setPiecesTable[0].boardData.publishedContent.boardData.schemaVersion, 2);
+});
+
+test("set-piece clone strips publication and remaps every variant's role tasks, phase positions and annotation references", async () => {
+  const data = publishedQuizData();
+  for (const v of data.setPiecesTable[0].boardData.variants) {
+    v.roleTasks = { "own-role": { description: "Run" } };
+    v.annotations = [{ id: "line", linkedRoleId: "own-role", snappedStartRef: "own-role", snappedEndRef: "ball" }];
+  }
+  const source = structuredClone(data.setPiecesTable[0].boardData);
+  const f = publishingFixture(data);
+  const result = await invoke(f.routes, "POST /teams/:teamId/set-pieces/:setPieceId/clone", pieceRequest({}));
+  assert.equal(result.statusCode, 201);
+  const cloned = result.body, newRole = cloned.roles.find(role => role.name === "Near post");
+  assert.notEqual(newRole.id, "own-role");
+  assert.equal(cloned.boardData.publishedContent, undefined);
+  assert.equal(cloned.status, "draft");
+  for (const variant of cloned.boardData.variants) {
+    assert.equal(variant.roleTasks[newRole.id].description, "Run");
+    assert.equal(variant.roleTasks["own-role"], undefined);
+    assert.ok(variant.stepPositions.phase[newRole.id]);
+    assert.equal(variant.stepPositions.phase["own-role"], undefined);
+    assert.equal(variant.annotations[0].linkedRoleId, newRole.id);
+    assert.equal(variant.annotations[0].snappedStartRef, newRole.id);
+    assert.equal(variant.annotations[0].snappedEndRef, "ball");
+  }
+  assert.deepEqual(f.db.data.setPiecesTable[0].boardData, source);
+});
+
+function matchdayFixture(initial) {
+  const db = database(initial), h = harness();
+  load("artifacts/api-server/src/routes/matchdays.ts", {
+    express: h.express, "@workspace/db": { db, ...schema }, "drizzle-orm": orm, "zod/v4": require("zod/v4"),
+    "../lib/entitlements": {}, "../lib/roleSuitability": {},
+    "../lib/authorization": { async requireCoachAccess() { return "team"; }, parseParam: value => value },
+  });
+  return { db, ...h };
+}
+const matchdayRequest = () => request({ setPieceId: "piece" }, { params: { matchdayId: "match" } });
+
+test("matchday membership preserves published content and cannot implicitly republish drafts or archives", async () => {
+  for (const status of ["ready", "active_matchday", "draft", "archived"]) {
+    const data = publishedQuizData();
+    data.matchdaysTable = [{ id: "match", teamId: "team" }];
+    data.setPiecesTable[0].status = status;
+    const snapshot = structuredClone(data.setPiecesTable[0].boardData.publishedContent);
+    data.setPiecesTable[0].boardData.variants[0].teamSignal = "Unpublished edit";
+    const f = matchdayFixture(data);
+    assert.equal((await invoke(f.routes, "POST /teams/:teamId/matchdays/:matchdayId/set-pieces", matchdayRequest())).statusCode, 201);
+    assert.equal(f.db.data.setPiecesTable[0].status, status === "ready" ? "active_matchday" : status);
+    assert.deepEqual(f.db.data.setPiecesTable[0].boardData.publishedContent, snapshot);
+    assert.equal((await invoke(f.routes, "DELETE /teams/:teamId/matchdays/:matchdayId/set-pieces", matchdayRequest())).statusCode, 204);
+    assert.equal(f.db.data.setPiecesTable[0].status, ["ready", "active_matchday"].includes(status) ? "ready" : status);
+    assert.equal(f.db.calls.filter(call => call.action === "lock").length, 2);
+  }
+});
+
+test("matchday removal requires same-team membership and retains activation in other matchdays", async () => {
+  for (const scenario of ["foreign", "missing", "other-matchday"]) {
+    const data = publishedQuizData();
+    data.matchdaysTable = [{ id: "match", teamId: "team" }];
+    data.setPiecesTable[0].status = "active_matchday";
+    if (scenario === "foreign") data.setPiecesTable[0].teamId = "other-team";
+    if (scenario === "other-matchday") data.matchdaySetPiecesTable = [
+      { matchdayId: "match", setPieceId: "piece" }, { matchdayId: "another", setPieceId: "piece" },
+    ];
+    const f = matchdayFixture(data);
+    const res = await invoke(f.routes, "DELETE /teams/:teamId/matchdays/:matchdayId/set-pieces", matchdayRequest());
+    assert.equal(res.statusCode, scenario === "foreign" ? 404 : 204);
+    assert.equal(f.db.data.setPiecesTable[0].status, "active_matchday");
+    assert.equal(f.db.calls.some(call => call.action === "update"), false);
+  }
 });

@@ -437,7 +437,7 @@ export default function Readiness() {
                     </div>
                     <div>
                       <SheetTitle>{p.firstName} {p.lastName}</SheetTitle>
-                      <SheetDescription>Per-set-piece readiness</SheetDescription>
+                      <SheetDescription>Erforderliche Aufgaben je Standard, Rolle und Variante</SheetDescription>
                     </div>
                   </div>
                 </SheetHeader>
@@ -448,23 +448,20 @@ export default function Readiness() {
                       No set-piece activity yet.
                     </div>
                   )}
-                  {sortedRows.map((rd) => (
-                    <div key={rd.id} className="rounded-2xl border border-border bg-secondary/20 p-4">
+                  {sortedRows.map((rd) => {
+                    const task = rd;
+                    return <div key={rd.id} className="rounded-2xl border border-border bg-secondary/20 p-4">
                       <div className="flex items-start justify-between gap-3 mb-3">
                         <span className="font-semibold text-white text-sm leading-snug">{setPieceTitleById(rd.setPieceId)}</span>
                         <StatusBadge status={rd.status} className="shrink-0" />
                       </div>
-                      <div className="flex items-center justify-between text-xs text-muted-foreground">
-                        <span className="inline-flex items-center gap-1.5">
-                          <Eye className="h-3.5 w-3.5" />
-                          {rd.viewCount || 0} view{(rd.viewCount || 0) !== 1 ? 's' : ''}
-                        </span>
-                        <span>
-                          {rd.lastOpenedAt ? `Last opened ${new Date(rd.lastOpenedAt).toLocaleDateString()}` : 'Never opened'}
-                        </span>
-                      </div>
-                    </div>
-                  ))}
+                      {task.variantId ? <p className="text-xs text-primary">{task.variantName || task.variantId} · Rolle: {task.roleName || task.roleId}</p> :
+                        <div className="flex items-center justify-between text-xs text-muted-foreground">
+                          <span className="inline-flex items-center gap-1.5"><Eye className="h-3.5 w-3.5" />{rd.viewCount || 0} views</span>
+                          <span>{rd.lastOpenedAt ? `Last opened ${new Date(rd.lastOpenedAt).toLocaleDateString()}` : 'Never opened'}</span>
+                        </div>}
+                    </div>;
+                  })}
                 </div>
 
                 <div className="mt-6 pt-4 border-t border-border">

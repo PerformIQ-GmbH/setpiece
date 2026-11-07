@@ -5,7 +5,7 @@ import { useGetTeam, useGetSetPiece, useCreateRole, useUpdateRole, useDeleteRole
 import type { SetPieceRole, RoleAssignment } from '@workspace/api-client-react';
 import { EditorCanvas, EditorToolbar, MobileToolDrawer, BottomBar, InspectorPanel, TutorialOverlay, ContextualTip, QuickLegend, PresentationMode, EditorContextMenu, ContextualMiniBar, useEditorStore } from '@/components/editor';
 import type { Point, Annotation, BoardData, EditorCanvasHandle, PitchTheme } from '@/components/editor';
-import { migrateLegacyBoardData } from '@/components/editor/types';
+import { VariantPanel } from '@/components/editor/VariantPanel';
 import { resetTutorial } from '@/components/editor/TutorialOverlay';
 import { resetAllTips } from '@/components/editor/ContextualTip';
 import { StatusBadge } from '@/components/StatusBadge';
@@ -67,6 +67,9 @@ export default function SetPieceEditor() {
   const [labelText, setLabelText] = useState('');
   const [labelPos, setLabelPos] = useState<Point | null>(null);
   const [newRoleName, setNewRoleName] = useState('');
+  const [publishing, setPublishing] = useState(false);
+  const publishingRef = useRef(false);
+  const pendingMetadataWrites = useRef(new Set<Promise<unknown>>());
   const [saveState, setSaveState] = useState<SaveState>('saved');
   const [exportingPDF, setExportingPDF] = useState(false);
   const [exportingVideo, setExportingVideo] = useState(false);
@@ -96,24 +99,7 @@ export default function SetPieceEditor() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [mobileInspectorOpen, setMobileInspectorOpen] = useState(false);
 
-  const handleMirror = useCallback(async () => {
-    mirrorBoard();
-    setSaveState('saving');
-    try {
-      for (const role of (setPiece?.roles || [])) {
-        const curX = role.startPosition?.x ?? 50;
-        const curY = role.startPosition?.y ?? 50;
-        await updateRole.mutateAsync({
-          teamId, setPieceId, roleId: role.id,
-          data: { startPosition: { x: 100 - curX, y: curY } },
-        });
-      }
-      await refetch();
-      setSaveState('saved');
-    } catch (err) {
-      showActionError('mirror the set piece', err);
-    }
-  }, [mirrorBoard, setPiece?.roles, teamId, setPieceId, updateRole, refetch]);
+  const handleMirror = useCallback(() => mirrorBoard(setPiece?.roles ?? []), [mirrorBoard, setPiece?.roles]);
 
   const canUndo = useEditorStore((s) => s.undoStack.length > 0);
   const canRedo = useEditorStore((s) => s.redoStack.length > 0);
@@ -148,9 +134,7 @@ export default function SetPieceEditor() {
   const activeTool = useEditorStore((s) => s.activeTool);
   const setActiveTool = useEditorStore((s) => s.setActiveTool);
   const annotations = useEditorStore((s) => s.annotations);
-  const setAnnotations = useEditorStore((s) => s.setAnnotations);
   const entities = useEditorStore((s) => s.entities);
-  const setEntities = useEditorStore((s) => s.setEntities);
   const addAnnotation = useEditorStore((s) => s.addAnnotation);
   const strokeColor = useEditorStore((s) => s.strokeColor);
   const strokeWidth = useEditorStore((s) => s.strokeWidth);
@@ -159,50 +143,56 @@ export default function SetPieceEditor() {
   const resetStore = useEditorStore((s) => s.resetStore);
   const steps = useEditorStore((s) => s.steps);
 
-  const boardDataLoadedRef = useRef<string | null>(null);
-  const dirtyRef = useRef(false);
-  const pendingSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  // boardData fields the editor doesn't manage (e.g. matchday outcomes) must
-  // survive the editor's whole-object PATCH.
-  const extraBoardFieldsRef = useRef<Record<string, unknown>>({});
-
-  const buildBoardDataPayload = useCallback(() => {
-    const s = useEditorStore.getState();
+  const variants = useEditorStore((s) => s.variants);
+  const activeVariantId = useEditorStore((s) => s.activeVariantId);
+  const defaultVariantId = useEditorStore((s) => s.defaultVariantId);
+  const requiredVariantIds = useEditorStore((s) => s.requiredVariantIds);
+  const activeVariant = variants.find((variant) => variant.id === activeVariantId)!;
+  const editorRoles = (setPiece?.roles ?? []).map(role => {
+    const task = activeVariant.roleTasks[role.id];
     return {
-      ...extraBoardFieldsRef.current,
-      annotations: s.annotations,
-      entities: s.entities,
-      steps: s.steps,
-      stepPositions: s.stepPositions,
+      ...role,
+      description: task?.description ?? role.description,
+      coachingPoint: task?.coachingPoint ?? role.coachingPoint,
     };
+  });
+
+  const dirtyRef = useRef(false);
+  const boardRevisionRef = useRef(0);
+  const pendingSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pendingBoardWrite = useRef<Promise<boolean>>(Promise.resolve(true));
+  const buildBoardDataPayload = useCallback(() => {
+    const board = useEditorStore.getState().serializeBoardData();
+    delete board.publishedContent;
+    return board;
   }, []);
 
-  const setSteps = useEditorStore((s) => s.setSteps);
-  const stepPositions = useEditorStore((s) => s.stepPositions);
-  const setStepPositions = useEditorStore((s) => s.setStepPositions);
-  const setStepRolePosition = useEditorStore((s) => s.setStepRolePosition);
   const animationState = useEditorStore((s) => s.animation);
 
   useEffect(() => {
     if (!setPiece?.id) return;
-    if (boardDataLoadedRef.current === setPiece.id) return;
     resetStore();
-    if (setPiece.boardData && typeof setPiece.boardData === 'object') {
-      const managed = new Set(['annotations', 'entities', 'steps', 'stepPositions']);
-      extraBoardFieldsRef.current = Object.fromEntries(
-        Object.entries(setPiece.boardData as Record<string, unknown>).filter(([k]) => !managed.has(k))
-      );
-      const bd = migrateLegacyBoardData(setPiece.boardData as Partial<BoardData>);
-      setAnnotations(bd.annotations);
-      setEntities(bd.entities);
-      if (bd.steps && bd.steps.length > 0) {
-        setSteps(bd.steps);
-      }
-      if (bd.stepPositions && typeof bd.stepPositions === 'object') {
-        setStepPositions(bd.stepPositions);
-      }
-    }
-    boardDataLoadedRef.current = setPiece.id;
+    const store = useEditorStore.getState();
+    store.loadBoardData(setPiece.boardData as Partial<BoardData> | null, setPiece.roles);
+    dirtyRef.current = false;
+    setSaveState('saved');
+    return useEditorStore.subscribe((next, previous) => {
+      if (
+        next.variants === previous.variants && next.activeVariantId === previous.activeVariantId &&
+        next.defaultVariantId === previous.defaultVariantId && next.requiredVariantIds === previous.requiredVariantIds &&
+        next.annotations === previous.annotations && next.entities === previous.entities &&
+        next.steps === previous.steps && next.stepPositions === previous.stepPositions &&
+        next.entityStepPositions === previous.entityStepPositions
+      ) return;
+      boardRevisionRef.current++;
+      dirtyRef.current = true;
+      setSaveState('unsaved');
+      if (pendingSaveTimerRef.current) clearTimeout(pendingSaveTimerRef.current);
+      pendingSaveTimerRef.current = setTimeout(() => {
+        pendingSaveTimerRef.current = null;
+        void saveBoardDataRef.current();
+      }, 2000);
+    });
   }, [setPiece?.id]);
 
   useEffect(() => {
@@ -263,94 +253,84 @@ export default function SetPieceEditor() {
     return () => observer.disconnect();
   }, [setPiece?.id, category]);
 
-  const saveBoardData = useCallback(async () => {
-    setSaveState('saving');
-    try {
-      await updateSetPiece.mutateAsync({
-        teamId, setPieceId,
-        data: { boardData: buildBoardDataPayload() }
-      });
-      dirtyRef.current = false;
-      setSaveState('saved');
-    } catch (err) {
-      showActionError('save your changes', err);
-    }
-  }, [teamId, setPieceId, updateSetPiece, buildBoardDataPayload]);
+  const saveBoardData = useCallback((boardData = buildBoardDataPayload()) => {
+    const revision = boardRevisionRef.current;
+    const save = pendingBoardWrite.current.then(async () => {
+      setSaveState('saving');
+      try {
+        await updateSetPiece.mutateAsync({ teamId, setPieceId, data: { boardData } });
+        if (boardRevisionRef.current === revision) {
+          dirtyRef.current = false;
+          setSaveState('saved');
+        } else {
+          setSaveState('unsaved');
+        }
+        return true;
+      } catch (err) {
+        showActionError('save your changes', err);
+        return false;
+      }
+    });
+    pendingBoardWrite.current = save;
+    return save;
+  }, [teamId, setPieceId, updateSetPiece, buildBoardDataPayload, showActionError]);
 
   const saveBoardDataRef = useRef(saveBoardData);
   saveBoardDataRef.current = saveBoardData;
 
-  const hasLoadedRef = useRef(false);
-  useEffect(() => {
-    if (!boardDataLoadedRef.current) return;
-    if (!hasLoadedRef.current) {
-      hasLoadedRef.current = true;
-      return;
-    }
-    dirtyRef.current = true;
-    const timer = setTimeout(() => {
-      pendingSaveTimerRef.current = null;
-      saveBoardData();
-    }, 2000);
-    pendingSaveTimerRef.current = timer;
-    return () => clearTimeout(timer);
-  }, [annotations, entities, steps, stepPositions]);
+  const trackMetadataWrite = <T,>(promise: Promise<T>) => {
+    pendingMetadataWrites.current.add(promise);
+    const done = () => { pendingMetadataWrites.current.delete(promise); };
+    void promise.then(done, done);
+    return promise;
+  };
 
-  const handleRoleDragEnd = useCallback(async (roleId: string, pos: { x: number; y: number }) => {
-    const currentStepIndex = useEditorStore.getState().animation.activeStepIndex;
-    const currentSteps = useEditorStore.getState().steps;
-    const currentStepId = currentSteps[currentStepIndex]?.id;
-
-    if (currentStepIndex > 0 && currentStepId) {
-      setStepRolePosition(currentStepId, roleId, pos);
-      commitDrag();
-      return;
-    }
-
-    const role = setPiece?.roles.find(r => r.id === roleId);
-    const prevPos = { x: role?.startPosition?.x ?? 50, y: role?.startPosition?.y ?? 50 };
-    commitDrag({ roleId, prevPos, newPos: pos });
-    setSaveState('saving');
+  const handlePublish = async () => {
+    if (!setPiece || publishingRef.current) return;
+    if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
+    publishingRef.current = true;
+    setPublishing(true);
     try {
-      await updateRole.mutateAsync({ teamId, setPieceId, roleId, data: { startPosition: pos } });
-      setSaveState('saved');
-      // Refresh in the background — the marker already sits where it was dropped.
-      refetch();
+      await Promise.all(pendingMetadataWrites.current);
+      if (pendingSaveTimerRef.current) {
+        clearTimeout(pendingSaveTimerRef.current);
+        pendingSaveTimerRef.current = null;
+      }
+      const boardData = buildBoardDataPayload();
+      if (!await saveBoardData(boardData)) return;
+      await updateStatus.mutateAsync({
+        teamId, setPieceId,
+        data: {
+          status: setPiece.status === 'active_matchday' ? 'active_matchday' : 'ready',
+          requiredVariantIds: boardData.requiredVariantIds,
+        },
+      });
+      await refetch();
+      setMobileMenuOpen(false);
+      toast({ title: 'Varianten für Spieler veröffentlicht' });
     } catch (err) {
-      showActionError('move the marker', err);
+      showActionError('publish the variants', err);
+    } finally {
+      publishingRef.current = false;
+      setPublishing(false);
     }
-  }, [teamId, setPieceId, updateRole, refetch, setPiece?.roles, setStepRolePosition, commitDrag]);
+  };
 
-  const applyRolePosition = useCallback(async (roleId: string, pos: { x: number; y: number }, action: string) => {
-    setSaveState('saving');
-    try {
-      await updateRole.mutateAsync({ teamId, setPieceId, roleId, data: { startPosition: pos } });
-      setSaveState('saved');
-      refetch();
-    } catch (err) {
-      showActionError(action, err);
-    }
-  }, [teamId, setPieceId, updateRole, refetch, showActionError]);
+  const handleRoleDragEnd = useCallback((roleId: string, pos: Point) => {
+    if (publishingRef.current) return;
+    const state = useEditorStore.getState();
+    const stepId = state.steps[state.animation.activeStepIndex]?.id;
+    if (!stepId) return;
+    state.setStepRolePosition(stepId, roleId, pos);
+    commitDrag();
+  }, [commitDrag]);
 
-  const handleUndo = useCallback(async () => {
-    const entry = storeUndo();
-    if (!entry) return;
-    if (entry.kind === 'role') {
-      await applyRolePosition(entry.roleId, entry.prevPos, 'undo');
-    }
-  }, [storeUndo, applyRolePosition]);
-
-  const handleRedo = useCallback(async () => {
-    const entry = storeRedo();
-    if (!entry) return;
-    if (entry.kind === 'role') {
-      await applyRolePosition(entry.roleId, entry.newPos, 'redo');
-    }
-  }, [storeRedo, applyRolePosition]);
+  const handleUndo = storeUndo;
+  const handleRedo = storeRedo;
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      if (editorKeyboardBlocked(e) || e.altKey) return;
+      if (publishingRef.current || editorKeyboardBlocked(e) || e.altKey) return;
       const key = e.key.toLowerCase();
       if ((e.metaKey || e.ctrlKey) && key === 'z' && !e.shiftKey) { e.preventDefault(); handleUndo(); }
       if ((e.metaKey || e.ctrlKey) && (key === 'y' || (key === 'z' && e.shiftKey))) { e.preventDefault(); handleRedo(); }
@@ -405,13 +385,13 @@ export default function SetPieceEditor() {
     setSaveState('saving');
     try {
       const position = pendingPos || { x: 50, y: 50 };
-      const res = await createRole.mutateAsync({ teamId, setPieceId, data: { name: newRoleName, startPosition: position } });
+      const res = await trackMetadataWrite(createRole.mutateAsync({ teamId, setPieceId, data: { name: newRoleName, startPosition: position } }));
       setRoleFormOpen(false);
       setPendingPos(null);
       setActiveRoleId(res.id);
       setActiveTool('select');
       await refetch();
-      setSaveState('saved');
+      setSaveState(dirtyRef.current ? 'unsaved' : 'saved');
     } catch (err) {
       showActionError('add the role', err);
     }
@@ -421,12 +401,12 @@ export default function SetPieceEditor() {
     setSaveState('saving');
     try {
       if (playerId) {
-        await upsertAssignment.mutateAsync({ teamId, setPieceId, data: { roleId, playerId } });
+        await trackMetadataWrite(upsertAssignment.mutateAsync({ teamId, setPieceId, data: { roleId, playerId } }));
       } else {
-        await deleteAssignment.mutateAsync({ teamId, setPieceId, roleId });
+        await trackMetadataWrite(deleteAssignment.mutateAsync({ teamId, setPieceId, roleId }));
       }
       await refetch();
-      setSaveState('saved');
+      setSaveState(dirtyRef.current ? 'unsaved' : 'saved');
     } catch (err) {
       showActionError('assign the player', err);
     }
@@ -437,12 +417,12 @@ export default function SetPieceEditor() {
     if (!assignment) return;
     setSaveState('saving');
     try {
-      await upsertAssignment.mutateAsync({
+      await trackMetadataWrite(upsertAssignment.mutateAsync({
         teamId, setPieceId,
         data: { roleId, playerId: assignment.playerId, backupPlayerId: backupPlayerId || undefined },
-      });
+      }));
       await refetch();
-      setSaveState('saved');
+      setSaveState(dirtyRef.current ? 'unsaved' : 'saved');
     } catch (err) {
       showActionError('assign the backup player', err);
     }
@@ -458,10 +438,10 @@ export default function SetPieceEditor() {
     if (!ok) return;
     setSaveState('saving');
     try {
-      await deleteRole.mutateAsync({ teamId, setPieceId, roleId });
+      await trackMetadataWrite(deleteRole.mutateAsync({ teamId, setPieceId, roleId }));
       if (activeRoleId === roleId) setActiveRoleId(null);
       await refetch();
-      setSaveState('saved');
+      setSaveState(dirtyRef.current ? 'unsaved' : 'saved');
     } catch (err) {
       setSaveState('error');
       const msg = (err as { response?: { data?: { error?: string } }; message?: string })?.response?.data?.error
@@ -472,44 +452,41 @@ export default function SetPieceEditor() {
   };
 
   const handleDuplicateRole = async (roleId: string) => {
-    const sourceRole = setPiece?.roles.find(r => r.id === roleId);
+    const sourceRole = editorRoles.find(r => r.id === roleId);
     if (!sourceRole) return;
     setSaveState('saving');
     try {
-      const srcX = sourceRole.startPosition?.x ?? 50;
-      const srcY = sourceRole.startPosition?.y ?? 50;
+      const state = useEditorStore.getState();
+      const start = state.stepPositions[state.steps[0]?.id]?.[roleId] ?? sourceRole.startPosition;
+      const srcX = start?.x ?? 50;
+      const srcY = start?.y ?? 50;
       const offsetX = Math.min(srcX + 3, 98);
       const offsetY = Math.min(srcY + 3, 98);
-      const res = await createRole.mutateAsync({
+      const res = await trackMetadataWrite(createRole.mutateAsync({
         teamId, setPieceId,
         data: { name: `${sourceRole.name} (copy)`, startPosition: { x: offsetX, y: offsetY } },
-      });
+      }));
       setActiveRoleId(res.id);
       setActiveTool('select');
       await refetch();
-      setSaveState('saved');
+      setSaveState(dirtyRef.current ? 'unsaved' : 'saved');
     } catch (err) {
       showActionError('duplicate the role', err);
     }
   };
 
-  const handleUpdateRoleField = async (roleId: string, field: string, value: string) => {
-    setSaveState('saving');
-    try {
-      await updateRole.mutateAsync({ teamId, setPieceId, roleId, data: { [field]: value } });
-      await refetch();
-      setSaveState('saved');
-    } catch (err) {
-      showActionError('update the role', err);
+  const handleUpdateRoleField = (roleId: string, field: string, value: string) => {
+    if (field === 'description' || field === 'coachingPoint') {
+      useEditorStore.getState().setVariantRoleTask(roleId, { [field]: value });
     }
   };
 
   const handleRenameRole = async (roleId: string, newName: string) => {
     setSaveState('saving');
     try {
-      await updateRole.mutateAsync({ teamId, setPieceId, roleId, data: { name: newName } });
+      await trackMetadataWrite(updateRole.mutateAsync({ teamId, setPieceId, roleId, data: { name: newName } }));
       await refetch();
-      setSaveState('saved');
+      setSaveState(dirtyRef.current ? 'unsaved' : 'saved');
     } catch (err) {
       showActionError('rename the role', err);
     }
@@ -526,8 +503,9 @@ export default function SetPieceEditor() {
     const jsPDF = jsPDFMod.default;
 
     const stepImages = renderSetPieceSteps({
-      boardData: (setPiece.boardData || {}) as Record<string, unknown>,
-      roles: (setPiece.roles || []).map((r: SetPieceRole) => ({
+      boardData: buildBoardDataPayload(),
+      variantId: activeVariantId,
+      roles: editorRoles.map((r: SetPieceRole) => ({
         id: r.id,
         name: r.name,
         startPosition: r.startPosition,
@@ -579,7 +557,7 @@ export default function SetPieceEditor() {
     pdf.setFont('helvetica', 'normal');
     pdf.setFontSize(11);
     pdf.setTextColor(120, 120, 120);
-    pdf.text(setPiece.category?.replace(/_/g, ' ').toUpperCase() || '', PW / 2, 38, { align: 'center' });
+    pdf.text(activeVariant.name, PW / 2, 38, { align: 'center', maxWidth: PW - 2 * MARGIN });
 
     pdf.setDrawColor(220, 230, 220);
     pdf.setLineWidth(0.3);
@@ -629,7 +607,7 @@ export default function SetPieceEditor() {
     pdf.setTextColor(inkDark[0], inkDark[1], inkDark[2]);
     pdf.text('Roles & Assignments', PW / 2, 24, { align: 'center' });
 
-    const roles = setPiece.roles || [];
+    const roles = editorRoles;
     const tableW = 180;
     const tableX = (PW - tableW) / 2;
     const colRoleW = tableW * 0.62;
@@ -735,9 +713,9 @@ export default function SetPieceEditor() {
     }
     setSaveState('saving');
     try {
-      await updateSetPiece.mutateAsync({ teamId, setPieceId, data: { title: titleDraft.trim() } });
+      await trackMetadataWrite(updateSetPiece.mutateAsync({ teamId, setPieceId, data: { title: titleDraft.trim() } }));
       await refetch();
-      setSaveState('saved');
+      setSaveState(dirtyRef.current ? 'unsaved' : 'saved');
     } catch (err) {
       showActionError('rename the set piece', err);
     }
@@ -776,9 +754,10 @@ export default function SetPieceEditor() {
 
   const inspectorPanel = (
     <InspectorPanel
+      key={activeVariantId}
       teamId={teamId}
       setPieceId={setPieceId}
-      roles={setPiece.roles}
+      roles={editorRoles}
       assignments={setPiece.assignments || []}
       players={players}
       activeRoleId={activeRoleId}
@@ -972,12 +951,9 @@ export default function SetPieceEditor() {
                 </Button>
               </Link>
 
-              {setPiece.status === 'draft' && (
-                <Button size="sm" className="text-[10px] h-6 px-2" onClick={async () => {
-                  await updateStatus.mutateAsync({ teamId, setPieceId, data: { status: 'ready' } });
-                  refetch();
-                }}>
-                  <ShieldCheck className="w-3 h-3 mr-1" /> Für Spieltag freigeben
+              {setPiece.status !== 'archived' && (
+                <Button size="sm" className="text-[10px] h-6 px-2" onClick={handlePublish} disabled={publishing}>
+                  <ShieldCheck className="w-3 h-3 mr-1" /> {publishing ? 'Wird veröffentlicht …' : 'Für Spieler veröffentlichen'}
                 </Button>
               )}
             </>
@@ -1066,17 +1042,14 @@ export default function SetPieceEditor() {
                         </button>
                       </Link>
 
-                      {setPiece.status === 'draft' && (
+                      {setPiece.status !== 'archived' && (
                         <button
-                          onClick={async () => {
-                            await updateStatus.mutateAsync({ teamId, setPieceId, data: { status: 'ready' } });
-                            refetch();
-                            setMobileMenuOpen(false);
-                          }}
-                          className="w-full text-left px-3 py-2.5 text-[11px] text-primary hover:bg-primary/10 transition-colors flex items-center gap-2"
+                          onClick={handlePublish}
+                          disabled={publishing}
+                          className="w-full text-left px-3 py-2.5 text-[11px] text-primary hover:bg-primary/10 transition-colors flex items-center gap-2 disabled:opacity-50"
                         >
                           <ShieldCheck className="w-3.5 h-3.5" />
-                          {t('Mark Ready')}
+                          {publishing ? 'Wird veröffentlicht …' : 'Für Spieler veröffentlichen'}
                         </button>
                       )}
 
@@ -1102,8 +1075,43 @@ export default function SetPieceEditor() {
         </div>
       </header>
 
+      <div className="shrink-0" inert={publishing}>
+        <VariantPanel
+          key={activeVariantId}
+          variants={variants}
+          activeVariant={activeVariant}
+          defaultVariantId={defaultVariantId}
+          requiredVariantIds={requiredVariantIds}
+          onSelect={(id) => {
+            if (document.activeElement instanceof HTMLInputElement) document.activeElement.blur();
+            useEditorStore.getState().switchVariant(id);
+            setActiveRoleId(null);
+          }}
+          onDuplicate={() => {
+            if (document.activeElement instanceof HTMLInputElement) document.activeElement.blur();
+            useEditorStore.getState().duplicateVariant();
+            setActiveRoleId(null);
+          }}
+          onUpdate={useEditorStore.getState().updateActiveVariant}
+          onSetDefault={useEditorStore.getState().setDefaultVariant}
+          onSetRequired={useEditorStore.getState().setVariantRequired}
+          onDelete={async (id) => {
+            const remove = await confirm({
+              title: 'Variante entfernen?',
+              description: 'Die Variante wird aus dem Entwurf entfernt. Du kannst sie mit Rückgängig wiederherstellen.',
+              confirmText: 'Entfernen',
+              destructive: true,
+            });
+            if (remove) {
+              useEditorStore.getState().deleteVariant(id);
+              setActiveRoleId(null);
+            }
+          }}
+        />
+      </div>
+
       {/* ─── MAIN BODY ─── */}
-      <div className="flex-1 flex flex-col md:flex-row md:overflow-hidden md:min-h-0">
+      <div className="flex-1 flex flex-col md:flex-row md:overflow-hidden md:min-h-0" inert={publishing}>
         {/* ─── PITCH AREA ─── */}
         <div className="flex-1 relative flex flex-col min-w-0 md:min-h-0">
           <main data-tutorial="pitch" className="relative flex-1 min-h-[55vh] md:min-h-0">
@@ -1121,11 +1129,12 @@ export default function SetPieceEditor() {
                     ref={canvasHandleRef}
                     width={canvasSize.width}
                     height={canvasSize.height}
-                    roles={setPiece.roles}
+                    roles={editorRoles}
                     assignments={setPiece.assignments || []}
                     players={players}
                     activeRoleId={activeRoleId}
                     category={setPiece.category}
+                    readOnly={publishing}
                     onRoleClick={handleRoleClick}
                     onRoleDragEnd={handleRoleDragEnd}
                     onPitchClick={handlePitchClick}
@@ -1309,7 +1318,7 @@ export default function SetPieceEditor() {
               ['Z / U / T / E', 'Kreiszone / Rechteckzone / Text / Radierer'],
               ['Enter / Rücktaste', 'Mehrpunktlinie abschliessen / letzten Punkt entfernen'],
               ['Esc', 'Zeichnen abbrechen und zur Auswahl wechseln'],
-              ['Pfeile / Umschalt + Pfeile', 'Linien, Gegner und Ball fein / gröber verschieben'],
+              ['Pfeile / Umschalt + Pfeile', 'Linien, Spieler, Gegner und Ball fein / gröber verschieben'],
               ['Strg/Cmd + D', 'Ausgewählte Zeichnung oder Objekt duplizieren'],
               ['Entf', 'Ausgewählte Zeichnung oder Objekt löschen'],
               ['Strg/Cmd + Z', 'Rückgängig'],
@@ -1357,7 +1366,7 @@ export default function SetPieceEditor() {
       <EditorContextMenu />
 
       <PresentationMode
-        title={setPiece.title}
+        title={`${setPiece.title} · ${activeVariant.name}`}
         category={setPiece.category}
       >
         {(size) => (
@@ -1365,7 +1374,7 @@ export default function SetPieceEditor() {
             <EditorCanvas
               width={size.width}
               height={size.height}
-              roles={setPiece.roles}
+              roles={editorRoles}
               assignments={setPiece.assignments || []}
               players={players}
               activeRoleId={null}

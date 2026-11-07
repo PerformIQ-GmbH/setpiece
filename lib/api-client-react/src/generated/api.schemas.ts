@@ -364,6 +364,7 @@ export const UpdateStatusBodyStatus = {
 
 export interface UpdateStatusBody {
   status: UpdateStatusBodyStatus;
+  requiredVariantIds?: string[];
 }
 
 export type CreateRoleBodyStartPosition = {
@@ -738,7 +739,7 @@ export type PlayerSpecificViewDataSetPiecesItemBoardData = {
 } | null;
 
 export interface PlayerReadinessStatus {
-  id: string;
+  id?: string;
   playerId: string;
   setPieceId: string;
   /** @nullable */
@@ -750,9 +751,31 @@ export interface PlayerReadinessStatus {
   readyAt?: string | null;
   /** @nullable */
   quizCompletedAt?: string | null;
-  viewCount: number;
-  createdAt: string;
-  updatedAt: string;
+  viewCount?: number;
+  createdAt?: string;
+  updatedAt?: string;
+  variantId?: string;
+  variantName?: string;
+  contentVersion?: string;
+  roleName?: string;
+}
+
+export type PlayerVariantTaskBoardData = { [key: string]: unknown };
+
+export interface PlayerVariantTask {
+  id: string;
+  playerId: string;
+  setPieceId: string;
+  roleId: string;
+  variantId: string;
+  variantName: string;
+  contentVersion: string;
+  status: string;
+  /** @nullable */
+  quizCompletedAt?: string | null;
+  playerRole: SetPieceRole;
+  boardData: PlayerVariantTaskBoardData;
+  required: boolean;
 }
 
 export type PlayerSpecificViewDataSetPiecesItem = {
@@ -770,6 +793,9 @@ export type PlayerSpecificViewDataSetPiecesItem = {
   assignments?: RoleAssignment[];
   playerRole?: SetPieceRole | null;
   readiness?: PlayerReadinessStatus | null;
+  publishedVersion?: string;
+  requiredVariantIds?: string[];
+  tasks?: PlayerVariantTask[];
 };
 
 export interface PlayerSpecificViewData {
@@ -792,6 +818,8 @@ export interface MarkReadyBody {
   playerId: string;
   setPieceId: string;
   roleId?: string;
+  variantId?: string;
+  contentVersion?: string;
   /** Readiness intent submitted by the player. "ready" (default) marks the set piece as opened/acknowledged; "needs_review" flags it as unsure so it surfaces in the coach readiness dashboard. */
   status?: MarkReadyBodyStatus;
 }
@@ -833,6 +861,9 @@ export interface QuizData {
   setPieceId: string;
   /** @nullable */
   roleId?: string | null;
+  variantId?: string;
+  contentVersion?: string;
+  publishedVersion?: string;
   questions: QuizDataQuestionsItem[];
 }
 
@@ -845,6 +876,8 @@ export interface SubmitQuizBody {
   playerId: string;
   setPieceId: string;
   roleId?: string;
+  variantId?: string;
+  contentVersion?: string;
   answers: SubmitQuizBodyAnswersItem[];
 }
 
@@ -853,6 +886,8 @@ export interface QuizResult {
   score: number;
   correct?: number;
   total: number;
+  variantId?: string;
+  contentVersion?: string;
 }
 
 export interface GhostSubstitutionRequest {
@@ -1125,6 +1160,8 @@ export type RemoveSetPieceFromMatchdayBody = {
 export type GetQuizQuestionsParams = {
   setPieceId: string;
   playerId?: string;
+  roleId?: string;
+  variantId?: string;
 };
 
 export type GetReadinessDashboardParams = {

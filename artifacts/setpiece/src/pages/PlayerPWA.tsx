@@ -1,16 +1,20 @@
-import { useState, useEffect, useMemo } from 'react';
+import { Fragment, useState, useEffect, useMemo } from 'react';
 import { useRoute, Link } from 'wouter';
 import { useGetPlayerView, useGetPlayerSpecificView, useMarkPlayerReady, getGetPlayerSpecificViewQueryKey } from '@workspace/api-client-react';
-import type { PlayerViewDataPlayersItem, PlayerSpecificViewDataSetPiecesItem } from '@workspace/api-client-react';
+import type { PlayerViewDataPlayersItem, PlayerSpecificViewDataSetPiecesItem, PlayerVariantTask } from '@workspace/api-client-react';
 import { Loader2, ShieldAlert, ChevronRight, CheckCircle2, Circle, Search, ArrowLeft, Trophy, Eye, HelpCircle } from 'lucide-react';
 import { PlayerBoardViewer } from '@/components/PlayerBoardViewer';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
+import { useToast } from '@/hooks/use-toast';
 
 type Screen = 'identify' | 'overview' | 'detail';
+type PlayerTask = PlayerVariantTask;
+const getTasks = (piece: PlayerSpecificViewDataSetPiecesItem) => piece.tasks;
 
 export default function PlayerPWA() {
+  const { toast } = useToast();
   const [, params] = useRoute('/p/:shareToken');
   const shareToken = params?.shareToken || '';
 
@@ -22,6 +26,7 @@ export default function PlayerPWA() {
   const [screen, setScreen] = useState<Screen>(() => selectedPlayerId ? 'overview' : 'identify');
   const [activeSetPieceId, setActiveSetPieceId] = useState<string | null>(null);
   const [search, setSearch] = useState('');
+  const [activeTaskKey, setActiveTaskKey] = useState<string | null>(null);
 
   const { data: teamData, isLoading: teamLoading, error: teamError } = useGetPlayerView(shareToken);
 
@@ -167,16 +172,24 @@ export default function PlayerPWA() {
 
   const activeSetPiece = playerData.setPieces.find((sp: PlayerSpecificViewDataSetPiecesItem) => sp.id === activeSetPieceId);
 
+  const activeTask = activeSetPiece && getTasks(activeSetPiece)?.find(task => taskKey(task) === activeTaskKey);
+  const activeRole = activeTask?.playerRole ?? activeSetPiece?.playerRole;
+  const recognitionCue = activeTask?.boardData.recognitionCue;
+  const teamSignal = activeTask?.boardData.teamSignal;
+  const scope = activeTask ? { variantId: activeTask.variantId, contentVersion: activeTask.contentVersion } : {};
+
   const handleMarkReady = async (spId: string, roleId: string | undefined) => {
     if (!roleId || !selectedPlayerId) return;
     try {
       await markReady.mutateAsync({
         shareToken,
-        data: { setPieceId: spId, roleId, playerId: selectedPlayerId, status: 'ready' },
+        data: { setPieceId: spId, roleId, playerId: selectedPlayerId, status: 'ready', ...scope },
       });
       refetchPlayer();
     } catch (e) {
       console.error(e);
+      toast({ title: 'Aufgabe konnte nicht gespeichert werden. Bitte öffne die aktuelle Aufgabenliste erneut.', variant: 'destructive' });
+      void refetchPlayer();
     }
   };
 
@@ -185,23 +198,39 @@ export default function PlayerPWA() {
     try {
       await markReady.mutateAsync({
         shareToken,
-        data: { setPieceId: spId, roleId, playerId: selectedPlayerId, status: 'needs_review' },
+        data: { setPieceId: spId, roleId, playerId: selectedPlayerId, status: 'needs_review', ...scope },
       });
       refetchPlayer();
     } catch (e) {
       console.error(e);
+      toast({ title: 'Aufgabe konnte nicht gespeichert werden. Bitte öffne die aktuelle Aufgabenliste erneut.', variant: 'destructive' });
+      void refetchPlayer();
     }
   };
 
-  const readyCount = playerData.setPieces.filter((sp: PlayerSpecificViewDataSetPiecesItem) => {
-    const s = sp.readiness?.status;
-    return s === 'opened' || s === 'passed';
+  const entries = playerData.setPieces.flatMap<{ piece: PlayerSpecificViewDataSetPiecesItem; task: PlayerTask | undefined }>((piece: PlayerSpecificViewDataSetPiecesItem) => {
+    const tasks = getTasks(piece);
+    return tasks ? tasks.map(task => ({ piece, task })) : [{ piece, task: undefined }];
+  });
+  const requiredEntries = entries.filter(entry => !entry.task || entry.task.required);
+  const optionalEntries = entries.filter(entry => entry.task && !entry.task.required);
+  const orderedEntries = [...requiredEntries, ...optionalEntries];
+  const readyCount = requiredEntries.filter(({ piece, task }) => {
+    const status = task?.status ?? piece.readiness?.status;
+    return status === 'opened' || status === 'passed';
   }).length;
-  const totalCount = playerData.setPieces.length;
+  const totalCount = requiredEntries.length;
   const progressPct = totalCount > 0 ? Math.round((readyCount / totalCount) * 100) : 0;
 
+  if (screen === 'detail' && activeSetPiece && activeTaskKey && !activeTask) {
+    return <div className="min-h-screen bg-[var(--surface-0)] text-white flex flex-col items-center justify-center gap-4 p-6 text-center">
+      <p>Diese Aufgabe ist nicht mehr verfügbar. Bitte öffne die aktuelle Aufgabenliste.</p>
+      <Button onClick={() => { setScreen('overview'); setActiveSetPieceId(null); setActiveTaskKey(null); }}>Zurück zu den Aufgaben</Button>
+    </div>;
+  }
+
   if (screen === 'detail' && activeSetPiece) {
-    const readinessStatus = activeSetPiece.readiness?.status;
+    const readinessStatus = activeTask?.status ?? activeSetPiece.readiness?.status;
     const isReady = readinessStatus === 'opened' || readinessStatus === 'passed';
     const isUnsure = readinessStatus === 'needs_review';
 
@@ -210,15 +239,16 @@ export default function PlayerPWA() {
         <div className="max-w-md mx-auto min-h-screen bg-[var(--surface-1)] flex flex-col relative">
           <header className="p-4 border-b border-white/[0.06] flex items-center bg-[var(--surface-2)] shrink-0 sticky top-0 z-20 backdrop-blur-xl">
             <button
-              onClick={() => { setScreen('overview'); setActiveSetPieceId(null); }}
+              onClick={() => { setScreen('overview'); setActiveSetPieceId(null); setActiveTaskKey(null); }}
               className="w-10 h-10 rounded-xl bg-white/[0.06] flex items-center justify-center active:bg-white/10 transition-colors"
             >
               <ArrowLeft className="w-5 h-5" />
             </button>
             <div className="ml-4 flex-1 min-w-0">
               <h2 className="font-display font-bold text-lg leading-tight truncate">{activeSetPiece.title}</h2>
-              {activeSetPiece.playerRole && (
-                <p className="text-xs text-primary font-semibold mt-0.5">Your Role: {activeSetPiece.playerRole.name}</p>
+              {activeTask && <p className="text-xs text-white/80">{activeTask.variantName} · {activeTask.required ? 'Erforderlich' : 'Optional'}</p>}
+              {activeRole && (
+                <p className="text-xs text-primary font-semibold mt-0.5">Your Role: {activeRole!.name}</p>
               )}
             </div>
             {isReady && (
@@ -234,15 +264,22 @@ export default function PlayerPWA() {
                 <PlayerBoardViewer
                   roles={activeSetPiece.roles || []}
                   assignments={activeSetPiece.assignments || []}
-                  boardData={activeSetPiece.boardData ?? undefined}
+                  boardData={activeTask?.boardData ?? activeSetPiece.boardData ?? undefined}
                   category={activeSetPiece.category}
                   activePlayerId={selectedPlayerId || undefined}
-                  activeRoleId={activeSetPiece.playerRole?.id}
+                  activeRoleId={activeRole?.id}
                   players={teamData?.players || []}
                 />
               </div>
 
-              {activeSetPiece.playerRole && (
+              {((typeof recognitionCue === 'string' && recognitionCue.trim()) || (typeof teamSignal === 'string' && teamSignal.trim())) && (
+                <div className="bg-white/[0.03] p-5 rounded-2xl border border-white/[0.06] mb-4 space-y-3">
+                  {typeof recognitionCue === 'string' && recognitionCue.trim() && <div><p className="section-label mb-1">Gegner erkennen</p><p className="text-sm leading-relaxed text-white/80">{recognitionCue}</p></div>}
+                  {typeof teamSignal === 'string' && teamSignal.trim() && <div><p className="section-label mb-1">Teamsignal</p><p className="text-sm leading-relaxed text-white/80">{teamSignal}</p></div>}
+                </div>
+              )}
+
+              {activeRole && (
                 <div className="bg-white/[0.03] p-5 rounded-2xl border border-white/[0.06] mb-4">
                   <div className="flex items-center gap-2 mb-3">
                     <div className="w-8 h-8 rounded-xl bg-primary/15 flex items-center justify-center">
@@ -250,13 +287,13 @@ export default function PlayerPWA() {
                     </div>
                     <div>
                       <p className="section-label">Your Role</p>
-                      <p className="font-semibold text-white text-sm">{activeSetPiece.playerRole.name}</p>
+                      <p className="font-semibold text-white text-sm">{activeRole!.name}</p>
                     </div>
                   </div>
-                  {activeSetPiece.playerRole.description && (
+                  {activeRole!.description && (
                     <div className="mt-3 pt-3 border-t border-white/[0.06]">
                       <p className="section-label mb-1.5">Task</p>
-                      <p className="text-sm leading-relaxed text-white/80">{activeSetPiece.playerRole.description}</p>
+                      <p className="text-sm leading-relaxed text-white/80">{activeRole!.description}</p>
                     </div>
                   )}
                 </div>
@@ -265,7 +302,7 @@ export default function PlayerPWA() {
               {(() => {
                 const myAssignment = (activeSetPiece.assignments || []).find(
                   (a: { roleId: string; playerId: string; notes?: string | null }) =>
-                    a.roleId === activeSetPiece.playerRole?.id && a.playerId === selectedPlayerId
+                    a.roleId === activeRole?.id && a.playerId === selectedPlayerId
                 );
                 return myAssignment?.notes ? (
                   <div className="bg-primary/[0.06] p-5 rounded-2xl border border-primary/20 mb-4">
@@ -275,10 +312,10 @@ export default function PlayerPWA() {
                 ) : null;
               })()}
 
-              {activeSetPiece.playerRole?.coachingPoint && (
+              {activeRole?.coachingPoint && (
                 <div className="bg-white/[0.03] p-5 rounded-2xl border border-white/[0.06] mb-4">
                   <p className="section-label mb-2">Coaching Point</p>
-                  <p className="text-sm leading-relaxed text-white/80">{activeSetPiece.playerRole.coachingPoint}</p>
+                  <p className="text-sm leading-relaxed text-white/80">{activeRole!.coachingPoint}</p>
                 </div>
               )}
 
@@ -295,7 +332,7 @@ export default function PlayerPWA() {
             <div className="p-5 pb-8" style={{ background: 'linear-gradient(to top, var(--surface-0) 60%, transparent)' }}>
               {isReady ? (
                 <div className="w-full py-4 rounded-2xl bg-primary/10 border border-primary/25 text-primary font-semibold text-center flex items-center justify-center gap-2">
-                  <CheckCircle2 className="w-5 h-5" /> You are ready
+                  <CheckCircle2 className="w-5 h-5" /> {readinessStatus === 'passed' ? 'Quiz bestanden' : 'Aufgabe angesehen'}
                 </div>
               ) : (
                 <div className="flex flex-col gap-3">
@@ -309,8 +346,8 @@ export default function PlayerPWA() {
                     <Button
                       variant="outline"
                       className="flex-1 py-5 rounded-2xl bg-white/[0.03] backdrop-blur"
-                      onClick={() => handleMarkReady(activeSetPiece.id, activeSetPiece.playerRole?.id)}
-                      disabled={markReady.isPending || !activeSetPiece.playerRole?.id}
+                      onClick={() => handleMarkReady(activeSetPiece.id, activeRole?.id)}
+                      disabled={markReady.isPending || !activeRole?.id}
                     >
                       <Eye className="w-4 h-4 mr-2" />
                       {markReady.isPending ? 'Saving...' : 'Acknowledge'}
@@ -318,20 +355,23 @@ export default function PlayerPWA() {
                     <Button
                       variant="outline"
                       className="flex-1 py-5 rounded-2xl bg-amber-500/[0.06] border-amber-500/30 text-amber-400 hover:bg-amber-500/10 hover:text-amber-300 backdrop-blur"
-                      onClick={() => handleMarkUnsure(activeSetPiece.id, activeSetPiece.playerRole?.id)}
-                      disabled={markReady.isPending || !activeSetPiece.playerRole?.id}
+                      onClick={() => handleMarkUnsure(activeSetPiece.id, activeRole?.id)}
+                      disabled={markReady.isPending || !activeRole?.id}
                     >
                       <HelpCircle className="w-4 h-4 mr-2" />
                       {markReady.isPending ? 'Saving...' : 'Unsure?'}
                     </Button>
                   </div>
-                  <Link href={`/p/${shareToken}/quiz?setPieceId=${activeSetPiece.id}&playerId=${selectedPlayerId || ''}&roleId=${activeSetPiece.playerRole?.id || ''}`} className="w-full">
+
+                </div>
+              )}
+              <div className="mt-3">
+                  <Link href={`/p/${shareToken}/quiz?setPieceId=${activeSetPiece.id}&playerId=${selectedPlayerId || ''}&roleId=${encodeURIComponent(activeRole?.id || '')}&variantId=${encodeURIComponent(activeTask?.variantId || '')}&contentVersion=${encodeURIComponent(activeTask?.contentVersion || '')}`} className="w-full">
                     <Button className="w-full py-5 rounded-2xl premium-glow">
                       Take Quiz
                     </Button>
                   </Link>
-                </div>
-              )}
+              </div>
             </div>
           </div>
         </div>
@@ -375,29 +415,33 @@ export default function PlayerPWA() {
             </div>
             <Progress value={progressPct} className="h-2" />
             <p className="text-xs text-muted-foreground mt-2">
-              {readyCount === totalCount
-                ? "All set pieces reviewed — you're match ready!"
-                : `${totalCount - readyCount} set piece${totalCount - readyCount !== 1 ? 's' : ''} remaining`}
+              {totalCount === 0
+                ? "Keine erforderlichen Aufgaben zugewiesen."
+                : readyCount === totalCount
+                ? "Alle erforderlichen Aufgaben angesehen."
+                : `${totalCount - readyCount} erforderliche Aufgabe(n) offen`}
             </p>
           </div>
 
           <p className="section-label mb-3 px-1">
-            Set Pieces ({totalCount})
+            Aufgaben ({entries.length})
           </p>
 
           <div className="space-y-3">
-            {playerData.setPieces.map((sp: PlayerSpecificViewDataSetPiecesItem, idx: number) => {
-              const readinessStatus = sp.readiness?.status;
+            {orderedEntries.map(({ piece: sp, task }, idx: number) => {
+              const readinessStatus = task?.status ?? sp.readiness?.status;
               const isReady = readinessStatus === 'opened' || readinessStatus === 'passed';
 
               return (
-                <motion.div
+                <Fragment key={`${sp.id}:${task ? taskKey(task) : 'legacy'}`}>
+                {(idx === 0 || idx === requiredEntries.length) && <p className="section-label px-1 pt-2">{idx < requiredEntries.length ? 'Erforderliche Aufgaben' : 'Optionale Aufgaben'}</p>}
+                <motion.button type="button"
                   initial={{ opacity: 0, y: 16 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: idx * 0.08 }}
-                  key={sp.id}
-                  onClick={() => { setActiveSetPieceId(sp.id); setScreen('detail'); }}
-                  className="p-5 rounded-2xl border border-white/[0.06] bg-white/[0.03] active:scale-[0.98] transition-all cursor-pointer hover:border-white/[0.12] group"
+
+                  onClick={() => { setActiveSetPieceId(sp.id); setActiveTaskKey(task ? taskKey(task) : null); setScreen('detail'); }}
+                  className="w-full text-left p-5 rounded-2xl border border-white/[0.06] bg-white/[0.03] active:scale-[0.98] transition-all cursor-pointer hover:border-white/[0.12] group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
                 >
                   <div className="flex justify-between items-start mb-3">
                     <span className="section-label px-2.5 py-1 rounded-lg bg-white/[0.04] border border-white/[0.06]">
@@ -412,13 +456,15 @@ export default function PlayerPWA() {
                   
                   <div className="flex items-center gap-2">
                     <span className="text-xs text-muted-foreground">Your Role:</span>
-                    <span className="text-xs font-semibold text-white bg-white/[0.06] px-2.5 py-1 rounded-lg">{sp.playerRole?.name || 'Team Overview'}</span>
+                    <span className="text-xs font-semibold text-white bg-white/[0.06] px-2.5 py-1 rounded-lg">{task?.playerRole.name || sp.playerRole?.name || 'Team Overview'}</span>
                   </div>
 
-                  {sp.playerRole?.description && (
+                  {task && <p className="text-xs text-primary mt-2">{task.variantName} · {task.required ? 'Erforderlich' : 'Optional'}</p>}
+                  {(!task && sp.playerRole?.description) && (
                     <p className="text-xs text-muted-foreground mt-2.5 line-clamp-2 leading-relaxed">{sp.playerRole.description}</p>
                   )}
-                </motion.div>
+                </motion.button>
+                </Fragment>
               );
             })}
           </div>
@@ -438,3 +484,5 @@ function LoadingScreen() {
     </div>
   );
 }
+
+function taskKey(task: PlayerTask) { return JSON.stringify([task.roleId, task.variantId]); }

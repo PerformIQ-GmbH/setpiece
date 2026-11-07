@@ -6,10 +6,10 @@ import { OffensiveCornerPitch } from './OffensiveCornerPitch';
 import { TeamPlayerMarker, OpponentMarker, GoalkeeperMarker, BallMarker } from './markers';
 import { AnnotationLayer, AnnotationHandles, DrawingPreview } from './AnnotationLayer';
 import { useEditorStore } from './editorStore';
-import type { Point, Annotation, AnnotationType, EditorTool } from './types';
-import { finalizeDrawingPoints, findRoleRun, moveAnnotationGeometry } from './editorInteraction';
+import type { Point, Annotation, AnnotationType, EditorTool, EntityMarker } from './types';
+import { entityPositionAtStep, finalizeDrawingPoints, findBallPass, findRoleRun, moveAnnotationGeometry, rolePositionAtStep } from './editorInteraction';
 import { editorKeyboardBlocked } from './keyboardScope';
-import { snapPosition, findNearestMarker, buildMarkerRefs } from './snapUtils';
+import { snapPosition, findNearestMarker, type MarkerRef } from './snapUtils';
 import { buildPitchAnchors } from './snapUtils';
 import { buildPitchGeometry, pitchOrientationForCategory } from '@/utils/pitchGeometry';
 import { annotationPath, interpolatePath, subPath, easeInOutQuad, distToSegment, REDUCED_MOTION } from './pathUtils';
@@ -125,6 +125,7 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
   const showArrowhead = useEditorStore((s) => s.showArrowhead);
 
   const entities = useEditorStore((s) => s.entities);
+  const entityStepPositions = useEditorStore((s) => s.entityStepPositions);
   const addEntity = useEditorStore((s) => s.addEntity);
   const updateEntity = useEditorStore((s) => s.updateEntity);
   const selectedEntityId = useEditorStore((s) => s.selectedEntityId);
@@ -154,13 +155,21 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
   const setAnimationProgress = useEditorStore((s) => s.setAnimationProgress);
   const setAnimationPlaying = useEditorStore((s) => s.setAnimationPlaying);
   const steps = useEditorStore((s) => s.steps);
+  const activeVariantId = useEditorStore((s) => s.activeVariantId);
   const goToNextStep = useEditorStore((s) => s.goToNextStep);
 
   const [stepTransitionT, setStepTransitionT] = useState(1);
   const prevStepIndexRef = useRef(animation.activeStepIndex);
+  const prevVariantIdRef = useRef(activeVariantId);
   const transitionFromStepRef = useRef(animation.activeStepIndex);
 
   useEffect(() => {
+    if (prevVariantIdRef.current !== activeVariantId || animation.playing) {
+      prevVariantIdRef.current = activeVariantId;
+      prevStepIndexRef.current = animation.activeStepIndex;
+      setStepTransitionT(1);
+      return;
+    }
     if (prevStepIndexRef.current !== animation.activeStepIndex && !animation.playing) {
       transitionFromStepRef.current = prevStepIndexRef.current;
       prevStepIndexRef.current = animation.activeStepIndex;
@@ -193,7 +202,7 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
       prevStepIndexRef.current = animation.activeStepIndex;
     }
     return undefined;
-  }, [animation.activeStepIndex, animation.playing]);
+  }, [activeVariantId, animation.activeStepIndex, animation.playing]);
 
   const hasFocusedElement = activeRoleId !== null || selectedEntityId !== null;
 
@@ -238,54 +247,17 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
 
   const stepPositions = useEditorStore((s) => s.stepPositions);
   const sortedStepIds = steps.map(s => s.id);
+  const activeStepId = sortedStepIds[animation.activeStepIndex];
 
-  const resolvePositionForStep = (
-    roleId: string,
-    stepAnns: Annotation[],
-    startPos: Point,
-    t: number
-  ): Point => {
-    const linkedRun = findRoleRun(roleId, stepAnns);
-    if (linkedRun) return interpolatePath(annotationPath(linkedRun.type, linkedRun.points), t);
+  const computeStepResolvedPosition = (role: RoleData, stepIndex: number): Point =>
+    rolePositionAtStep(role, stepIndex, steps, annotations, stepPositions);
 
-    return startPos;
-  };
-
-  const computeStepResolvedPosition = (roleId: string, stepIndex: number): Point => {
-    const basePos = { x: (roles.find(r => r.id === roleId)?.startPosition?.x ?? 50), y: (roles.find(r => r.id === roleId)?.startPosition?.y ?? 50) };
-    const clampedIndex = Math.max(0, Math.min(stepIndex, sortedStepIds.length - 1));
-    if (clampedIndex === 0) {
-      const sid0 = sortedStepIds[0];
-      if (sid0 && stepPositions[sid0]?.[roleId]) {
-        return stepPositions[sid0][roleId];
-      }
-      return basePos;
-    }
-    let cur = basePos;
-    for (let i = 0; i < clampedIndex; i++) {
-      const prevSid = sortedStepIds[i];
-      if (prevSid && stepPositions[prevSid]?.[roleId]) {
-        cur = stepPositions[prevSid][roleId];
-      }
-      const prevAnns = annotations.filter(a => a.stepId === prevSid);
-      const endOfRun = resolvePositionForStep(roleId, prevAnns, cur, 1);
-      if (endOfRun.x !== cur.x || endOfRun.y !== cur.y) cur = endOfRun;
-    }
-    const targetSid = sortedStepIds[clampedIndex];
-    if (targetSid && stepPositions[targetSid]?.[roleId]) {
-      return stepPositions[targetSid][roleId];
-    }
-    return cur;
-  };
-
-  const markerRefs = (() => {
-    const refs = buildMarkerRefs([], entities);
-    for (const role of roles) {
-      const pos = computeStepResolvedPosition(role.id, animation.activeStepIndex);
-      refs.push({ id: role.id, type: 'role', position: pos });
-    }
-    return refs;
-  })();
+  const markerRefs: MarkerRef[] = [
+    ...entities.map((entity): MarkerRef => ({ id: entity.id, type: 'entity',
+      position: entityPositionAtStep(entity, activeStepId, entityStepPositions) })),
+    ...roles.map((role): MarkerRef => ({ id: role.id, type: 'role',
+      position: computeStepResolvedPosition(role, animation.activeStepIndex) })),
+  ];
 
   // Snap against the positions markers are actually displayed at (step-resolved),
   // excluding the dragged marker itself.
@@ -595,7 +567,7 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
       for (const ent of state.entities) {
         const layerKey = ent.type === 'opponent' ? 'opponents' as const : ent.type === 'ball' ? 'ball' as const : 'team' as const;
         if (!lv[layerKey] || ll[layerKey]) continue;
-        const p = toPixel(ent.position);
+        const p = toPixel(entityPositionAtStep(ent, currentStepId, state.entityStepPositions));
         consider(Math.hypot(cursor.x - p.x, cursor.y - p.y), ENTITY_HIT_PX, () => deleteEntity(ent.id));
       }
       (best as { d: number; del: () => void } | null)?.del();
@@ -695,6 +667,7 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
       if (editorKeyboardBlocked(e)) return;
       if (readOnly || useEditorStore.getState().presentationMode) return;
       const state = useEditorStore.getState();
+      const stepId = state.steps[state.animation.activeStepIndex]?.id;
 
       if ((e.metaKey || e.ctrlKey) && !e.altKey && e.key.toLowerCase() === 'd') {
         const annotation = state.annotations.find(ann => ann.id === state.selectedAnnotationId);
@@ -705,8 +678,9 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
           state.addAnnotation({ ...moveAnnotationGeometry(annotation, 3, 3), id: crypto.randomUUID(), layerOrder: state.annotations.length });
         } else if (entity) {
           const id = crypto.randomUUID();
+          const position = entityPositionAtStep(entity, stepId, state.entityStepPositions);
           state.addEntity({ ...entity, id, position: {
-            x: Math.min(100, entity.position.x + 3), y: Math.min(100, entity.position.y + 3),
+            x: Math.min(100, position.x + 3), y: Math.min(100, position.y + 3),
           } });
           state.setSelectedEntityId(id);
         }
@@ -726,6 +700,7 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
         clearDrawingPoints();
         setSelectedAnnotationId(null);
         setSelectedEntityId(null);
+        if (activeRoleId) onRoleClick(activeRoleId);
         return;
       }
       // While drawing, Backspace removes only the last placed point.
@@ -746,24 +721,42 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
       }
       // Arrow-key nudge for the selected element (Shift = coarse).
       if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key) &&
-          (state.selectedEntityId || state.selectedAnnotationId)) {
-        e.preventDefault();
+          state.activeTool === 'select' && !state.animation.playing) {
         const step = e.shiftKey ? 2 : 0.5;
         const dx = e.key === 'ArrowLeft' ? -step : e.key === 'ArrowRight' ? step : 0;
         const dy = e.key === 'ArrowUp' ? -step : e.key === 'ArrowDown' ? step : 0;
-        state.snapshotBoard();
+        const movePoint = (point: Point): Point => ({
+          x: Math.max(0, Math.min(100, point.x + dx)),
+          y: Math.max(0, Math.min(100, point.y + dy)),
+        });
         if (state.selectedEntityId) {
           const ent = state.entities.find(en => en.id === state.selectedEntityId);
-          if (ent) {
-            const position = {
-              x: Math.max(0, Math.min(100, ent.position.x + dx)),
-              y: Math.max(0, Math.min(100, ent.position.y + dy)),
-            };
-            state.updateSnappedAnnotations(ent.id, position, state.steps[state.animation.activeStepIndex]?.id);
-            updateEntity(ent.id, { position });
-          }
+          if (!ent) return;
+          const layer = ent.type === 'opponent' ? 'opponents' : ent.type === 'ball' ? 'ball' : 'team';
+          if (state.layerLocked[layer] || !state.layerVisibility[layer]) return;
+          e.preventDefault();
+          const from = entityPositionAtStep(ent, stepId, state.entityStepPositions);
+          const position = movePoint(from);
+          if (position.x === from.x && position.y === from.y) return;
+          state.snapshotBoard();
+          if (state.animation.progress) state.setAnimationProgress(0);
+          state.updateSnappedAnnotations(ent.id, position, stepId);
+          state.updateEntity(ent.id, { position });
         } else if (state.selectedAnnotationId) {
+          e.preventDefault();
+          state.snapshotBoard();
           moveAnnotation(state.selectedAnnotationId, dx, dy);
+        } else if (activeRoleId && stepId && state.layerVisibility.team && !state.layerLocked.team) {
+          const role = roles.find(candidate => candidate.id === activeRoleId);
+          if (!role) return;
+          e.preventDefault();
+          const from = rolePositionAtStep(role, state.animation.activeStepIndex, state.steps, state.annotations, state.stepPositions);
+          const position = movePoint(from);
+          if (position.x === from.x && position.y === from.y) return;
+          state.snapshotBoard();
+          if (state.animation.progress) state.setAnimationProgress(0);
+          state.updateSnappedAnnotations(role.id, position, stepId);
+          state.setStepRolePosition(stepId, role.id, position);
         }
         return;
       }
@@ -777,12 +770,9 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [readOnly, isDrawingTool, drawingPoints.length, finishDrawing, clearDrawingPoints,
+  }, [readOnly, activeRoleId, roles, onRoleClick, isDrawingTool, drawingPoints.length, finishDrawing, clearDrawingPoints,
     setSelectedAnnotationId, setSelectedEntityId, deleteAnnotation, deleteEntity,
-    setAnimationPlaying, updateEntity, moveAnnotation]);
-
-  const activeStep = steps[animation.activeStepIndex];
-  const activeStepId = activeStep?.id;
+    setAnimationPlaying, moveAnnotation]);
 
   const stepAnnotations = activeStepId
     ? annotations.filter(a => a.stepId === activeStepId)
@@ -813,76 +803,24 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
     y: Number.isFinite(p.y) ? p.y : 50,
   });
 
-  const getAnimatedPosition = (roleId: string, role: RoleData): Point => {
-    const roleStartPos = { x: role.startPosition?.x ?? 50, y: role.startPosition?.y ?? 50 };
-    if (!animation.playing && animation.progress === 0) {
-      const target = safePoint(computeStepResolvedPosition(roleId, animation.activeStepIndex));
-      if (stepTransitionT < 1) {
-        const clampedFrom = Math.min(transitionFromStepRef.current, steps.length - 1);
-        const from = safePoint(computeStepResolvedPosition(roleId, Math.max(0, clampedFrom)));
-        return lerpPoint(from, target, stepTransitionT);
-      }
-      return target;
+  const getAnimatedPosition = (role: RoleData): Point => {
+    const target = safePoint(computeStepResolvedPosition(role, animation.activeStepIndex));
+    if (animation.progress > 0) {
+      const run = findRoleRun(role.id, stepAnnotations);
+      if (run) return safePoint(interpolatePath(annotationPath(run.type, run.points), easeInOutQuad(animation.progress)));
+    } else if (!isPlaying && stepTransitionT < 1 && prevVariantIdRef.current === activeVariantId) {
+      const from = safePoint(computeStepResolvedPosition(role, transitionFromStepRef.current));
+      return lerpPoint(from, target, stepTransitionT);
     }
-
-    let currentPos = roleStartPos;
-
-    if (isAllMode && isPlaying) {
-      for (let i = 0; i < animation.activeStepIndex; i++) {
-        const sid = sortedStepIds[i];
-        if (sid && stepPositions[sid]?.[roleId]) {
-          currentPos = stepPositions[sid][roleId];
-        }
-        const completedAnns = annotations.filter(a => a.stepId === sid);
-        currentPos = resolvePositionForStep(roleId, completedAnns, currentPos, 1);
-      }
-      const curSid = sortedStepIds[animation.activeStepIndex];
-      if (curSid && stepPositions[curSid]?.[roleId]) {
-        currentPos = stepPositions[curSid][roleId];
-      }
-    } else {
-      currentPos = computeStepResolvedPosition(roleId, animation.activeStepIndex);
-    }
-
-    // Ease-in/out so runs accelerate and decelerate like real movement.
-    return safePoint(resolvePositionForStep(roleId, stepAnnotations, currentPos, easeInOutQuad(animation.progress)));
+    return target;
   };
 
-  interface BallFlight {
-    pos: Point;
-    /** Eased progress along the CURRENT step's pass (1 for completed steps). */
-    t: number;
-    /** The pass annotation the ball is currently traveling on, if any. */
-    ann: Annotation | null;
-  }
-
-  const getBallFlight = (): BallFlight | null => {
-    if (!animation.playing && animation.progress === 0) return null;
-    const easedProgress = easeInOutQuad(animation.progress);
-
-    if (isAllMode && isPlaying) {
-      let flight: BallFlight | null = null;
-      for (let i = 0; i <= animation.activeStepIndex; i++) {
-        const sid = sortedStepIds[i];
-        const anns = annotations.filter(a => a.stepId === sid);
-        const passAnns = anns.filter(
-          a => (a.type === 'pass_line' || a.type === 'curved_cross') && a.points.length >= 2
-        );
-        if (passAnns.length > 0) {
-          const t = i < animation.activeStepIndex ? 1 : easedProgress;
-          const ann = passAnns[0];
-          flight = { pos: interpolatePath(annotationPath(ann.type, ann.points), t), t, ann };
-        }
-      }
-      return flight;
-    }
-
-    const passAnns = stepAnnotations.filter(
-      a => (a.type === 'pass_line' || a.type === 'curved_cross') && a.points.length >= 2
-    );
-    if (passAnns.length === 0) return null;
-    const ann = passAnns[0];
-    return { pos: interpolatePath(annotationPath(ann.type, ann.points), easedProgress), t: easedProgress, ann };
+  const getBallFlight = (entity: EntityMarker) => {
+    if (animation.progress === 0) return null;
+    const ann = findBallPass(entity.id, entities, stepAnnotations);
+    if (!ann) return null;
+    const t = easeInOutQuad(animation.progress);
+    return { pos: interpolatePath(annotationPath(ann.type, ann.points), t), t, ann };
   };
 
   const handleContextMenu = useCallback((e: Konva.KonvaEventObject<PointerEvent>) => {
@@ -1046,11 +984,16 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
           if (!layerVisibility[layerKey]) return null;
           const isLocked = layerLocked[layerKey];
 
-          const px = toPixel(ent.position);
+          const target = entityPositionAtStep(ent, activeStepId, entityStepPositions);
+          const fromStepId = sortedStepIds[transitionFromStepRef.current];
+          const position = !isPlaying && stepTransitionT < 1 && prevVariantIdRef.current === activeVariantId
+            ? lerpPoint(entityPositionAtStep(ent, fromStepId, entityStepPositions), target, stepTransitionT)
+            : target;
+          const px = toPixel(position);
           const isSelected = ent.id === selectedEntityId;
           const isDimmed = hasFocusedElement && !isSelected;
 
-          const canInteract = !readOnly && !isLocked && activeTool === 'select';
+          const canInteract = !readOnly && !isLocked && !animation.playing && activeTool === 'select';
 
           const entityDragProps = canInteract ? {
             dragBoundFunc: makeDragBound(ent.id),
@@ -1103,7 +1046,7 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
           }
 
           if (ent.type === 'ball') {
-            const flight = getBallFlight();
+            const flight = getBallFlight(ent);
             const ballPx = flight ? toPixel(flight.pos) : px;
             // Lofted crosses get a flight-arc illusion: the ball grows toward
             // mid-flight and lands back at normal size.
@@ -1148,8 +1091,8 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
         {layerVisibility.team && animation.activeStepIndex > 0 && !isPlaying && stepTransitionT >= 1 && (
           <Group listening={false}>
             {roles.map((role) => {
-              const cur = computeStepResolvedPosition(role.id, animation.activeStepIndex);
-              const prev = computeStepResolvedPosition(role.id, animation.activeStepIndex - 1);
+              const cur = computeStepResolvedPosition(role, animation.activeStepIndex);
+              const prev = computeStepResolvedPosition(role, animation.activeStepIndex - 1);
               if (Math.hypot(cur.x - prev.x, cur.y - prev.y) < 0.5) return null;
               const prevPx = toPixel(prev);
               const curPx = toPixel(cur);
@@ -1165,7 +1108,7 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
         )}
 
         {layerVisibility.team && roles.map((role) => {
-          const pct = getAnimatedPosition(role.id, role);
+          const pct = getAnimatedPosition(role);
           const px = toPixel(pct);
           const isActive = role.id === activeRoleId;
           const assignment = assignments.find(a => a.roleId === role.id);
@@ -1173,7 +1116,7 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
           const isUnassigned = !assignment;
           const isDimmed = hasFocusedElement && !isActive;
           const isLocked = layerLocked.team;
-          const roleInteractive = !readOnly && !isLocked && activeTool === 'select';
+          const roleInteractive = !readOnly && !isLocked && !animation.playing && activeTool === 'select';
 
           const compactLabel = compact ? undefined : role.name;
           const compactLastName = compact

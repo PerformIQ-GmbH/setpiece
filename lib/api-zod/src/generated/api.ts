@@ -721,6 +721,7 @@ export const UpdateSetPieceStatusParams = zod.object({
 
 export const UpdateSetPieceStatusBody = zod.object({
   status: zod.enum(["draft", "ready", "active_matchday", "archived"]),
+  requiredVariantIds: zod.array(zod.string()).optional(),
 });
 
 export const UpdateSetPieceStatusResponse = zod.object({
@@ -1443,7 +1444,7 @@ export const GetPlayerSpecificViewResponse = zod.object({
       readiness: zod
         .union([
           zod.object({
-            id: zod.string(),
+            id: zod.string().optional(),
             playerId: zod.string(),
             setPieceId: zod.string(),
             roleId: zod.string().nullish(),
@@ -1451,12 +1452,59 @@ export const GetPlayerSpecificViewResponse = zod.object({
             lastOpenedAt: zod.coerce.date().nullish(),
             readyAt: zod.coerce.date().nullish(),
             quizCompletedAt: zod.coerce.date().nullish(),
-            viewCount: zod.number(),
-            createdAt: zod.coerce.date(),
-            updatedAt: zod.coerce.date(),
+            viewCount: zod.number().optional(),
+            createdAt: zod.coerce.date().optional(),
+            updatedAt: zod.coerce.date().optional(),
+            variantId: zod.string().optional(),
+            variantName: zod.string().optional(),
+            contentVersion: zod.string().optional(),
+            roleName: zod.string().optional(),
           }),
           zod.null(),
         ])
+        .optional(),
+      publishedVersion: zod.string().optional(),
+      requiredVariantIds: zod.array(zod.string()).optional(),
+      tasks: zod
+        .array(
+          zod.object({
+            id: zod.string(),
+            playerId: zod.string(),
+            setPieceId: zod.string(),
+            roleId: zod.string(),
+            variantId: zod.string(),
+            variantName: zod.string(),
+            contentVersion: zod.string(),
+            status: zod.string(),
+            quizCompletedAt: zod.coerce.date().nullish(),
+            playerRole: zod.object({
+              id: zod.string(),
+              setPieceId: zod.string(),
+              name: zod.string(),
+              description: zod.string().nullish(),
+              startPosition: zod
+                .object({
+                  x: zod.number().optional(),
+                  y: zod.number().optional(),
+                })
+                .nullish(),
+              movementPath: zod
+                .array(
+                  zod.object({
+                    x: zod.number().optional(),
+                    y: zod.number().optional(),
+                  }),
+                )
+                .nullish(),
+              coachingPoint: zod.string().nullish(),
+              sortOrder: zod.number(),
+              createdAt: zod.coerce.date(),
+              updatedAt: zod.coerce.date(),
+            }),
+            boardData: zod.object({}).passthrough(),
+            required: zod.boolean(),
+          }),
+        )
         .optional(),
     }),
   ),
@@ -1473,6 +1521,8 @@ export const MarkPlayerReadyBody = zod.object({
   playerId: zod.string(),
   setPieceId: zod.string(),
   roleId: zod.string().optional(),
+  variantId: zod.string().optional(),
+  contentVersion: zod.string().optional(),
   status: zod
     .enum(["ready", "needs_review"])
     .optional()
@@ -1482,7 +1532,7 @@ export const MarkPlayerReadyBody = zod.object({
 });
 
 export const MarkPlayerReadyResponse = zod.object({
-  id: zod.string(),
+  id: zod.string().optional(),
   playerId: zod.string(),
   setPieceId: zod.string(),
   roleId: zod.string().nullish(),
@@ -1490,9 +1540,13 @@ export const MarkPlayerReadyResponse = zod.object({
   lastOpenedAt: zod.coerce.date().nullish(),
   readyAt: zod.coerce.date().nullish(),
   quizCompletedAt: zod.coerce.date().nullish(),
-  viewCount: zod.number(),
-  createdAt: zod.coerce.date(),
-  updatedAt: zod.coerce.date(),
+  viewCount: zod.number().optional(),
+  createdAt: zod.coerce.date().optional(),
+  updatedAt: zod.coerce.date().optional(),
+  variantId: zod.string().optional(),
+  variantName: zod.string().optional(),
+  contentVersion: zod.string().optional(),
+  roleName: zod.string().optional(),
 });
 
 /**
@@ -1505,11 +1559,16 @@ export const GetQuizQuestionsParams = zod.object({
 export const GetQuizQuestionsQueryParams = zod.object({
   setPieceId: zod.coerce.string(),
   playerId: zod.coerce.string().optional(),
+  roleId: zod.coerce.string().optional(),
+  variantId: zod.coerce.string().optional(),
 });
 
 export const GetQuizQuestionsResponse = zod.object({
   setPieceId: zod.string(),
   roleId: zod.string().nullish(),
+  variantId: zod.string().optional(),
+  contentVersion: zod.string().optional(),
+  publishedVersion: zod.string().optional(),
   questions: zod.array(
     zod.object({
       id: zod.string(),
@@ -1531,6 +1590,8 @@ export const SubmitQuizBody = zod.object({
   playerId: zod.string(),
   setPieceId: zod.string(),
   roleId: zod.string().optional(),
+  variantId: zod.string().optional(),
+  contentVersion: zod.string().optional(),
   answers: zod.array(
     zod.object({
       questionId: zod.string(),
@@ -1544,6 +1605,8 @@ export const SubmitQuizResponse = zod.object({
   score: zod.number(),
   correct: zod.number().optional(),
   total: zod.number(),
+  variantId: zod.string().optional(),
+  contentVersion: zod.string().optional(),
 });
 
 /**
@@ -1586,7 +1649,7 @@ export const GetReadinessDashboardResponse = zod.object({
       }),
       readiness: zod.array(
         zod.object({
-          id: zod.string(),
+          id: zod.string().optional(),
           playerId: zod.string(),
           setPieceId: zod.string(),
           roleId: zod.string().nullish(),
@@ -1594,9 +1657,13 @@ export const GetReadinessDashboardResponse = zod.object({
           lastOpenedAt: zod.coerce.date().nullish(),
           readyAt: zod.coerce.date().nullish(),
           quizCompletedAt: zod.coerce.date().nullish(),
-          viewCount: zod.number(),
-          createdAt: zod.coerce.date(),
-          updatedAt: zod.coerce.date(),
+          viewCount: zod.number().optional(),
+          createdAt: zod.coerce.date().optional(),
+          updatedAt: zod.coerce.date().optional(),
+          variantId: zod.string().optional(),
+          variantName: zod.string().optional(),
+          contentVersion: zod.string().optional(),
+          roleName: zod.string().optional(),
         }),
       ),
     }),

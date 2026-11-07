@@ -178,29 +178,31 @@ router.post("/teams/:teamId/matchdays/:matchdayId/set-pieces", async (req, res):
     return;
   }
 
-  const [sp] = await db
-    .select()
-    .from(setPiecesTable)
-    .where(and(eq(setPiecesTable.id, setPieceId), eq(setPiecesTable.teamId, teamId)));
-  if (!sp) {
-    res.status(404).json({ error: "Set piece not found in this team" });
-    return;
-  }
+  const entry = await db.transaction(async (tx) => {
+    const [sp] = await tx
+      .select()
+      .from(setPiecesTable)
+      .where(and(eq(setPiecesTable.id, setPieceId), eq(setPiecesTable.teamId, teamId))).for("update");
+    if (!sp) return undefined;
 
-  const [entry] = await db
-    .insert(matchdaySetPiecesTable)
-    .values({
-      matchdayId,
-      setPieceId,
-      sortOrder: sortOrder ?? 0,
-    })
-    .returning();
+    const [entry] = await tx
+      .insert(matchdaySetPiecesTable)
+      .values({
+        matchdayId,
+        setPieceId,
+        sortOrder: sortOrder ?? 0,
+      })
+      .returning();
 
-  await db
-    .update(setPiecesTable)
-    .set({ status: "active_matchday" })
-    .where(eq(setPiecesTable.id, setPieceId));
+    // Matchday membership never publishes or revives a withdrawn draft.
+    if (sp.status === "ready") await tx
+      .update(setPiecesTable)
+      .set({ status: "active_matchday" })
+      .where(eq(setPiecesTable.id, setPieceId));
 
+    return entry;
+  });
+  if (!entry) { res.status(404).json({ error: "Set piece not found in this team" }); return; }
   res.status(201).json(entry);
 });
 
@@ -226,27 +228,38 @@ router.delete("/teams/:teamId/matchdays/:matchdayId/set-pieces", async (req, res
     return;
   }
 
-  await db
-    .delete(matchdaySetPiecesTable)
-    .where(
-      and(
-        eq(matchdaySetPiecesTable.matchdayId, matchdayId),
-        eq(matchdaySetPiecesTable.setPieceId, setPieceId),
-      ),
-    );
+  const found = await db.transaction(async (tx) => {
+    const [sp] = await tx.select().from(setPiecesTable)
+      .where(and(eq(setPiecesTable.id, setPieceId), eq(setPiecesTable.teamId, teamId))).for("update");
+    if (!sp) return false;
+    const [entry] = await tx.select().from(matchdaySetPiecesTable)
+      .where(and(eq(matchdaySetPiecesTable.matchdayId, matchdayId), eq(matchdaySetPiecesTable.setPieceId, setPieceId)));
+    if (!entry) return true;
 
-  const remaining = await db
-    .select()
-    .from(matchdaySetPiecesTable)
-    .where(eq(matchdaySetPiecesTable.setPieceId, setPieceId));
+    await tx
+      .delete(matchdaySetPiecesTable)
+      .where(
+        and(
+          eq(matchdaySetPiecesTable.matchdayId, matchdayId),
+          eq(matchdaySetPiecesTable.setPieceId, setPieceId),
+        ),
+      );
 
-  if (remaining.length === 0) {
-    await db
-      .update(setPiecesTable)
-      .set({ status: "ready" })
-      .where(eq(setPiecesTable.id, setPieceId));
-  }
+    const remaining = await tx
+      .select()
+      .from(matchdaySetPiecesTable)
+      .where(eq(matchdaySetPiecesTable.setPieceId, setPieceId));
 
+    if (remaining.length === 0 && sp.status === "active_matchday") {
+      await tx
+        .update(setPiecesTable)
+        .set({ status: "ready" })
+        .where(eq(setPiecesTable.id, setPieceId));
+    }
+
+    return true;
+  });
+  if (!found) { res.status(404).json({ error: "Set piece not found in this team" }); return; }
   res.sendStatus(204);
 });
 

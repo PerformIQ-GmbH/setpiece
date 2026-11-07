@@ -1,4 +1,4 @@
-import type { Annotation, Point } from './types';
+import type { Annotation, EntityMarker, Point, RolePositionSource, StepPositions } from './types';
 
 interface DrawingMarker {
   id: string;
@@ -42,6 +42,32 @@ export function finalizeDrawingPoints(points: Point[], markers: DrawingMarker[],
 export function findRoleRun(roleId: string, annotations: Annotation[]): Annotation | undefined {
   return annotations.find(annotation => annotation.linkedRoleId === roleId &&
     (annotation.type === 'run_path' || annotation.type === 'curved_run') && annotation.points.length >= 2);
+}
+
+export function rolePositionAtStep(role: RolePositionSource, index: number, steps: readonly { id: string }[],
+  annotations: Annotation[], positions?: StepPositions): Point {
+  const target = Math.max(0, Math.min(index, steps.length - 1));
+  const stepId = steps[target]?.id;
+  if (stepId && positions?.[stepId]?.[role.id]) return positions[stepId][role.id];
+  let position = { x: role.startPosition?.x ?? role.position?.x ?? 50, y: role.startPosition?.y ?? role.position?.y ?? 50 };
+  for (let i = 0; i < target; i++) {
+    const id = steps[i].id;
+    const run = findRoleRun(role.id, annotations.filter(annotation => annotation.stepId === id));
+    position = run?.points[run.points.length - 1] ?? positions?.[id]?.[role.id] ?? position;
+  }
+  return position;
+}
+
+export function entityPositionAtStep(entity: EntityMarker, stepId?: string, positions?: StepPositions): Point {
+  return (stepId ? positions?.[stepId]?.[entity.id] : undefined) ?? entity.position;
+}
+
+export function findBallPass(ballId: string, entities: EntityMarker[], annotations: Annotation[]): Annotation | undefined {
+  const balls = entities.filter(entity => entity.type === 'ball');
+  const passes = annotations.filter(annotation => (annotation.type === 'pass_line' || annotation.type === 'curved_cross') &&
+    annotation.points.length >= 2);
+  return passes.find(pass => pass.snappedStartRef === ballId) ??
+    (balls[0]?.id === ballId ? passes.find(pass => !balls.some(ball => ball.id === pass.snappedStartRef)) : undefined);
 }
 
 export function moveAnnotationGeometry(annotation: Annotation, dx: number, dy: number): Annotation {

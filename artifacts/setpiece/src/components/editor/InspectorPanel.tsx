@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useMemo, useLayoutEffect } from 'react';
+import { useState, useRef, useEffect, useMemo, useLayoutEffect, useId } from 'react';
 import { createPortal } from 'react-dom';
 import { useEditorStore } from './editorStore';
 import { ANNOTATION_COLORS } from './types';
@@ -573,6 +573,7 @@ function RoleMarkerInspector({ role, assignment, player, linkedAnnotations, play
   const [editName, setEditName] = useState(role.name);
   const [editDescription, setEditDescription] = useState(role.description || '');
   const [editCoachingPoint, setEditCoachingPoint] = useState(role.coachingPoint || '');
+  const roleNoteId = useId();
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => { setEditName(role.name); }, [role.name]);
@@ -686,30 +687,32 @@ function RoleMarkerInspector({ role, assignment, player, linkedAnnotations, play
         </CollapsibleSection>
 
         {onUpdateRoleField && (
-          <CollapsibleSection title="Tactical Notes" defaultOpen={!!(role.description || role.coachingPoint)}>
+          <CollapsibleSection title="Auftrag für diese Variante" defaultOpen={!!(role.description || role.coachingPoint)}>
             <div className="space-y-4">
               <div className="space-y-1.5">
-                <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Task / Description</label>
+                <label htmlFor={`${roleNoteId}-task`} className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Spielerauftrag</label>
                 <textarea
+                  id={`${roleNoteId}-task`}
                   value={editDescription}
                   onChange={(e) => setEditDescription(e.target.value)}
                   onBlur={commitDescription}
-                  placeholder="What should this player do?"
+                  placeholder="Was soll der Spieler tun?"
                   rows={2}
                   className="w-full bg-white/[0.03] border border-white/[0.08] rounded-xl px-3 py-2 text-xs text-foreground focus:outline-none focus:border-primary/40 focus:ring-2 focus:ring-primary/20 resize-none transition-all"
                 />
               </div>
               <div className="space-y-1.5">
-                <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Coaching Point</label>
+                <label htmlFor={`${roleNoteId}-coaching`} className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Trainerhinweis</label>
                 <textarea
+                  id={`${roleNoteId}-coaching`}
                   value={editCoachingPoint}
                   onChange={(e) => setEditCoachingPoint(e.target.value)}
                   onBlur={commitCoachingPoint}
-                  placeholder="Key instruction for the player"
+                  placeholder="Worauf soll der Spieler achten?"
                   rows={2}
                   className="w-full bg-white/[0.03] border border-white/[0.08] rounded-xl px-3 py-2 text-xs text-foreground focus:outline-none focus:border-primary/40 focus:ring-2 focus:ring-primary/20 resize-none transition-all"
                 />
-                <p className="text-[9px] text-muted-foreground">Shown to the player in the quiz and matchday pack</p>
+                <p className="text-[10px] text-muted-foreground">Nach der Veröffentlichung sieht der Spieler diesen Auftrag für die Variante.</p>
               </div>
             </div>
           </CollapsibleSection>

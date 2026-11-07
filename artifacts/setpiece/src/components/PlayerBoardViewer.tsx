@@ -5,11 +5,11 @@ import { Play, Pause, RotateCcw, ZoomIn, ZoomOut, Crosshair } from 'lucide-react
 import { PremiumPitch } from '@/components/editor/PremiumPitch';
 import { OffensiveCornerPitch } from '@/components/editor/OffensiveCornerPitch';
 import { TeamPlayerMarker, OpponentMarker, GoalkeeperMarker, BallMarker } from '@/components/editor/markers';
-import type { Annotation, EntityMarker, Point } from '@/components/editor/types';
+import type { Annotation, EntityMarker, Point, StepPositions } from '@/components/editor/types';
 import { buildPitchGeometry, pitchOrientationForCategory } from '@/utils/pitchGeometry';
 import { AnnotationLayer } from '@/components/editor/AnnotationLayer';
-import { findRoleRun } from '@/components/editor/editorInteraction';
-import { annotationPath, interpolatePath, subPath } from '@/components/editor/pathUtils';
+import { entityPositionAtStep, findBallPass, findRoleRun, rolePositionAtStep } from '@/components/editor/editorInteraction';
+import { annotationPath, easeInOutQuad, interpolatePath, subPath } from '@/components/editor/pathUtils';
 
 interface RoleData {
   id: string;
@@ -29,7 +29,9 @@ interface BoardDataLike {
   annotations?: Annotation[];
   entities?: EntityMarker[];
   steps?: Array<{ id: string; label: string }>;
-  stepPositions?: Record<string, Record<string, { x: number; y: number }>>;
+  stepPositions?: StepPositions;
+  entityStepPositions?: StepPositions;
+  activeVariantId?: string;
   [key: string]: unknown;
 }
 
@@ -102,7 +104,8 @@ export function PlayerBoardViewer({
   const annotations: Annotation[] = boardData?.annotations || [];
   const entities: EntityMarker[] = boardData?.entities || [];
   const steps = useMemo(() => boardData?.steps || [], [boardData]);
-  const stepPositions = boardData?.stepPositions || {};
+  const stepPositions = boardData?.stepPositions;
+  const entityStepPositions = boardData?.entityStepPositions;
   const sortedStepIds = useMemo(() => steps.map((s) => s.id), [steps]);
   const hasMultipleSteps = steps.length > 1;
 
@@ -118,10 +121,7 @@ export function PlayerBoardViewer({
   // Reset playback whenever the underlying board or step set changes (e.g.
   // user opens a different set piece). Without this, a stale stepIndex can
   // exceed the new steps.length and break position resolution / labels.
-  const boardKey = useMemo(
-    () => `${steps.length}:${sortedStepIds.join('|')}`,
-    [steps.length, sortedStepIds]
-  );
+  const boardKey = `${boardData?.activeVariantId ?? ''}:${sortedStepIds.join('|')}`;
   const didAutoPlay = useRef(false);
   useEffect(() => {
     didAutoPlay.current = false;
@@ -210,48 +210,24 @@ export function PlayerBoardViewer({
     stepIndexRef.current = 0;
   };
 
-  // ─── Position computation per step ──────────────────────────────
-  // Only explicit role assignments animate a player, in every board view.
-  const resolvePositionForStep = useCallback(
-    (roleId: string, stepAnns: Annotation[], startPos: Point, t: number): Point => {
-      const run = findRoleRun(roleId, stepAnns);
-      return run ? interpolatePath(annotationPath(run.type, run.points), t) : startPos;
-    },
-    []
-  );
-
-  const computeRolePosition = useCallback(
-    (role: RoleData): Point => {
-      const basePos: Point = {
-        x: role.startPosition?.x ?? 50,
-        y: role.startPosition?.y ?? 50,
-      };
-      if (steps.length === 0) return basePos;
-
-      let cur: Point = basePos;
-      // Walk completed steps
-      for (let i = 0; i < stepIndex; i++) {
-        const sid = sortedStepIds[i];
-        if (sid && stepPositions[sid]?.[role.id]) cur = stepPositions[sid][role.id];
-        const prevAnns = annotations.filter((a) => a.stepId === sid);
-        cur = resolvePositionForStep(role.id, prevAnns, cur, 1);
-      }
-      // Apply current step start position override
-      const curSid = sortedStepIds[stepIndex];
-      if (curSid && stepPositions[curSid]?.[role.id]) cur = stepPositions[curSid][role.id];
-      // Interpolate within current step
-      const curAnns = annotations.filter((a) => a.stepId === curSid);
-      return safe(resolvePositionForStep(role.id, curAnns, cur, progress));
-    },
-    [annotations, stepIndex, sortedStepIds, stepPositions, progress, resolvePositionForStep, steps.length]
-  );
-
-  // Determine which annotations to show this step
   const currentStepId = sortedStepIds[stepIndex];
   const visibleAnnotations = useMemo(() => {
     if (steps.length === 0) return annotations;
     return annotations.filter((a) => !a.stepId || a.stepId === currentStepId);
   }, [annotations, steps.length, currentStepId]);
+  const hasPlayback = hasMultipleSteps || (steps.length === 1 && (
+    roles.some(role => findRoleRun(role.id, visibleAnnotations)) ||
+    entities.some(entity => entity.type === 'ball' && findBallPass(entity.id, entities, visibleAnnotations))
+  ));
+
+  const getRoleStart = useCallback((role: RoleData): Point =>
+    safe(rolePositionAtStep(role, stepIndex, steps, annotations, stepPositions)),
+  [annotations, stepIndex, stepPositions, steps]);
+
+  const computeRolePosition = useCallback((role: RoleData): Point => {
+    const run = progress > 0 ? findRoleRun(role.id, visibleAnnotations) : undefined;
+    return run ? safe(interpolatePath(annotationPath(run.type, run.points), progress)) : getRoleStart(role);
+  }, [getRoleStart, progress, visibleAnnotations]);
 
   // The full personal-run annotation for the current step (rendered as a
   // ghost) and a progress-truncated subpath that traces along with the marker.
@@ -362,16 +338,10 @@ export function PlayerBoardViewer({
     const role = roles.find((r) => r.id === activeRoleId);
     if (!role) return;
 
-    const pcts: Point[] = [];
-    if (role.startPosition?.x != null && role.startPosition?.y != null) {
-      pcts.push({ x: role.startPosition.x, y: role.startPosition.y });
-    }
-    pcts.push(computeRolePosition(role));
+    const pcts = [getRoleStart(role), computeRolePosition(role)];
     if (selfArrowFull) {
       for (const p of selfArrowFull.points) pcts.push(safe(p));
     }
-    if (pcts.length === 0) return;
-
     const pxs = pcts.map(toPixel);
     let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
     for (const p of pxs) {
@@ -393,7 +363,7 @@ export function PlayerBoardViewer({
     const newPan = clampPan({ x: z * (width / 2 - cx), y: z * (height / 2 - cy) }, z);
     setZoom(z);
     setPan(newPan);
-  }, [activeRoleId, roles, computeRolePosition, selfArrowFull, toPixel, width, height, clampPan]);
+  }, [activeRoleId, roles, getRoleStart, computeRolePosition, selfArrowFull, toPixel, width, height, clampPan]);
 
   const handleTouchStart = useCallback((e: React.TouchEvent) => {
     if (e.touches.length === 2) {
@@ -581,7 +551,11 @@ export function PlayerBoardViewer({
             {/* Entities (opponents, GK, ball) — opponents stay dimmed, ball/GK full */}
             <Group>
               {entities.map((ent: EntityMarker) => {
-                const px = toPixel(ent.position);
+                const pass = ent.type === 'ball' && progress > 0 ? findBallPass(ent.id, entities, visibleAnnotations) : undefined;
+                const position = pass
+                  ? interpolatePath(annotationPath(pass.type, pass.points), easeInOutQuad(progress))
+                  : entityPositionAtStep(ent, currentStepId, entityStepPositions);
+                const px = toPixel(safe(position));
                 if (ent.type === 'opponent') {
                   return (
                     <OpponentMarker
@@ -616,7 +590,8 @@ export function PlayerBoardViewer({
             {/* Roles (teammates + me) */}
             <Group>
               {roles.map((role) => {
-                if (!role.startPosition || role.startPosition.x == null || role.startPosition.y == null) return null;
+                if (!stepPositions?.[currentStepId]?.[role.id] &&
+                  (role.startPosition?.x == null || role.startPosition?.y == null)) return null;
                 const pct = computeRolePosition(role);
                 const px = toPixel(pct);
                 const isActive = role.id === activeRoleId;
@@ -741,7 +716,7 @@ export function PlayerBoardViewer({
       </div>
 
       {/* Playback controls */}
-      {hasMultipleSteps && (
+      {hasPlayback && (
         <div className="mt-2 flex flex-col gap-2 px-2 py-2 rounded-xl bg-white/[0.04] border border-white/[0.06]">
           <div className="flex items-center gap-2">
             <button
@@ -768,7 +743,7 @@ export function PlayerBoardViewer({
               />
             </div>
           </div>
-          <div className="flex items-center gap-1.5 overflow-x-auto">
+          {hasMultipleSteps && <div className="flex items-center gap-1.5 overflow-x-auto">
             {steps.map((s, i) => {
               const active = i === stepIndex;
               return (
@@ -788,7 +763,7 @@ export function PlayerBoardViewer({
                 </button>
               );
             })}
-          </div>
+          </div>}
         </div>
       )}
     </div>

@@ -11,4 +11,6 @@ export interface QuizResult {
   score: number;
   correct?: number;
   total: number;
+  variantId?: string;
+  contentVersion?: string;
 }

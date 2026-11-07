@@ -12,6 +12,7 @@ import {
 } from "@workspace/db";
 import { requireShareToken, isSetPieceInShareScope } from "../lib/authorization";
 import { z } from "zod/v4";
+import { playerContent, variantTask, taskScopeAnswer, type ContentRole } from "../lib/variantContent";
 
 const router: IRouter = Router();
 
@@ -19,18 +20,22 @@ const submitQuizSchema = z.object({
   playerId: z.string().min(1),
   setPieceId: z.string().min(1),
   roleId: z.string().optional(),
+  variantId: z.string().min(1).optional(),
+  contentVersion: z.string().min(1).optional(),
   answers: z.array(z.object({
     questionId: z.string(),
     answer: z.any(),
   })),
 });
 const quizQuerySchema = z.object({
+  roleId: z.string().optional(),
+  variantId: z.string().min(1).optional(),
   setPieceId: z.string().min(1),
   playerId: z.string().min(1).optional(),
 });
 
 async function findPlayerRole(
-  roles: Array<typeof setPieceRolesTable.$inferSelect>,
+  roles: ContentRole[],
   playerId: string,
   requestedRoleId?: string,
 ) {
@@ -139,7 +144,7 @@ router.get("/p/:shareToken/quiz", async (req, res): Promise<void> => {
     res.status(400).json({ error: "Valid setPieceId and playerId query parameters are required" });
     return;
   }
-  const { setPieceId, playerId } = parsed.data;
+  const { setPieceId, playerId, roleId, variantId } = parsed.data;
   const resolvePlayerId = playerId || (link.playerScope?.length ? link.playerScope[0] : null);
   if (resolvePlayerId && link.playerScope?.length && !link.playerScope.includes(resolvePlayerId)) {
     res.status(403).json({ error: "Player not in scope for this link" });
@@ -166,7 +171,9 @@ router.get("/p/:shareToken/quiz", async (req, res): Promise<void> => {
     .from(setPieceRolesTable)
     .where(eq(setPieceRolesTable.setPieceId, setPieceId));
 
-  let playerRole: typeof roles[0] | null = null;
+  const content = playerContent(setPiece, roles);
+  if (!content) { res.status(409).json({ error: "Set piece has no published content" }); return; }
+  let playerRole: ContentRole | null = null;
   if (resolvePlayerId) {
     const [player] = await db.select({ id: playersTable.id }).from(playersTable).where(and(
       eq(playersTable.id, resolvePlayerId), eq(playersTable.teamId, link.teamId),
@@ -175,18 +182,23 @@ router.get("/p/:shareToken/quiz", async (req, res): Promise<void> => {
       res.status(403).json({ error: "Player does not belong to this team" });
       return;
     }
-    playerRole = await findPlayerRole(roles, resolvePlayerId);
+    playerRole = await findPlayerRole(content.roles, resolvePlayerId, roleId);
   }
 
-  const questions = playerRole
-    ? generateQuizQuestions(playerRole, setPiece.title)
-    : [];
+  let task;
+  try { task = playerRole ? variantTask(content.piece, playerRole, variantId) : null; }
+  catch { res.status(400).json({ error: "Unknown variant" }); return; }
+  if (variantId && !task) { res.status(400).json({ error: "No assigned role for variant" }); return; }
+  const questions = task ? generateQuizQuestions(task.role, content.piece.title) : [];
 
   const safeQuestions = questions.map(({ correctAnswer, ...q }) => q);
 
   res.json({
     setPieceId,
     roleId: playerRole?.id ?? null,
+    variantId: task?.variantId,
+    contentVersion: task?.contentVersion,
+    publishedVersion: content.publication?.version,
     questions: safeQuestions,
   });
 });
@@ -201,7 +213,7 @@ router.post("/p/:shareToken/quiz", async (req, res): Promise<void> => {
     return;
   }
 
-  const { playerId, setPieceId, roleId, answers } = parsed.data;
+  const { playerId, setPieceId, roleId, variantId, contentVersion, answers } = parsed.data;
 
   if (link.playerScope && link.playerScope.length > 0 && !link.playerScope.includes(playerId)) {
     res.status(403).json({ error: "Player not in scope for this link" });
@@ -237,14 +249,22 @@ router.post("/p/:shareToken/quiz", async (req, res): Promise<void> => {
     .from(setPieceRolesTable)
     .where(eq(setPieceRolesTable.setPieceId, setPieceId));
 
-  const playerRole = await findPlayerRole(roles, playerId, roleId);
+  const content = playerContent(setPiece, roles);
+  if (!content) { res.status(409).json({ error: "Set piece has no published content" }); return; }
+  const playerRole = await findPlayerRole(content.roles, playerId, roleId);
 
   if (!playerRole) {
     res.status(400).json({ error: "No role assignment found for this player on this set piece" });
     return;
   }
 
-  const canonicalQuestions = generateQuizQuestions(playerRole, setPiece.title);
+  let task;
+  try { task = variantTask(content.piece, playerRole, variantId); }
+  catch { res.status(400).json({ error: "Unknown variant" }); return; }
+  if (task.contentVersion && (!variantId || !roleId || contentVersion !== task.contentVersion)) {
+    res.status(409).json({ error: "Task changed; reload the published variant" }); return;
+  }
+  const canonicalQuestions = generateQuizQuestions(task.role, content.piece.title);
 
   const { score, correct, total, passed, gradedAnswers } = scoreAnswers(answers, canonicalQuestions);
 
@@ -257,11 +277,11 @@ router.post("/p/:shareToken/quiz", async (req, res): Promise<void> => {
       completedAt: new Date(),
       passed,
       score,
-      answers: gradedAnswers,
+      answers: task.contentVersion ? [...gradedAnswers, taskScopeAnswer(task, passed ? "passed" : "needs_review")] : gradedAnswers,
     })
     .returning();
 
-  await db.insert(playerReadinessTable).values({
+  if (!task.contentVersion) await db.insert(playerReadinessTable).values({
       playerId,
       setPieceId,
       roleId: playerRole.id,
@@ -281,7 +301,7 @@ router.post("/p/:shareToken/quiz", async (req, res): Promise<void> => {
     metadata: { playerId, setPieceId, passed, score },
   });
 
-  res.json({ passed, score, correct, total });
+  res.json({ passed, score, correct, total, variantId: task.variantId, contentVersion: task.contentVersion });
 });
 
 export default router;

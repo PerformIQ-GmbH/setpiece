@@ -77,6 +77,8 @@ export * from "./playerSpecificViewData";
 export * from "./playerSpecificViewDataPlayer";
 export * from "./playerSpecificViewDataSetPiecesItem";
 export * from "./playerSpecificViewDataSetPiecesItemBoardData";
+export * from "./playerVariantTask";
+export * from "./playerVariantTaskBoardData";
 export * from "./playerViewData";
 export * from "./playerViewDataPlayersItem";
 export * from "./playerViewDataSetPiecesItem";

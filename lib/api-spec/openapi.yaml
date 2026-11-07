@@ -1106,6 +1106,14 @@ paths:
           required: false
           schema:
             type: string
+        - name: roleId
+          in: query
+          schema:
+            type: string
+        - name: variantId
+          in: query
+          schema:
+            type: string
       responses:
         "200":
           description: Quiz questions
@@ -1868,6 +1876,10 @@ components:
         status:
           type: string
           enum: [draft, ready, active_matchday, archived]
+        requiredVariantIds:
+          type: array
+          items:
+            type: string
 
     # ─── Set Piece Role ───
     SetPieceRole:
@@ -2518,10 +2530,51 @@ components:
                   - $ref: "#/components/schemas/PlayerReadinessStatus"
                   - type: 'null'
 
+              publishedVersion:
+                type: string
+              requiredVariantIds:
+                type: array
+                items:
+                  type: string
+              tasks:
+                type: array
+                items:
+                  $ref: "#/components/schemas/PlayerVariantTask"
+
+    PlayerVariantTask:
+      type: object
+      required: [id, playerId, setPieceId, roleId, variantId, variantName, contentVersion, status, playerRole, boardData, required]
+      properties:
+        id:
+          type: string
+        playerId:
+          type: string
+        setPieceId:
+          type: string
+        roleId:
+          type: string
+        variantId:
+          type: string
+        variantName:
+          type: string
+        contentVersion:
+          type: string
+        status:
+          type: string
+        quizCompletedAt:
+          type: [string, 'null']
+          format: date-time
+        playerRole:
+          $ref: "#/components/schemas/SetPieceRole"
+        boardData:
+          type: object
+        required:
+          type: boolean
+
     # ─── Readiness ───
     PlayerReadinessStatus:
       type: object
-      required: [id, playerId, setPieceId, status, viewCount, createdAt, updatedAt]
+      required: [playerId, setPieceId, status]
       properties:
         id:
           type: string
@@ -2550,6 +2603,14 @@ components:
         updatedAt:
           type: string
           format: date-time
+        variantId:
+          type: string
+        variantName:
+          type: string
+        contentVersion:
+          type: string
+        roleName:
+          type: string
     MarkReadyBody:
       type: object
       required: [playerId, setPieceId]
@@ -2559,6 +2620,10 @@ components:
         setPieceId:
           type: string
         roleId:
+          type: string
+        variantId:
+          type: string
+        contentVersion:
           type: string
         status:
           type: string
@@ -2607,6 +2672,12 @@ components:
           type: string
         roleId:
           type: [string, 'null']
+        variantId:
+          type: string
+        contentVersion:
+          type: string
+        publishedVersion:
+          type: string
         questions:
           type: array
           items:
@@ -2632,6 +2703,10 @@ components:
           type: string
         roleId:
           type: string
+        variantId:
+          type: string
+        contentVersion:
+          type: string
         answers:
           type: array
           items:
@@ -2654,6 +2729,11 @@ components:
           type: integer
         total:
           type: integer
+
+        variantId:
+          type: string
+        contentVersion:
+          type: string
 
     # ─── Ghost Mode ───
     GhostSubstitutionRequest:

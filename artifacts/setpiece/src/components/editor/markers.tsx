@@ -221,9 +221,9 @@ export function OpponentMarker({
 }: MarkerProps) {
   const popRef = usePopIn();
   const fill = lightPitch ? '#dc2626' : '#3b1010';
-  const borderDefault = lightPitch ? '#b91c1c' : '#991b1b';
-  const borderHover = lightPitch ? '#ef4444' : '#f87171';
-  const borderSelected = '#ef4444';
+  const borderDefault = lightPitch ? '#b91c1c' : '#fca5a5';
+  const borderHover = lightPitch ? '#ef4444' : '#fecaca';
+  const borderSelected = lightPitch ? '#ef4444' : '#f87171';
   const labelColor = lightPitch ? '#991b1b' : '#fca5a5';
   const shadowColor = lightPitch ? 'rgba(0,0,0,0.25)' : '#000';
   const dimOpacity = 1;

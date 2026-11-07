@@ -7,6 +7,7 @@
  */
 import type { PlayerReadinessStatus } from "./playerReadinessStatus";
 import type { PlayerSpecificViewDataSetPiecesItemBoardData } from "./playerSpecificViewDataSetPiecesItemBoardData";
+import type { PlayerVariantTask } from "./playerVariantTask";
 import type { RoleAssignment } from "./roleAssignment";
 import type { SetPieceRole } from "./setPieceRole";
 
@@ -25,4 +26,7 @@ export type PlayerSpecificViewDataSetPiecesItem = {
   assignments?: RoleAssignment[];
   playerRole?: SetPieceRole | null;
   readiness?: PlayerReadinessStatus | null;
+  publishedVersion?: string;
+  requiredVariantIds?: string[];
+  tasks?: PlayerVariantTask[];
 };
