@@ -1,6 +1,14 @@
 # Status · SETPIECE
 
-**Stand 07.11.2026: Erstes Editorupdate live und öffentlich verifiziert unter https://setpiece.performiq.ch/.**
+**Stand 07.11.2026: Varianten, Suche und Playbook-Sammlungen sind live unter https://setpiece.performiq.ch/.**
+
+## Veröffentlichung der Varianten und Sammlungen
+
+[PR #7](https://github.com/PerformIQ-GmbH/setpiece/pull/7) ist als `cafea862b725b0d5037a459baf62600c1370013b` in `main` gemergt. Die [CI](https://github.com/PerformIQ-GmbH/setpiece/actions/runs/42408841110) war auf Linux und Windows erfolgreich. Der Replit-Arbeitscommit `f1c1dc3` hatte vor dem Publish einen identischen Dateibaum. Replit bestätigte den Live-Status und die öffentliche Domain lieferte anschliessend das neue Bundle mit der Sammlungsoberfläche aus.
+
+Die additive Sammlungsmigration wurde getrennt in Entwicklung und Produktion angewandt und Tabelle und Index wurden in beiden Umgebungen bestätigt. Das Produktionsbackup vom 07.11.2026 um 21:06 Uhr (Europe/Zurich) wurde mit PostgreSQL 16.15 erstellt und verschlüsselt ausserhalb des Repository gesichert. Wiederherstellung, Inventar und Anzahl der Kernzeilen sowie die Migration wurden in einem separaten lokalen PostgreSQL geprüft. Der vollständige fiktive Trainer- und Spielerablauf mit Sammlungszugriff lief zusätzlich gegen eine isolierte Datenbank mit dem wiederhergestellten Schema.
+
+Öffentliche Abnahme: Health-Endpunkt 200, geschützter Sammlungsendpunkt ohne Sitzung 401 mit `no-store`, fiktive Demoantwort erscheint in der Trainer-Rückmeldung. Authentifizierte Schreibvorgänge wurden im isolierten Test durchgeführt.
 
 ## Aktueller Produktionsstand
 
@@ -10,11 +18,11 @@ Am 04.11. bestanden 89 Tests und der Produktionsbuild. Ein PostgreSQL-Test wurde
 
 Am 05.11. wurde [PR #6](https://github.com/PerformIQ-GmbH/setpiece/pull/6) nach grüner [CI auf Linux und Windows](https://github.com/PerformIQ-GmbH/setpiece/actions/runs/41906378360) als `6f734842e823889ec596aa447875230deee9148d` gemergt. Replit veröffentlichte am 07.11. den Arbeitsstand `e89ff8bcf9035d734bf4313e07afffbce786f17c` mit identischem Dateibaum. Das JavaScript-Bundle wechselte, der Gesundheitsendpunkt antwortete mit HTTP 200 und die fiktive Demo verarbeitete die Spielerantwort bis zur Rückmeldung. Die früheren Pilotbelege unten beschreiben den Release vom 30.10.
 
-Auf `feature/editor-variants` sind eigene Gegnerpositionen und Spieleraufträge pro Variante, ein getrennter Entwurf mit ausdrücklicher Spielerfreigabe sowie Quiz und Rückmeldung je Aufgabe umgesetzt. Der Trainerablauf mit Variantenkopie, Phase, Pfeiltaste und Rollenauftrag wurde lokal geprüft. Die Varianten und Signalfiguren gehören zu späteren Veröffentlichungen.
+PR #7 liefert eigene Gegnerpositionen und Spieleraufträge pro Variante, einen getrennten Entwurf mit ausdrücklicher Spielerfreigabe sowie Quiz und Rückmeldung je Aufgabe. Der Trainerablauf mit Variantenkopie, Phase, Pfeiltaste und Rollenauftrag wurde lokal geprüft.
 
-Im lokalen Trainer-Playbook können eigene Standards nach Titel und vorhandener Kategorie gefiltert werden. Trefferzahl, kombinierte Filter und Zurücksetzen wurden mit fiktiven Daten bei 390 und 1366 px im Browser geprüft. Die Vorlagen haben weiterhin ihren eigenen Filter. Diese Änderung ist noch nicht veröffentlicht.
+Im Trainer-Playbook können eigene Standards nach Titel und vorhandener Kategorie gefiltert werden. Trefferzahl, kombinierte Filter und Zurücksetzen wurden mit fiktiven Daten bei 390 und 1366 px im Browser geprüft. Die Vorlagen haben ihren eigenen Filter.
 
-Lokale Playbook-Sammlungen: Trainer können pro Team benannte Sammlungen anlegen, bearbeiten und löschen und die Auswahl beim Hinzufügen von Standards zu einem Spieltag filtern. Sammlungen ändern weder den Status eines Standards noch seine Freigabe. API-Regression prüft Teamtrennung und Trainerrechte. Die additive Migration `lib/db/migrations/20261107_set_piece_collections.sql` wurde in einer isolierten PostgreSQL-Instanz (PGlite) geprüft; vor Veröffentlichung muss sie auf der Zielumgebung angewandt werden.
+Trainer können pro Team benannte Sammlungen anlegen, bearbeiten und löschen und die Auswahl beim Hinzufügen von Standards zu einem Spieltag filtern. API-Regressionen prüfen Teamtrennung und Trainerrechte.
 
 Editor-Audit vom 31.10.2026: Originaleditor lokal mit ausschliesslich fiktiven In-Memory-Daten bei Desktop- und Smartphonebreite bedient. Linienkörper-Drag, Einstieg am Spieler, Farbauswahl und phasenübergreifende Gegnerpositionen als konkrete Probleme bestätigt. [Audit und priorisierter Plan](EDITOR-AUDIT-2026-10-31.md). Entwicklungseinstieg unter tests/editor-audit.html; keine Änderungen am Produktionseditor, kein neuer Release.
 

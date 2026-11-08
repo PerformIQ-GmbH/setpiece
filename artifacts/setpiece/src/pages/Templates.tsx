@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { CoachLayout } from '@/components/Layout';
 import { useRoute, useLocation } from 'wouter';
-import { useGetTeam, useListTemplates, useListSetPieces, useCreateSetPiece, useCloneSetPiece } from '@workspace/api-client-react';
+import { getListSetPiecesQueryKey, useGetTeam, useListTemplates, useListSetPieces, useCreateSetPiece, useCloneSetPiece } from '@workspace/api-client-react';
 import { getListSetPieceCollectionsQueryKey, useListSetPieceCollections, useCreateSetPieceCollection, useUpdateSetPieceCollection, useDeleteSetPieceCollection } from '@workspace/api-client-react';
 import type { SetPieceCollection } from '@workspace/api-client-react';
 import { useQueryClient } from '@tanstack/react-query';
@@ -9,8 +9,10 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { StatusBadge } from '@/components/StatusBadge';
+import { SetPieceThumbnail } from '@/components/SetPieceThumbnail';
+import { PlaybookSelect } from '@/components/PlaybookSelect';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Plus, ArrowRight, Sparkles, LayoutDashboard, Copy, Loader2 } from 'lucide-react';
+import { Plus, ArrowRight, Sparkles, Copy, Loader2 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { Link } from 'wouter';
 import { useToast } from '@/hooks/use-toast';
@@ -33,7 +35,7 @@ const CATEGORIES = [
 ];
 
 function categoryLabel(category: string) {
-  return category.replace(/_/g, ' ');
+  return category.replace(/_/g, ' ').replace(/\b\w/g, letter => letter.toUpperCase());
 }
 
 export default function Templates() {
@@ -46,7 +48,9 @@ function TeamPlaybook({ teamId }: { teamId: string }) {
   const [, setLocation] = useLocation();
   const { data: team } = useGetTeam(teamId);
   const { data: templates } = useListTemplates();
-  const { data: setPieces, refetch: refetchSP } = useListSetPieces(teamId);
+  const { data: setPieces, refetch: refetchSP } = useListSetPieces(teamId, undefined, {
+    query: { queryKey: getListSetPiecesQueryKey(teamId), refetchOnMount: 'always' },
+  });
   const collectionsQuery = useListSetPieceCollections(teamId);
   const createCollection = useCreateSetPieceCollection();
   const updateCollection = useUpdateSetPieceCollection();
@@ -134,9 +138,7 @@ function TeamPlaybook({ teamId }: { teamId: string }) {
     setLocation(`/teams/${teamId}/set-pieces/${sp.id}/editor`);
   };
 
-  const handleClone = async (e: React.MouseEvent, setPieceId: string) => {
-    e.preventDefault();
-    e.stopPropagation();
+  const handleClone = async (setPieceId: string) => {
     setCloningId(setPieceId);
     try {
       const cloned = await cloneSP.mutateAsync({ teamId, setPieceId });
@@ -175,18 +177,14 @@ function TeamPlaybook({ teamId }: { teamId: string }) {
           {collectionsQuery.isError && <p role="status" className="mb-3 text-sm text-muted-foreground">Collections could not be loaded. <button type="button" className="underline" onClick={() => void collectionsQuery.refetch()}>Retry</button></p>}
           {collectionsQuery.data && (
             <div className="mb-4 flex flex-wrap items-end gap-2">
-              <label className="block w-full space-y-1 sm:max-w-xs">
-                <span className="text-sm font-medium">Collection</span>
-                <select value={activeCollection?.id ?? ''} disabled={collectionBusy || !!collectionForm} onChange={event => {
-                  setCollectionId(event.target.value);
+              <div className="w-full min-w-0 sm:max-w-xs">
+                <PlaybookSelect label="Collection" value={activeCollection?.id ?? 'all'} disabled={collectionBusy || !!collectionForm} onChange={value => {
+                  setCollectionId(value === 'all' ? '' : value);
                   setCollectionError('');
                   setPieceSearch('');
                   setPieceCategory('all');
-                }} className="block h-10 w-full rounded-xl border border-white/10 bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30">
-                  <option value="">All set pieces</option>
-                  {collections.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}
-                </select>
-              </label>
+                }} options={[{ value: 'all', label: 'All set pieces' }, ...collections.map(item => ({ value: item.id, label: item.name }))]} />
+              </div>
               <Button type="button" variant="outline" disabled={collectionBusy || !!collectionForm} onClick={() => editCollection()}>New collection</Button>
               {activeCollection && <Button type="button" variant="ghost" disabled={collectionBusy || !!collectionForm} onClick={() => editCollection(activeCollection)}>Edit collection</Button>}
             </div>
@@ -232,13 +230,12 @@ function TeamPlaybook({ teamId }: { teamId: string }) {
               <span className="text-sm font-medium">Search your set pieces</span>
               <Input type="search" value={pieceSearch} onChange={e => setPieceSearch(e.target.value)} placeholder="Search by title" />
             </label>
-            <label className="block space-y-1">
-              <span className="text-sm font-medium">Category</span>
-              <select value={pieceCategory} onChange={e => setPieceCategory(e.target.value)} className="block h-10 w-full rounded-xl border border-white/10 bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30 sm:w-auto">
-                <option value="all">All categories</option>
-                {pieceCategories.map(cat => <option key={cat} value={cat}>{categoryLabel(cat)}</option>)}
-              </select>
-            </label>
+            <div className="w-full min-w-0 sm:w-56">
+              <PlaybookSelect label="Category" value={pieceCategory} onChange={setPieceCategory} options={[
+                { value: 'all', label: 'All categories' },
+                ...pieceCategories.map(value => ({ value, label: categoryLabel(value) })),
+              ]} />
+            </div>
           </div>
           <div className="mb-3 flex min-h-8 flex-wrap items-center gap-x-3">
             <p role="status" className="text-sm text-muted-foreground">
@@ -255,38 +252,21 @@ function TeamPlaybook({ teamId }: { teamId: string }) {
               }}>Clear filters</Button>
             )}
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 gap-3 xl:grid-cols-2 2xl:grid-cols-3">
             {filteredPieces.map(sp => (
-              <div key={sp.id}>
-                <Link href={`/teams/${teamId}/set-pieces/${sp.id}/editor`}>
-                  <Card className="bg-card border-border hover:border-primary/30 transition-all cursor-pointer group overflow-hidden">
-                    <div className="aspect-[16/9] bg-emerald-950/40 border-b border-border/50 relative flex items-center justify-center">
-                      {sp.previewImageUrl ? (
-                        <img src={sp.previewImageUrl} alt={sp.title} className="w-full h-full object-cover" />
-                      ) : (
-                        <LayoutDashboard className="h-8 w-8 text-muted-foreground/30" />
-                      )}
-                    </div>
-                    <CardContent className="p-4">
-                      <div className="flex justify-between items-start mb-1">
-                        <h3 className="font-bold text-sm text-white group-hover:text-primary transition-colors truncate">{sp.title}</h3>
-                        <div className="flex items-center gap-1.5">
-                          <button
-                            onClick={(e) => handleClone(e, sp.id)}
-                            disabled={cloningId === sp.id}
-                            className="p-1 rounded hover:bg-muted transition-colors text-muted-foreground hover:text-primary disabled:opacity-50"
-                            title="Duplicate set piece"
-                          >
-                            {cloningId === sp.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Copy className="h-3.5 w-3.5" />}
-                          </button>
-                          <StatusBadge status={sp.status} />
-                        </div>
-                      </div>
-                      <p className="text-xs text-muted-foreground capitalize">{categoryLabel(sp.category)}</p>
-                    </CardContent>
-                  </Card>
+              <Card key={sp.id} className="relative flex min-w-0 items-center gap-1 rounded-xl border-border bg-card p-2.5 transition-colors hover:border-primary/30">
+                <Link href={`/teams/${teamId}/set-pieces/${sp.id}/editor`} className="group flex min-w-0 flex-1 items-center gap-3 rounded-lg p-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">
+                  <SetPieceThumbnail boardData={sp.boardData} category={sp.category} imageUrl={sp.previewImageUrl} />
+                  <div className="min-w-0 py-1">
+                    <h3 className="break-words text-sm font-bold text-foreground group-hover:text-primary">{sp.title}</h3>
+                    <p className="mb-1.5 mt-0.5 text-xs text-muted-foreground">{categoryLabel(sp.category)}</p>
+                    <StatusBadge status={sp.status} />
+                  </div>
                 </Link>
-              </div>
+                <Button type="button" variant="ghost" size="icon" aria-label={`Duplicate ${sp.title}`} title="Duplicate set piece" onClick={() => void handleClone(sp.id)} disabled={cloningId === sp.id} className="size-9 shrink-0 text-muted-foreground">
+                  {cloningId === sp.id ? <Loader2 className="size-4 animate-spin" /> : <Copy className="size-4" />}
+                </Button>
+              </Card>
             ))}
           </div>
         </section>
@@ -309,17 +289,13 @@ function TeamPlaybook({ teamId }: { teamId: string }) {
         {filteredTemplates.map((t, idx) => (
           <motion.div key={t.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: idx * 0.03 }}>
             <Card className="bg-card border-border hover:border-primary/30 transition-all group overflow-hidden h-full flex flex-col">
-              <div className="aspect-[16/9] bg-emerald-950/40 border-b border-border/50 relative flex items-center justify-center">
-                {t.previewImageUrl ? (
-                  <img src={t.previewImageUrl} alt={t.title} className="w-full h-full object-cover" />
-                ) : (
-                  <div className="absolute inset-3 border border-white/10 rounded-sm" />
-                )}
-              </div>
               <CardContent className="p-4 flex-1 flex flex-col">
-                <div className="flex justify-between items-start mb-1">
-                  <h3 className="font-bold text-sm text-white group-hover:text-primary transition-colors">{t.title}</h3>
-                  <span className="text-[10px] font-semibold text-muted-foreground bg-secondary px-1.5 py-0.5 rounded capitalize">{t.category.replace(/_/g, ' ')}</span>
+                <div className="mb-1 flex items-center gap-3">
+                  <SetPieceThumbnail boardData={t.boardData} category={t.category} imageUrl={t.previewImageUrl} roles={t.defaultRoles} />
+                  <div className="min-w-0">
+                    <h3 className="break-words font-bold text-sm text-white">{t.title}</h3>
+                    <p className="mt-0.5 text-xs text-muted-foreground">{categoryLabel(t.category)}</p>
+                  </div>
                 </div>
                 {t.description && <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{t.description}</p>}
                 {t.defaultRoles && t.defaultRoles.length > 0 && (
@@ -350,12 +326,8 @@ function TeamPlaybook({ teamId }: { teamId: string }) {
               <label className="text-xs text-muted-foreground uppercase font-bold tracking-wider">Title</label>
               <input required value={form.title} onChange={e => setForm({...form, title: e.target.value})} placeholder="e.g. Short Corner Routine A" className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm focus:border-primary outline-none" />
             </div>
-            <div className="space-y-1">
-              <label className="text-xs text-muted-foreground uppercase font-bold tracking-wider">Category</label>
-              <select value={form.category} onChange={e => setForm({...form, category: e.target.value})} className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm focus:border-primary outline-none">
-                {CATEGORIES.filter(c => c !== 'all').map(c => <option key={c} value={c}>{c.replace(/_/g, ' ')}</option>)}
-              </select>
-            </div>
+            <PlaybookSelect label="Category" value={form.category} onChange={category => setForm({ ...form, category })}
+              options={CATEGORIES.filter(value => value !== 'all').map(value => ({ value, label: categoryLabel(value) }))} />
             <Button type="submit" className="w-full" disabled={createSP.isPending}>Create & Open Editor</Button>
           </form>
         </DialogContent>

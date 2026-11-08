@@ -8,6 +8,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { StatusBadge } from '@/components/StatusBadge';
+import { PlaybookSelect } from '@/components/PlaybookSelect';
 import { Pitch } from '@/components/Pitch';
 import { pitchOrientationForCategory } from '@/utils/pitchGeometry';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -847,13 +848,10 @@ export default function MatchdayDetail() {
         <DialogContent className="bg-card border-white/[0.08] sm:max-w-md max-h-[70vh] overflow-y-auto rounded-2xl">
           <DialogHeader><DialogTitle>Add Set Piece to Match Pack</DialogTitle></DialogHeader>
           {!!collections?.length && (
-            <label className="block space-y-1">
-              <span className="text-sm font-medium">Collection</span>
-              <select value={selectedCollection?.id ?? ''} onChange={event => setCollectionId(event.target.value)} className="block h-10 w-full rounded-xl border border-white/10 bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30">
-                <option value="">All set pieces</option>
-                {[...collections].sort((a, b) => a.name.localeCompare(b.name)).map(item => <option key={item.id} value={item.id}>{item.name}</option>)}
-              </select>
-            </label>
+            <PlaybookSelect label="Collection" value={selectedCollection?.id ?? 'all'} onChange={setCollectionId} options={[
+              { value: 'all', label: 'All set pieces' },
+              ...[...collections].sort((a, b) => a.name.localeCompare(b.name)).map(item => ({ value: item.id, label: item.name })),
+            ]} />
           )}
           {pickerPieces.length === 0 ? (
             <p className="text-sm text-muted-foreground py-6 text-center">{selectedCollection ? 'No available set pieces in this collection.' : 'No set pieces available to add.'}</p>
