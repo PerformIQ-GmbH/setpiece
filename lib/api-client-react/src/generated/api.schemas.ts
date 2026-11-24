@@ -78,6 +78,16 @@ export type TeamTeamColors = {
   secondary?: string;
 } | null;
 
+/**
+ * @nullable
+ */
+export type TeamComplimentaryAccess = {
+  tier: string;
+  /** @nullable */
+  expiresAt: string | null;
+  active: boolean;
+} | null;
+
 export interface Team {
   id: string;
   name: string;
@@ -91,8 +101,10 @@ export interface Team {
   teamColors?: TeamTeamColors;
   ownerId: string;
   tier: string;
-  /** Current usage tier, including an active pilot. tier remains the billing plan. */
+  /** Current usage tier, including active pilot and complimentary access. tier remains the billing plan. */
   effectiveTier?: string;
+  /** @nullable */
+  complimentaryAccess?: TeamComplimentaryAccess;
   /** @nullable */
   pilotExpiresAt?: string | null;
   pilotAvailable?: boolean;

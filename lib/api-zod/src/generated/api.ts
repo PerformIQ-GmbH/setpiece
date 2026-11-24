@@ -102,8 +102,15 @@ export const ListTeamsResponseItem = zod.object({
     .string()
     .optional()
     .describe(
-      "Current usage tier, including an active pilot. tier remains the billing plan.",
+      "Current usage tier, including active pilot and complimentary access. tier remains the billing plan.",
     ),
+  complimentaryAccess: zod
+    .object({
+      tier: zod.string(),
+      expiresAt: zod.coerce.date().nullable(),
+      active: zod.boolean(),
+    })
+    .nullish(),
   pilotExpiresAt: zod.coerce.date().nullish(),
   pilotAvailable: zod.boolean().optional(),
   stripeCustomerId: zod.string().nullish(),
@@ -156,8 +163,15 @@ export const GetTeamResponse = zod.object({
     .string()
     .optional()
     .describe(
-      "Current usage tier, including an active pilot. tier remains the billing plan.",
+      "Current usage tier, including active pilot and complimentary access. tier remains the billing plan.",
     ),
+  complimentaryAccess: zod
+    .object({
+      tier: zod.string(),
+      expiresAt: zod.coerce.date().nullable(),
+      active: zod.boolean(),
+    })
+    .nullish(),
   pilotExpiresAt: zod.coerce.date().nullish(),
   pilotAvailable: zod.boolean().optional(),
   stripeCustomerId: zod.string().nullish(),
@@ -205,8 +219,15 @@ export const UpdateTeamResponse = zod.object({
     .string()
     .optional()
     .describe(
-      "Current usage tier, including an active pilot. tier remains the billing plan.",
+      "Current usage tier, including active pilot and complimentary access. tier remains the billing plan.",
     ),
+  complimentaryAccess: zod
+    .object({
+      tier: zod.string(),
+      expiresAt: zod.coerce.date().nullable(),
+      active: zod.boolean(),
+    })
+    .nullish(),
   pilotExpiresAt: zod.coerce.date().nullish(),
   pilotAvailable: zod.boolean().optional(),
   stripeCustomerId: zod.string().nullish(),
@@ -1872,8 +1893,15 @@ export const GetMatchPackDataResponse = zod.object({
       .string()
       .optional()
       .describe(
-        "Current usage tier, including an active pilot. tier remains the billing plan.",
+        "Current usage tier, including active pilot and complimentary access. tier remains the billing plan.",
       ),
+    complimentaryAccess: zod
+      .object({
+        tier: zod.string(),
+        expiresAt: zod.coerce.date().nullable(),
+        active: zod.boolean(),
+      })
+      .nullish(),
     pilotExpiresAt: zod.coerce.date().nullish(),
     pilotAvailable: zod.boolean().optional(),
     stripeCustomerId: zod.string().nullish(),

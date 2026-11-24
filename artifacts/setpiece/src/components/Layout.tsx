@@ -3,7 +3,7 @@ import { Link, useLocation, useRoute } from 'wouter';
 import { useGetCurrentAuthUser } from '@workspace/api-client-react';
 import { 
   Home, Users, LayoutDashboard, Calendar, Activity, Settings, 
-  LogOut, Loader2, Menu, Move, CreditCard, ChevronLeft
+  LogOut, Loader2, Menu, Move, CreditCard, ChevronLeft, Shield
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
@@ -13,6 +13,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { clearClientSession } from '@/lib/session-cleanup';
 import { useEditorStore } from '@/components/editor/editorStore';
 import BrandLogo from '@/components/BrandLogo';
+import { usePlatformAdmin } from '@/lib/platform-admin';
 
 interface CoachLayoutProps {
   children: React.ReactNode;
@@ -23,6 +24,7 @@ interface CoachLayoutProps {
 export function CoachLayout({ children, teamId, teamName }: CoachLayoutProps) {
   const [location] = useLocation();
   const { data: auth, isLoading } = useGetCurrentAuthUser();
+  const { data: isPlatformAdmin } = usePlatformAdmin(auth?.user?.id);
   const queryClient = useQueryClient();
   const [signingOut, setSigningOut] = React.useState(false);
 
@@ -42,6 +44,7 @@ export function CoachLayout({ children, teamId, teamName }: CoachLayoutProps) {
     { icon: Home, label: t('Dashboard'), path: '/dashboard' },
     { icon: CreditCard, label: t('Pricing'), path: '/pricing' },
     { icon: Settings, label: t('Settings'), path: '/settings' },
+    ...(isPlatformAdmin ? [{ icon: Shield, label: 'Benutzerverwaltung', path: '/admin' }] : []),
   ];
 
   const teamNav = teamId ? [

@@ -8,20 +8,16 @@ import { t, getLangSetting, setLangSetting } from '@/lib/i18n';
 import { useInstallPrompt } from '@/hooks/useInstallPrompt';
 import { motion } from 'framer-motion';
 import { PilotAccessPanel } from '@/components/PilotAccessPanel';
+import { teamPlanLabel, tierLabel } from '@/lib/team-plan';
 
 const BASE = import.meta.env.BASE_URL || '/';
-
-const TIER_LABELS: Record<string, string> = {
-  free: 'Free',
-  solo_coach: 'Solo Coach',
-  team: 'Team',
-};
 
 export default function Settings() {
   const { data: auth } = useGetCurrentAuthUser();
   const { data: teams, refetch } = useListTeams();
   const updateTeam = useUpdateTeam();
   const team = teams?.[0];
+  const grant = team?.complimentaryAccess;
   const [portalLoading, setPortalLoading] = useState(false);
   const { canInstall, isInstalled, triggerInstall, isSafari } = useInstallPrompt();
 
@@ -125,7 +121,12 @@ export default function Settings() {
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm text-muted-foreground">Current Plan</p>
-                    <p className="text-lg font-bold text-white">{team.effectiveTier === 'solo_coach' && team.tier === 'free' ? 'Solo Coach · Pilot' : TIER_LABELS[team.tier] || team.tier}</p>
+                    <p className="text-lg font-bold text-white">{teamPlanLabel(team)}</p>
+                    {grant?.active && <p className="text-sm text-muted-foreground">
+                      Gratiszugang {tierLabel(grant.tier)} {grant.expiresAt
+                        ? `bis ${new Date(grant.expiresAt).toLocaleString('de-CH', { dateStyle: 'medium', timeStyle: 'short' })}`
+                        : 'unbefristet'}
+                    </p>}
                   </div>
                   {team.tier !== 'free' && team.stripeCustomerId ? (
                     <Button
