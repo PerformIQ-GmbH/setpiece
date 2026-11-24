@@ -147,6 +147,57 @@ export const LIBRARY: Entry[] = [
       { name: "Lang", description: "Ziel für den langen Einwurf", coachingPoint: "Den ersten Ball gewinnen, wenn er lang kommt", startPosition: { x: 30, y: 60 } },
     ],
   },
+  // Referenz-Varianten (Analyse 25.11.2026, Quellen in docs/library/ECKBALL-ARSENAL-FREIBURG.md).
+  // Koordinaten: Prozent der Spielfeldhälfte, x über 68 m Breite, y ab Torlinie über 52,5 m.
+  // Pfosten x 44.6/55.4, Fünfmeterraum bis y 10.5, Elfmeterpunkt y 21, Strafraumgrenze y 31.4.
+  {
+    slug: "sturmlauf-kurzer-pfosten",
+    title: "Sturmlauf auf den kurzen Pfosten",
+    category: "offensive_corner_left",
+    description: "Scharfer Eckball zum Tor drehend in den Fünfmeterraum. Mehrere Spieler starten am langen Pfosten und stürmen beim Schuss gemeinsam an den kurzen Pfosten, der Zielspieler kommt aus der Tiefe in die Lücke. Vorbild: Arsenal 2025/26 (Premier-League-Rekord mit 18 Eckballtoren). Passt gegen Raumdeckung im Fünfmeterraum. Niveau: mittel, braucht einen kopfballstarken Spieler mit Anlauf.",
+    coachingNote: "Niemand startet aus dem Stand: Auslöser ist der Ballkontakt des Schützen. Wer vor dem Torhüter steht, bleibt regelkonform stehen: nicht halten, nicht stossen.",
+    defaultRoles: [
+      { name: "Schütze", description: "Rechtsfuss, tritt von links", coachingPoint: "Scharf zum Tor drehend an den kurzen Pfosten, Höhe Fünfmeterlinie", startPosition: { x: 0, y: 0 } },
+      { name: "Stürmer 1", description: "Startet am langen Pfosten, stürmt an den kurzen Pfosten", coachingPoint: "Beim Ballkontakt los, Gegenspieler mitziehen", startPosition: { x: 58, y: 9 } },
+      { name: "Stürmer 2", description: "Startet hinter Stürmer 1, greift die Mitte des Fünfers an", coachingPoint: "Gleiche Startzeit wie Stürmer 1, Zone vor dem Tor füllen", startPosition: { x: 64, y: 12 } },
+      { name: "Zielspieler", description: "Kommt im Bogen aus der Tiefe in die Lücke zwischen kurzem Pfosten und Mitte", coachingPoint: "Spät starten, im Bogen laufen, mit Anlauf köpfen, Blick immer zum Ball", startPosition: { x: 58, y: 19 } },
+      { name: "Torhüterposten", description: "Steht vor dem Torhüter", coachingPoint: "Position halten, dem Torhüter den Weg nach vorne erschweren, ohne Foul", startPosition: { x: 50, y: 3 } },
+      { name: "Langer Pfosten", description: "Wartet auf Verlängerungen und Abpraller", coachingPoint: "Nicht mitlaufen, am langen Pfosten bleiben", startPosition: { x: 64, y: 3 } },
+      { name: "Rückraum", description: "Strafraumrand, zweiter Ball und Absicherung", coachingPoint: "Abpraller sofort verwerten oder Ball sichern, Konter verhindern", startPosition: { x: 42, y: 33 } },
+    ],
+  },
+  {
+    slug: "drei-wellen",
+    title: "Drei Wellen gegen gemischte Deckung",
+    category: "offensive_corner_right",
+    description: "Zum Tor drehender Eckball in den Fünfmeterraum. Welle 1 läuft als Ablenkung Richtung Schütze, Welle 2 greift die Fünfmeterlinie an und hält die Raumverteidiger fest, Welle 3 kommt spät in die freie Lücke. Vorbild: SC Freiburg 2025/26 gegen den 1. FC Köln (Tor Maximilian Eggestein). Passt gegen gemischte Deckung (Raum und Mann). Niveau: anspruchsvoll, braucht 7 Spieler im Strafraum und viel Timing-Training.",
+    coachingNote: "Die Wellen starten nacheinander, nicht gleichzeitig. Welle 3 wartet, bis Welle 2 an der Fünfmeterlinie steht. Mit weniger Spielern: Welle 1 auf zwei Läufer kürzen.",
+    defaultRoles: [
+      { name: "Schütze", description: "Linksfuss, tritt von rechts", coachingPoint: "Zum Tor drehend in den Fünfmeterraum", startPosition: { x: 100, y: 0 } },
+      { name: "Welle 1 A", description: "Startet hinter der Abwehrlinie, Ablenkungslauf Richtung Schütze", coachingPoint: "Beim Anlauf des Schützen lossprinten, Manndecker mitnehmen", startPosition: { x: 46, y: 7 } },
+      { name: "Welle 1 B", description: "Ablenkungslauf Richtung Schütze", coachingPoint: "Zusammen mit A starten, Raum vor dem Tor leeren", startPosition: { x: 52, y: 8 } },
+      { name: "Welle 1 C", description: "Ablenkungslauf Richtung kurzer Pfosten", coachingPoint: "Zusammen mit A und B starten", startPosition: { x: 58, y: 7 } },
+      { name: "Welle 2 A", description: "Greift die Fünfmeterlinie an", coachingPoint: "Gegen den Raumverteidiger laufen und dort stehen bleiben", startPosition: { x: 42, y: 18 } },
+      { name: "Welle 2 B", description: "Greift die Fünfmeterlinie an", coachingPoint: "Raumverteidiger zum Herausrücken zwingen, dann Position halten", startPosition: { x: 50, y: 19 } },
+      { name: "Welle 2 C", description: "Greift die Fünfmeterlinie an", coachingPoint: "Verteidiger binden, regelkonform ohne Halten", startPosition: { x: 58, y: 18 } },
+      { name: "Später Läufer", description: "Kommt als Letzter in die freie Lücke", coachingPoint: "Hinter den anderen starten, mit vollem Tempo in die Lücke köpfen", startPosition: { x: 50, y: 28 } },
+    ],
+  },
+  {
+    slug: "kurze-ecke-neuer-winkel",
+    title: "Kurze Ecke, neuer Flankenwinkel",
+    category: "offensive_corner_left",
+    description: "Kurz ausgeführte Ecke: Doppelpass mit dem Anspieler, dann Flanke oder Schuss aus einem neuen Winkel. Lockt Verteidiger aus dem Fünfmeterraum und verändert die Ordnung. Vorbild: Arsenals Rekordtor durch Eberechi Eze nach kurzer Ecke (2025/26). Passt gegen tiefe Abwehr und Manndeckung. Niveau: einfach.",
+    coachingNote: "Am besten als Überraschung, etwa beim ersten Eckball einer Halbzeit. Schnell ausführen, bevor sich die Abwehr umstellt.",
+    defaultRoles: [
+      { name: "Schütze", description: "Spielt kurz und bekommt den Ball zurück", coachingPoint: "Kurz passen, sofort nach innen starten", startPosition: { x: 0, y: 0 } },
+      { name: "Anspieler", description: "Kommt kurz entgegen und legt zurück", coachingPoint: "Mit dem Rücken zum Tor annehmen, direkt in den Lauf des Schützen", startPosition: { x: 9, y: 6 } },
+      { name: "Kurzer Pfosten", description: "Greift den kurzen Pfosten an", coachingPoint: "Erst starten, wenn die Flanke kommt", startPosition: { x: 45, y: 9 } },
+      { name: "Langer Pfosten", description: "Greift den langen Pfosten an", coachingPoint: "Spät ankommen, auf die lange Flanke warten", startPosition: { x: 58, y: 10 } },
+      { name: "Elfmeterpunkt", description: "Besetzt den Raum am Elfmeterpunkt", coachingPoint: "Auf Rückpass oder Abpraller lauern", startPosition: { x: 50, y: 21 } },
+      { name: "Rückraum", description: "Strafraumrand und Absicherung", coachingPoint: "Zweiten Ball sichern, Konter verhindern", startPosition: { x: 36, y: 30 } },
+    ],
+  },
 ];
 
 async function sync(apply: boolean): Promise<void> {
