@@ -8,7 +8,7 @@ Branch `ccr-604afcc9-gn3fc1`, Plan [VIDEO-BIBLIOTHEK-PLAN](VIDEO-BIBLIOTHEK-PLAN
 
 Die 10 Vorlagen sind auf Deutsch in `scripts/src/template-library.ts` und werden per Schlüssel (`slug`) aktualisiert statt dupliziert: `pnpm --filter @workspace/scripts template-library` (Probelauf), mit `-- --apply` schreibend. Das ungenutzte `seedTemplates.ts` ist entfernt. **Vor dem Deployment** nach Backup in Entwicklung und Produktion die additive Migration `lib/db/migrations/20261125_template_library_media.sql` anwenden (sonst scheitern Standard- und Vorlagenabfragen, weil Drizzle die neuen Spalten liest), danach das Bibliotheksskript zuerst als Probelauf.
 
-Bibliothek seither auf 21 Vorlagen erweitert (Arsenal/Freiburg sowie 8 Varianten aus Total/Tactical Football Analysis inkl. Eckball-Abwehr, Einwürfe, Freistoss), Quellen in `docs/library/`.
+Bibliothek seither auf 29 Vorlagen erweitert (Arsenal/Freiburg, 8 Varianten aus Total/Tactical Football Analysis inkl. Eckball-Abwehr, Einwürfe, Freistoss, 8 aus Videoszenen), Quellen in `docs/library/`.
 
 Geprüft lokal (Node 22.23, pnpm 11.25.0): `pnpm typecheck` grün; Standardsuite 128 Tests, 126 bestanden, 0 fehlgeschlagen, 2 ohne Datenbank übersprungen (neu: Linkprüfung, Speichern/Ablehnen/Ausliefern der Szenen); Production-Build erfolgreich. Im Browser mit gemockter API geprüft: Spielerlink auf 390 px mit Szene 0:42–0:55, Editor-Dialog mit abgelehntem Fremdlink und hinzugefügter Szene. Migration und Bibliotheksskript gegen keine Datenbank ausgeführt.
 
