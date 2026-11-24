@@ -139,8 +139,8 @@ function response() {
     clearCookie(...args) { this.cleared.push(args); }, redirect(url) { this.redirected = url; },
   };
 }
-const request = (body = {}, extra = {}) => ({ body, query: {}, headers: { host: "synthetic.example.invalid" }, ip: "203.0.113.1", socket: {}, log: { info() {}, error() {} }, ...extra });
-function authFixture(initial = {}, clock = Date, googleProfile) {
+const request = (body = {}, extra = {}) => ({ body, query: {}, headers: { host: "synthetic.example.invalid" }, ip: "203.0.113.1", socket: {}, log: { info() {}, warn() {}, error() {} }, ...extra });
+function authFixture(initial = {}, clock = Date, googleProfile, googleEnv = { GOOGLE_CLIENT_ID: "synthetic-client", GOOGLE_CLIENT_SECRET: "synthetic-secret" }) {
   const db = database(initial);
   const h = harness();
   const auth = load("artifacts/api-server/src/lib/auth.ts", { crypto, express: {}, "@workspace/db": { db, ...schema }, "drizzle-orm": orm }, clock);
@@ -158,7 +158,7 @@ function authFixture(initial = {}, clock = Date, googleProfile) {
       async sendPasswordResetEmail(...args) { sentEmails.push({ type: "reset", args }); },
     },
   }, clock, {
-    process: { env: { APP_DOMAIN: "synthetic.example.invalid", REPLIT_DOMAINS: "trusted-preview.example.invalid", GOOGLE_CLIENT_ID: "synthetic-client", GOOGLE_CLIENT_SECRET: "synthetic-secret" } },
+    process: { env: { APP_DOMAIN: "synthetic.example.invalid", REPLIT_DOMAINS: "trusted-preview.example.invalid", ...googleEnv } },
     fetch: async (url) => {
       if (!googleProfile) throw new Error("Network access forbidden in tests");
       return { ok: true, async json() { return url.includes("/token") ? { access_token: "synthetic-token" } : googleProfile; } };
@@ -167,6 +167,14 @@ function authFixture(initial = {}, clock = Date, googleProfile) {
   return { db, ...h, auth, hashes, sentEmails };
 }
 async function invoke(routes, method, req) { const res = response(); await routes[method](req, res); return res; }
+
+test("Google login returns to the login form if either OAuth credential is absent", async () => {
+  for (const googleEnv of [{}, { GOOGLE_CLIENT_ID: "synthetic-client" }, { GOOGLE_CLIENT_SECRET: "synthetic-secret" }]) {
+    const { routes } = authFixture({}, Date, undefined, googleEnv);
+    const result = await invoke(routes, "GET /auth/google", request({}, { query: { returnTo: "/dashboard" } }));
+    assert.equal(result.redirected, "/login?error=google_not_configured&returnTo=%2Fdashboard");
+  }
+});
 
 test("coaching collections keep membership and edits inside the team without touching set piece status", async () => {
   const db = database({
