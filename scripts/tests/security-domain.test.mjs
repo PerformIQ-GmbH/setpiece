@@ -153,7 +153,8 @@ function authFixture(initial = {}, clock = Date, googleProfile, googleEnv = { GO
       ExchangeMobileAuthorizationCodeBody: require("zod/v4").z.object({ email: require("zod/v4").z.string(), password: require("zod/v4").z.string() }),
       ExchangeMobileAuthorizationCodeResponse: { parse: value => value },
     },
-    "../lib/auth": auth, "../lib/email": {
+    "../lib/auth": auth, "../lib/attribution": load("artifacts/api-server/src/lib/attribution.ts", { "zod/v4": require("zod/v4") }),
+    "../lib/email": {
       async sendVerificationEmail(...args) { sentEmails.push({ type: "verification", args }); },
       async sendPasswordResetEmail(...args) { sentEmails.push({ type: "reset", args }); },
     },

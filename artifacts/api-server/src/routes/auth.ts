@@ -30,6 +30,7 @@ import {
   sendVerificationEmail,
   sendPasswordResetEmail,
 } from "../lib/email";
+import { signupAttribution } from "../lib/attribution";
 
 const SALT_ROUNDS = 12;
 const RESET_TOKEN_TTL = 60 * 60 * 1000;
@@ -162,6 +163,7 @@ router.post("/auth/register", async (req: Request, res: Response) => {
       lastName: lastName || null,
       authProvider: "email",
       emailVerified: false,
+      ...signupAttribution(req.body.attribution),
     })
     .onConflictDoNothing({ target: usersTable.email }).returning();
     if (!newUser) return null;
@@ -335,7 +337,8 @@ router.get("/auth/google", (req: Request, res: Response) => {
   }
 
   const nonce = crypto.randomBytes(16).toString("hex");
-  const statePayload = Buffer.from(JSON.stringify({ nonce, returnTo })).toString("base64url");
+  const attribution = signupAttribution(req.query);
+  const statePayload = Buffer.from(JSON.stringify({ nonce, returnTo, attribution })).toString("base64url");
 
   res.cookie(OAUTH_STATE_COOKIE, nonce, {
     httpOnly: true,
@@ -376,7 +379,7 @@ router.get("/auth/google/callback", async (req: Request, res: Response) => {
   const cookieNonce = req.cookies?.[OAUTH_STATE_COOKIE];
   res.clearCookie(OAUTH_STATE_COOKIE, { path: "/api/auth/google" });
 
-  let stateData: { nonce: string; returnTo: string };
+  let stateData: { nonce: string; returnTo: string; attribution?: unknown };
   try {
     stateData = JSON.parse(Buffer.from(state, "base64url").toString());
   } catch {
@@ -450,6 +453,8 @@ router.get("/auth/google/callback", async (req: Request, res: Response) => {
           profileImageUrl: profile.picture || null,
           authProvider: "google",
           emailVerified: true,
+          // State returns through the browser, so its origin is validated again.
+          ...signupAttribution(stateData.attribution),
         }).onConflictDoNothing({ target: usersTable.email }).returning();
         if (!existing) {
           [existing] = await tx.select().from(usersTable)
