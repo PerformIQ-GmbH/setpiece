@@ -15,10 +15,18 @@ Ein Release braucht einen zugeordneten Git-Commit, grüne Checks und die nachfol
 | `REPLIT_DOMAINS`, `REPLIT_DEV_DOMAIN`, `ALLOWED_ORIGINS`           | Routing, Webhookziel und erlaubte Browserursprünge kontrollieren; keine ungeprüfte fremde Domain aufnehmen                                                   |
 | `APP_DOMAIN`, optional `APP_BASE_PATH`                             | Stripe-Rückkehr-/Portal-URL mit der tatsächlichen Domain und dem Mount-Pfad abgleichen                                                                       |
 | `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`                         | OAuth-Client und erlaubte Callback-URLs für die jeweilige Umgebung bestätigen                                                                                |
+| `SETPIECE_PLATFORM_ADMIN_USER_IDS`                                 | Kommagetrennte, unveränderliche SETPIECE-Konto-IDs mit bestätigter E-Mail. Ohne diese Einstellung sind alle Plattform-Admin-Routen gesperrt. |
 
 Stripe und Resend werden über die bestehenden Replit-Verbindungen geladen. Für Resend den freigegebenen Absender und tatsächliche Zustellung prüfen. Keine zusätzlichen frei erfundenen API-Key-Variablen einführen.
 
 `ADMIN_SECRET` ist abgeschafft. Den veröffentlichten Wert in **Development, Deployment, gemeinsam genutzten Variablen und alten Secrets** entfernen; eine mögliche anderweitige Wiederverwendung rotieren. Entfernen aus `.replit` allein genügt nicht. Die frühere Adminroute darf keine Teamfreischaltung mehr ermöglichen; die Regression erwartet `404`. Den alten Wert weder hier noch in Belegen wiederholen.
+
+## Google-Anmeldung und Benutzerverwaltung
+
+- In den Secrets des Replit-Deployments beide Google-OAuth-Werte hinterlegen. Der Web-Client in Google Cloud braucht die erlaubte Rücksprungadresse `https://setpiece.performiq.ch/api/auth/google/callback`. Den vollständigen Login mit einem neuen und einem bestehenden Konto prüfen, einschliesslich Rückkehr zum ursprünglich geöffneten Bereich. Bei fehlender Konfiguration führt der Button zur Login-Seite mit E-Mail-Anmeldung zurück.
+- Vor dem Release der Benutzerverwaltung `lib/db/migrations/20261124_complimentary_access.sql` auf einer isolierten Testdatenbank und danach auf den ausdrücklich zugeordneten Entwicklungs- und Produktionsdatenbanken anwenden. Die Migration legt zwei Tabellen an. Der frühere App-Build kann mit diesen Tabellen weiterlaufen.
+- Die Konto-ID des verifizierten Admins im konkreten Zielsystem über einen autorisierten Zugriff prüfen und im Deployment konfigurieren. Mit einem regulären Konto und einem Plattform-Admin die Zugriffssperre und die Anzeige von **Benutzerverwaltung** prüfen. Teamseitige Gratiszugänge mit fiktiven Daten testen. Änderungen stehen in `complimentary_access_events`.
+- SETPIECE-Rabattcodes in Stripe für die zugehörigen Produkte anlegen und im Testmodus prüfen. Vor Freigabe des bezahlten Checkouts alle aktiven Codes des verknüpften Kontos auf passende Produktbeschränkungen prüfen. Stripe akzeptiert im Codefeld alle für den jeweiligen Checkout gültigen Codes dieses Kontos. Neu erstellte Checkout-Sitzungen zeigen das Codefeld an. Bereits geöffnete Sitzungen behalten ihre ursprünglichen Einstellungen bis zum Abschluss oder Ablauf. Der Pilotmodus sperrt den bezahlten Checkout weiterhin.
 
 ## Build, Daten und Wiederherstellung
 

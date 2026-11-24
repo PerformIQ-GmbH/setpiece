@@ -1,5 +1,11 @@
 # Änderungen
 
+## Benutzerverwaltung und Gratiszugänge · unveröffentlicht
+
+- Plattform-Admins finden Konten nach Name oder E-Mail und sehen Teams, Rollen und wirksame Tarife. Gratiszugänge für Solo Coach und Team lassen sich befristet oder unbefristet vergeben, anpassen und widerrufen. SETPIECE protokolliert die Änderungen.
+- Neu erstellte Stripe-Checkout-Sitzungen unterstützen Rabattcodes, sobald bezahlter Checkout verfügbar ist.
+- Falls die Google-Konfiguration fehlt, bleibt die E-Mail-Anmeldung mit einer verständlichen Meldung erreichbar.
+
 ## Playbook-Sammlungen · unveröffentlicht
 
 - Eigene Standards nach Titel und Kategorie finden und in benannten Teamsammlungen organisieren. Sammlungen stehen bei der Auswahl von Standards für einen Spieltag als Filter bereit.

@@ -2,6 +2,12 @@
 
 **Stand 07.11.2026: Varianten, Suche und Playbook-Sammlungen sind live unter https://setpiece.performiq.ch/.**
 
+## Benutzerverwaltung und Google-Anmeldung · 24.11.2026
+
+Bei der Live-Prüfung meldete der Google-Anmeldestart fehlende Konfiguration. [PR #9](https://github.com/PerformIQ-GmbH/setpiece/pull/9) wurde nach erfolgreicher CI auf Windows und Linux gemergt. Er leitet bei fehlenden OAuth-Einstellungen zur E-Mail-Anmeldung zurück. Der vollständige Google-Login auf der Produktionsdomain braucht die Deployment-Secrets und eine anschliessende Abnahme.
+
+Der Adminbereich mit Gratiszugängen wurde mit synthetischen Konten, einer isolierten PostgreSQL-Datenbank und dem lokalen Produktionsbuild geprüft. Der Browserablauf umfasste Anmeldung, Benutzersuche, Vergabe und Widerruf. Vor dem Replit-Release stehen die Migration und die Zuordnung der verifizierten Admin-Konto-ID aus. Das Stripe-Codefeld ist für neue bezahlte Checkout-Sitzungen vorbereitet. Die Stripe-Abnahme im Testmodus steht aus.
+
 ## Veröffentlichung der Varianten und Sammlungen
 
 [PR #7](https://github.com/PerformIQ-GmbH/setpiece/pull/7) ist als `cafea862b725b0d5037a459baf62600c1370013b` in `main` gemergt. Die [CI](https://github.com/PerformIQ-GmbH/setpiece/actions/runs/42408841110) war auf Linux und Windows erfolgreich. Der Replit-Arbeitscommit `f1c1dc3` hatte vor dem Publish einen identischen Dateibaum. Replit bestätigte den Live-Status und die öffentliche Domain lieferte anschliessend das neue Bundle mit der Sammlungsoberfläche aus.

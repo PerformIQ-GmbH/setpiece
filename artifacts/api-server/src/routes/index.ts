@@ -17,10 +17,12 @@ import membershipsRouter from "./memberships";
 import demoRouter from "./demo";
 import billingRouter from "./billing";
 import invitesRouter from "./invites";
+import platformAdminRouter from "./platformAdmin";
 
 const router: IRouter = Router();
 
 router.use(authRouter);
+router.use(platformAdminRouter);
 router.use(teamsRouter);
 router.use(membershipsRouter);
 router.use(playersRouter);
