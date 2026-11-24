@@ -21,7 +21,9 @@ export default function Login() {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const verifiedParam = params.get('verified');
-  const [error, setError] = useState(errorParam ? 'Die Anmeldung ist fehlgeschlagen. Bitte versuche es erneut.' : '');
+  const [error, setError] = useState(errorParam === 'google_not_configured'
+    ? 'Die Google-Anmeldung ist gerade nicht verfügbar. Du kannst dich mit E-Mail und Passwort anmelden.'
+    : errorParam ? 'Die Anmeldung ist fehlgeschlagen. Bitte versuche es erneut.' : '');
   const [successMsg] = useState(verifiedParam ? 'E-Mail bestätigt. Du kannst dich jetzt anmelden.' : '');
   const [loading, setLoading] = useState(false);
 

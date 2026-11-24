@@ -327,12 +327,13 @@ router.post("/auth/resend-verification", async (req: Request, res: Response) => 
 
 router.get("/auth/google", (req: Request, res: Response) => {
   const clientId = process.env.GOOGLE_CLIENT_ID;
-  if (!clientId) {
-    res.status(503).json({ error: "Google login is not configured" });
+  const returnTo = getSafeReturnTo(req.query.returnTo);
+  if (!clientId?.trim() || !process.env.GOOGLE_CLIENT_SECRET?.trim()) {
+    req.log.warn("Google OAuth credentials are missing");
+    res.redirect(`/login?error=google_not_configured&returnTo=${encodeURIComponent(returnTo)}`);
     return;
   }
 
-  const returnTo = getSafeReturnTo(req.query.returnTo);
   const nonce = crypto.randomBytes(16).toString("hex");
   const statePayload = Buffer.from(JSON.stringify({ nonce, returnTo })).toString("base64url");
 
