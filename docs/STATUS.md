@@ -2,6 +2,14 @@
 
 **Stand 07.11.2026: Varianten, Suche und Playbook-Sammlungen sind live unter https://setpiece.performiq.ch/.**
 
+## Marktstart-Vorbereitung 24.11.2026 (implementiert, nicht gemergt, nicht deployed)
+
+Branch `ccr-781f8f5c-1b6s2n`. Anmeldeherkunft: `utm_source`/`utm_medium`/`utm_campaign` und fremder Referrer-Host werden beim ersten Aufruf im Tab im `sessionStorage` gehalten und bei E-Mail- oder Google-Registrierung serverseitig validiert (max. 100 bzw. 253 Zeichen, sonst `null`) in vier neuen nullbaren `users`-Spalten gespeichert. Additive Migration `lib/db/migrations/20261124_signup_attribution.sql` ist **in keiner Replit-Datenbank angewandt**; vor dem Deployment nach Backup in Entwicklung und Produktion gezielt anwenden, sonst scheitern Registrierung und Anmeldung (Drizzle liest alle `users`-Spalten). Auswertung als SQL in [LAUNCH](LAUNCH.md). Datenschutzseite um die Herkunftsspeicherung ergänzt. Checkout erlaubt Stripe-Promotion-Codes (`allow_promotion_codes`); keine Gutscheine angelegt, keine Preise geändert, Pilotmodus unverändert aktiv.
+
+Stripe-Einrichtung (Entscheid Vince 24.11.): idempotentes Skript `scripts/src/stripe-setup.ts` für Schema, Webhook, Produkte/Preise und Startrabatt (erster Monat gratis für Solo Coach und Team, Code nur für Erstkunden bis 31.01.2027 23:59:59 Europe/Zurich); ersetzt `seed-stripe-products.ts`. Ablauf Test → Live in [DEPLOYMENT](DEPLOYMENT.md#stripe-einrichtung-per-skript-einmal-test-einmal-live). Nur mit Mocks getestet; in keinem Stripe-Modus ausgeführt.
+
+Geprüft lokal (Node 24.22.3, pnpm 11.25.0): `pnpm typecheck` grün; Standardsuite 119 Tests, 117 bestanden, 0 fehlgeschlagen, 2 ohne Datenbank übersprungen; beide DB-Tests separat gegen isolierte lokale PostgreSQL-16-Datenbanken bestanden (Herkunft 2/2, Pilot 3/3); Production-Build erfolgreich. Nicht im Browser geprüft. Stripe-Testabnahme nicht durchgeführt: in der Agentenumgebung besteht kein Stripe- oder Replit-Connector-Zugang.
+
 ## Veröffentlichung der Varianten und Sammlungen
 
 [PR #7](https://github.com/PerformIQ-GmbH/setpiece/pull/7) ist als `cafea862b725b0d5037a459baf62600c1370013b` in `main` gemergt. Die [CI](https://github.com/PerformIQ-GmbH/setpiece/actions/runs/42408841110) war auf Linux und Windows erfolgreich. Der Replit-Arbeitscommit `f1c1dc3` hatte vor dem Publish einen identischen Dateibaum. Replit bestätigte den Live-Status und die öffentliche Domain lieferte anschliessend das neue Bundle mit der Sammlungsoberfläche aus.

@@ -181,6 +181,8 @@ router.post("/billing/checkout", async (req: Request, res: Response): Promise<vo
         payment_method_types: ["card"],
         line_items: [{ price: priceId, quantity: 1 }],
         mode: "subscription",
+        // Launch discounts are managed as Stripe promotion codes; prices stay unchanged.
+        allow_promotion_codes: true,
         success_url: `${baseUrl}${APP_BASE_PATH}/pricing?success=true`,
         cancel_url: `${baseUrl}${APP_BASE_PATH}/pricing?canceled=true`,
         metadata: { teamId: team.id, tierId },

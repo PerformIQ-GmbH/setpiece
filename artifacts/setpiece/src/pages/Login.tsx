@@ -7,6 +7,7 @@ import { useGetCurrentAuthUser } from '@workspace/api-client-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { clearClientSession } from '@/lib/session-cleanup';
 import { safeReturnTo } from '@/lib/auth-return-to';
+import { signupAttribution } from '@/lib/signup-attribution';
 
 export default function Login() {
   const queryClient = useQueryClient();
@@ -63,7 +64,7 @@ export default function Login() {
 
   const handleGoogleLogin = async () => {
     await clearClientSession(queryClient);
-    window.location.href = `/api/auth/google?returnTo=${encodeURIComponent(returnTo)}`;
+    window.location.href = `/api/auth/google?${new URLSearchParams({ returnTo, ...signupAttribution() })}`;
   };
 
   return (

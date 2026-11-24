@@ -198,6 +198,7 @@ test('parallel checkout requests reuse one open Stripe session', async () => {
   const results = await Promise.all([1, 2].map(() => request(coachApp(), '/api/billing/checkout', { body: checkoutBody })));
   assert.deepEqual(results.map(result => result.status), [200, 200]);
   assert.equal(results[0].body.url, results[1].body.url);
+  assert.equal(state.checkoutData.allow_promotion_codes, true);
   assert.equal(state.checkoutCreates, 1);
   assert.equal(state.sql.filter(query => query.text.includes('pg_advisory_xact_lock')).length, 2);
   assert.match(state.checkoutData.success_url, /\/pricing\?success=true$/);

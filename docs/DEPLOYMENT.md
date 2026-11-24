@@ -42,6 +42,27 @@ Der pauschale Datenbankschema-Push wurde aus `scripts/post-merge.sh` entfernt; d
 | Aboänderungen           | Fehlgeschlagene Rechnung, Kündigung und Reaktivierung mit dem aktuellen Stripezustand abgleichen; falsches Team/falscher Preis darf keinen Zugriff erhalten    |
 | Livekonfiguration       | Webhookdomain, Ereignisse, Signaturprüfung und zugehörige Livepreise kontrollieren. Keine echte Livezahlung allein zur Prüfung durchführen                     |
 
+### Stripe-Einrichtung per Skript (einmal Test, einmal Live)
+
+Entscheid Vince 24.11.2026: Schema `stripe`, verwalteter Webhook auf `https://<domain>/api/billing/webhook`, Produkte Solo Coach (CHF 8) und Team (CHF 19) und optional der Startrabatt werden mit `scripts/src/stripe-setup.ts` eingerichtet, nicht beim App-Start. Das Skript ist idempotent, zeigt zuerst Stripe-Konto-ID und Modus (keine Schlüssel) und bricht ab, wenn der Schlüssel nicht zu `--mode` passt. `--promo-code <CODE>` legt den Coupon «Erster Monat gratis» (100 %, 1 Monat, nur Solo Coach und Team) und den Code an: nur Erstkunden, gültig bis 31.01.2027 23:59:59 Europe/Zurich. Bestehende abweichende Coupons/Codes werden nicht überschrieben, sondern führen zum Abbruch.
+
+Im Replit-Shell des Projekts, immer erst Trockenlauf, Ausgabe (Konto, Modus, geplante Anlagen, zu ersetzende Webhooks) prüfen, dann ohne `--dry-run` wiederholen:
+
+```bash
+# 1. Test (Connector-Umgebung development, Entwicklungsdatenbank aus der Shell)
+pnpm --filter @workspace/scripts stripe-setup --domain <dev-domain> --mode test --promo-code <CODE> --dry-run
+pnpm --filter @workspace/scripts stripe-setup --domain <dev-domain> --mode test --promo-code <CODE>
+# Testabnahme gemäss Tabelle oben (Checkout mit Code im Testmodus, Freischaltung, Kündigung)
+
+# 2. Live erst nach Produktions-Backup (Abschnitt «Build, Daten und Wiederherstellung»)
+read -rs PROD_DATABASE_URL   # Produktions-Verbindung einfügen, erscheint nicht in der Historie
+REPLIT_DEPLOYMENT=1 DATABASE_URL="$PROD_DATABASE_URL" pnpm --filter @workspace/scripts stripe-setup --domain setpiece.performiq.ch --mode live --promo-code <CODE> --dry-run
+REPLIT_DEPLOYMENT=1 DATABASE_URL="$PROD_DATABASE_URL" pnpm --filter @workspace/scripts stripe-setup --domain setpiece.performiq.ch --mode live --promo-code <CODE>
+unset PROD_DATABASE_URL
+```
+
+`<dev-domain>` ist der Wert von `echo $REPLIT_DEV_DOMAIN`. `REPLIT_DEPLOYMENT=1` wählt die Live-Verbindung des Stripe-Connectors; die Modusprüfung stoppt, falls trotzdem ein Testschlüssel geliefert wird. Meldet der Trockenlauf «Verwalteter Webhook würde ersetzt/gelöscht», gehört dieser Endpunkt zu prüfen: stripe-replit-sync löscht andere von ihm verwaltete Endpunkte im Konto. Nur wenn es ein alter SETPIECE-Endpunkt ist, den Schreiblauf mit `--replace-old-webhooks` wiederholen; sonst stoppen. Bezahlte Abschlüsse bleiben gesperrt, solange `SETPIECE_PILOT_ENABLED=true` gilt.
+
 Synthetische Regressionen ergänzen diese Abnahme, ersetzen aber keine Prüfung der verbundenen Dienste. Eine Runtime, die nach fehlgeschlagener Stripe-Initialisierung weiterläuft, gilt nicht automatisch als funktionsfähige Bezahlumgebung.
 
 ## Release und Liveabnahme

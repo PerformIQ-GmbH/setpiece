@@ -25,6 +25,22 @@ CHF 150 eignet sich als begrenzter Lerntest. Vorschlag nach erfolgreichem Pilot:
 
 Je Zeitraum dokumentieren: Ausgaben, Landingpage-Zugriffe soweit tatsächlich messbar, neue Trainerkonten, erster geteilter Standard, gültige Spielerantwort, Wiederverwendung und bezahlte Rechnungen. Keine Umsatzprognose aus Klicks ableiten. Ohne Instrumentierung bleibt die Zuordnung im persönlichen Pilot beobachtend; der aktuelle Messstand und seine Grenzen stehen in STATUS.
 
+## Herkunft der Anmeldungen
+
+Anzeigenlinks mit `utm_source`, `utm_medium` und `utm_campaign` versehen, z. B. `?utm_source=instagram&utm_medium=paid&utm_campaign=start-dez`. Beim ersten Seitenaufruf im Tab hält der Browser diese Werte und den fremden Referrer-Host im `sessionStorage`; bei Registrierung (E-Mail oder Google) speichert der Server sie validiert am Konto (je max. 100 Zeichen, Buchstaben/Ziffern/` ._~+-`, sonst leer). Keine Cookies, kein externer Dienst. Neuer Tab oder anderes Gerät vor der Registrierung verliert die Herkunft. Auswertung nur lesend, mit Leserechten auf die Produktionsdatenbank:
+
+```sql
+SELECT date_trunc('week', created_at) AS woche,
+       coalesce(signup_utm_source, '(ohne)') AS quelle,
+       coalesce(signup_utm_campaign, '(ohne)') AS kampagne,
+       coalesce(signup_referrer_host, '(direkt)') AS referrer,
+       count(*) AS konten
+FROM users
+WHERE created_at >= DATE '2026-11-30'
+GROUP BY 1, 2, 3, 4
+ORDER BY 1, 5 DESC;
+```
+
 ## Zuständigkeiten
 
 Alex hält Freigaben und Betriebsabnahme zusammen. Nora verantwortet Zahlung und Daten, Mia die mobile Nutzung, Leo die Prüfbelege. Kai bereitet Produktvideos und Texte vor; Vince gibt Budget, Preise und Veröffentlichungen frei. Sara fasst belegte Ergebnisse knapp zusammen. Rollen werden nach Bedarf aktiviert.

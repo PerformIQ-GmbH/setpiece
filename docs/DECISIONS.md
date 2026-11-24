@@ -11,5 +11,6 @@ Nur dauerhafte Entscheidungen mit Grund und Reichweite festhalten. Testergebniss
 | 28.10.2026 | Standard-CI ohne DB, Stripe oder echte Spielerfixtures                  | Schnelle Regressionen mit synthetischen Daten; schreibende E2E erst in isolierter Testumgebung                     |
 | 28.10.2026 | ADMIN_SECRET und allein schlüsselbasierte Adminfreischaltung abschaffen | Öffentlicher Schlüssel ist kein Berechtigungsnachweis; alte Runtime-Werte ausdrücklich entfernen                   |
 | 28.10.2026 | Replit-Arbeit auf insgesamt CHF 80 begrenzen                            | Gesamtgrenze für diesen Auftrag, keine automatische Aufladung oder zusätzliche Verpflichtung; Ledger in DEPLOYMENT |
+| 24.11.2026 | Marktstart: Stripe live in Woche 1, Ads bis CHF 150/Monat durch Kai, UTM-Messung | Entscheid Vince; Plan im Company OS `ops/setpiece/WOCHENPLAN.md`. Ersetzt für Ads den Satz «kein Ads-Kauf» in AGENTS.md |
 
 Quelle für Rollen und Routing: [PerformIQ Company OS](https://github.com/PerformIQ-GmbH/performiq-company-os/blob/main/ops/AI_DELIVERY_WORKFLOW.md). Daraus werden keine Freigaben anderer Produkte abgeleitet.

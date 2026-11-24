@@ -20,6 +20,11 @@ export const usersTable = pgTable("users", {
   passwordHash: varchar("password_hash"),
   emailVerified: boolean("email_verified").notNull().default(false),
   authProvider: varchar("auth_provider", { length: 50 }).notNull().default("replit"),
+  // First-visit marketing origin, captured once at registration (no cookies, no third party).
+  signupUtmSource: varchar("signup_utm_source", { length: 100 }),
+  signupUtmMedium: varchar("signup_utm_medium", { length: 100 }),
+  signupUtmCampaign: varchar("signup_utm_campaign", { length: 100 }),
+  signupReferrerHost: varchar("signup_referrer_host", { length: 253 }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
 });

@@ -39,7 +39,7 @@ Skills nach Bedarf: Ponytail für schlanke Umsetzung, investigate für unklare F
 
 ## Befugnisse und Status
 
-Der Auftrag vom 28.10.2026 autorisiert die Umsetzung der Auditverbesserungen, Agenten-/Repoorganisation, Logoentwicklung und den ausdrücklich bestätigten Umzug nach PerformIQ-GmbH. Für Replit gilt eine Gesamtobergrenze von CHF 80 für diese Arbeit; tatsächlichen Verbrauch prüfen und dokumentieren. Daraus folgt kein zusätzliches Abo, keine automatische Aufladung und kein Ads-Kauf. Stripe-Katalogänderungen nur für nachweislich zugehörige SETPIECE-Angebote; keine anderen PerformIQ-Produkte verändern.
+Der Auftrag vom 28.10.2026 autorisiert die Umsetzung der Auditverbesserungen, Agenten-/Repoorganisation, Logoentwicklung und den ausdrücklich bestätigten Umzug nach PerformIQ-GmbH. Für Replit gilt eine Gesamtobergrenze von CHF 80 für diese Arbeit; tatsächlichen Verbrauch prüfen und dokumentieren. Daraus folgt kein zusätzliches Abo und keine automatische Aufladung. Ads: bis CHF 150 pro Monat durch Kai (Entscheid Vince 24.11.2026, docs/DECISIONS.md). Stripe-Katalogänderungen nur für nachweislich zugehörige SETPIECE-Angebote; keine anderen PerformIQ-Produkte verändern.
 
 Bereits autorisierte Arbeit nicht erneut abfragen. Nur bei fehlender zwingender Information, echter Geschäftsentscheidung oder einer zusätzlichen folgenreichen Aktion fragen. Konten-/Rechtewechsel, Geheimnisse, Datenverluste und neue externe Verpflichtungen nicht aus fremden Projektfreigaben ableiten.
 

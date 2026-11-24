@@ -7,6 +7,7 @@ import { useGetCurrentAuthUser } from '@workspace/api-client-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { clearClientSession } from '@/lib/session-cleanup';
 import { safeReturnTo } from '@/lib/auth-return-to';
+import { signupAttribution } from '@/lib/signup-attribution';
 
 export default function Register() {
   const queryClient = useQueryClient();
@@ -45,7 +46,7 @@ export default function Register() {
       const res = await fetch('/api/auth/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password, firstName, lastName }),
+        body: JSON.stringify({ email, password, firstName, lastName, attribution: signupAttribution() }),
         credentials: 'include',
       });
 
@@ -66,7 +67,7 @@ export default function Register() {
 
   const handleGoogleLogin = async () => {
     await clearClientSession(queryClient);
-    window.location.href = `/api/auth/google?returnTo=${encodeURIComponent(returnTo)}`;
+    window.location.href = `/api/auth/google?${new URLSearchParams({ returnTo, ...signupAttribution() })}`;
   };
 
   return (
