@@ -142,3 +142,6 @@ export * from "./updateStatusBodyStatus";
 export * from "./updateTeamBody";
 export * from "./updateTeamBodyTeamColors";
 export * from "./upsertAssignmentBody";
+export * from "./videoClip";
+export * from "./videoClipInput";
+export * from "./videoClipProvider";

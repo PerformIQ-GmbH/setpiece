@@ -1,6 +1,6 @@
 # Plan: Videos zu Standards und kuratierte Vorlagen-Bibliothek
 
-Stand 24.11.2026 · Auftrag Vince (Sprachnachricht) · Status: Plan, nichts umgesetzt
+Stand 25.11.2026 · Auftrag Vince · Status: Schritt 0 und 1 implementiert (siehe [STATUS](STATUS.md)), Rest geplant
 
 ## Ziel
 
@@ -80,9 +80,22 @@ Erst wenn Links nicht reichen (z. B. Trainer filmt das eigene Training mit dem H
 | 4 | MCP für Trainer | gross |
 | 5 | Eigene Uploads | gross, Kosten |
 
-## Entscheide für Vince
+## Entscheide Vince (25.11.2026)
 
-1. Startet Phase 1 nur mit Links (Empfehlung) oder sofort mit Uploads?
-2. Rechteregel für Bibliotheksvideos: nur eigenes Material und offizielle Links (Empfehlung)?
-3. Dürfen Trainer später eigene Varianten mit der Community teilen (braucht Moderation)?
-4. Wo legst du das Rohmaterial ab (Google Drive, lokaler Ordner, den du in die Sitzung lädst)?
+1. Start nur mit Links; eigener SETPIECE-YouTube-Kanal, Videos **nicht gelistet**.
+2. Rechte: Laut Vince liegen sie für das Referenzmaterial vor, auch aus Topligen. Pro Quelle beim Hochladen festhalten, woher das Recht kommt. Der Hinweis zu TV-Bildern in Phase 3 gilt nur noch für Material ohne solchen Nachweis.
+3. Community-Teilen später, zuerst kuratierte Bibliothek.
+4. Material kommt als YouTube-Link + Zeitstempel + Stichworte pro Variante.
+
+## So lieferst du eine Variante
+
+Pro Variante eine Nachricht oder Notiz:
+
+```
+Link: https://youtu.be/…   Start 0:42  Ende 0:55
+Kategorie: Eckball links offensiv
+Idee: kurz ausgeführt, Rückpass an den Strafraumrand, Schuss
+Besonderes: funktioniert gut gegen Raumdeckung
+```
+
+Ich baue daraus den Eintrag in `scripts/src/template-library.ts` (Positionen, Laufwege, Rollen, Coaching-Punkte, Szene), du prüfst ihn, dann wird er mit dem Bibliotheksskript eingespielt.

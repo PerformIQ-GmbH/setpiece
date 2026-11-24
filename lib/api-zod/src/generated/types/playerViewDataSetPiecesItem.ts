@@ -8,6 +8,7 @@
 import type { PlayerViewDataSetPiecesItemBoardData } from "./playerViewDataSetPiecesItemBoardData";
 import type { RoleAssignment } from "./roleAssignment";
 import type { SetPieceRole } from "./setPieceRole";
+import type { VideoClip } from "./videoClip";
 
 export type PlayerViewDataSetPiecesItem = {
   id: string;
@@ -20,6 +21,7 @@ export type PlayerViewDataSetPiecesItem = {
   boardData?: PlayerViewDataSetPiecesItemBoardData;
   /** @nullable */
   coachingNotes?: string | null;
+  media?: VideoClip[];
   roles?: SetPieceRole[];
   assignments?: RoleAssignment[];
 };

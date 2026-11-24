@@ -2,6 +2,14 @@
 
 **Stand 07.11.2026: Varianten, Suche und Playbook-Sammlungen sind live unter https://setpiece.performiq.ch/.**
 
+## Videoszenen und deutsche Vorlagenbibliothek 25.11.2026 (implementiert, nicht gemergt, nicht deployed)
+
+Branch `ccr-604afcc9-gn3fc1`, Plan [VIDEO-BIBLIOTHEK-PLAN](VIDEO-BIBLIOTHEK-PLAN.md). Trainer hängen bis zu 5 YouTube-/Vimeo-Ausschnitte mit Start/Ende an einen Standard (Editor → «Videoszenen»); Spieler sehen sie im QR-Link unter der Animation, Vorlagen mit Szenen zeigen «Szene ansehen» und geben die Szenen beim Übernehmen mit. Der Server leitet Anbieter und Video-ID selbst aus dem Link ab (nur https, nur YouTube/Vimeo). Szenen sind Referenzmaterial und gehören nicht zum eingefrorenen Spielerstand: Änderungen sind sofort im Spielerlink sichtbar.
+
+Die 10 Vorlagen sind auf Deutsch in `scripts/src/template-library.ts` und werden per Schlüssel (`slug`) aktualisiert statt dupliziert: `pnpm --filter @workspace/scripts template-library` (Probelauf), mit `-- --apply` schreibend. Das ungenutzte `seedTemplates.ts` ist entfernt. **Vor dem Deployment** nach Backup in Entwicklung und Produktion die additive Migration `lib/db/migrations/20261125_template_library_media.sql` anwenden (sonst scheitern Standard- und Vorlagenabfragen, weil Drizzle die neuen Spalten liest), danach das Bibliotheksskript zuerst als Probelauf.
+
+Geprüft lokal (Node 22.23, pnpm 11.25.0): `pnpm typecheck` grün; Standardsuite 128 Tests, 126 bestanden, 0 fehlgeschlagen, 2 ohne Datenbank übersprungen (neu: Linkprüfung, Speichern/Ablehnen/Ausliefern der Szenen); Production-Build erfolgreich. Im Browser mit gemockter API geprüft: Spielerlink auf 390 px mit Szene 0:42–0:55, Editor-Dialog mit abgelehntem Fremdlink und hinzugefügter Szene. Migration und Bibliotheksskript gegen keine Datenbank ausgeführt.
+
 ## Marktstart-Vorbereitung 24.11.2026 (implementiert, nicht gemergt, nicht deployed)
 
 Branch `ccr-781f8f5c-1b6s2n`. Anmeldeherkunft: `utm_source`/`utm_medium`/`utm_campaign` und fremder Referrer-Host werden beim ersten Aufruf im Tab im `sessionStorage` gehalten und bei E-Mail- oder Google-Registrierung serverseitig validiert (max. 100 bzw. 253 Zeichen, sonst `null`) in vier neuen nullbaren `users`-Spalten gespeichert. Additive Migration `lib/db/migrations/20261124_signup_attribution.sql` ist **in keiner Replit-Datenbank angewandt**; vor dem Deployment nach Backup in Entwicklung und Produktion gezielt anwenden, sonst scheitern Registrierung und Anmeldung (Drizzle liest alle `users`-Spalten). Auswertung als SQL in [LAUNCH](LAUNCH.md). Datenschutzseite um die Herkunftsspeicherung ergänzt. Checkout erlaubt Stripe-Promotion-Codes (`allow_promotion_codes`); keine Gutscheine angelegt, keine Preise geändert, Pilotmodus unverändert aktiv.

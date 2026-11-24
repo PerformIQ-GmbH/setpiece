@@ -189,6 +189,24 @@ const de: Record<string, string> = {
   'Saving…': 'Speichere…',
   'Unsaved': 'Ungespeichert',
   'Error': 'Fehler',
+  // Video clips
+  'Video clip': 'Videoszene',
+  'Video clips': 'Videoszenen',
+  'Replay': 'Nochmal',
+  'Remove clip': 'Szene entfernen',
+  'YouTube or Vimeo link': 'YouTube- oder Vimeo-Link',
+  'Title (optional)': 'Titel (optional)',
+  'e.g. Reference, our training': 'z. B. Referenz, unser Training',
+  'Start': 'Start',
+  'End': 'Ende',
+  'Add clip': 'Szene hinzufügen',
+  'Could not save the clip.': 'Die Szene konnte nicht gespeichert werden.',
+  'Enter times as 1:05 or 65.': 'Zeiten als 1:05 oder 65 eingeben.',
+  'Only YouTube or Vimeo links are supported': 'Nur YouTube- oder Vimeo-Links sind möglich.',
+  'Clip end must be after start': 'Das Ende muss nach dem Start liegen.',
+  'At most 5 clips': 'Höchstens 5 Szenen pro Standard.',
+  'Show the real scene next to the animation. Players see these clips through their link.': 'Zeig die echte Szene neben der Animation. Spieler sehen die Szenen über ihren Link.',
+  'Watch scene': 'Szene ansehen',
 };
 
 export function t(key: string): string {

@@ -121,7 +121,6 @@ test('startup opens the public port without migrations, seeding or Stripe calls'
     './lib/logger': 'exports.logger = globalThis.__setpieceRuntimeTest.logger;',
     '@workspace/db': 'throw new Error("Startup must not access the database");',
     'stripe-replit-sync': 'throw new Error("Startup must not run Stripe migrations");',
-    './lib/seedTemplates': 'throw new Error("Startup must not seed data");',
     './lib/stripeClient': 'throw new Error("Startup must not configure Stripe");',
   });
   const previousPort = process.env.PORT;

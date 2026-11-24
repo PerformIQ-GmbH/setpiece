@@ -12,7 +12,10 @@ import { StatusBadge } from '@/components/StatusBadge';
 import { SetPieceThumbnail } from '@/components/SetPieceThumbnail';
 import { PlaybookSelect } from '@/components/PlaybookSelect';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Plus, ArrowRight, Sparkles, Copy, Loader2 } from 'lucide-react';
+import { Plus, ArrowRight, Sparkles, Copy, Loader2, Film } from 'lucide-react';
+import type { SetPieceTemplate } from '@workspace/api-client-react';
+import { VideoClipList } from '@/components/VideoClips';
+import { t as tr } from '@/lib/i18n';
 import { motion } from 'framer-motion';
 import { Link } from 'wouter';
 import { useToast } from '@/hooks/use-toast';
@@ -48,6 +51,7 @@ function TeamPlaybook({ teamId }: { teamId: string }) {
   const [, setLocation] = useLocation();
   const { data: team } = useGetTeam(teamId);
   const { data: templates } = useListTemplates();
+  const [clipTemplate, setClipTemplate] = useState<SetPieceTemplate | null>(null);
   const { data: setPieces, refetch: refetchSP } = useListSetPieces(teamId, undefined, {
     query: { queryKey: getListSetPiecesQueryKey(teamId), refetchOnMount: 'always' },
   });
@@ -307,7 +311,12 @@ function TeamPlaybook({ teamId }: { teamId: string }) {
                   </div>
                 )}
                 {t.coachingNote && <p className="text-[10px] text-muted-foreground mt-2 italic line-clamp-1">{t.coachingNote}</p>}
-                <div className="mt-auto pt-3">
+                <div className="mt-auto pt-3 space-y-2">
+                  {t.media && t.media.length > 0 && (
+                    <Button size="sm" variant="ghost" className="w-full text-xs" onClick={() => setClipTemplate(t)}>
+                      <Film className="h-3 w-3 mr-1" /> {tr('Watch scene')}
+                    </Button>
+                  )}
                   <Button size="sm" variant="outline" className="w-full text-xs border-primary/30 text-primary hover:bg-primary hover:text-primary-foreground" onClick={() => useTemplate(t.id, t.title, t.category)} disabled={createSP.isPending}>
                     Use Template <ArrowRight className="h-3 w-3 ml-1" />
                   </Button>
@@ -330,6 +339,13 @@ function TeamPlaybook({ teamId }: { teamId: string }) {
               options={CATEGORIES.filter(value => value !== 'all').map(value => ({ value, label: categoryLabel(value) }))} />
             <Button type="submit" className="w-full" disabled={createSP.isPending}>Create & Open Editor</Button>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!clipTemplate} onOpenChange={open => { if (!open) setClipTemplate(null); }}>
+        <DialogContent className="bg-card border-border sm:max-w-lg max-h-[85vh] overflow-y-auto">
+          <DialogHeader><DialogTitle>{clipTemplate?.title}</DialogTitle></DialogHeader>
+          {clipTemplate?.media && <VideoClipList clips={clipTemplate.media} />}
         </DialogContent>
       </Dialog>
     </CoachLayout>

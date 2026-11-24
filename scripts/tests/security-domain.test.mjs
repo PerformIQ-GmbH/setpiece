@@ -5,6 +5,7 @@ import path from "node:path";
 import vm from "node:vm";
 import crypto from "node:crypto";
 import * as variantContent from "../../artifacts/api-server/src/lib/variantContent.ts";
+import * as videoClip from "../../artifacts/api-server/src/lib/videoClip.ts";
 import { createRequire } from "node:module";
 import { fileURLToPath } from "node:url";
 
@@ -416,7 +417,7 @@ function quizFixture(initial, link = { teamId: "team", playerScope: ["player"] }
   const db = database(initial); const h = harness();
   load("artifacts/api-server/src/routes/quiz.ts", {
     express: h.express, "@workspace/db": { db, ...schema }, "drizzle-orm": orm, "zod/v4": require("zod/v4"),
-    "../lib/variantContent": variantContent,
+    "../lib/variantContent": variantContent, "../lib/videoClip": videoClip,
     "../lib/authorization": { async requireShareToken(_req, res) { if (!link) res.status(403).json({ error: "revoked" }); return link; }, async isSetPieceInShareScope() { return true; } },
   });
   return { db, ...h };
@@ -470,7 +471,7 @@ function readinessFixture(initial) {
   const db = database(initial); const h = harness();
   load("artifacts/api-server/src/routes/readiness.ts", {
     express: h.express, "@workspace/db": { db, ...schema }, "drizzle-orm": orm, "zod/v4": require("zod/v4"),
-    "../lib/variantContent": variantContent,
+    "../lib/variantContent": variantContent, "../lib/videoClip": videoClip,
     "../lib/authorization": { async requireTeamAccess() { return "team"; } },
   });
   return { db, ...h };
@@ -579,7 +580,7 @@ function sharingFixture(initial) {
   const db = database(initial), h = harness();
   load("artifacts/api-server/src/routes/sharing.ts", {
     express: h.express, "@workspace/db": { db, ...schema }, "drizzle-orm": orm, crypto, "zod/v4": require("zod/v4"),
-    "../lib/variantContent": variantContent, "../lib/entitlements": {},
+    "../lib/variantContent": variantContent, "../lib/videoClip": videoClip, "../lib/entitlements": {},
     "../lib/authorization": { async requireShareToken() { return { teamId: "team", playerScope: ["player"] }; }, async isSetPieceInShareScope() { return true; } },
   });
   return { db, ...h };
@@ -609,7 +610,7 @@ function publishingFixture(initial) {
   const db = database(initial), h = harness();
   load("artifacts/api-server/src/routes/setPieces.ts", {
     express: h.express, "@workspace/db": { db, ...schema }, "drizzle-orm": orm, "zod/v4": require("zod/v4"),
-    "../lib/variantContent": variantContent, "../lib/entitlements": { async checkEntitlement() { return true; } }, "../lib/roleSuitability": {},
+    "../lib/variantContent": variantContent, "../lib/videoClip": videoClip, "../lib/entitlements": { async checkEntitlement() { return true; } }, "../lib/roleSuitability": {},
     "../lib/authorization": { async requireCoachAccess() { return "team"; }, async requireHeadCoachAccess() { return "team"; }, parseParam: value => value },
   });
   return { db, ...h };
@@ -633,6 +634,22 @@ test("publication and autosave serialize under row lock and forged or stale clie
   assert.equal(invalid.statusCode, 400);
 });
 
+
+test("video clips are normalized on save, invalid links rejected, and served to the player link", async () => {
+  const f = publishingFixture(publishedQuizData());
+  const clip = { url: "https://youtu.be/dQw4w9WgXcQ?t=42", endSec: 55, title: "Referenz", provider: "vimeo", videoId: "forged" };
+  const saved = await invoke(f.routes, "PATCH /teams/:teamId/set-pieces/:setPieceId", pieceRequest({ media: [clip] }));
+  assert.equal(saved.statusCode, 200);
+  const stored = f.db.data.setPiecesTable[0];
+  assert.deepEqual(stored.media, [{ url: clip.url, provider: "youtube", videoId: "dQw4w9WgXcQ", startSec: 42, endSec: 55, title: "Referenz" }]);
+  const rejected = await invoke(f.routes, "PATCH /teams/:teamId/set-pieces/:setPieceId", pieceRequest({ media: [{ url: "https://evil.example/x" }] }));
+  assert.equal(rejected.statusCode, 400);
+  assert.equal(f.db.data.setPiecesTable[0].media.length, 1, "rejected save keeps existing clips");
+  const s = sharingFixture(publishedQuizData());
+  s.db.data.setPiecesTable[0].media = stored.media;
+  const res = await invoke(s.routes, "GET /p/:shareToken/player/:playerId", request({}, { params: { playerId: "player" } }));
+  assert.equal(res.body.setPieces[0].media[0].videoId, "dQw4w9WgXcQ");
+});
 
 for (const legacyStatus of ["ready", "active_matchday"]) test(`first V2 autosave preserves ${legacyStatus} legacy board, quiz and readiness until explicit publication`, async () => {
   const data = quizData();

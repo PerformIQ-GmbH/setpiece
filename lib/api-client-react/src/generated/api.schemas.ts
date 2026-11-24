@@ -186,6 +186,36 @@ export interface UpdatePlayerBody {
   notes?: string;
 }
 
+export type VideoClipProvider =
+  (typeof VideoClipProvider)[keyof typeof VideoClipProvider];
+
+export const VideoClipProvider = {
+  youtube: "youtube",
+  vimeo: "vimeo",
+} as const;
+
+export interface VideoClip {
+  url: string;
+  provider: VideoClipProvider;
+  videoId: string;
+  hash?: string;
+  startSec: number;
+  /** @nullable */
+  endSec: number | null;
+  /** @nullable */
+  title: string | null;
+}
+
+export interface VideoClipInput {
+  url: string;
+  /** @nullable */
+  startSec?: number | null;
+  /** @nullable */
+  endSec?: number | null;
+  /** @nullable */
+  title?: string | null;
+}
+
 /**
  * @nullable
  */
@@ -217,6 +247,8 @@ export interface SetPieceTemplate {
   defaultRoles?: SetPieceTemplateDefaultRolesItem[] | null;
   /** @nullable */
   coachingNote?: string | null;
+  /** @nullable */
+  media?: VideoClip[] | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -254,6 +286,8 @@ export interface SetPiece {
   /** @nullable */
   previewImageUrl?: string | null;
   versionNumber: number;
+  /** @nullable */
+  media?: VideoClip[] | null;
   /** @nullable */
   coachingNotes?: string | null;
   /** @nullable */
@@ -332,6 +366,8 @@ export interface SetPieceDetail {
   previewImageUrl?: string | null;
   versionNumber: number;
   /** @nullable */
+  media?: VideoClip[] | null;
+  /** @nullable */
   lastSavedBoardSnapshot?: SetPieceDetailLastSavedBoardSnapshot;
   /** @nullable */
   coachingNotes?: string | null;
@@ -365,6 +401,8 @@ export interface UpdateSetPieceBody {
   boardData?: UpdateSetPieceBodyBoardData;
   previewImageUrl?: string;
   coachingNotes?: string;
+  /** @maxItems 5 */
+  media?: VideoClipInput[];
 }
 
 export type UpdateStatusBodyStatus =
@@ -727,6 +765,7 @@ export type PlayerViewDataSetPiecesItem = {
   boardData?: PlayerViewDataSetPiecesItemBoardData;
   /** @nullable */
   coachingNotes?: string | null;
+  media?: VideoClip[];
   roles?: SetPieceRole[];
   assignments?: RoleAssignment[];
 };
@@ -804,6 +843,7 @@ export type PlayerSpecificViewDataSetPiecesItem = {
   boardData?: PlayerSpecificViewDataSetPiecesItemBoardData;
   /** @nullable */
   coachingNotes?: string | null;
+  media?: VideoClip[];
   roles?: SetPieceRole[];
   assignments?: RoleAssignment[];
   playerRole?: SetPieceRole | null;

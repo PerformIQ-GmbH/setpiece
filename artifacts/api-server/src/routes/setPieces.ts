@@ -15,6 +15,7 @@ import { checkEntitlement } from "../lib/entitlements";
 import { evaluateRolesForPlayers } from "../lib/roleSuitability";
 import { inArray } from "drizzle-orm";
 import { z } from "zod/v4";
+import { normalizeMedia } from "../lib/videoClip";
 import { isVariantBoard, publishContent, preservePublication, preserveLegacyPublication, remapBoardRoleIds, withoutPublication, PublicationValidationError } from "../lib/variantContent";
 
 const router: IRouter = Router();
@@ -34,6 +35,7 @@ const updateSetPieceSchema = z.object({
   boardData: z.any().optional(),
   previewImageUrl: z.string().nullable().optional(),
   coachingNotes: z.string().nullable().optional(),
+  media: z.array(z.unknown()).optional(),
 });
 
 const updateStatusSchema = z.object({
@@ -88,6 +90,7 @@ router.post("/teams/:teamId/set-pieces", async (req, res): Promise<void> => {
     startPosition?: { x: number; y: number };
     coachingPoint?: string;
   }> = [];
+  let templateMedia: typeof setPieceTemplatesTable.$inferSelect.media = null;
 
   if (templateId) {
     const [template] = await db
@@ -97,6 +100,7 @@ router.post("/teams/:teamId/set-pieces", async (req, res): Promise<void> => {
     if (template) {
       if (!finalBoardData && template.boardData) finalBoardData = template.boardData;
       if (template.defaultRoles) finalRoles = template.defaultRoles;
+      templateMedia = template.media;
     }
   }
 
@@ -109,6 +113,7 @@ router.post("/teams/:teamId/set-pieces", async (req, res): Promise<void> => {
       description: description || null,
       boardData: finalBoardData ? withoutPublication(finalBoardData) : null,
       coachingNotes: coachingNotes || null,
+      media: templateMedia,
       createdBy: req.user!.id,
       updatedBy: req.user!.id,
     })
@@ -186,6 +191,11 @@ router.patch("/teams/:teamId/set-pieces/:setPieceId", async (req, res): Promise<
     res.status(400).json({ error: "Validation failed", details: parsed.error.issues });
     return;
   }
+  const media = parsed.data.media === undefined ? undefined : normalizeMedia(parsed.data.media);
+  if (media && "error" in media) {
+    res.status(400).json({ error: media.error });
+    return;
+  }
 
   const setPieceId = parseParam(req.params.setPieceId);
   const piece = await db.transaction(async (tx) => {
@@ -209,6 +219,7 @@ router.patch("/teams/:teamId/set-pieces/:setPieceId", async (req, res): Promise<
     }
     if (data.previewImageUrl !== undefined) updates.previewImageUrl = data.previewImageUrl;
     if (data.coachingNotes !== undefined) updates.coachingNotes = data.coachingNotes;
+    if (media) updates.media = media.media;
 
     if (data.boardData !== undefined) {
       updates.lastSavedBoardSnapshot = existing.boardData;

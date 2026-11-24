@@ -7,6 +7,7 @@
  */
 import type { SetPieceTemplateBoardData } from "./setPieceTemplateBoardData";
 import type { SetPieceTemplateDefaultRolesItem } from "./setPieceTemplateDefaultRolesItem";
+import type { VideoClip } from "./videoClip";
 
 export interface SetPieceTemplate {
   id: string;
@@ -22,6 +23,8 @@ export interface SetPieceTemplate {
   defaultRoles?: SetPieceTemplateDefaultRolesItem[] | null;
   /** @nullable */
   coachingNote?: string | null;
+  /** @nullable */
+  media?: VideoClip[] | null;
   createdAt: Date;
   updatedAt: Date;
 }

@@ -6,6 +6,7 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { SetPieceBoardData } from "./setPieceBoardData";
+import type { VideoClip } from "./videoClip";
 
 export interface SetPiece {
   id: string;
@@ -20,6 +21,8 @@ export interface SetPiece {
   /** @nullable */
   previewImageUrl?: string | null;
   versionNumber: number;
+  /** @nullable */
+  media?: VideoClip[] | null;
   /** @nullable */
   coachingNotes?: string | null;
   /** @nullable */
