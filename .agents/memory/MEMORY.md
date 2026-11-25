@@ -1,0 +1,2 @@
+- [Schema migrations are manual](schema-migrations.md) — migration SQL isn't auto-applied; apply to dev before publish or prod queries fail.
+- Google login needs GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET secrets; absent as of 2026-11-25, so /api/auth/google redirects with google_not_configured.
