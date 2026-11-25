@@ -6,7 +6,7 @@ import type { SetPieceRole, RoleAssignment } from '@workspace/api-client-react';
 import { EditorCanvas, EditorToolbar, MobileToolDrawer, BottomBar, InspectorPanel, TutorialOverlay, ContextualTip, QuickLegend, PresentationMode, EditorContextMenu, ContextualMiniBar, useEditorStore } from '@/components/editor';
 import type { Point, Annotation, BoardData, EditorCanvasHandle, PitchTheme } from '@/components/editor';
 import { VariantPanel } from '@/components/editor/VariantPanel';
-import { resetTutorial } from '@/components/editor/TutorialOverlay';
+import { resetTutorial, shouldShowTutorial } from '@/components/editor/TutorialOverlay';
 import { resetAllTips } from '@/components/editor/ContextualTip';
 import { StatusBadge } from '@/components/StatusBadge';
 import { Button } from '@/components/ui/button';
@@ -168,6 +168,14 @@ export default function SetPieceEditor() {
   }, []);
 
   const animationState = useEditorStore((s) => s.animation);
+
+  // Erstbesuch: Tour einmal automatisch starten, sobald der Standard geladen ist.
+  const tourOffered = useRef(false);
+  useEffect(() => {
+    if (!setPiece?.id || tourOffered.current || !shouldShowTutorial()) return;
+    const timer = window.setTimeout(() => { tourOffered.current = true; setShowTutorial(true); }, 900);
+    return () => window.clearTimeout(timer);
+  }, [setPiece?.id, setShowTutorial]);
 
   useEffect(() => {
     if (!setPiece?.id) return;
@@ -952,7 +960,7 @@ export default function SetPieceEditor() {
               </Link>
 
               {setPiece.status !== 'archived' && (
-                <Button size="sm" className="text-[10px] h-6 px-2" onClick={handlePublish} disabled={publishing}>
+                <Button size="sm" data-tutorial="publish" className="text-[10px] h-6 px-2" onClick={handlePublish} disabled={publishing}>
                   <ShieldCheck className="w-3 h-3 mr-1" /> {publishing ? 'Wird veröffentlicht …' : 'Für Spieler veröffentlichen'}
                 </Button>
               )}
@@ -965,6 +973,7 @@ export default function SetPieceEditor() {
               <div className="relative">
                 <button
                   onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+                  data-tutorial="menu"
                   aria-label="Weitere Editoraktionen"
                   className="w-9 h-9 rounded-xl flex items-center justify-center text-muted-foreground hover:text-white active:scale-95 transition-all"
                 >
@@ -1075,7 +1084,7 @@ export default function SetPieceEditor() {
         </div>
       </header>
 
-      <div className="shrink-0" inert={publishing}>
+      <div className="shrink-0" inert={publishing} data-tutorial="variants">
         <VariantPanel
           key={activeVariantId}
           variants={variants}
@@ -1248,7 +1257,7 @@ export default function SetPieceEditor() {
           </main>
 
           {/* ─── BOTTOM BAR (step nav + controls) ─── */}
-          <div className={cn(
+          <div data-tutorial="bottombar" className={cn(
             "shrink-0 z-20",
             isMobile ? "px-0 pb-0" : "px-3 pb-2"
           )}>
@@ -1302,6 +1311,7 @@ export default function SetPieceEditor() {
 
       <TutorialOverlay
         open={showTutorial}
+        mobile={isMobile}
         onClose={() => setShowTutorial(false)}
       />
 

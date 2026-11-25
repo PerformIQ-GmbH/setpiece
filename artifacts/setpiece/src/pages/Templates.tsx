@@ -34,6 +34,12 @@ const CATEGORIES = [
   'defensive_throw_in',
 ];
 
+/** Server meldet erreichte Plangrenzen mit 403 und {error: 'Plan limit reached', limit, current}. */
+function planLimitOf(err: unknown): { limit?: number } | null {
+  const e = err as { status?: number; data?: { error?: string; limit?: number } | null };
+  return e?.status === 403 && e.data?.error === 'Plan limit reached' ? { limit: e.data.limit } : null;
+}
+
 function categoryLabel(category: string) {
   return category.replace(/_/g, ' ').replace(/\b\w/g, letter => letter.toUpperCase());
 }
@@ -133,9 +139,27 @@ function TeamPlaybook({ teamId }: { teamId: string }) {
     }
   };
 
+  // Fehler nie verschlucken: bei erreichter Plangrenze sagt die Meldung, was zu tun ist.
+  const reportCreateError = (err: unknown, fallback: string) => {
+    const limit = planLimitOf(err);
+    if (limit) {
+      toast({
+        title: 'Limit deines Plans erreicht',
+        description: `Dein Team hat ${limit.limit ?? 'die maximale Anzahl'} Standards. Lösche einen nicht mehr benötigten Entwurf oder wechsle unter «Preise» auf einen grösseren Plan.`,
+        variant: 'destructive',
+      });
+    } else {
+      toast({ title: fallback, description: 'Bitte versuche es nochmal.', variant: 'destructive' });
+    }
+  };
+
   const useTemplate = async (templateId: string, title: string, cat: string) => {
-    const sp = await createSP.mutateAsync({ teamId, data: { title, category: cat, templateId } });
-    setLocation(`/teams/${teamId}/set-pieces/${sp.id}/editor`);
+    try {
+      const sp = await createSP.mutateAsync({ teamId, data: { title, category: cat, templateId } });
+      setLocation(`/teams/${teamId}/set-pieces/${sp.id}/editor`);
+    } catch (err) {
+      reportCreateError(err, 'Vorlage konnte nicht verwendet werden');
+    }
   };
 
   const handleClone = async (setPieceId: string) => {
@@ -145,8 +169,8 @@ function TeamPlaybook({ teamId }: { teamId: string }) {
       refetchSP();
       toast({ title: "Set piece duplicated", description: `"${cloned.title}" is ready to edit.` });
       setLocation(`/teams/${teamId}/set-pieces/${cloned.id}/editor`);
-    } catch {
-      toast({ title: "Failed to duplicate", description: "Something went wrong. Please try again.", variant: "destructive" });
+    } catch (err) {
+      reportCreateError(err, 'Duplizieren fehlgeschlagen');
     } finally {
       setCloningId(null);
     }
@@ -154,9 +178,14 @@ function TeamPlaybook({ teamId }: { teamId: string }) {
 
   const createBlank = async (e: React.FormEvent) => {
     e.preventDefault();
-    const sp = await createSP.mutateAsync({ teamId, data: form });
-    setBlankOpen(false);
-    setLocation(`/teams/${teamId}/set-pieces/${sp.id}/editor`);
+    try {
+      const sp = await createSP.mutateAsync({ teamId, data: form });
+      setBlankOpen(false);
+      setLocation(`/teams/${teamId}/set-pieces/${sp.id}/editor`);
+    } catch (err) {
+      setBlankOpen(false);
+      reportCreateError(err, 'Standard konnte nicht erstellt werden');
+    }
   };
 
   return (
@@ -323,8 +352,8 @@ function TeamPlaybook({ teamId }: { teamId: string }) {
           <DialogHeader><DialogTitle>Create Blank Set Piece</DialogTitle></DialogHeader>
           <form onSubmit={createBlank} className="space-y-4 pt-2">
             <div className="space-y-1">
-              <label className="text-xs text-muted-foreground uppercase font-bold tracking-wider">Title</label>
-              <input required value={form.title} onChange={e => setForm({...form, title: e.target.value})} placeholder="e.g. Short Corner Routine A" className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm focus:border-primary outline-none" />
+              <label htmlFor="blank-title" className="text-xs text-muted-foreground uppercase font-bold tracking-wider">Title</label>
+              <input id="blank-title" required value={form.title} onChange={e => setForm({...form, title: e.target.value})} placeholder="e.g. Short Corner Routine A" className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm focus:border-primary outline-none" />
             </div>
             <PlaybookSelect label="Category" value={form.category} onChange={category => setForm({ ...form, category })}
               options={CATEGORIES.filter(value => value !== 'all').map(value => ({ value, label: categoryLabel(value) }))} />

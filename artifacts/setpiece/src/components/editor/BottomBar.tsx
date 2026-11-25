@@ -179,7 +179,7 @@ export function BottomBar({ mobile = false, onUndo, onRedo, canUndo, canRedo, on
         {/* Controls row: tool select (left), play (center), inspector + present (right) */}
         <div className="h-12 flex items-center px-2 gap-1.5 border-t border-white/[0.04]">
           {/* Left: Tool drawer trigger */}
-          <div className="shrink-0">
+          <div className="shrink-0" data-tutorial="mobile-tools">
             {toolDrawer}
           </div>
 
@@ -241,6 +241,8 @@ export function BottomBar({ mobile = false, onUndo, onRedo, canUndo, canRedo, on
             {onOpenInspector && (
               <button
                 onClick={onOpenInspector}
+                data-tutorial="mobile-roles"
+                aria-label="Rollen und Spieler"
                 className="w-10 h-10 rounded-xl flex items-center justify-center text-muted-foreground hover:text-white active:scale-95"
               >
                 <Users className="w-4 h-4" />
