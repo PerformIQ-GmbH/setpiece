@@ -119,43 +119,43 @@ export default function MatchdayDetail() {
     if (!matchday) return;
     setExportingPDF(true);
     try {
-      const [jsPDFMod, { renderSetPieceSteps }, QRCodeMod, { buildLockerSheet, phaseCanvasSize }] = await Promise.all([
+      const [jsPDFMod, { renderSetPieceSteps }, QRCodeMod, { buildLockerSheet, phaseCanvasSize }, { loadBoardData }] = await Promise.all([
         import('jspdf'),
         import('@/utils/offscreenPitchRenderer'),
         import('qrcode'),
         import('@/utils/lockerSheetPdf'),
+        import('@/components/editor/boardVariants'),
       ]);
       const jsPDF = jsPDFMod.default;
       const QRCode = QRCodeMod.default ?? QRCodeMod;
       const { qrDataUrl } = await makeMatchdayQr(QRCode);
       const pieces = matchday.setPieces || [];
       const details = await Promise.allSettled(pieces.map(sp => getSetPiece(teamId, sp.id)));
-      const playersById = new Map((players || []).map((p: Player) => [p.id, p]));
       const playerList = (players || []).map((p: Player) => ({ id: p.id, firstName: p.firstName, lastName: p.lastName, shirtNumber: p.shirtNumber }));
 
       const sheetPieces = pieces.map((sp, idx) => {
         const detail = details[idx].status === 'fulfilled' ? details[idx].value : null;
-        const roles = detail?.roles || [];
+        const roles = (detail?.roles || []).map((r: SetPieceRole) => ({ id: r.id, name: r.name, startPosition: r.startPosition }));
         const assignments = (detail?.assignments || []).map((a: RoleAssignment) => ({ roleId: a.roleId, playerId: a.playerId }));
         const boardData = (detail?.boardData || sp.boardData || {}) as Record<string, unknown>;
-        // Kleinere Leinwand: Marker und Nummern bleiben im verkleinerten Raster lesbar.
-        const phases = Object.keys(boardData).length > 0
-          ? renderSetPieceSteps({
-              boardData,
-              roles: roles.map((r: SetPieceRole) => ({ id: r.id, name: r.name, startPosition: r.startPosition })),
-              assignments, players: playerList, category: sp.category, ...phaseCanvasSize(sp.category), showNames: false,
-            })
-          : [];
+        const hasBoard = Object.keys(boardData).length > 0;
+        // Eine Kachel pro Variante; kleinere Leinwand hält Nummern im Raster lesbar.
+        // Einmal migrieren und dieses Brett weitergeben: ältere Bretter ohne
+        // Varianten erhielten sonst bei jedem Laden neue Varianten-IDs.
+        const board = hasBoard ? loadBoardData(boardData, roles) : null;
+        const variants = board?.variants ?? [];
         return {
           title: sp.title,
           category: sp.category,
-          cue: sp.coachingNotes || sp.description || null,
-          roles: roles.map((r: SetPieceRole) => {
-            const playerId = assignments.find(a => a.roleId === r.id)?.playerId;
-            const p = playerId ? playersById.get(playerId) : undefined;
-            return { roleName: r.name, shirtNumber: p?.shirtNumber ?? null, playerName: p ? `${p.firstName} ${p.lastName}` : null };
-          }),
-          phases: phases.map(ph => ({ label: ph.stepLabel, dataUrl: ph.dataUrl, aspect: ph.aspect })),
+          variants: variants.map(v => ({
+            name: variants.length > 1 ? v.name : '',
+            recognition: v.recognitionCue,
+            signal: v.teamSignal,
+            phases: renderSetPieceSteps({
+              boardData: board!, variantId: v.id, roles, assignments, players: playerList,
+              category: sp.category, ...phaseCanvasSize(sp.category), showNames: false,
+            }).map(ph => ({ label: ph.stepLabel, dataUrl: ph.dataUrl, aspect: ph.aspect })),
+          })),
         };
       });
 
@@ -752,8 +752,8 @@ export default function MatchdayDetail() {
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              <DropdownMenuItem onSelect={() => handleExportLockerSheet('a4')}>Garderobe · 1 Blatt A4</DropdownMenuItem>
-              <DropdownMenuItem onSelect={() => handleExportLockerSheet('a3')}>Garderobe · 1 Blatt A3</DropdownMenuItem>
+              <DropdownMenuItem onSelect={() => handleExportLockerSheet('a4')}>Garderobe · A4 (bis 6 Varianten)</DropdownMenuItem>
+              <DropdownMenuItem onSelect={() => handleExportLockerSheet('a3')}>Garderobe · A3 (bis 12 Varianten)</DropdownMenuItem>
               <DropdownMenuItem onSelect={handleExportMatchPack}>Detailmappe (mehrseitig)</DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>

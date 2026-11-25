@@ -15,53 +15,48 @@ vm.runInNewContext(compiled, { module: mod, exports: mod.exports, require: (name
   if (name === "./pitchGeometry") return { pitchOrientationForCategory: () => "half", buildPitchGeometry: () => ({ pitchW: 68, pitchH: 52.5 }) };
   throw new Error(`unexpected import ${name}`);
 } });
-const { buildLockerSheet, rowsPerPage } = mod.exports;
+const { buildLockerSheet, tilesPerPage } = mod.exports;
 
-// Minimales jsPDF-Double: zeichnet Texte mit Seite und Position auf.
+// Minimales jsPDF-Double: zeichnet Texte und Bilder mit Seite und Position auf.
 function fakePdf() {
   let size = 10, page = 1;
-  const texts = [];
-  const width = (t) => String(t).length * size * 0.18;
+  const texts = [], images = [];
   return {
-    texts, pages: () => page,
+    texts, images, pages: () => page,
     setFont() {}, setTextColor() {}, setDrawColor() {}, setFillColor() {}, setLineWidth() {}, setLineDashPattern() {},
-    line() {}, circle() {}, rect() {}, addImage() {}, addPage() { page++; },
-    setFontSize(v) { size = v; }, getTextWidth: width,
-    splitTextToSize(t, w) { const words = t.split(" "), out = []; let cur = "";
-      for (const word of words) { const next = cur ? `${cur} ${word}` : word; if (width(next) > w && cur) { out.push(cur); cur = word; } else cur = next; }
-      if (cur) out.push(cur); return out; },
-    text(t, x, y) { for (const [i, line] of [].concat(t).entries()) texts.push({ text: line, x, y: y + i * 3, page }); },
+    line() {}, circle() {}, rect() {}, roundedRect() {}, ellipse() {}, addPage() { page++; },
+    addImage(_d, _t, x, y, w, h) { images.push({ x, y, w, h, page }); },
+    setFontSize(v) { size = v; }, getTextWidth: (t) => String(t).length * size * 0.18,
+    text(t, x, y) { texts.push({ text: String(t), x, y, page }); },
   };
 }
-const phase = { label: "Phase 1", dataUrl: "data:image/png;base64,", aspect: 1.2 };
-const piece = (i, roles) => ({
-  title: `Standard ${i}`, category: "offensive_corner_left", cue: "Erst mit dem Anlauf starten. ".repeat(12),
-  roles: Array.from({ length: roles }, (_, r) => ({ roleName: `Rolle${i}x${r}`, shirtNumber: r + 1, playerName: `Fiktiv Spieler${r}` })),
-  phases: [phase, phase, phase],
-});
+const phase = { label: "Phase", dataUrl: "data:image/png;base64,", aspect: 1.2 };
+const variant = (name, recognition, signal, phases = 3) => ({ name, recognition, signal, phases: Array(phases).fill(phase) });
+const input = (pieces) => ({ teamName: "FC Beispiel", matchTitle: "Runde", pieces, generatedLabel: "Stand" });
 
-test("all roles of every set piece land on the sheet inside their own row", () => {
-  for (const [format, height] of [["a4", 210], ["a3", 297]]) {
-    const n = rowsPerPage(format);
-    const pdf = fakePdf();
-    buildLockerSheet(pdf, format, { teamName: "FC Beispiel", matchTitle: "Runde", pieces: Array.from({ length: n }, (_, i) => piece(i, 10)), generatedLabel: "Stand" });
-    assert.equal(pdf.pages(), 1, `${format}: one sheet for ${n} set pieces`);
-    for (let i = 0; i < n; i++) {
-      const roles = pdf.texts.filter(t => t.text.startsWith(`Rolle${i}x`));
-      assert.equal(roles.length, 10, `${format} piece ${i}: all roles printed`);
-      const title = pdf.texts.find(t => t.text === `Standard ${i}`);
-      const next = pdf.texts.find(t => t.text === `Standard ${i + 1}`);
-      const limit = next ? next.y - 5 : height - 10;
-      assert.ok(roles.every(r => r.y > title.y && r.y < limit), `${format} piece ${i}: roles stay inside the row`);
-    }
-  }
-  assert.equal(rowsPerPage("a4"), 4);
-  assert.equal(rowsPerPage("a3"), 6);
-});
-
-test("more set pieces than fit continue on a numbered second sheet", () => {
+test("one tile per variant with code, WENN and SIGNAL, images inside the sheet", () => {
   const pdf = fakePdf();
-  buildLockerSheet(pdf, "a4", { teamName: "FC Beispiel", matchTitle: "Runde", pieces: Array.from({ length: 6 }, (_, i) => piece(i, 3)), generatedLabel: "Stand" });
+  buildLockerSheet(pdf, "a4", input([
+    { title: "Ecke kurz", category: "offensive_corner_left", variants: [variant("Gegen Zone", "Raumdeckung", "Faust"), variant("Gegen Mann", "Manndeckung", "Zwei Arme")] },
+    { title: "Freistoss", category: "direct_free_kick_central", variants: [variant("", "", "")] },
+  ]));
+  const has = (t) => pdf.texts.some(x => x.text === t);
+  for (const t of ["1A", "1B", "2", "Raumdeckung", "Manndeckung", "Faust", "Zwei Arme", "immer", "kein Signal"]) assert.ok(has(t), t);
+  assert.equal(pdf.pages(), 1);
+  assert.equal(pdf.images.length, 3 * 3, "big start image plus two follow-up phases per tile");
+  assert.ok(pdf.images.every(i => i.x >= 10 && i.x + i.w <= 287 + 0.01 && i.y >= 10 && i.y + i.h <= 200), "images stay inside the margins");
+});
+
+test("more variants than tiles continue on a numbered second sheet", () => {
+  assert.equal(tilesPerPage("a4"), 6);
+  assert.equal(tilesPerPage("a3"), 12);
+  const pdf = fakePdf();
+  buildLockerSheet(pdf, "a4", input(Array.from({ length: 7 }, (_, i) => ({ title: `S${i}`, category: "attacking_throw_in", variants: [variant("", "x", "y", 1)] }))));
   assert.equal(pdf.pages(), 2);
   assert.ok(pdf.texts.some(t => t.text === "Stand  ·  Blatt 2/2" && t.page === 2));
+});
+
+test("few variants get a smaller grid with larger images", () => {
+  const big = (n) => { const pdf = fakePdf(); buildLockerSheet(pdf, "a4", input(Array.from({ length: n }, (_, i) => ({ title: `S${i}`, category: "attacking_throw_in", variants: [variant("", "x", "y", 1)] })))); return pdf.images[0].h; };
+  assert.ok(big(2) > big(6) * 1.5);
 });
