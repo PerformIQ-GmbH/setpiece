@@ -192,6 +192,7 @@ export type VideoClipProvider =
 export const VideoClipProvider = {
   youtube: "youtube",
   vimeo: "vimeo",
+  file: "file",
 } as const;
 
 export interface VideoClip {

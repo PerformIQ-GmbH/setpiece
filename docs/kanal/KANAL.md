@@ -1,5 +1,7 @@
 # YouTube-Kanal SETPIECE: Einrichtung
 
+> Optional. Seit 25.11.2026 liegen die Clips in der eigenen [Mediathek](../MEDIATHEK.md). Ein YouTube-Kanal ist nur noch für Marketing nötig.
+
 Zweck: Ablage der Referenzszenen für die SETPIECE-Vorlagen. Videos sind **nicht gelistet** und werden in der App eingebettet (Entscheid Vince, 25.11.2026).
 
 ## Grunddaten

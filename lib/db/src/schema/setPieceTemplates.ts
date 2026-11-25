@@ -4,7 +4,7 @@ import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 
 /** Normalized by the API (artifacts/api-server/src/lib/videoClip.ts). */
-export type VideoClip = { url: string; provider: "youtube" | "vimeo"; videoId: string; hash?: string; startSec: number; endSec: number | null; title: string | null };
+export type VideoClip = { url: string; provider: "youtube" | "vimeo" | "file"; videoId: string; hash?: string; startSec: number; endSec: number | null; title: string | null };
 
 export const setPieceCategoryEnum = pgEnum("set_piece_category", [
   "offensive_corner_left",

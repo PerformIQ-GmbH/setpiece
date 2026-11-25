@@ -1790,7 +1790,7 @@ components:
           type: string
         provider:
           type: string
-          enum: [youtube, vimeo]
+          enum: [youtube, vimeo, file]
         videoId:
           type: string
         hash:

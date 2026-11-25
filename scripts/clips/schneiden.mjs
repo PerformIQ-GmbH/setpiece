@@ -1,8 +1,12 @@
 // Schneidet Szenen aus Quellvideos nach clips.json, setzt Titel-Einblendung und
 // SETPIECE-Kennung, und schreibt Upload-Liste (CSV + Markdown) für den Kanal.
-// Aufruf: node scripts/clips/schneiden.mjs --src pl-ten-of-the-best=/pfad/a.mp4 --src osman-top5=/pfad/b.mp4 [--out DIR] [--only 01,02]
-// Braucht ffmpeg. Ton wird entfernt (Musikrechte); Quellvideos nie ins Repo legen.
+// Aufruf: node scripts/clips/schneiden.mjs --src pl-ten-of-the-best=/pfad/a.mp4 --src osman-top5=/pfad/b.mp4
+//          [--out DIR] [--only 01,02] [--upload gs://setpiece-mediathek/clips]
+// Mit --upload landen die Clips in Google Cloud Storage (gcloud muss angemeldet sein) und
+// media.json enthält die fertigen Einträge pro Vorlage für scripts/src/template-library.ts.
+// Braucht ffmpeg. Ton wird entfernt; Quellvideos nie ins Repo legen.
 import { execFileSync } from "node:child_process";
+import { createHash } from "node:crypto";
 import { cpSync, mkdirSync, readFileSync, writeFileSync, mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -13,10 +17,12 @@ const args = process.argv.slice(2);
 const srcPaths = {};
 let out = path.resolve("setpiece-videos");
 let only = null;
+let upload = null;
 for (let i = 0; i < args.length; i++) {
   if (args[i] === "--src") { const [k, v] = args[++i].split(/=(.*)/s); srcPaths[k] = v; }
   else if (args[i] === "--out") out = path.resolve(args[++i]);
   else if (args[i] === "--only") only = new Set(args[++i].split(","));
+  else if (args[i] === "--upload") upload = args[++i].replace(/\/+$/, "");
 }
 const FONT = process.env.FONT ?? "/usr/share/fonts/opentype/inter/Inter-Bold.otf";
 const GREEN = "0x1CCA79"; // App-Primärfarbe hsl(152 76% 45%)
@@ -44,6 +50,7 @@ function filter(fmt, titleFile, sceneFile) {
   ].join(",");
 }
 
+if (upload && !/^gs:\/\/[a-z0-9._-]+(\/[A-Za-z0-9._-]+)*$/.test(upload)) throw new Error(`--upload unlesbar: ${upload}`);
 mkdirSync(path.join(out, "clips"), { recursive: true });
 const tmp = mkdtempSync(path.join(tmpdir(), "clips-"));
 const rows = [];
@@ -69,7 +76,17 @@ for (const c of cfg.clips) {
     "",
     `Szene: ${c.scene}. Quelle: ${src.label}.`,
   ].join("\n");
-  rows.push({ ...c, file, ytTitle, description });
+  let url = null;
+  if (upload) {
+    // Inhalts-Hash im Namen: unveränderliche Datei, darf ewig im Cache liegen.
+    const local = path.join(out, "clips", file);
+    const hash = createHash("sha256").update(readFileSync(local)).digest("hex").slice(0, 10);
+    const dest = `${upload}/${c.id}-${c.template}-${hash}.mp4`;
+    execFileSync("gcloud", ["storage", "cp", local, dest, "--content-type=video/mp4",
+      "--cache-control=public, max-age=31536000, immutable"], { stdio: "inherit" });
+    url = dest.replace(/^gs:\/\//, "https://storage.googleapis.com/");
+  }
+  rows.push({ ...c, file, ytTitle, description, url });
 }
 
 const csv = (v) => `"${String(v).replaceAll('"', '""')}"`;
@@ -79,6 +96,11 @@ writeFileSync(path.join(out, "upload-liste.csv"),
     .join("\n") + "\n");
 writeFileSync(path.join(out, "upload-liste.md"), rows.map((r) =>
   `## ${r.id} · ${r.file}\n\n- **Titel:** ${r.ytTitle}\n- **Playlist:** ${r.playlist}\n- **Sichtbarkeit:** Nicht gelistet\n- **Vorlage:** \`${r.template}\`\n\n**Beschreibung:**\n\n\`\`\`\n${r.description}\n\`\`\`\n`).join("\n"));
+if (upload) {
+  const media = {};
+  for (const r of rows) (media[r.template] ??= []).push({ url: r.url, provider: "file", videoId: r.url.split("/").slice(4).join("/"), startSec: 0, endSec: null, title: r.scene });
+  writeFileSync(path.join(out, "media.json"), JSON.stringify(media, null, 2) + "\n");
+}
 // Kanalentwurf, Browser-Prompt und Kanalgrafiken gehören zu jedem Paket.
 const kanal = path.join(here, "../../docs/kanal");
 for (const f of ["KANAL.md", "BROWSER-PROMPT.md"]) cpSync(path.join(kanal, f), path.join(out, f));

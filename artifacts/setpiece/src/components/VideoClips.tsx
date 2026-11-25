@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import type { VideoClip } from '@workspace/api-client-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -29,25 +29,51 @@ export function parseClipTime(text: string): number | null | undefined {
 
 function ClipPlayer({ clip }: { clip: VideoClip }) {
   const [round, setRound] = useState(0);
+  const video = useRef<HTMLVideoElement>(null);
   const label = clip.title || t('Video clip');
+  // Own library files play natively; the loop is ours, an end in the URL fragment would pause instead.
+  const replay = () => {
+    if (!video.current) return setRound(r => r + 1);
+    video.current.currentTime = clip.startSec;
+    void video.current.play().catch(() => {});
+  };
   return (
     <figure className="space-y-1.5">
       <div className="aspect-video w-full overflow-hidden rounded-xl border border-white/[0.06] bg-black">
-        <iframe
-          key={round}
-          src={clipEmbedUrl(clip)}
-          title={label}
-          className="h-full w-full"
-          loading="lazy"
-          allow="autoplay; encrypted-media; picture-in-picture; fullscreen"
-          allowFullScreen
-        />
+        {clip.provider === 'file' ? (
+          <video
+            ref={video}
+            src={`${clip.url}#t=${clip.startSec}`}
+            className="h-full w-full object-contain"
+            controls
+            muted
+            playsInline
+            preload="metadata"
+            aria-label={label}
+            onLoadedMetadata={e => { if (e.currentTarget.currentTime < clip.startSec) e.currentTarget.currentTime = clip.startSec; }}
+            onTimeUpdate={e => {
+              const v = e.currentTarget;
+              if (clip.endSec != null && v.currentTime >= clip.endSec) v.currentTime = clip.startSec;
+            }}
+            onEnded={e => { e.currentTarget.currentTime = clip.startSec; void e.currentTarget.play().catch(() => {}); }}
+          />
+        ) : (
+          <iframe
+            key={round}
+            src={clipEmbedUrl(clip)}
+            title={label}
+            className="h-full w-full"
+            loading="lazy"
+            allow="autoplay; encrypted-media; picture-in-picture; fullscreen"
+            allowFullScreen
+          />
+        )}
       </div>
       <figcaption className="flex items-center justify-between gap-2 text-xs text-muted-foreground">
         <span className="min-w-0 truncate">
           {label} · {formatClipTime(clip.startSec)}{clip.endSec != null ? `–${formatClipTime(clip.endSec)}` : ''}
         </span>
-        <button type="button" onClick={() => setRound(r => r + 1)} className="flex shrink-0 items-center gap-1 rounded px-1.5 py-1 hover:text-white">
+        <button type="button" onClick={replay} className="flex shrink-0 items-center gap-1 rounded px-1.5 py-1 hover:text-white">
           <RotateCcw className="h-3 w-3" /> {t('Replay')}
         </button>
       </figcaption>
@@ -111,8 +137,8 @@ export function VideoClipEditor({ clips, onSave }: { clips: VideoClip[]; onSave:
       )}
       {clips.length < 5 && (
         <form onSubmit={add} className="space-y-2 rounded-xl border border-white/[0.06] p-3">
-          <label className="block text-xs font-medium text-white" htmlFor="clip-url">{t('YouTube or Vimeo link')}</label>
-          <Input id="clip-url" required value={url} onChange={e => setUrl(e.target.value)} placeholder="https://youtu.be/…" inputMode="url" />
+          <label className="block text-xs font-medium text-white" htmlFor="clip-url">{t('Video link (library, YouTube or Vimeo)')}</label>
+          <Input id="clip-url" required value={url} onChange={e => setUrl(e.target.value)} placeholder="https://…" inputMode="url" />
           <label className="block text-xs font-medium text-white" htmlFor="clip-title">{t('Title (optional)')}</label>
           <Input id="clip-title" value={title} onChange={e => setTitle(e.target.value)} maxLength={120} placeholder={t('e.g. Reference, our training')} />
           <div className="grid grid-cols-2 gap-2">

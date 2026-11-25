@@ -527,7 +527,7 @@ export const ListTemplatesResponseItem = zod.object({
     .array(
       zod.object({
         url: zod.string(),
-        provider: zod.enum(["youtube", "vimeo"]),
+        provider: zod.enum(["youtube", "vimeo", "file"]),
         videoId: zod.string(),
         hash: zod.string().optional(),
         startSec: zod.number(),
@@ -575,7 +575,7 @@ export const GetTemplateResponse = zod.object({
     .array(
       zod.object({
         url: zod.string(),
-        provider: zod.enum(["youtube", "vimeo"]),
+        provider: zod.enum(["youtube", "vimeo", "file"]),
         videoId: zod.string(),
         hash: zod.string().optional(),
         startSec: zod.number(),
@@ -726,7 +726,7 @@ export const ListSetPiecesResponseItem = zod.object({
     .array(
       zod.object({
         url: zod.string(),
-        provider: zod.enum(["youtube", "vimeo"]),
+        provider: zod.enum(["youtube", "vimeo", "file"]),
         videoId: zod.string(),
         hash: zod.string().optional(),
         startSec: zod.number(),
@@ -781,7 +781,7 @@ export const GetSetPieceResponse = zod.object({
     .array(
       zod.object({
         url: zod.string(),
-        provider: zod.enum(["youtube", "vimeo"]),
+        provider: zod.enum(["youtube", "vimeo", "file"]),
         videoId: zod.string(),
         hash: zod.string().optional(),
         startSec: zod.number(),
@@ -878,7 +878,7 @@ export const UpdateSetPieceResponse = zod.object({
     .array(
       zod.object({
         url: zod.string(),
-        provider: zod.enum(["youtube", "vimeo"]),
+        provider: zod.enum(["youtube", "vimeo", "file"]),
         videoId: zod.string(),
         hash: zod.string().optional(),
         startSec: zod.number(),
@@ -929,7 +929,7 @@ export const UpdateSetPieceStatusResponse = zod.object({
     .array(
       zod.object({
         url: zod.string(),
-        provider: zod.enum(["youtube", "vimeo"]),
+        provider: zod.enum(["youtube", "vimeo", "file"]),
         videoId: zod.string(),
         hash: zod.string().optional(),
         startSec: zod.number(),
@@ -1214,7 +1214,7 @@ export const GetMatchdayResponse = zod.object({
         .array(
           zod.object({
             url: zod.string(),
-            provider: zod.enum(["youtube", "vimeo"]),
+            provider: zod.enum(["youtube", "vimeo", "file"]),
             videoId: zod.string(),
             hash: zod.string().optional(),
             startSec: zod.number(),
@@ -1523,7 +1523,7 @@ export const GetPlayerViewResponse = zod.object({
         .array(
           zod.object({
             url: zod.string(),
-            provider: zod.enum(["youtube", "vimeo"]),
+            provider: zod.enum(["youtube", "vimeo", "file"]),
             videoId: zod.string(),
             hash: zod.string().optional(),
             startSec: zod.number(),
@@ -1605,7 +1605,7 @@ export const GetPlayerSpecificViewResponse = zod.object({
         .array(
           zod.object({
             url: zod.string(),
-            provider: zod.enum(["youtube", "vimeo"]),
+            provider: zod.enum(["youtube", "vimeo", "file"]),
             videoId: zod.string(),
             hash: zod.string().optional(),
             startSec: zod.number(),
@@ -2026,7 +2026,7 @@ export const GetMatchPackDataResponse = zod.object({
       .array(
         zod.object({
           url: zod.string(),
-          provider: zod.enum(["youtube", "vimeo"]),
+          provider: zod.enum(["youtube", "vimeo", "file"]),
           videoId: zod.string(),
           hash: zod.string().optional(),
           startSec: zod.number(),
