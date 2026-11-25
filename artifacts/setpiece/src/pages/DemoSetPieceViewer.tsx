@@ -280,8 +280,8 @@ export default function DemoSetPieceViewer() {
             readOnly
           />
           {showLegend && (
-            <div className="absolute bottom-4 left-4 z-10">
-              <QuickLegend />
+            <div className="absolute inset-x-0 top-0 z-10">
+              <QuickLegend german />
             </div>
           )}
         </div>

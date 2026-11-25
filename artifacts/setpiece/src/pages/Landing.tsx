@@ -36,7 +36,7 @@ export default function Landing() {
       <div className="flex flex-wrap items-end justify-between gap-6"><div><h2 className="font-display text-3xl font-semibold sm:text-4xl">Klein anfangen. Im Team nutzen.</h2><p className="mt-4 max-w-xl leading-relaxed text-muted-foreground">Der kostenlose Einstieg zum Kennenlernen. Solo Coach mit Quiz und Rückmeldung ab CHF 8 pro Monat, Team ab CHF 19 pro Monat.</p></div><Link href="/pricing"><Button variant="outline">Alle Leistungen und Preise</Button></Link></div>
       <div className="mt-12 grid gap-8 md:grid-cols-2">
         <div><h3 className="text-lg font-semibold">Brauchen Spieler ein eigenes Konto?</h3><p className="mt-3 leading-relaxed text-muted-foreground">Spieler öffnen den vom Trainer geteilten Zugang per Link oder QR-Code im Browser. Eine Installation ist dafür nicht nötig.</p></div>
-        <div><h3 className="text-lg font-semibold">Kann ich es ohne Teamdaten ausprobieren?</h3><p className="mt-3 leading-relaxed text-muted-foreground">Ja. Die öffentliche Demo enthält ein fiktives Team mit einer vorbereiteten Ecke. Du kannst dich ohne Registrierung umsehen.</p><Link href="/demo" className="mt-3 inline-block text-primary underline underline-offset-4">Fiktives Demoteam öffnen</Link></div>
+        <div><h3 className="text-lg font-semibold">Kann ich es ohne Teamdaten ausprobieren?</h3><p className="mt-3 leading-relaxed text-muted-foreground">Ja. Die öffentliche Demo enthält ein fiktives Team mit zwei vorbereiteten Ecken. Du kannst dich ohne Registrierung umsehen.</p><Link href="/demo" className="mt-3 inline-block text-primary underline underline-offset-4">Fiktives Demoteam öffnen</Link></div>
       </div>
     </section>
   </PublicLayout>;

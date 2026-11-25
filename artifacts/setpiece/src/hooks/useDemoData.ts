@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 
-import { demoTeam, demoPlayers, demoSetPiece, demoMatchday, demoReadiness } from '@/lib/demo-fixture';
+import { demoTeam, demoPlayers, demoSetPieces, demoMatchday, demoReadiness } from '@/lib/demo-fixture';
 
 export function useDemoTeam() {
   return useQuery({
@@ -20,7 +20,7 @@ export function useDemoPlayers(teamId: string) {
 export function useDemoSetPieces(teamId: string) {
   return useQuery({
     queryKey: ['demo', 'set-pieces', teamId],
-    queryFn: () => teamId === demoTeam.id ? [demoSetPiece] : [],
+    queryFn: () => teamId === demoTeam.id ? demoSetPieces : [],
     enabled: !!teamId,
   });
 }
@@ -28,7 +28,7 @@ export function useDemoSetPieces(teamId: string) {
 export function useDemoSetPiece(teamId: string, setPieceId: string) {
   return useQuery({
     queryKey: ['demo', 'set-piece', teamId, setPieceId],
-    queryFn: () => teamId === demoTeam.id && setPieceId === demoSetPiece.id ? demoSetPiece : null,
+    queryFn: () => teamId === demoTeam.id ? demoSetPieces.find(piece => piece.id === setPieceId) ?? null : null,
     enabled: !!teamId && !!setPieceId,
   });
 }

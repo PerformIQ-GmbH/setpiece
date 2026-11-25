@@ -5,7 +5,7 @@ import vm from 'node:vm';
 import { clearClientSession } from '../../artifacts/setpiece/src/lib/session-cleanup.ts';
 import { computeStructural } from '../../artifacts/setpiece/src/lib/board-health.ts';
 import { safeReturnTo } from '../../artifacts/setpiece/src/lib/auth-return-to.ts';
-import { demoTeam, demoPlayers, demoSetPiece, demoMatchday, demoReadiness, demoReadinessForAnswer } from '../../artifacts/setpiece/src/lib/demo-fixture.ts';
+import { demoTeam, demoPlayers, demoSetPiece, demoSetPieceShort, demoSetPieces, demoWalkthroughs, demoMatchday, demoReadiness, demoReadinessForAnswer } from '../../artifacts/setpiece/src/lib/demo-fixture.ts';
 
 const swSource = await readFile(new URL('../../artifacts/setpiece/public/sw.js', import.meta.url), 'utf8');
 
@@ -111,27 +111,68 @@ test('logout and identity changes remove client queries, old caches and player s
   }
 });
 
-test('the fictional demo has a complete, consistent team, set piece and matchday', () => {
-  assert.equal(demoSetPiece.teamId, demoTeam.id);
-  assert.equal(demoMatchday.setPieces[0].id, demoSetPiece.id);
-  for (const role of demoSetPiece.roles) {
-    const assignment = demoSetPiece.assignments.find(item => item.roleId === role.id);
-    assert.ok(assignment);
-    assert.ok(demoPlayers.some(player => player.id === assignment.playerId));
-    assert.ok(Number.isFinite(role.startPosition.x) && Number.isFinite(role.startPosition.y));
+test('the fictional demo has a complete, consistent team, set pieces and matchday', () => {
+  assert.equal(demoSetPieces.length, 2);
+  assert.deepEqual(demoMatchday.setPieces.map(item => item.id), demoSetPieces.map(item => item.id));
+  for (const piece of demoSetPieces) {
+    assert.equal(piece.teamId, demoTeam.id);
+    for (const role of piece.roles) {
+      const assignment = piece.assignments.find(item => item.roleId === role.id);
+      assert.ok(assignment);
+      assert.ok(demoPlayers.some(player => player.id === assignment.playerId));
+      assert.ok(Number.isFinite(role.startPosition.x) && Number.isFinite(role.startPosition.y));
+    }
   }
   assert.ok(demoSetPiece.boardData.annotations.some(item => item.linkedRoleId === 'role-9' && item.points.length >= 2));
 });
 
+test('the short-corner demo matches the reel (cover-b8.js): positions, legal offside set-up, step-wise movement, quiz for player 8', () => {
+  // Stored 0-100 positions back to metres: depth in front of the goal line, side from the goal centre (+ towards the flag).
+  const m = point => ({ depth: point.y / 100 * 52.5, side: point.x / 100 * 68 - 34 });
+  const near = (point, depth, side) => { const v = m(point); assert.ok(Math.abs(v.depth - depth) < 0.2 && Math.abs(v.side - side) < 0.2, JSON.stringify([v, depth, side])); };
+  const board = demoSetPieceShort.boardData;
+  const role = id => demoSetPieceShort.roles.find(item => item.id === id).startPosition;
+  const entity = id => board.entities.find(item => item.id === id).position;
+  const stepIds = board.steps.map(step => step.id);
+  assert.equal(demoSetPieceShort.title, 'Ecke · Kurz in den Rückraum');
+  near(role('short-role-10'), 18, 22);
+  near(role('short-role-8'), 24, 6);
+  near(role('short-role-11'), 8, 18);
+  near(role('short-role-4'), 4.6, 0.5); near(role('short-role-5'), 4.6, 3.6); near(role('short-role-9'), 2.0, 2.1); near(role('short-role-3'), 2.0, 5.2);
+  near(entity('gk-1'), 0.7, -0.3);
+  near(board.entityStepPositions['short-2']['opp-1'], 3.1, 23.6);
+  // 10 stands outside the penalty area (depth > 16.5 or |side| > 20.16); 8 finishes on its edge (depth 16 to 18).
+  const ten = m(role('short-role-10'));
+  assert.ok(ten.depth > 16.5 || Math.abs(ten.side) > 20.16);
+  const finish = board.annotations.find(item => item.id === 'short-run-8').points.at(-1);
+  assert.ok(m(finish).depth >= 16 && m(finish).depth <= 18);
+  // the five-metre blockers are inside the goal area and not nearer the goal line than the second-last opponent at the 10's pass
+  const atPass = [entity('gk-1'), ...board.entities.filter(item => item.type === 'opponent').map(item => board.entityStepPositions['short-2'][item.id] ?? item.position)];
+  const secondLast = atPass.map(point => m(point).depth).sort((a, b) => a - b)[1];
+  for (const id of ['short-role-9', 'short-role-3', 'short-role-4', 'short-role-5']) {
+    const v = m(role(id));
+    assert.ok(v.depth <= 5.5 && Math.abs(v.side) <= 9.16, id);
+    assert.ok(v.depth >= secondLast, `${id} offside at the pass`);
+  }
+  for (const annotation of board.annotations) assert.ok(stepIds.includes(annotation.stepId));
+  for (const item of board.entities) assert.ok(item.position.x >= 0 && item.position.x <= 100 && item.position.y >= 0 && item.position.y <= 100);
+  assert.ok(board.annotations.some(item => item.linkedRoleId === 'short-role-11' && item.type === 'run_path'));
+  const quiz = demoWalkthroughs.find(item => item.playerId === 'demo-8');
+  assert.equal(quiz.setPiece.id, demoSetPieceShort.id);
+  assert.ok(demoSetPieceShort.assignments.some(item => item.roleId === quiz.roleId && item.playerId === 'demo-8'));
+  assert.equal(quiz.question, 'Wann startest du aus dem Rückraum?');
+  assert.equal(quiz.correct, 'Wenn die 10 den Ball annimmt');
+});
+
 test('a local quiz answer updates the correct demo player and the coach totals without modifying the fixture', () => {
   const before = structuredClone(demoReadiness);
-  for (const correct of [true, false]) {
-    const next = demoReadinessForAnswer(correct);
-    assert.equal(next.details.find(item => item.playerId === 'demo-9').status, correct ? 'passed' : 'needs_review');
-    assert.equal(next.summary.passed, correct ? 2 : 1);
-    assert.equal(next.summary.needsReview, correct ? 0 : 1);
-    assert.equal(Object.values(next.summary).reduce((a, b) => a + b, 0), demoPlayers.length);
+  for (const playerId of ['demo-9', 'demo-8']) for (const correct of [true, false]) {
+    const next = demoReadinessForAnswer(correct, playerId);
+    assert.equal(next.details.find(item => item.playerId === playerId).status, correct ? 'passed' : 'needs_review');
+    assert.equal(Object.values(next.summary).reduce((a, b) => a + b, 0), demoReadiness.details.length);
   }
+  assert.equal(demoReadinessForAnswer(true).summary.passed, 2);
+  assert.equal(demoReadinessForAnswer(false).summary.needsReview, 1);
   assert.deepEqual(demoReadiness, before);
 });
 
