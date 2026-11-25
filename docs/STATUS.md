@@ -2,6 +2,12 @@
 
 **Stand 07.11.2026: Varianten, Suche und Playbook-Sammlungen sind live unter https://setpiece.performiq.ch/.**
 
+## Garderoben-Aushang: alle Standards auf einem Blatt 25.11.2026 (implementiert, nicht gemergt, nicht deployed)
+
+Branch `ccr-7804b1ac-m73f52`. Anlass (Vince): Das «Match Pack» war für die Garderobe zu komplex (Deckblatt, eine Seite pro Standard, eine Querseite pro Phase). Neu auf der Spieltagsseite unter «Drucken»: «Garderobe · 1 Blatt A4» (bis 4 Standards) und «A3» (bis 6 Standards, Schrift ×1,3); mehr Standards gehen auf ein nummeriertes zweites Blatt. Eine Zeile pro Standard: Nummer, Titel, Kategorie (deutsch), Kernhinweis, Rollen «#Nr Name Rolle» (Rollen haben Vorrang vor dem Hinweis), daneben die Phasen in einem festen Spaltenraster, bündig rechts. Spielfelder ohne Namensschilder (im kleinen Bild unleserlich), Leinwand in Spielfeldproportion ohne Leerraum. Kopf mit QR zur Spieleransicht, Fuss mit Legende. Die bisherige «Detailmappe (mehrseitig)» bleibt wählbar.
+
+Geprüft: `pnpm typecheck` grün; Standardsuite 132 Tests, 130 bestanden, 2 ohne Datenbank übersprungen; neue Layout-Regression (alle Rollen gedruckt, innerhalb ihrer Zeile, Seitenumbruch). Browser (Chromium, API mit fiktiven Antworten): Klickweg «Drucken → Garderobe A4» lädt ein einseitiges A4-PDF ohne Konsolenfehler; Probedrucke A4 (2 und 4 Standards) und A3 (6 Standards) als Bild geprüft. Nicht geprüft: Ausdruck auf Papier, echte Teamdaten.
+
 ## Standard-Profil beim Beitritt und Rollenvorschläge 25.11.2026 (implementiert, nicht gemergt, nicht deployed)
 
 Branch `ccr-7804b1ac-m73f52`. Anlass (Vince): Viele Spieler zeigten in den Rollenvorschlägen dieselbe Zahl. Ursache belegt: Der Beitritt per QR/Link fragte nur Name, Nummer und Fuss (Fuss mit «rechts» vorausgewählt). Die Bewertung startet ohne Profildaten bei 55. Rollen wurden nur über englische Begriffe erkannt (deutsche Rollennamen = «allgemein» = 55). Die Trainer-Merkmale `strong_header` und `set_piece_specialist` wurden nicht gezählt.

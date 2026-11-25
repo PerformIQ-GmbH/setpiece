@@ -17,6 +17,8 @@ import { motion } from 'framer-motion';
 import { QRCodeSVG } from 'qrcode.react';
 import type { jsPDF as JsPDFType } from 'jspdf';
 import { MatchdayAssistant } from '@/components/MatchdayAssistant';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import type { SheetFormat } from '@/utils/lockerSheetPdf';
 import { MatchdaySquadSection } from '@/components/MatchdaySquadSection';
 import { cn } from '@/lib/utils';
 
@@ -92,6 +94,92 @@ export default function MatchdayDetail() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [teamId, pieceIdsKey]);
 
+  // Echter Freigabelink für den QR-Code, sonst die App-Startseite.
+  const makeMatchdayQr = async (QRCode: { toDataURL: (text: string, opts: object) => Promise<string> }) => {
+    let shareUrl = `${window.location.origin}${import.meta.env.BASE_URL}`;
+    try {
+      const link = await createShareLink.mutateAsync({
+        teamId,
+        data: { matchdayScope: matchdayId },
+      });
+      shareUrl = `${window.location.origin}${import.meta.env.BASE_URL}p/${link.token}`;
+    } catch (err) {
+      console.warn('Could not create share link for QR, falling back to base URL.', err);
+    }
+    const qrDataUrl = await QRCode.toDataURL(shareUrl, {
+      width: 600,
+      margin: 1,
+      errorCorrectionLevel: 'M',
+      color: { dark: '#0b1f12', light: '#ffffff' },
+    });
+    return { shareUrl, qrDataUrl };
+  };
+
+  const handleExportLockerSheet = async (format: SheetFormat) => {
+    if (!matchday) return;
+    setExportingPDF(true);
+    try {
+      const [jsPDFMod, { renderSetPieceSteps }, QRCodeMod, { buildLockerSheet, phaseCanvasSize }] = await Promise.all([
+        import('jspdf'),
+        import('@/utils/offscreenPitchRenderer'),
+        import('qrcode'),
+        import('@/utils/lockerSheetPdf'),
+      ]);
+      const jsPDF = jsPDFMod.default;
+      const QRCode = QRCodeMod.default ?? QRCodeMod;
+      const { qrDataUrl } = await makeMatchdayQr(QRCode);
+      const pieces = matchday.setPieces || [];
+      const details = await Promise.allSettled(pieces.map(sp => getSetPiece(teamId, sp.id)));
+      const playersById = new Map((players || []).map((p: Player) => [p.id, p]));
+      const playerList = (players || []).map((p: Player) => ({ id: p.id, firstName: p.firstName, lastName: p.lastName, shirtNumber: p.shirtNumber }));
+
+      const sheetPieces = pieces.map((sp, idx) => {
+        const detail = details[idx].status === 'fulfilled' ? details[idx].value : null;
+        const roles = detail?.roles || [];
+        const assignments = (detail?.assignments || []).map((a: RoleAssignment) => ({ roleId: a.roleId, playerId: a.playerId }));
+        const boardData = (detail?.boardData || sp.boardData || {}) as Record<string, unknown>;
+        // Kleinere Leinwand: Marker und Nummern bleiben im verkleinerten Raster lesbar.
+        const phases = Object.keys(boardData).length > 0
+          ? renderSetPieceSteps({
+              boardData,
+              roles: roles.map((r: SetPieceRole) => ({ id: r.id, name: r.name, startPosition: r.startPosition })),
+              assignments, players: playerList, category: sp.category, ...phaseCanvasSize(sp.category), showNames: false,
+            })
+          : [];
+        return {
+          title: sp.title,
+          category: sp.category,
+          cue: sp.coachingNotes || sp.description || null,
+          roles: roles.map((r: SetPieceRole) => {
+            const playerId = assignments.find(a => a.roleId === r.id)?.playerId;
+            const p = playerId ? playersById.get(playerId) : undefined;
+            return { roleName: r.name, shirtNumber: p?.shirtNumber ?? null, playerName: p ? `${p.firstName} ${p.lastName}` : null };
+          }),
+          phases: phases.map(ph => ({ label: ph.stepLabel, dataUrl: ph.dataUrl, aspect: ph.aspect })),
+        };
+      });
+
+      const pdf = new jsPDF({ orientation: 'l', unit: 'mm', format });
+      const dateLabel = matchday.date
+        ? new Date(matchday.date).toLocaleDateString('de-CH', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
+        : null;
+      buildLockerSheet(pdf, format, {
+        teamName: team?.name || 'Team',
+        matchTitle: matchday.title || '',
+        opponent: matchday.opponent,
+        dateLabel,
+        qrDataUrl,
+        pieces: sheetPieces,
+        generatedLabel: `Stand ${new Date().toLocaleDateString('de-CH')}`,
+      });
+      pdf.save(`${team?.name || 'team'}_${matchday.title}_garderobe_${format.toUpperCase()}.pdf`);
+    } catch (err) {
+      console.error('PDF export error:', err);
+    } finally {
+      setExportingPDF(false);
+    }
+  };
+
   const handleExportMatchPack = async () => {
     if (!matchday) return;
     setExportingPDF(true);
@@ -150,24 +238,7 @@ export default function MatchdayDetail() {
 
       fillPageBackground('p');
 
-      // Generate a real share link for the QR code on the cover.
-      let shareUrl = `${window.location.origin}${import.meta.env.BASE_URL}`;
-      try {
-        const link = await createShareLink.mutateAsync({
-          teamId,
-          data: { matchdayScope: matchdayId },
-        });
-        shareUrl = `${window.location.origin}${import.meta.env.BASE_URL}p/${link.token}`;
-      } catch (err) {
-        console.warn('Could not create share link for QR, falling back to base URL.', err);
-      }
-
-      const qrDataUrl = await QRCode.toDataURL(shareUrl, {
-        width: 600,
-        margin: 1,
-        errorCorrectionLevel: 'M',
-        color: { dark: '#0b1f12', light: '#ffffff' },
-      });
+      const { shareUrl, qrDataUrl } = await makeMatchdayQr(QRCode);
 
       // ─── COVER PAGE ────────────────────────────────────────────────────
       pdf.setFont('helvetica', 'bold');
@@ -673,10 +744,19 @@ export default function MatchdayDetail() {
           </p>
         </div>
         <div className="flex items-center gap-2 shrink-0">
-          <Button size="sm" variant="outline" onClick={handleExportMatchPack} disabled={exportingPDF} className="rounded-xl">
-            {exportingPDF ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <FileDown className="h-4 w-4 mr-2" />}
-            {exportingPDF ? 'Exporting...' : 'Export PDF'}
-          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button size="sm" variant="outline" disabled={exportingPDF} className="rounded-xl">
+                {exportingPDF ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <FileDown className="h-4 w-4 mr-2" />}
+                {exportingPDF ? 'Wird erstellt…' : 'Drucken'}
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onSelect={() => handleExportLockerSheet('a4')}>Garderobe · 1 Blatt A4</DropdownMenuItem>
+              <DropdownMenuItem onSelect={() => handleExportLockerSheet('a3')}>Garderobe · 1 Blatt A3</DropdownMenuItem>
+              <DropdownMenuItem onSelect={handleExportMatchPack}>Detailmappe (mehrseitig)</DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
           <Button size="sm" variant="outline" onClick={() => { setShareLink(''); setShareScope('all'); setSelectedPlayers([]); setExpiryHours(''); setShareOpen(true); }} className="border-primary/30 text-primary rounded-xl">
             <QrCode className="h-4 w-4 mr-2" /> Share
           </Button>

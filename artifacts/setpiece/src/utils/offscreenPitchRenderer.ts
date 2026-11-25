@@ -31,6 +31,8 @@ interface RenderOptions {
   category?: string;
   width?: number;
   height?: number;
+  /** false: nur Nummern im Kreis, ohne Namensschild (kleine Bilder im Aushang). */
+  showNames?: boolean;
 }
 
 // Landscape A4 aspect (297 / 210 ≈ 1.414). Resolution tuned for crisp print.
@@ -322,6 +324,7 @@ function drawMarkers(
   board: VariantBoardData,
   stepIndex: number,
   g: PitchGeometry,
+  showNames: boolean,
 ) {
   // Opponents / GK / ball first, players on top.
   for (const ent of board.entities) {
@@ -381,8 +384,9 @@ function drawMarkers(
 
     layer.add(group);
 
+    if (!showNames) continue;
     // Player name label with white backdrop for legibility on the green pitch.
-    const labelText = player?.lastName || (isUnassigned ? 'Unassigned' : role.name);
+    const labelText = player?.lastName || (isUnassigned ? 'offen' : role.name);
     drawTextWithBackdrop(layer, labelText, px.x, px.y + MARKER_R + 4, {
       fontSize: 14,
       width: 110,
@@ -407,6 +411,7 @@ export function renderSetPieceSteps(options: RenderOptions): StepImage[] {
     category = '',
     width = RENDER_W,
     height = RENDER_H,
+    showNames = true,
   } = options;
 
   const migrated = loadBoardData(boardData, roles);
@@ -445,11 +450,11 @@ export function renderSetPieceSteps(options: RenderOptions): StepImage[] {
 
       const contentLayer = new Konva.Layer();
       drawAnnotations(contentLayer, stepAnns, geometry);
-      drawMarkers(contentLayer, roles, assignments, players, board, si, geometry);
+      drawMarkers(contentLayer, roles, assignments, players, board, si, geometry, showNames);
       stage.add(contentLayer);
 
       const dataUrl = stage.toDataURL({ pixelRatio: 2, mimeType: 'image/png' });
-      results.push({ stepLabel: step.label || `Step ${si + 1}`, dataUrl, aspect: width / height });
+      results.push({ stepLabel: step.label || `Phase ${si + 1}`, dataUrl, aspect: width / height });
 
       stage.destroy();
     }
