@@ -6,6 +6,7 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { JoinTeamBodyDominantFoot } from "./joinTeamBodyDominantFoot";
+import type { JoinTeamBodyTagsItem } from "./joinTeamBodyTagsItem";
 
 export interface JoinTeamBody {
   /**
@@ -23,5 +24,25 @@ export interface JoinTeamBody {
    * @maximum 99
    */
   shirtNumber?: number;
-  dominantFoot?: JoinTeamBodyDominantFoot;
+  dominantFoot: JoinTeamBodyDominantFoot;
+  /**
+   * @minimum 100
+   * @maximum 230
+   */
+  height: number;
+  /**
+   * @minimum 1
+   * @maximum 10
+   */
+  headingStrength: number;
+  /**
+   * @minimum 1
+   * @maximum 10
+   */
+  speed: number;
+  /**
+   * @minItems 1
+   * @maxItems 9
+   */
+  tags: JoinTeamBodyTagsItem[];
 }

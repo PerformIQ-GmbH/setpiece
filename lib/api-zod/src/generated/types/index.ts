@@ -53,6 +53,7 @@ export * from "./handleBrowserLoginCallbackParams";
 export * from "./healthStatus";
 export * from "./joinTeamBody";
 export * from "./joinTeamBodyDominantFoot";
+export * from "./joinTeamBodyTagsItem";
 export * from "./joinTeamInfo";
 export * from "./listAuditEventsParams";
 export * from "./listPlayersParams";

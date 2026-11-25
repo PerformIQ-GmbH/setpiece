@@ -190,7 +190,7 @@ function renderControls(file, name, props = {}) {
     '@/hooks/use-confirm': { useConfirm: () => async () => true },
     'lucide-react': new Proxy({}, { get: (_, name) => name }),
     '@/components/ui/button': { Button: 'button' }, './BoardHealth': { BoardHealth: () => null },
-    '@/lib/roleSuitability': { BADGE_STYLES: {}, ROLE_CLASS_LABELS: {} },
+    '@/lib/roleSuitability': { BADGE_STYLES: {}, ROLE_CLASS_LABELS: {}, hasProfileData: () => true },
     '@workspace/api-client-react': { useGetSetPieceRoleSuggestions: () => ({ data: null }) },
   }, { window: { innerWidth: 1200, innerHeight: 800 } });
   function expand(node) {

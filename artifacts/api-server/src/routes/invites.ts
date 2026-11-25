@@ -6,6 +6,7 @@ import { requireCoachAccess, parseParam } from "../lib/authorization";
 import { getTierLimits } from "../lib/entitlements";
 import { z } from "zod/v4";
 import { teamPilotAccess } from "../lib/pilot";
+import { STANDARD_PROFILE_TAGS, SELF_REPORTED_TAG } from "../lib/roleSuitability";
 
 const router: IRouter = Router();
 
@@ -18,7 +19,12 @@ const joinPlayerSchema = z.object({
   firstName: z.string().min(1).max(100),
   lastName: z.string().min(1).max(100),
   shirtNumber: z.number().int().min(1).max(99).optional(),
-  dominantFoot: z.enum(["left", "right", "both"]).optional(),
+  // Standard-Profil: Pflicht (Entscheid Vince 25.11.2026), damit Rollenvorschläge Daten haben.
+  dominantFoot: z.enum(["left", "right", "both"]),
+  height: z.number().int().min(100).max(230),
+  headingStrength: z.number().int().min(1).max(10),
+  speed: z.number().int().min(1).max(10),
+  tags: z.array(z.enum(STANDARD_PROFILE_TAGS)).min(1).max(STANDARD_PROFILE_TAGS.length),
 });
 
 router.post("/teams/:teamId/invites", async (req, res): Promise<void> => {
@@ -209,7 +215,11 @@ router.post("/join/:token", async (req, res): Promise<void> => {
         firstName: data.firstName,
         lastName: data.lastName,
         shirtNumber: data.shirtNumber ?? null,
-        dominantFoot: data.dominantFoot ?? null,
+        dominantFoot: data.dominantFoot,
+        height: data.height,
+        headingStrength: data.headingStrength,
+        speed: data.speed,
+        tags: [...new Set(data.tags), SELF_REPORTED_TAG],
         status: "active",
       })
       .returning();

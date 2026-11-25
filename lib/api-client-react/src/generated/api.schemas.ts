@@ -1096,6 +1096,21 @@ export const JoinTeamBodyDominantFoot = {
   both: "both",
 } as const;
 
+export type JoinTeamBodyTagsItem =
+  (typeof JoinTeamBodyTagsItem)[keyof typeof JoinTeamBodyTagsItem];
+
+export const JoinTeamBodyTagsItem = {
+  delivery_specialist: "delivery_specialist",
+  aerial_threat: "aerial_threat",
+  runner: "runner",
+  blocker: "blocker",
+  marker: "marker",
+  zonal: "zonal",
+  rest_defense: "rest_defense",
+  rebound: "rebound",
+  counter: "counter",
+} as const;
+
 export interface JoinTeamBody {
   /**
    * @minLength 1
@@ -1112,7 +1127,27 @@ export interface JoinTeamBody {
    * @maximum 99
    */
   shirtNumber?: number;
-  dominantFoot?: JoinTeamBodyDominantFoot;
+  dominantFoot: JoinTeamBodyDominantFoot;
+  /**
+   * @minimum 100
+   * @maximum 230
+   */
+  height: number;
+  /**
+   * @minimum 1
+   * @maximum 10
+   */
+  headingStrength: number;
+  /**
+   * @minimum 1
+   * @maximum 10
+   */
+  speed: number;
+  /**
+   * @minItems 1
+   * @maxItems 9
+   */
+  tags: JoinTeamBodyTagsItem[];
 }
 
 export type AuthorizationSessionHeaderParameter = string;
