@@ -157,7 +157,7 @@ export function MatchdaySquadSection({
   };
 
   return (
-    <Card className="mb-4 border-white/[0.08] bg-card/80 overflow-hidden">
+    <Card data-tutorial="squad" className="mb-4 border-white/[0.08] bg-card/80 overflow-hidden">
       <CardContent className="p-5">
         <div className="flex items-center gap-3 mb-4">
           <div className="w-9 h-9 rounded-xl bg-white/[0.04] border border-white/[0.08] flex items-center justify-center shrink-0">
@@ -234,7 +234,7 @@ export function MatchdaySquadSection({
           </p>
         </div>
 
-        <div className="mt-4 rounded-xl border border-white/[0.06] bg-white/[0.02] p-3" data-testid="squad-takers">
+        <div className="mt-4 rounded-xl border border-white/[0.06] bg-white/[0.02] p-3" data-testid="squad-takers" data-tutorial="takers">
           <label className="section-label flex items-center gap-2 mb-2">
             <Target className="h-3.5 w-3.5" /> Schützen (erscheinen auf dem Garderoben-Aushang)
           </label>

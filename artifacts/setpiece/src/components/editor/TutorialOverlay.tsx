@@ -1,112 +1,8 @@
 import { useState, useEffect, useCallback, useRef, useLayoutEffect } from 'react';
-import {
-  X, ChevronRight, ChevronLeft, Sparkles, PenLine, MousePointerClick, Users, Film, Eye, Hand,
-  Send, Printer, PartyPopper, ListChecks,
-} from 'lucide-react';
+import { X, ChevronRight, ChevronLeft, ListChecks } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { computeCardPlacement, MARGIN, type Placement, type Rect, type Side } from './tourPlacement';
-
-interface TourStep {
-  title: string;
-  icon: React.ElementType;
-  /** Warum lohnt sich das? Eine Zeile, die den Nutzen nennt. */
-  benefit: string;
-  /** Was tue ich hier? Kurz und konkret. */
-  body: string[];
-  /** Erster sichtbarer Treffer gewinnt; leer = zentrierte Karte ohne Spotlight. */
-  desktop?: string[];
-  mobile?: string[];
-  side?: Side;
-  /** Abweichender Text für Handys. */
-  mobileBody?: string[];
-}
-
-const STEPS: TourStep[] = [
-  {
-    title: 'Willkommen im Standards-Editor',
-    icon: Sparkles,
-    benefit: 'In 2 Minuten zum ersten Standard, den dein ganzes Team versteht.',
-    body: [
-      'Zeichne Laufwege statt lange zu erklären.',
-      'Jeder Spieler sieht seine Rolle auf dem Handy.',
-      'Gegner erkennen, Signal geben, richtig reagieren.',
-    ],
-  },
-  {
-    title: 'Das Spielfeld',
-    icon: MousePointerClick,
-    benefit: 'Hier entsteht dein Standard. Was du siehst, sehen später die Spieler.',
-    body: ['Klicke aufs Feld, um Spieler zu setzen und Wege zu zeichnen.', 'Doppelklick oder Enter beendet einen Weg.'],
-    mobileBody: ['Tippe aufs Feld, um Spieler zu setzen und Wege zu zeichnen.', 'Zwei Finger zoomen, ein Finger verschiebt.'],
-    desktop: ['[data-tutorial="pitch"]'],
-    mobile: ['[data-tutorial="pitch"]'],
-    side: 'bottom',
-  },
-  {
-    title: 'Werkzeuge',
-    icon: PenLine,
-    benefit: 'Gestrichelt = Laufweg, durchgezogen = Pass. So liest jeder es sofort.',
-    body: ['Wähle Spieler, Gegner, Ball, Laufweg oder Pass.', 'Tipp: V, R, L, P wählen Werkzeuge per Tastatur.'],
-    mobileBody: ['Öffne die Werkzeuge unten links.', 'Wähle Spieler, Gegner, Ball, Laufweg oder Pass.'],
-    desktop: ['[data-tutorial="toolbar"]'],
-    mobile: ['[data-tutorial="mobile-tools"]'],
-    side: 'right',
-  },
-  {
-    title: 'Rollen und Spieler',
-    icon: Users,
-    benefit: 'Die App schlägt vor, wer am besten passt, nach Grösse, Kopfball und Tempo.',
-    body: ['Jede Rolle wird ein Marker auf dem Feld.', 'Weise Spieler zu und lege eine Ersatzperson fest.'],
-    mobileBody: ['Tippe auf das Spieler-Symbol unten rechts.', 'Dort legst du Rollen an und weist Spieler zu.'],
-    desktop: ['[data-tutorial="inspector"]'],
-    mobile: ['[data-tutorial="mobile-roles"]'],
-    side: 'left',
-  },
-  {
-    title: 'Phasen und Ablauf',
-    icon: Film,
-    benefit: 'Zeige den Ablauf in Schritten: wenn das, dann das.',
-    body: ['Mit + fügst du eine Phase hinzu.', 'Play spielt den Ablauf ab, ideal zum Durchsprechen in der Garderobe.'],
-    desktop: ['[data-tutorial="bottombar"]'],
-    mobile: ['[data-tutorial="bottombar"]'],
-    side: 'top',
-  },
-  {
-    title: 'Varianten: Gegner erkennen',
-    icon: Eye,
-    benefit: 'Gegen Raumdeckung anders als gegen Manndeckung, ohne neuen Standard.',
-    body: ['Pro Variante notierst du, woran man den Gegner erkennt.', 'Und welches Teamsignal gilt, zum Beispiel «Arm hoch».'],
-    desktop: ['[data-tutorial="variants"]'],
-    mobile: ['[data-tutorial="variants"]'],
-    side: 'bottom',
-  },
-  {
-    title: 'Für Spieler veröffentlichen',
-    icon: Hand,
-    benefit: 'Danach sieht jeder Spieler seine Rolle, mit Quiz und Rückmeldung an dich.',
-    body: ['Erst wenn du veröffentlichst, sehen es die Spieler.', 'Änderungen bleiben Entwurf, bis du erneut veröffentlichst.'],
-    mobileBody: ['Im Menü oben rechts veröffentlichst du für die Spieler.', 'Änderungen bleiben Entwurf, bis du erneut veröffentlichst.'],
-    desktop: ['[data-tutorial="publish"]', '[data-tutorial="header"]'],
-    mobile: ['[data-tutorial="menu"]', '[data-tutorial="header"]'],
-    side: 'bottom',
-  },
-  {
-    title: 'Du bist bereit',
-    icon: PartyPopper,
-    benefit: 'So geht es weiter:',
-    body: [],
-  },
-];
-
-const CHECKLIST: Array<{ icon: React.ElementType; text: string }> = [
-  { icon: PenLine, text: 'Standard zeichnen und Rollen zuweisen' },
-  { icon: Eye, text: 'Variante mit Gegnererkennung und Signal anlegen' },
-  { icon: Send, text: 'Für Spieler veröffentlichen' },
-  { icon: Printer, text: 'Am Spieltag «Drucken → Garderobe» für den Aushang' },
-];
-
-// v2: neue Tour; wer die alte Version schon weggeklickt hat, sieht diese einmal.
-const STORAGE_KEY = 'setpiece-tour-v2';
+import { computeCardPlacement, MARGIN, type Placement, type Rect } from './tourPlacement';
+import { EDITOR_TOUR, type Tour } from './guidedTours';
 
 const isVisible = (el: Element) => {
   const r = el.getBoundingClientRect();
@@ -128,9 +24,13 @@ interface TutorialOverlayProps {
   open: boolean;
   onClose: () => void;
   mobile?: boolean;
+  /** Welche Tour läuft; Standard ist die Editor-Tour. */
+  tour?: Tour;
 }
 
-export function TutorialOverlay({ open, onClose, mobile = false }: TutorialOverlayProps) {
+export function TutorialOverlay({ open, onClose, mobile: mobileProp, tour = EDITOR_TOUR }: TutorialOverlayProps) {
+  const STEPS = tour.steps;
+  const mobile = mobileProp ?? (typeof window !== 'undefined' && window.innerWidth < 768);
   const [step, setStep] = useState(0);
   const [target, setTarget] = useState<Rect | null>(null);
   const [placement, setPlacement] = useState<Placement | null>(null);
@@ -173,7 +73,7 @@ export function TutorialOverlay({ open, onClose, mobile = false }: TutorialOverl
   }, [open, step, target, current?.side]);
 
   const finish = useCallback(() => {
-    try { localStorage.setItem(STORAGE_KEY, 'true'); } catch { /* private mode */ }
+    try { localStorage.setItem(tour.key, 'true'); } catch { /* private mode */ }
     onClose();
   }, [onClose]);
 
@@ -218,7 +118,7 @@ export function TutorialOverlay({ open, onClose, mobile = false }: TutorialOverl
         <div aria-hidden="true" className="absolute inset-0 pointer-events-none" style={{ background: hugeTarget ? 'rgba(3,8,6,0.45)' : 'rgba(3,8,6,0.72)' }} />
       )}
 
-      {isLast && <Confetti />}
+      {current.celebrate && <Confetti />}
 
       <div
         ref={cardRef}
@@ -263,9 +163,9 @@ export function TutorialOverlay({ open, onClose, mobile = false }: TutorialOverl
             </ul>
           )}
 
-          {isLast && (
+          {current.checklist && (
             <ul className="mt-3 space-y-2">
-              {CHECKLIST.map(({ icon: ItemIcon, text }, i) => (
+              {(current.checklist ?? []).map(({ icon: ItemIcon, text }, i) => (
                 <li key={text} className="flex items-center gap-3 rounded-xl border border-white/[0.06] bg-white/[0.03] px-3 py-2 text-[13px] text-white">
                   <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary/15 text-[11px] font-bold text-primary">{i + 1}</span>
                   <ItemIcon className="h-4 w-4 shrink-0 text-primary" />
@@ -274,9 +174,9 @@ export function TutorialOverlay({ open, onClose, mobile = false }: TutorialOverl
               ))}
             </ul>
           )}
-          {isLast && (
+          {current.checklist && tour.restartHint && (
             <p className="mt-3 flex items-center gap-2 text-[11px] text-muted-foreground">
-              <ListChecks className="h-3.5 w-3.5 shrink-0" /> Die Tour startest du jederzeit neu über das Menü.
+              <ListChecks className="h-3.5 w-3.5 shrink-0" /> {tour.restartHint}
             </p>
           )}
         </div>
@@ -333,14 +233,14 @@ function Confetti() {
   );
 }
 
-export function shouldShowTutorial(): boolean {
+export function shouldShowTutorial(key: string = EDITOR_TOUR.key): boolean {
   try {
-    return localStorage.getItem(STORAGE_KEY) !== 'true';
+    return localStorage.getItem(key) !== 'true';
   } catch {
     return false;
   }
 }
 
-export function resetTutorial(): void {
-  try { localStorage.removeItem(STORAGE_KEY); } catch { /* private mode */ }
+export function resetTutorial(key: string = EDITOR_TOUR.key): void {
+  try { localStorage.removeItem(key); } catch { /* private mode */ }
 }

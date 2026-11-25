@@ -160,7 +160,7 @@ export function MatchdayAssistant({ teamId, matchdayId, players, setPieces, star
     : 0;
 
   return (
-    <Card className="mb-5 border-primary/20 bg-gradient-to-br from-primary/[0.04] via-card to-card overflow-hidden">
+    <Card data-tutorial="assistant" className="mb-5 border-primary/20 bg-gradient-to-br from-primary/[0.04] via-card to-card overflow-hidden">
       <CardContent className="p-0">
         <button
           onClick={() => setOpen(o => !o)}
