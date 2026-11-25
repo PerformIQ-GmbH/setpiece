@@ -98,7 +98,7 @@ export const demoSetPieces = [demoSetPiece, demoSetPieceShort];
 // One fictional quiz per demo piece; nothing is sent anywhere.
 export const demoWalkthroughs = [
   {
-    setPiece: demoSetPieceShort, playerId: 'demo-8', roleId: 'short-role-8', playerLabel: 'Spieler 8',
+    setPiece: demoSetPieceShort, focus: { x0: 42, y0: 0, x1: 100 }, playerId: 'demo-8', roleId: 'short-role-8', playerLabel: 'Spieler 8',
     board: 'Taktiktafel: Spieler 7 spielt kurz auf die 10, die 10 legt auf die 8 zurück, die 8 schliesst flach ab.',
     intro: 'Die 7 spielt kurz auf die 10. Die 10 legt mit dem ersten Kontakt auf die 8 zurück, die flach abschliesst. Jede Rolle bekommt eine klare Aufgabe.',
     question: 'Wann startest du aus dem Rückraum?', correct: 'Wenn die 10 den Ball annimmt', wrong: 'Sobald die 7 an den Ball geht',
@@ -107,7 +107,7 @@ export const demoWalkthroughs = [
     result: 'Spieler 8 · Rückraum',
   },
   {
-    setPiece: demoSetPiece, playerId: 'demo-9', roleId: 'role-9', playerLabel: 'Spieler 9',
+    setPiece: demoSetPiece, focus: { x0: 0, y0: 0, x1: 100 }, playerId: 'demo-9', roleId: 'role-9', playerLabel: 'Spieler 9',
     board: 'Taktiktafel: Spieler 9 läuft zum ersten Pfosten, Spieler 6 sichert den Rückraum.',
     intro: 'Spieler 9 startet zum ersten Pfosten. Spieler 6 hält den Rückraum. Jede Rolle bekommt eine klare Aufgabe.',
     question: 'Wohin startest du mit dem Anlauf des Schützen?', correct: 'Zum ersten Pfosten', wrong: 'Im Rückraum bleiben',

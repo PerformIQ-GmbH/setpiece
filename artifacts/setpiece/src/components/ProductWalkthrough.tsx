@@ -30,7 +30,7 @@ export function ProductWalkthrough({ onAnswer }: { onAnswer?: (correct: boolean,
     <div role="tabpanel" id={`example-panel-${step}`} aria-labelledby={`example-tab-${step}`} className="p-4 sm:p-5">
       {step === 0 && <>
         <div className="mx-auto max-w-[340px]" aria-label={w.board}>
-          <PlayerBoardViewer key={w.setPiece.id} roles={w.setPiece.roles} assignments={w.setPiece.assignments} players={demoPlayers} boardData={w.setPiece.boardData} category={w.setPiece.category} activeRoleId={w.roleId} />
+          <PlayerBoardViewer key={w.setPiece.id} roles={w.setPiece.roles} assignments={w.setPiece.assignments} players={demoPlayers} boardData={w.setPiece.boardData} category={w.setPiece.category} activeRoleId={w.roleId} focus={w.focus} />
         </div>
         <p className="mt-3 text-sm leading-relaxed text-muted-foreground">{w.intro}</p>
         <Button variant="outline" className="mt-4 w-full" onClick={() => setStep(1)}>Spieleraufgabe ausprobieren <ArrowRight className="ml-2 h-4 w-4" /></Button>

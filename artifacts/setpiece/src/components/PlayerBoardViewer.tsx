@@ -44,6 +44,8 @@ interface PlayerBoardViewerProps {
   activeRoleId?: string | null;
   className?: string;
   players?: Array<{ id: string; firstName: string; lastName: string; shirtNumber?: number | null }>;
+  /** Start view in stored 0-100 coordinates: left edge, top edge and right edge of the area to fill the width. */
+  focus?: { x0: number; y0: number; x1: number };
 }
 
 function computePad(width: number): number {
@@ -71,6 +73,7 @@ export function PlayerBoardViewer({
   activeRoleId: explicitActiveRoleId,
   className,
   players = [],
+  focus,
 }: PlayerBoardViewerProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [dims, setDims] = useState({ width: 400, height: 500 });
@@ -286,6 +289,19 @@ export function PlayerBoardViewer({
   // ─── Pinch-zoom & pan via Konva Stage scale/position ────────────
   const [zoom, setZoom] = useState(1);
   const [pan, setPan] = useState({ x: 0, y: 0 });
+  // Start view: the focus area fills the width, with room left of the zoom buttons (36 px column) and above the goal line.
+  const homeView = useMemo(() => {
+    if (!focus || width < 50) return { zoom: 1, pan: { x: 0, y: 0 } };
+    const left = 10, right = 56, top = 30;
+    const a = toPixel({ x: focus.x0, y: focus.y0 });
+    const b = toPixel({ x: focus.x1, y: focus.y0 });
+    const z = Math.min(3, (width - left - right) / Math.max(b.x - a.x, 1));
+    return { zoom: z, pan: { x: left - width / 2 - (a.x - width / 2) * z, y: top - height / 2 - (a.y - height / 2) * z } };
+  }, [focus?.x0, focus?.y0, focus?.x1, width, height, toPixel]);
+  const homeKey = `${homeView.zoom.toFixed(3)}:${homeView.pan.x.toFixed(1)}:${homeView.pan.y.toFixed(1)}`;
+  useEffect(() => { setZoom(homeView.zoom); setPan(homeView.pan); }, [homeKey]);
+  // With a focus view the markers keep a constant on-screen size, so zooming separates crowded players.
+  const markerScale = focus ? 0.72 / zoom : 1;
   const stageRef = useRef<Konva.Stage>(null);
   const lastTouchRef = useRef<{
     dist?: number;
@@ -381,8 +397,8 @@ export function PlayerBoardViewer({
       const now = performance.now();
       if (now - lastTapRef.current < 300) {
         // double-tap → reset zoom
-        setZoom(1);
-        setPan({ x: 0, y: 0 });
+        setZoom(homeView.zoom);
+        setPan(homeView.pan);
         lastTapRef.current = 0;
       } else {
         lastTapRef.current = now;
@@ -391,7 +407,7 @@ export function PlayerBoardViewer({
         single: { x: e.touches[0].clientX, y: e.touches[0].clientY },
       };
     }
-  }, []);
+  }, [homeView]);
 
   const handleTouchMove = useCallback(
     (e: React.TouchEvent) => {
@@ -429,7 +445,7 @@ export function PlayerBoardViewer({
       {showStepHeader && (
         <div className="flex items-center gap-2 px-3 py-2 mb-2 rounded-xl bg-white/[0.04] border border-white/[0.06]">
           <span className="text-[10px] uppercase tracking-wider text-white/50 font-semibold">
-            Step {stepIndex + 1} / {steps.length}
+            Schritt {stepIndex + 1} / {steps.length}
           </span>
           <span className="text-sm font-semibold text-white truncate">{stepLabel}</span>
         </div>
@@ -558,29 +574,23 @@ export function PlayerBoardViewer({
                 const px = toPixel(safe(position));
                 if (ent.type === 'opponent') {
                   return (
-                    <OpponentMarker
-                      key={ent.id}
-                      x={px.x}
-                      y={px.y}
-                      shirtNumber={ent.shirtNumber}
-                      isDimmed={true}
-                    />
+                    <Group key={ent.id} x={px.x} y={px.y} scaleX={markerScale} scaleY={markerScale}>
+                      <OpponentMarker x={0} y={0} shirtNumber={ent.shirtNumber} isDimmed={true} />
+                    </Group>
                   );
                 }
                 if (ent.type === 'goalkeeper') {
                   return (
-                    <GoalkeeperMarker
-                      key={ent.id}
-                      x={px.x}
-                      y={px.y}
-                      shirtNumber={ent.shirtNumber}
-                      isDimmed={false}
-                    />
+                    <Group key={ent.id} x={px.x} y={px.y} scaleX={markerScale} scaleY={markerScale}>
+                      <GoalkeeperMarker x={0} y={0} shirtNumber={ent.shirtNumber} isDimmed={false} />
+                    </Group>
                   );
                 }
                 if (ent.type === 'ball') {
                   return (
-                    <BallMarker key={ent.id} x={px.x} y={px.y} isDimmed={false} lightPitch={false} />
+                    <Group key={ent.id} x={px.x} y={px.y} scaleX={markerScale} scaleY={markerScale}>
+                      <BallMarker x={0} y={0} isDimmed={false} lightPitch={false} />
+                    </Group>
                   );
                 }
                 return null;
@@ -600,13 +610,13 @@ export function PlayerBoardViewer({
                 const player = assignment ? playerMap.get(assignment.playerId) : undefined;
 
                 return (
-                  <Group key={role.id}>
+                  <Group key={role.id} x={px.x} y={px.y} scaleX={markerScale} scaleY={markerScale}>
                     {/* Pulsing ring around active marker */}
                     {isActive && (
                       <>
                         <KonvaCircle
-                          x={px.x}
-                          y={px.y}
+                          x={0}
+                          y={0}
                           radius={22 + pulseT * 18}
                           stroke={ACCENT}
                           strokeWidth={2}
@@ -614,8 +624,8 @@ export function PlayerBoardViewer({
                           listening={false}
                         />
                         <Ring
-                          x={px.x}
-                          y={px.y}
+                          x={0}
+                          y={0}
                           innerRadius={20}
                           outerRadius={26}
                           fill={ACCENT}
@@ -625,13 +635,13 @@ export function PlayerBoardViewer({
                       </>
                     )}
                     <TeamPlayerMarker
-                      x={px.x}
-                      y={px.y}
+                      x={0}
+                      y={0}
                       isSelected={isActive}
                       isDimmed={!isActive && !!activeRoleId}
                       isUnassigned={!assignment}
                       label={undefined}
-                      lastName={player?.lastName}
+                      lastName={focus ? undefined : player?.lastName}
                       shirtNumber={player?.shirtNumber ?? undefined}
                       lightPitch={false}
                       draggable={false}
@@ -702,10 +712,10 @@ export function PlayerBoardViewer({
           >
             <ZoomOut className="w-4 h-4" />
           </button>
-          {zoom > 1 && (
+          {(zoom !== homeView.zoom || pan.x !== homeView.pan.x || pan.y !== homeView.pan.y) && (
             <button
               type="button"
-              onClick={() => { setZoom(1); setPan({ x: 0, y: 0 }); }}
+              onClick={() => { setZoom(homeView.zoom); setPan(homeView.pan); }}
               className="w-9 h-9 rounded-lg bg-black/55 backdrop-blur-sm border border-white/10 flex items-center justify-center text-white/85 active:bg-white/10"
               aria-label="Zoom zurücksetzen"
             >
