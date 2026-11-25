@@ -5,8 +5,10 @@
  * SETPIECE by PerformIQ API
  * OpenAPI spec version: 0.1.0
  */
+import type { MatchdaySquadTakers } from "./matchdaySquadTakers";
 
 export interface MatchdaySquad {
   starters: string[];
   bench: string[];
+  takers?: MatchdaySquadTakers;
 }

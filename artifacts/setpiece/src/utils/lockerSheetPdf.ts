@@ -17,6 +17,8 @@ export interface SheetPhase { label: string; dataUrl: string; aspect: number }
 
 export interface SheetVariant {
   name: string;
+  /** Ersetzt Signal und Bild, z. B. «Noch nicht freigegeben». */
+  note?: string | null;
   recognition?: string | null;
   signal?: string | null;
   phases: SheetPhase[];
@@ -35,6 +37,8 @@ export interface SheetInput {
   dateLabel?: string | null;
   qrDataUrl?: string | null;
   pieces: SheetPiece[];
+  /** Schützen in Reihenfolge, nur Trikotnummern («#10» oder Nachname ohne Nummer). */
+  takers?: { penalty: string[]; directFreeKick: string[] };
   generatedLabel: string;
 }
 
@@ -54,6 +58,9 @@ const CATEGORY_DE: Record<string, string> = {
 };
 
 export const categoryDe = (c: string) => CATEGORY_DE[c] ?? c.replace(/_/g, ' ');
+
+/** Defensiv sind nur die gegnerischen Standards; Freistösse gehören zum Angriff. */
+export const isDefensive = (category: string) => category.startsWith('defensive_');
 
 /**
  * Leinwand so gross wie das Spielfeld plus Rand des Renderers (PAD = 36), damit
@@ -115,15 +122,27 @@ function handIcon(pdf: jsPDF, cx: number, cy: number, r: number) {
 export function buildLockerSheet(pdf: jsPDF, format: SheetFormat, input: SheetInput): void {
   const { w: W, h: H, s } = GRID[format];
   const margin = 10 * s, headerH = 17 * s, footerH = 6 * s, gap = 4 * s;
-  const tiles = input.pieces.flatMap((piece, pi) =>
+  // Angriff zuerst, dann Abwehr; Nummern folgen der sortierten Reihenfolge.
+  const sorted = [...input.pieces.filter(p => !isDefensive(p.category)), ...input.pieces.filter(p => isDefensive(p.category))];
+  const allTiles = sorted.flatMap((piece, pi) =>
     (piece.variants.length ? piece.variants : [{ name: '', phases: [] }]).map((variant, vi) => ({
       piece, variant, code: `${pi + 1}${piece.variants.length > 1 ? String.fromCharCode(65 + vi) : ''}`,
     })));
   const perPage = tilesPerPage(format);
   // Wenige Kacheln: kleineres Raster, damit Bilder grösser werden statt Leerraum.
-  const shown = Math.max(1, Math.min(tiles.length, perPage));
-  const cols = Math.min(GRID[format].cols, shown);
-  const rows = Math.min(GRID[format].rows, Math.ceil(shown / cols));
+  const cols = Math.min(GRID[format].cols, Math.max(1, Math.min(allTiles.length, perPage)));
+  const rowsFor = (n: number) => Math.min(GRID[format].rows, Math.ceil(Math.max(1, Math.min(n, perPage)) / cols));
+  // Abwehr beginnt in einer neuen Zeile, wenn das weder Blatt noch Zeile kostet;
+  // sonst trennen Farbe und Etikett die Gruppen.
+  let tiles: Array<(typeof allTiles)[number] | null> = allTiles;
+  const firstDef = allTiles.findIndex(t => isDefensive(t.piece.category));
+  if (firstDef > 0 && firstDef % cols !== 0) {
+    const padded = [...allTiles.slice(0, firstDef), ...Array(cols - (firstDef % cols)).fill(null), ...allTiles.slice(firstDef)];
+    if (Math.ceil(padded.length / perPage) === Math.ceil(allTiles.length / perPage) && rowsFor(padded.length) === rowsFor(allTiles.length)) {
+      tiles = padded;
+    }
+  }
+  const rows = rowsFor(tiles.length);
   const pages = Math.max(1, Math.ceil(tiles.length / perPage));
   const tileW = (W - 2 * margin - (cols - 1) * gap) / cols;
   const bodyTop = margin + headerH + gap;
@@ -134,6 +153,7 @@ export function buildLockerSheet(pdf: jsPDF, format: SheetFormat, input: SheetIn
     drawHeader(pdf, input, W, margin, headerH, s);
 
     tiles.slice(page * perPage, (page + 1) * perPage).forEach((tile, i) => {
+      if (!tile) return;
       const x = margin + (i % cols) * (tileW + gap);
       const y = bodyTop + Math.floor(i / cols) * (tileH + gap);
       drawTile(pdf, tile, x, y, tileW, tileH, s);
@@ -150,12 +170,16 @@ function drawHeader(pdf: jsPDF, input: SheetInput, W: number, margin: number, he
   pdf.setFontSize(16 * s);
   pdf.setTextColor(...INK);
   const headline = input.opponent ? `${input.teamName} – ${input.opponent}` : input.teamName;
-  pdf.text(fit(pdf, headline, textRight - margin), margin, margin + 6 * s);
+  const takersW = takersWidth(pdf, input.takers, s);
+  pdf.setFont('helvetica', 'bold');
+  pdf.setFontSize(16 * s);
+  pdf.text(fit(pdf, headline, textRight - margin - takersW), margin, margin + 6 * s);
   pdf.setFont('helvetica', 'normal');
   pdf.setFontSize(9 * s);
   pdf.setTextColor(...MUTED);
   const sub = ['Standards', input.dateLabel, input.matchTitle].filter(Boolean).join('  ·  ');
-  pdf.text(fit(pdf, sub, textRight - margin), margin, margin + 11.5 * s);
+  pdf.text(fit(pdf, sub, textRight - margin - takersW), margin, margin + 11.5 * s);
+  drawTakers(pdf, input.takers, textRight, margin, s);
   if (input.qrDataUrl) {
     const qx = W - margin - qr;
     pdf.addImage(input.qrDataUrl, 'PNG', qx, margin - 1.5 * s, qr, qr);
@@ -183,12 +207,14 @@ function drawTile(
   pdf.setFont('helvetica', 'bold');
   pdf.setFontSize(10 * s);
   const codeW = Math.max(7 * s, pdf.getTextWidth(tile.code) + 3.5 * s);
-  pdf.setFillColor(...GREEN);
+  const defensive = isDefensive(tile.piece.category);
+  pdf.setFillColor(...(defensive ? INK : GREEN));
   pdf.roundedRect(x + pad, cy, codeW, 6 * s, 3 * s, 3 * s, 'F');
   pdf.setTextColor(255, 255, 255);
   pdf.text(tile.code, x + pad + codeW / 2, cy + 4.3 * s, { align: 'center' });
   const tx = x + pad + codeW + 2 * s;
-  const tw = x + w - pad - tx;
+  const tagW = sideTag(pdf, defensive, x + w - pad, cy, s);
+  const tw = x + w - pad - tagW - 2 * s - tx;
   pdf.setTextColor(...INK);
   pdf.setFontSize(9 * s);
   pdf.text(fit(pdf, tile.piece.title, tw), tx, cy + 2.6 * s);
@@ -198,6 +224,14 @@ function drawTile(
   const sub = [categoryDe(tile.piece.category), tile.variant.name].filter(Boolean).join('  ·  ');
   pdf.text(fit(pdf, sub, tw), tx, cy + 5.6 * s);
   cy += 6 * s + 2 * s;
+
+  if (tile.variant.note) {
+    pdf.setFont('helvetica', 'italic');
+    pdf.setFontSize(8 * s);
+    pdf.setTextColor(...MUTED);
+    pdf.text(tile.variant.note, x + w / 2, cy + (y + h - cy) / 2, { align: 'center' });
+    return;
+  }
 
   // WENN / SIGNAL: die zwei Dinge, die ein Spieler vor dem Standard wissen muss.
   const cue = (icon: typeof eyeIcon, label: string, text: string) => {
@@ -274,6 +308,77 @@ function drawTile(
     pdf.setTextColor(...MUTED);
     pdf.text(`+ ${phases.length - 4} in der App`, x + w - pad, sy + shh + 2.2 * s, { align: 'right' });
   }
+}
+
+/** Seitenetikett: grün «Angriff» mit Pfeil, dunkel «Abwehr» mit Schild. Gibt die Breite zurück. */
+function sideTag(pdf: jsPDF, defensive: boolean, right: number, y: number, s: number): number {
+  pdf.setFont('helvetica', 'bold');
+  pdf.setFontSize(5.5 * s);
+  const label = defensive ? 'ABWEHR' : 'ANGRIFF';
+  const w = pdf.getTextWidth(label) + 6.5 * s, h = 4.6 * s, x = right - w;
+  pdf.setFillColor(...(defensive ? INK : GREEN));
+  pdf.roundedRect(x, y + 0.7 * s, w, h, h / 2, h / 2, 'F');
+  pdf.setFillColor(255, 255, 255);
+  const ix = x + 2.4 * s, iy = y + 0.7 * s + h / 2;
+  if (defensive) {
+    // Schild
+    pdf.roundedRect(ix - 1.1 * s, iy - 1.4 * s, 2.2 * s, 1.6 * s, 0.3 * s, 0.3 * s, 'F');
+    pdf.triangle(ix - 1.1 * s, iy + 0.1 * s, ix + 1.1 * s, iy + 0.1 * s, ix, iy + 1.5 * s, 'F');
+  } else {
+    // Pfeil nach vorn
+    pdf.triangle(ix - 1.2 * s, iy + 0.1 * s, ix + 1.2 * s, iy + 0.1 * s, ix, iy - 1.5 * s, 'F');
+    pdf.rect(ix - 0.45 * s, iy, 0.9 * s, 1.4 * s, 'F');
+  }
+  pdf.setTextColor(255, 255, 255);
+  pdf.text(label, x + 4.3 * s, iy + 0.7 * s);
+  return w;
+}
+
+const TAKER_ROWS: Array<{ key: 'penalty' | 'directFreeKick'; label: string }> = [
+  { key: 'penalty', label: 'ELFMETER' },
+  { key: 'directFreeKick', label: 'FREISTOSS DIREKT' },
+];
+
+function takersWidth(pdf: jsPDF, takers: SheetInput['takers'], s: number): number {
+  if (!takers || (!takers.penalty.length && !takers.directFreeKick.length)) return 0;
+  return 62 * s;
+}
+
+/** Schützen im Kopf: Reihenfolge als grosse Nummern, damit sie aus Distanz lesbar sind. */
+function drawTakers(pdf: jsPDF, takers: SheetInput['takers'], right: number, margin: number, s: number) {
+  const w = takersWidth(pdf, takers, s);
+  if (!w || !takers) return;
+  const x = right - w;
+  TAKER_ROWS.forEach((row, ri) => {
+    const list = takers[row.key];
+    const y = margin - 1 * s + ri * 7 * s;
+    pdf.setFillColor(...TINT);
+    pdf.roundedRect(x, y, w, 6 * s, 1.5 * s, 1.5 * s, 'F');
+    pdf.setFont('helvetica', 'bold');
+    pdf.setFontSize(5.5 * s);
+    pdf.setTextColor(...GREEN);
+    pdf.text(row.label, x + 2 * s, y + 3.9 * s);
+    let tx = x + 2 * s + pdf.getTextWidth('FREISTOSS DIREKT') + 2.5 * s;
+    if (!list.length) {
+      pdf.setFont('helvetica', 'normal');
+      pdf.setFontSize(7 * s);
+      pdf.setTextColor(...MUTED);
+      pdf.text('–', tx, y + 4.1 * s);
+      return;
+    }
+    list.slice(0, 3).forEach((label, i) => {
+      pdf.setFont('helvetica', 'bold');
+      pdf.setFontSize(5.5 * s);
+      pdf.setTextColor(...MUTED);
+      pdf.text(`${i + 1}.`, tx, y + 4.1 * s);
+      tx += pdf.getTextWidth(`${i + 1}.`) + 0.8 * s;
+      pdf.setFontSize(9.5 * s);
+      pdf.setTextColor(...INK);
+      const t = fit(pdf, label, 11 * s);
+      pdf.text(t, tx, y + 4.3 * s);
+      tx += pdf.getTextWidth(t) + 2.6 * s;
+    });
+  });
 }
 
 function stepBadge(pdf: jsPDF, x: number, y: number, label: string, s: number) {

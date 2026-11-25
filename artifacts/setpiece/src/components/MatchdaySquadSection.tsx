@@ -6,7 +6,7 @@ import {
 } from '@workspace/api-client-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Users, Check, Loader2, Info, ListChecks, AlertCircle } from 'lucide-react';
+import { Users, Check, Loader2, Info, ListChecks, AlertCircle, Target } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface MatchdaySquadSectionProps {
@@ -35,6 +35,16 @@ function statusBadge(p: Player) {
     </span>
   );
 }
+
+type Takers = { penalty: string[]; directFreeKick: string[] };
+const TAKER_KINDS: Array<{ key: keyof Takers; label: string }> = [
+  { key: 'penalty', label: 'Elfmeter' },
+  { key: 'directFreeKick', label: 'Freistoss direkt' },
+];
+const takersOf = (squad: MatchdaySquad | null | undefined): Takers => ({
+  penalty: squad?.takers?.penalty ?? [],
+  directFreeKick: squad?.takers?.directFreeKick ?? [],
+});
 
 function setsEqual(a: Set<string>, b: Set<string>) {
   if (a.size !== b.size) return false;
@@ -65,8 +75,25 @@ export function MatchdaySquadSection({
     [persistedSquad],
   );
 
+  const persistedTakers = useMemo(() => takersOf(persistedSquad), [persistedSquad]);
+  const [takers, setTakers] = useState<Takers>(persistedTakers);
+  useEffect(() => setTakers(persistedTakers), [persistedTakers]);
+  const setTaker = (kind: keyof Takers, index: number, playerId: string) => {
+    setTakers(prev => {
+      const list = [...prev[kind]];
+      list[index] = playerId;
+      // Reihenfolge ohne Lücken und ohne Doppelnennung speichern.
+      return { ...prev, [kind]: list.filter((id, i) => id && list.indexOf(id) === i) };
+    });
+  };
+  const takerCandidates = useMemo(() => {
+    const inSquad = players.filter(p => starterIds.has(p.id) || benchIds.has(p.id));
+    return inSquad.length ? inSquad : players.filter(p => (p.status ?? 'active') === 'active');
+  }, [players, starterIds, benchIds]);
+
   const dirty =
-    !setsEqual(starterIds, persistedStarterSet) || !setsEqual(benchIds, persistedBenchSet);
+    !setsEqual(starterIds, persistedStarterSet) || !setsEqual(benchIds, persistedBenchSet) ||
+    JSON.stringify(takers) !== JSON.stringify(persistedTakers);
 
   // Clear the "Saved" pill if the user starts editing again.
   const dirtyRef = useRef(dirty);
@@ -118,6 +145,7 @@ export function MatchdaySquadSection({
           squad: {
             starters: Array.from(starterIds),
             bench: Array.from(benchIds),
+            takers,
           },
         },
       });
@@ -204,6 +232,37 @@ export function MatchdaySquadSection({
           <p className="text-[10px] text-muted-foreground ml-auto flex items-center gap-1.5">
             <Info className="w-3 h-3" /> A player can only be on one list.
           </p>
+        </div>
+
+        <div className="mt-4 rounded-xl border border-white/[0.06] bg-white/[0.02] p-3" data-testid="squad-takers">
+          <label className="section-label flex items-center gap-2 mb-2">
+            <Target className="h-3.5 w-3.5" /> Schützen (erscheinen auf dem Garderoben-Aushang)
+          </label>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            {TAKER_KINDS.map(kind => (
+              <div key={kind.key}>
+                <p className="text-[11px] text-white mb-1.5">{kind.label}</p>
+                <div className="grid grid-cols-3 gap-1.5">
+                  {[0, 1, 2].map(i => (
+                    <select
+                      key={i}
+                      aria-label={`${kind.label} ${i + 1}. Schütze`}
+                      value={takers[kind.key][i] ?? ''}
+                      disabled={i > takers[kind.key].length}
+                      onChange={e => setTaker(kind.key, i, e.target.value)}
+                      className="min-h-9 rounded-lg border border-white/[0.08] bg-background px-2 text-[11px] text-white disabled:opacity-40"
+                      data-testid={`taker-${kind.key}-${i}`}
+                    >
+                      <option value="">{i + 1}. –</option>
+                      {takerCandidates.map(p => (
+                        <option key={p.id} value={p.id}>{i + 1}. {p.shirtNumber ? `#${p.shirtNumber} ` : ''}{p.firstName} {p.lastName}</option>
+                      ))}
+                    </select>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
 
         {error && (

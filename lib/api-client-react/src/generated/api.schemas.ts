@@ -428,9 +428,17 @@ export interface UpsertAssignmentBody {
   notes?: string;
 }
 
+export type MatchdaySquadTakers = {
+  /** @maxItems 3 */
+  penalty: string[];
+  /** @maxItems 3 */
+  directFreeKick: string[];
+};
+
 export interface MatchdaySquad {
   starters: string[];
   bench: string[];
+  takers?: MatchdaySquadTakers;
 }
 
 export interface Matchday {

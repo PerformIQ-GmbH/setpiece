@@ -24,7 +24,7 @@ function fakePdf() {
   return {
     texts, images, pages: () => page,
     setFont() {}, setTextColor() {}, setDrawColor() {}, setFillColor() {}, setLineWidth() {}, setLineDashPattern() {},
-    line() {}, circle() {}, rect() {}, roundedRect() {}, ellipse() {}, addPage() { page++; },
+    line() {}, circle() {}, rect() {}, roundedRect() {}, ellipse() {}, triangle() {}, addPage() { page++; },
     addImage(_d, _t, x, y, w, h) { images.push({ x, y, w, h, page }); },
     setFontSize(v) { size = v; }, getTextWidth: (t) => String(t).length * size * 0.18,
     text(t, x, y) { texts.push({ text: String(t), x, y, page }); },
@@ -59,4 +59,19 @@ test("more variants than tiles continue on a numbered second sheet", () => {
 test("few variants get a smaller grid with larger images", () => {
   const big = (n) => { const pdf = fakePdf(); buildLockerSheet(pdf, "a4", input(Array.from({ length: n }, (_, i) => ({ title: `S${i}`, category: "attacking_throw_in", variants: [variant("", "x", "y", 1)] })))); return pdf.images[0].h; };
   assert.ok(big(2) > big(6) * 1.5);
+});
+
+test("attack comes before defence, tiles are tagged, takers and release notes are printed", () => {
+  const pdf = fakePdf();
+  buildLockerSheet(pdf, "a4", { ...input([
+    { title: "Ecke gegen uns", category: "defensive_corner_left", variants: [variant("", "Raum", "–")] },
+    { title: "Ecke für uns", category: "offensive_corner_left", variants: [variant("", "Mann", "Arm")] },
+    { title: "Einwurf", category: "attacking_throw_in", variants: [{ name: "", note: "Noch nicht für Spieler freigegeben", phases: [] }] },
+  ]), takers: { penalty: ["#10", "#7"], directFreeKick: ["#7"] } });
+  const at = (t) => pdf.texts.find(x => x.text === t);
+  assert.ok(at("Ecke für uns").y <= at("Ecke gegen uns").y && at("Ecke für uns").x < at("Ecke gegen uns").x || at("Ecke für uns").y < at("Ecke gegen uns").y, "attack first");
+  assert.equal(pdf.texts.filter(t => t.text === "ANGRIFF").length, 2);
+  assert.equal(pdf.texts.filter(t => t.text === "ABWEHR").length, 1);
+  for (const t of ["ELFMETER", "FREISTOSS DIREKT", "#10", "Noch nicht für Spieler freigegeben"]) assert.ok(at(t), t);
+  assert.equal(pdf.texts.filter(t => t.text === "#7").length, 2);
 });

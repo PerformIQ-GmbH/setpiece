@@ -135,9 +135,19 @@ export default function MatchdayDetail() {
 
       const sheetPieces = pieces.map((sp, idx) => {
         const detail = details[idx].status === 'fulfilled' ? details[idx].value : null;
-        const roles = (detail?.roles || []).map((r: SetPieceRole) => ({ id: r.id, name: r.name, startPosition: r.startPosition }));
+        const currentRoles = (detail?.roles || []).map((r: SetPieceRole) => ({ id: r.id, name: r.name, startPosition: r.startPosition }));
         const assignments = (detail?.assignments || []).map((a: RoleAssignment) => ({ roleId: a.roleId, playerId: a.playerId }));
-        const boardData = (detail?.boardData || sp.boardData || {}) as Record<string, unknown>;
+        const rawBoard = (detail?.boardData || sp.boardData || {}) as Record<string, unknown>;
+        // Wie die Spieler-App (variantContent.playerContent): nur bereit/aktiv,
+        // nur der freigegebene Stand; Varianten-Bretter ohne Freigabe fehlen dort.
+        const status = detail?.status ?? sp.status;
+        const publication = rawBoard.publishedContent as { boardData?: Record<string, unknown>; roles?: typeof currentRoles } | undefined;
+        const released = (status === 'ready' || status === 'active_matchday') && (!!publication?.boardData || !Array.isArray(rawBoard.variants));
+        if (!released) {
+          return { title: sp.title, category: sp.category, variants: [{ name: '', note: 'Noch nicht für Spieler freigegeben', phases: [] }] };
+        }
+        const boardData = publication?.boardData ?? rawBoard;
+        const roles = publication?.roles ? publication.roles.filter(r => currentRoles.some(c => c.id === r.id)) : currentRoles;
         const hasBoard = Object.keys(boardData).length > 0;
         // Eine Kachel pro Variante; kleinere Leinwand hält Nummern im Raster lesbar.
         // Einmal migrieren und dieses Brett weitergeben: ältere Bretter ohne
@@ -159,6 +169,10 @@ export default function MatchdayDetail() {
         };
       });
 
+      const takerLabels = (ids?: string[]) => (ids ?? []).flatMap(id => {
+        const p = (players || []).find((pl: Player) => pl.id === id);
+        return p ? [p.shirtNumber != null ? `#${p.shirtNumber}` : p.lastName] : [];
+      });
       const pdf = new jsPDF({ orientation: 'l', unit: 'mm', format });
       const dateLabel = matchday.date
         ? new Date(matchday.date).toLocaleDateString('de-CH', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
@@ -170,6 +184,10 @@ export default function MatchdayDetail() {
         dateLabel,
         qrDataUrl,
         pieces: sheetPieces,
+        takers: {
+          penalty: takerLabels(matchday.squad?.takers?.penalty),
+          directFreeKick: takerLabels(matchday.squad?.takers?.directFreeKick),
+        },
         generatedLabel: `Stand ${new Date().toLocaleDateString('de-CH')}`,
       });
       pdf.save(`${team?.name || 'team'}_${matchday.title}_garderobe_${format.toUpperCase()}.pdf`);
