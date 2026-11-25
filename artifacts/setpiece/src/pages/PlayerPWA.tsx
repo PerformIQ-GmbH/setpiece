@@ -8,6 +8,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { useToast } from '@/hooks/use-toast';
+import { TutorialOverlay, resetTutorial } from '@/components/editor/TutorialOverlay';
+import { PLAYER_LIST_TOUR, PLAYER_TASK_TOUR, useGuidedTour } from '@/components/editor/guidedTours';
 
 type Screen = 'identify' | 'overview' | 'detail';
 type PlayerTask = PlayerVariantTask;
@@ -37,6 +39,8 @@ export default function PlayerPWA() {
   );
 
   const markReady = useMarkPlayerReady();
+  const listTour = useGuidedTour(PLAYER_LIST_TOUR, screen === 'overview' && !!playerData);
+  const taskTour = useGuidedTour(PLAYER_TASK_TOUR, screen === 'detail' && !!playerData);
 
   useEffect(() => {
     if (selectedPlayerId) {
@@ -237,6 +241,7 @@ export default function PlayerPWA() {
     return (
       <div className="min-h-screen bg-[var(--surface-0)] text-white font-sans">
         <div className="max-w-md mx-auto min-h-screen bg-[var(--surface-1)] flex flex-col relative">
+          <TutorialOverlay open={taskTour.open} onClose={taskTour.close} tour={PLAYER_TASK_TOUR} mobile />
           <header className="p-4 border-b border-white/[0.06] flex items-center bg-[var(--surface-2)] shrink-0 sticky top-0 z-20 backdrop-blur-xl">
             <button
               onClick={() => { setScreen('overview'); setActiveSetPieceId(null); setActiveTaskKey(null); }}
@@ -273,14 +278,14 @@ export default function PlayerPWA() {
               </div>
 
               {((typeof recognitionCue === 'string' && recognitionCue.trim()) || (typeof teamSignal === 'string' && teamSignal.trim())) && (
-                <div className="bg-white/[0.03] p-5 rounded-2xl border border-white/[0.06] mb-4 space-y-3">
+                <div data-tutorial="player-cues" className="bg-white/[0.03] p-5 rounded-2xl border border-white/[0.06] mb-4 space-y-3">
                   {typeof recognitionCue === 'string' && recognitionCue.trim() && <div><p className="section-label mb-1">Gegner erkennen</p><p className="text-sm leading-relaxed text-white/80">{recognitionCue}</p></div>}
                   {typeof teamSignal === 'string' && teamSignal.trim() && <div><p className="section-label mb-1">Teamsignal</p><p className="text-sm leading-relaxed text-white/80">{teamSignal}</p></div>}
                 </div>
               )}
 
               {activeRole && (
-                <div className="bg-white/[0.03] p-5 rounded-2xl border border-white/[0.06] mb-4">
+                <div data-tutorial="player-role" className="bg-white/[0.03] p-5 rounded-2xl border border-white/[0.06] mb-4">
                   <div className="flex items-center gap-2 mb-3">
                     <div className="w-8 h-8 rounded-xl bg-primary/15 flex items-center justify-center">
                       <Trophy className="w-4 h-4 text-primary" />
@@ -365,7 +370,7 @@ export default function PlayerPWA() {
 
                 </div>
               )}
-              <div className="mt-3">
+              <div className="mt-3" data-tutorial="player-quiz">
                   <Link href={`/p/${shareToken}/quiz?setPieceId=${activeSetPiece.id}&playerId=${selectedPlayerId || ''}&roleId=${encodeURIComponent(activeRole?.id || '')}&variantId=${encodeURIComponent(activeTask?.variantId || '')}&contentVersion=${encodeURIComponent(activeTask?.contentVersion || '')}`} className="w-full">
                     <Button className="w-full py-5 rounded-2xl premium-glow">
                       Take Quiz
@@ -401,14 +406,20 @@ export default function PlayerPWA() {
               <span className="text-white font-semibold">{playerData.player.firstName} {playerData.player.lastName}</span>
               {playerData.player.shirtNumber && <span className="text-primary ml-1.5 font-semibold">#{playerData.player.shirtNumber}</span>}
             </p>
-            <button onClick={handleSwitchPlayer} className="text-xs text-primary font-semibold hover:underline">
-              Not you?
-            </button>
+            <div className="flex items-center gap-4">
+              <button onClick={() => { resetTutorial(PLAYER_TASK_TOUR.key); listTour.start(); }} className="min-h-11 text-xs text-muted-foreground font-semibold hover:text-white">
+                Tour
+              </button>
+              <button onClick={handleSwitchPlayer} className="min-h-11 text-xs text-primary font-semibold hover:underline">
+                Not you?
+              </button>
+            </div>
           </div>
         </header>
+        <TutorialOverlay open={listTour.open} onClose={listTour.close} tour={PLAYER_LIST_TOUR} mobile />
 
         <main className="flex-1 overflow-y-auto px-5 pb-24">
-          <div className="my-5 p-4 rounded-2xl bg-white/[0.03] border border-white/[0.06]">
+          <div data-tutorial="player-progress" className="my-5 p-4 rounded-2xl bg-white/[0.03] border border-white/[0.06]">
             <div className="flex items-center justify-between mb-3">
               <p className="text-sm font-semibold text-white">Your Progress</p>
               <p className="text-sm font-bold text-primary">{readyCount}/{totalCount}</p>
@@ -427,7 +438,7 @@ export default function PlayerPWA() {
             Aufgaben ({entries.length})
           </p>
 
-          <div className="space-y-3">
+          <div data-tutorial="player-tasks" className="space-y-3">
             {orderedEntries.map(({ piece: sp, task }, idx: number) => {
               const readinessStatus = task?.status ?? sp.readiness?.status;
               const isReady = readinessStatus === 'opened' || readinessStatus === 'passed';

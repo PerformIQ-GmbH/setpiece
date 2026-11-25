@@ -12,11 +12,13 @@ import { PlaybookSelect } from '@/components/PlaybookSelect';
 import { Pitch } from '@/components/Pitch';
 import { pitchOrientationForCategory } from '@/utils/pitchGeometry';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Plus, Trash2, Share2, QrCode, ArrowLeft, LayoutDashboard, Copy, Check, Clock, Users, FileDown, Loader2, Pencil, CheckCircle2, AlertTriangle, CircleDashed } from 'lucide-react';
+import { HelpCircle, Plus, Trash2, Share2, QrCode, ArrowLeft, LayoutDashboard, Copy, Check, Clock, Users, FileDown, Loader2, Pencil, CheckCircle2, AlertTriangle, CircleDashed } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { QRCodeSVG } from 'qrcode.react';
 import type { jsPDF as JsPDFType } from 'jspdf';
 import { MatchdayAssistant } from '@/components/MatchdayAssistant';
+import { TutorialOverlay } from '@/components/editor/TutorialOverlay';
+import { MATCHDAY_TOUR, useGuidedTour } from '@/components/editor/guidedTours';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import type { SheetFormat } from '@/utils/lockerSheetPdf';
 import { MatchdaySquadSection } from '@/components/MatchdaySquadSection';
@@ -42,6 +44,7 @@ export default function MatchdayDetail() {
   });
   const [shareOpen, setShareOpen] = useState(false);
   const [exportingPDF, setExportingPDF] = useState(false);
+  const tour = useGuidedTour(MATCHDAY_TOUR, !!matchday && !!players);
 
   // Squad selection lifted to the page so the Squad section and the
   // Matchday Assistant share one source of truth. We hydrate it from the
@@ -764,7 +767,7 @@ export default function MatchdayDetail() {
         <div className="flex items-center gap-2 shrink-0">
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button size="sm" variant="outline" disabled={exportingPDF} className="rounded-xl">
+              <Button size="sm" variant="outline" disabled={exportingPDF} data-tutorial="print" className="rounded-xl">
                 {exportingPDF ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <FileDown className="h-4 w-4 mr-2" />}
                 {exportingPDF ? 'Wird erstellt…' : 'Drucken'}
               </Button>
@@ -775,14 +778,18 @@ export default function MatchdayDetail() {
               <DropdownMenuItem onSelect={handleExportMatchPack}>Detailmappe (mehrseitig)</DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
-          <Button size="sm" variant="outline" onClick={() => { setShareLink(''); setShareScope('all'); setSelectedPlayers([]); setExpiryHours(''); setShareOpen(true); }} className="border-primary/30 text-primary rounded-xl">
+          <Button size="sm" variant="outline" data-tutorial="share" onClick={() => { setShareLink(''); setShareScope('all'); setSelectedPlayers([]); setExpiryHours(''); setShareOpen(true); }} className="border-primary/30 text-primary rounded-xl">
             <QrCode className="h-4 w-4 mr-2" /> Share
           </Button>
           <Button size="sm" onClick={() => setAddOpen(true)} className="rounded-xl">
             <Plus className="h-4 w-4 mr-2" /> Add Set Piece
           </Button>
+          <Button size="sm" variant="ghost" onClick={tour.start} aria-label="Tour starten" className="rounded-xl text-muted-foreground hover:text-white">
+            <HelpCircle className="h-4 w-4 mr-1.5" /> Tour
+          </Button>
         </div>
       </div>
+      <TutorialOverlay open={tour.open} onClose={tour.close} tour={MATCHDAY_TOUR} />
 
       {matchday && (
         <Card className="mb-6 border-white/[0.08]">

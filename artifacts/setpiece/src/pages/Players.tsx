@@ -6,10 +6,12 @@ import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { StatusBadge } from '@/components/StatusBadge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { UserPlus, Search, Trash2, Edit2, QrCode, Link2, Copy, Check, RefreshCw, Loader2 } from 'lucide-react';
+import { UserPlus, Search, Trash2, Edit2, QrCode, Link2, Copy, Check, RefreshCw, Loader2, HelpCircle } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { QRCodeSVG } from 'qrcode.react';
 import { useConfirm } from '@/hooks/use-confirm';
+import { TutorialOverlay } from '@/components/editor/TutorialOverlay';
+import { ROSTER_TOUR, useGuidedTour } from '@/components/editor/guidedTours';
 import { STANDARD_PROFILE_TAG_OPTIONS, SELF_REPORTED_TAG, tagLabel } from '@/lib/roleSuitability';
 
 const FOOT_OPTIONS = ['right', 'left', 'both'];
@@ -39,6 +41,7 @@ export default function Players() {
   const teamId = params?.teamId || '';
   const { data: team } = useGetTeam(teamId);
   const { data: players, refetch } = useListPlayers(teamId, undefined, { query: { queryKey: getListPlayersQueryKey(teamId), refetchInterval: 5000 } });
+  const tour = useGuidedTour(ROSTER_TOUR, players !== undefined);
   const createPlayer = useCreatePlayer();
   const updatePlayer = useUpdatePlayer();
   const deletePlayer = useDeletePlayer();
@@ -186,11 +189,14 @@ export default function Players() {
           <p className="text-muted-foreground text-sm mt-1">{filtered.length} player{filtered.length !== 1 ? 's' : ''}</p>
         </div>
         <div className="flex gap-2">
-          <Button size="sm" variant="outline" onClick={handleOpenInvite} className="border-primary/30 text-primary hover:bg-primary/10">
+          <Button size="sm" variant="outline" onClick={handleOpenInvite} data-tutorial="invite" className="border-primary/30 text-primary hover:bg-primary/10">
             <QrCode className="h-4 w-4 mr-2" /> Invite Players
           </Button>
-          <Button size="sm" onClick={openNew}>
+          <Button size="sm" onClick={openNew} data-tutorial="add-player">
             <UserPlus className="h-4 w-4 mr-2" /> Add Player
+          </Button>
+          <Button size="sm" variant="ghost" onClick={tour.start} aria-label="Tour starten" className="text-muted-foreground hover:text-white">
+            <HelpCircle className="h-4 w-4 mr-1.5" /> Tour
           </Button>
         </div>
       </div>
@@ -213,7 +219,8 @@ export default function Players() {
         </select>
       </div>
 
-      <Card className="bg-card border-border overflow-hidden">
+      <TutorialOverlay open={tour.open} onClose={tour.close} tour={ROSTER_TOUR} />
+      <Card data-tutorial="roster-table" className="bg-card border-border overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-sm text-left">
             <thead className="bg-secondary/50 text-muted-foreground text-xs uppercase font-bold">
