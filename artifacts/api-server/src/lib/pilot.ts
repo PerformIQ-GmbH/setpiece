@@ -8,7 +8,26 @@ export function effectivePilotTier(tier: string, expiresAt: Date | null, now = n
   return tier === "free" && expiresAt && expiresAt > now ? "solo_coach" : tier;
 }
 
+// Comma-separated owner emails that get Solo Coach for free, without a code or expiry.
+function complimentarySoloEmails(): Set<string> {
+  return new Set((process.env.SETPIECE_COMPLIMENTARY_SOLO_EMAILS ?? "")
+    .split(",").map((e) => e.trim().toLowerCase()).filter(Boolean));
+}
+
+async function ownerHasComplimentarySolo(teamId: string): Promise<boolean> {
+  const emails = complimentarySoloEmails();
+  if (!emails.size) return false;
+  const result = await db.execute(sql`
+    SELECT lower(u.email) AS email FROM teams t JOIN users u ON u.id = t.owner_id WHERE t.id = ${teamId}
+  `);
+  const email = result.rows[0]?.email;
+  return typeof email === "string" && emails.has(email);
+}
+
 export async function teamPilotAccess(teamId: string, tier: string) {
+  if (tier === "free" && await ownerHasComplimentarySolo(teamId)) {
+    return { effectiveTier: "solo_coach", pilotExpiresAt: null, pilotAvailable: false };
+  }
   if (!pilotEnabled()) return { effectiveTier: tier, pilotExpiresAt: null, pilotAvailable: false };
   const [pilot] = await db.select({ expiresAt: pilotAccessTable.expiresAt })
     .from(pilotAccessTable).where(eq(pilotAccessTable.teamId, teamId));
