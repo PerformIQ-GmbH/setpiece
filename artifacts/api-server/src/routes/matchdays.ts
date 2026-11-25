@@ -18,6 +18,10 @@ const createMatchdaySchema = z.object({
 const squadSchema = z.object({
   starters: z.array(z.string().min(1)).max(50),
   bench: z.array(z.string().min(1)).max(50),
+  takers: z.object({
+    penalty: z.array(z.string().min(1)).max(3),
+    directFreeKick: z.array(z.string().min(1)).max(3),
+  }).optional(),
 });
 
 const updateMatchdaySchema = z.object({

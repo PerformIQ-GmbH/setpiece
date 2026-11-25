@@ -2116,6 +2116,20 @@ components:
           type: array
           items:
             type: string
+        takers:
+          type: object
+          required: [penalty, directFreeKick]
+          properties:
+            penalty:
+              type: array
+              maxItems: 3
+              items:
+                type: string
+            directFreeKick:
+              type: array
+              maxItems: 3
+              items:
+                type: string
     Matchday:
       type: object
       required: [id, teamId, title, createdAt, updatedAt]
