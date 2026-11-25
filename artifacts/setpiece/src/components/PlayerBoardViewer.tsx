@@ -644,18 +644,18 @@ export function PlayerBoardViewer({
         </Stage>
 
         {/* Mini legend overlay */}
-        <div className="absolute top-2 left-2 flex flex-col gap-1 px-2 py-1.5 rounded-lg bg-black/55 backdrop-blur-sm border border-white/10 text-[10px] text-white/85 font-medium pointer-events-none">
+        <div className={`absolute ${halfPitch ? 'bottom-2' : 'top-2'} left-2 flex flex-col gap-1 px-2 py-1.5 rounded-lg bg-black/55 backdrop-blur-sm border border-white/10 text-[10px] text-white/85 font-medium pointer-events-none`}>
           <div className="flex items-center gap-1.5">
             <span className="inline-block w-2.5 h-2.5 rounded-full" style={{ background: ACCENT, boxShadow: `0 0 6px ${ACCENT}` }} />
-            <span>You</span>
+            <span>Du</span>
           </div>
           <div className="flex items-center gap-1.5">
             <span className="inline-block w-2.5 h-2.5 rounded-full bg-emerald-700 border border-emerald-500" />
-            <span>Teammate</span>
+            <span>Mitspieler</span>
           </div>
           <div className="flex items-center gap-1.5">
             <span className="inline-block w-2.5 h-2.5 rounded-full bg-red-500/80" />
-            <span>Opponent</span>
+            <span>Gegner</span>
           </div>
           <div className="flex items-center gap-1.5">
             <span
@@ -665,7 +665,7 @@ export function PlayerBoardViewer({
                 boxShadow: `0 0 4px ${ACCENT}`,
               }}
             />
-            <span>Your run</span>
+            <span>Dein Laufweg</span>
           </div>
           <div className="flex items-center gap-1.5">
             <span className="inline-block w-2.5 h-2.5 rounded-full bg-white" />
@@ -680,8 +680,8 @@ export function PlayerBoardViewer({
               type="button"
               onClick={focusOnRole}
               className="w-9 h-9 rounded-lg bg-[var(--accent,#22d3ee)]/20 backdrop-blur-sm border border-[#22d3ee]/40 flex items-center justify-center text-[#22d3ee] active:bg-[#22d3ee]/30"
-              aria-label="Focus on my role"
-              title="Focus on my marker and run"
+              aria-label="Auf meine Rolle zentrieren"
+              title="Meine Markierung und meinen Laufweg zeigen"
             >
               <Crosshair className="w-4 h-4" />
             </button>
@@ -690,7 +690,7 @@ export function PlayerBoardViewer({
             type="button"
             onClick={() => setZoomAround(zoom + 0.5)}
             className="w-9 h-9 rounded-lg bg-black/55 backdrop-blur-sm border border-white/10 flex items-center justify-center text-white/85 active:bg-white/10"
-            aria-label="Zoom in"
+            aria-label="Hineinzoomen"
           >
             <ZoomIn className="w-4 h-4" />
           </button>
@@ -698,7 +698,7 @@ export function PlayerBoardViewer({
             type="button"
             onClick={() => setZoomAround(zoom - 0.5)}
             className="w-9 h-9 rounded-lg bg-black/55 backdrop-blur-sm border border-white/10 flex items-center justify-center text-white/85 active:bg-white/10"
-            aria-label="Zoom out"
+            aria-label="Herauszoomen"
           >
             <ZoomOut className="w-4 h-4" />
           </button>
@@ -707,7 +707,7 @@ export function PlayerBoardViewer({
               type="button"
               onClick={() => { setZoom(1); setPan({ x: 0, y: 0 }); }}
               className="w-9 h-9 rounded-lg bg-black/55 backdrop-blur-sm border border-white/10 flex items-center justify-center text-white/85 active:bg-white/10"
-              aria-label="Reset zoom"
+              aria-label="Zoom zurücksetzen"
             >
               <RotateCcw className="w-4 h-4" />
             </button>
@@ -723,7 +723,7 @@ export function PlayerBoardViewer({
               type="button"
               onClick={togglePlay}
               className="w-10 h-10 rounded-xl bg-primary/15 border border-primary/30 text-primary flex items-center justify-center active:scale-95 transition-transform"
-              aria-label={playing ? 'Pause' : 'Play'}
+              aria-label={playing ? 'Pause' : 'Abspielen'}
             >
               {playing ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4 ml-0.5" />}
             </button>
@@ -731,7 +731,7 @@ export function PlayerBoardViewer({
               type="button"
               onClick={reset}
               className="w-10 h-10 rounded-xl bg-white/[0.06] border border-white/[0.06] text-white/80 flex items-center justify-center active:scale-95 transition-transform"
-              aria-label="Restart"
+              aria-label="Neu starten"
             >
               <RotateCcw className="w-4 h-4" />
             </button>
@@ -756,7 +756,7 @@ export function PlayerBoardViewer({
                       ? 'bg-primary text-black'
                       : 'bg-white/[0.06] text-white/70 hover:bg-white/[0.1]'
                   }`}
-                  aria-label={`Step ${i + 1}: ${s.label}`}
+                  aria-label={`Schritt ${i + 1}: ${s.label}`}
                   title={s.label}
                 >
                   {i + 1}

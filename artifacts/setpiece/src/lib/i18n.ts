@@ -110,6 +110,11 @@ const de: Record<string, string> = {
   'Empty Board': 'Leeres Board',
   'Tap the tool button to place players and draw movements.': 'Tippe auf das Werkzeug-Symbol, um Spieler zu platzieren und Laufwege zu zeichnen.',
   'Use the toolbar to place players and draw movements. Start with the Team Player tool to add your first role.': 'Platziere Spieler und zeichne Laufwege über die Werkzeugleiste. Starte mit dem Spieler-Werkzeug für deine erste Rolle.',
+  'Legend': 'Legende',
+  'Lines': 'Linien',
+  'Markers': 'Markierungen',
+  'Pass / Delivery': 'Pass / Flanke',
+  'Curved Path': 'Bogenlinie',
   'Delete this role?': 'Diese Rolle löschen?',
   'This will remove the role and its assignment from this set piece.': 'Die Rolle und ihre Zuordnung werden aus diesem Standard entfernt.',
   'Delete': 'Löschen',
@@ -194,4 +199,9 @@ const de: Record<string, string> = {
 export function t(key: string): string {
   if (LANG === 'de') return de[key] ?? key;
   return key;
+}
+
+/** German regardless of the app language, for surfaces that are German-only (public demo). */
+export function tDe(key: string): string {
+  return de[key] ?? key;
 }

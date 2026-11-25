@@ -5,7 +5,7 @@ import vm from 'node:vm';
 import { clearClientSession } from '../../artifacts/setpiece/src/lib/session-cleanup.ts';
 import { computeStructural } from '../../artifacts/setpiece/src/lib/board-health.ts';
 import { safeReturnTo } from '../../artifacts/setpiece/src/lib/auth-return-to.ts';
-import { demoTeam, demoPlayers, demoSetPiece, demoMatchday, demoReadiness, demoReadinessForAnswer } from '../../artifacts/setpiece/src/lib/demo-fixture.ts';
+import { demoTeam, demoPlayers, demoSetPiece, demoSetPieceShort, demoSetPieces, demoWalkthroughs, demoMatchday, demoReadiness, demoReadinessForAnswer } from '../../artifacts/setpiece/src/lib/demo-fixture.ts';
 
 const swSource = await readFile(new URL('../../artifacts/setpiece/public/sw.js', import.meta.url), 'utf8');
 
@@ -111,27 +111,51 @@ test('logout and identity changes remove client queries, old caches and player s
   }
 });
 
-test('the fictional demo has a complete, consistent team, set piece and matchday', () => {
-  assert.equal(demoSetPiece.teamId, demoTeam.id);
-  assert.equal(demoMatchday.setPieces[0].id, demoSetPiece.id);
-  for (const role of demoSetPiece.roles) {
-    const assignment = demoSetPiece.assignments.find(item => item.roleId === role.id);
-    assert.ok(assignment);
-    assert.ok(demoPlayers.some(player => player.id === assignment.playerId));
-    assert.ok(Number.isFinite(role.startPosition.x) && Number.isFinite(role.startPosition.y));
+test('the fictional demo has a complete, consistent team, set pieces and matchday', () => {
+  assert.equal(demoSetPieces.length, 2);
+  assert.deepEqual(demoMatchday.setPieces.map(item => item.id), demoSetPieces.map(item => item.id));
+  for (const piece of demoSetPieces) {
+    assert.equal(piece.teamId, demoTeam.id);
+    for (const role of piece.roles) {
+      const assignment = piece.assignments.find(item => item.roleId === role.id);
+      assert.ok(assignment);
+      assert.ok(demoPlayers.some(player => player.id === assignment.playerId));
+      assert.ok(Number.isFinite(role.startPosition.x) && Number.isFinite(role.startPosition.y));
+    }
   }
   assert.ok(demoSetPiece.boardData.annotations.some(item => item.linkedRoleId === 'role-9' && item.points.length >= 2));
 });
 
+test('the short-corner demo matches the reel: positions, step-wise movement and one quiz for player 8', () => {
+  const byRole = Object.fromEntries(demoSetPieceShort.roles.map(role => [role.id, role.startPosition]));
+  const board = demoSetPieceShort.boardData;
+  const stepIds = board.steps.map(step => step.id);
+  assert.equal(demoSetPieceShort.title, 'Ecke · Kurz in den Rückraum');
+  // 10 outside the box corner (x 18 m, y 22 m): 50.0 + 18/68 and 22/52.5 of the visible half pitch.
+  assert.deepEqual(byRole['short-role-10'], { x: 76.5, y: 41.9 });
+  for (const id of ['short-role-9', 'short-role-3', 'short-role-4', 'short-role-5']) {
+    // the five-metre box is 5.5 m deep and 18.32 m wide, centred on the goal
+    assert.ok(byRole[id].y <= (5.5 / 52.5) * 100 && Math.abs(byRole[id].x - 50) <= (9.16 / 68) * 100, id);
+  }
+  for (const annotation of board.annotations) assert.ok(stepIds.includes(annotation.stepId));
+  for (const entity of board.entities) assert.ok(entity.position.x >= 0 && entity.position.x <= 100 && entity.position.y >= 0 && entity.position.y <= 100);
+  assert.ok(board.annotations.some(item => item.linkedRoleId === 'short-role-11' && item.type === 'run_path'));
+  const quiz = demoWalkthroughs.find(item => item.playerId === 'demo-8');
+  assert.equal(quiz.setPiece.id, demoSetPieceShort.id);
+  assert.ok(demoSetPieceShort.assignments.some(item => item.roleId === quiz.roleId && item.playerId === 'demo-8'));
+  assert.equal(quiz.question, 'Wann startest du aus dem Rückraum?');
+  assert.equal(quiz.correct, 'Wenn die 10 den Ball annimmt');
+});
+
 test('a local quiz answer updates the correct demo player and the coach totals without modifying the fixture', () => {
   const before = structuredClone(demoReadiness);
-  for (const correct of [true, false]) {
-    const next = demoReadinessForAnswer(correct);
-    assert.equal(next.details.find(item => item.playerId === 'demo-9').status, correct ? 'passed' : 'needs_review');
-    assert.equal(next.summary.passed, correct ? 2 : 1);
-    assert.equal(next.summary.needsReview, correct ? 0 : 1);
-    assert.equal(Object.values(next.summary).reduce((a, b) => a + b, 0), demoPlayers.length);
+  for (const playerId of ['demo-9', 'demo-8']) for (const correct of [true, false]) {
+    const next = demoReadinessForAnswer(correct, playerId);
+    assert.equal(next.details.find(item => item.playerId === playerId).status, correct ? 'passed' : 'needs_review');
+    assert.equal(Object.values(next.summary).reduce((a, b) => a + b, 0), demoReadiness.details.length);
   }
+  assert.equal(demoReadinessForAnswer(true).summary.passed, 2);
+  assert.equal(demoReadinessForAnswer(false).summary.needsReview, 1);
   assert.deepEqual(demoReadiness, before);
 });
 

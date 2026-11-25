@@ -2,6 +2,10 @@
 
 **Stand 07.11.2026: Varianten, Suche und Playbook-Sammlungen sind live unter https://setpiece.performiq.ch/.**
 
+## Demo: Eckball «Kurz in den Rückraum» 25.11.2026 (implementiert, nicht deployed)
+
+Branch `ccr-781f8f5c-1b6s2n`. Die öffentliche Demo enthält neben «Ecke · Erster Pfosten» den zweiten Standard «Ecke · Kurz in den Rückraum» (Marketing-Reel): drei Phasen, acht Rollen, fiktive Gegner, Spieleraufgabe und Quiz für Spieler 8 («Wann startest du aus dem Rückraum?»). Das Produktbeispiel auf Startseite und Demo-Übersicht wechselt zwischen beiden Standards, Liste, Editoransicht, Spielfeld, Quiz und Trainer-Rückmeldung zeigen beide. Die Legende der Spielertafel ist deutsch (Du, Mitspieler, Gegner, Dein Laufweg, Ball), ebenso die Legende der Demo-Editoransicht, die zuvor ausserhalb des sichtbaren Bereichs lag. Geprüft: `pnpm typecheck` grün, Standardsuite 126 Tests, 124 bestanden, 2 ohne Datenbank übersprungen (Node 22.23.5 und pnpm 10.28.0, da Node 24 in dieser Umgebung fehlt); Browser (Chromium) bei 390 und 1366 px gegen lokalen Production-Build. Nicht geprüft: Node 24/pnpm 11.25.0, echtes Touchgerät. Weiterhin englisch: Spieleransicht `PlayerPWA` und `PlayerQuiz` (echte, datenbankgestützte Links).
+
 ## Marktstart-Vorbereitung 24.11.2026 (implementiert, nicht gemergt, nicht deployed)
 
 Branch `ccr-781f8f5c-1b6s2n`. Anmeldeherkunft: `utm_source`/`utm_medium`/`utm_campaign` und fremder Referrer-Host werden beim ersten Aufruf im Tab im `sessionStorage` gehalten und bei E-Mail- oder Google-Registrierung serverseitig validiert (max. 100 bzw. 253 Zeichen, sonst `null`) in vier neuen nullbaren `users`-Spalten gespeichert. Additive Migration `lib/db/migrations/20261124_signup_attribution.sql` ist **in keiner Replit-Datenbank angewandt**; vor dem Deployment nach Backup in Entwicklung und Produktion gezielt anwenden, sonst scheitern Registrierung und Anmeldung (Drizzle liest alle `users`-Spalten). Auswertung als SQL in [LAUNCH](LAUNCH.md). Datenschutzseite um die Herkunftsspeicherung ergänzt. Checkout erlaubt Stripe-Promotion-Codes (`allow_promotion_codes`); keine Gutscheine angelegt, keine Preise geändert, Pilotmodus unverändert aktiv.
