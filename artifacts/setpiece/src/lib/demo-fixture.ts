@@ -2,11 +2,11 @@
 // team or on database seeding, and never submit player responses to the API.
 import { FIFA_PITCH } from '../utils/pitchGeometry.ts';
 
-// Half pitch, goal at the top: metres from the goal centre (x, positive towards the
-// right corner) and from the goal line (y) become the stored 0-100 positions.
-const pos = (x: number, y: number) => ({
-  x: Math.round(((FIFA_PITCH.fieldWidth / 2 + x) / FIFA_PITCH.fieldWidth) * 1000) / 10,
-  y: Math.round((y / (FIFA_PITCH.fieldLength / 2)) * 1000) / 10,
+// Half pitch, goal at the top. Positions are given as in the reel (cover-b8.js): [metres in front of the
+// goal line, metres sideways from the goal centre, + towards the corner flag] and become stored 0-100 positions.
+const pos = (depth: number, side: number) => ({
+  x: Math.min(100, Math.max(0, Math.round(((FIFA_PITCH.fieldWidth / 2 + side) / FIFA_PITCH.fieldWidth) * 1000) / 10)),
+  y: Math.min(100, Math.max(0, Math.round((depth / (FIFA_PITCH.fieldLength / 2)) * 1000) / 10)),
 });
 
 export const demoTeam = { id: 'demo-team', name: 'FC Beispiel · U19', clubName: 'Fiktives Demoteam', tier: 'solo_coach' };
@@ -41,11 +41,11 @@ export const demoSetPiece = {
 };
 // Reel variant: short corner from the right, lay-off, flat shot from the edge of the box.
 const shortRoles = [
-  { id: 'short-role-7', name: 'Ecke kurz ausführen', description: 'Kurz und flach auf die 10 spielen.', coachingPoint: 'Flach und scharf spielen, damit die 10 den Ball mit dem ersten Kontakt weiterleiten kann.', startPosition: pos(32.5, 1.5) },
+  { id: 'short-role-7', name: 'Ecke kurz ausführen', description: 'Kurz und flach auf die 10 spielen.', coachingPoint: 'Flach und scharf spielen, damit die 10 den Ball mit dem ersten Kontakt weiterleiten kann.', startPosition: pos(0.5, 33) },
   { id: 'short-role-10', name: 'Ablage', description: 'Vor der Strafraumecke anbieten und den Ball mit dem ersten Kontakt quer zurücklegen.', coachingPoint: 'Körper zum Ball öffnen und direkt ablegen, ohne den Ball mitzunehmen.', startPosition: pos(18, 22) },
-  { id: 'short-role-8', name: 'Abschluss aus dem Rückraum', description: 'Aus dem Rückraum starten, sobald die 10 den Ball annimmt, und flach an der Strafraumkante abschliessen.', coachingPoint: 'Nicht zu früh starten: Erst wenn die 10 den Ball annimmt. Flach abschliessen.', startPosition: pos(4, 24) },
-  { id: 'short-role-11', name: 'Köder', description: 'Richtung Eckfahne laufen und den Bewacher mitziehen.', coachingPoint: 'Mit Tempo starten, damit der Gegenspieler wirklich folgt.', startPosition: pos(27, 14) },
-  ...[[9, -7.5, 3.5], [3, -2.5, 4.5], [4, 2.5, 4.5], [5, 7.5, 3.5]].map(([n, x, y]) => ({
+  { id: 'short-role-8', name: 'Abschluss aus dem Rückraum', description: 'Aus dem Rückraum starten, sobald die 10 den Ball annimmt, und flach an der Strafraumkante abschliessen.', coachingPoint: 'Nicht zu früh starten: Erst wenn die 10 den Ball annimmt. Flach abschliessen.', startPosition: pos(24, 6) },
+  { id: 'short-role-11', name: 'Köder', description: 'Richtung Eckfahne laufen und den Bewacher mitziehen.', coachingPoint: 'Mit Tempo starten, damit der Gegenspieler wirklich folgt.', startPosition: pos(8, 18) },
+  ...[[4, 4.6, 0.5], [5, 4.6, 3.6], [9, 2.0, 2.1], [3, 2.0, 5.2]].map(([n, x, y]) => ({
     id: `short-role-${n}`, name: 'Sichtschutz', description: 'Im Fünfer stehen und dem Torhüter die Sicht auf den Schützen nehmen.',
     coachingPoint: 'Ruhig stehen bleiben und die Sichtlinie versperren, nicht auf den Ball laufen.', startPosition: pos(x, y),
   })),
@@ -62,7 +62,7 @@ const line = (id: string, type: 'run_path' | 'pass_line', stepId: string, points
 export const demoSetPieceShort = {
   id: 'demo-corner-short', teamId: demoTeam.id, title: 'Ecke · Kurz in den Rückraum', category: 'corner_offensive', status: 'ready',
   description: 'Kurz auf die 10, Ablage auf die 8 und flacher Abschluss an der Strafraumkante. Vier Spieler nehmen dem Torhüter die Sicht.', previewImageUrl: null,
-  coachingNotes: 'Die 8 startet erst, wenn die 10 den Ball annimmt. Die 11 zieht ihren Bewacher Richtung Fahne. Abseits beachten: Beim Pass der 10 muss jeder Spieler im Fünfer mit mindestens zwei Gegenspielern (Torhüter eingerechnet) auf gleicher Höhe oder näher zur Torlinie stehen.',
+  coachingNotes: 'Die 8 startet erst, wenn die 10 den Ball annimmt. Die 11 zieht ihren Bewacher Richtung Fahne. Abseits beachten: Die Sichtblocker bleiben auf Höhe des Pfostenverteidigers oder davor. Steht kein Gegner am Pfosten, rücken sie beim Pass der 10 auf Höhe des zweitletzten Gegners heraus. Wer dem Torhüter die Sicht nimmt und im Abseits steht, greift ins Spiel ein.',
   roles: shortRoles,
   assignments: [
     { roleId: 'short-role-7', playerId: 'demo-7' }, { roleId: 'short-role-10', playerId: 'demo-10' }, { roleId: 'short-role-8', playerId: 'demo-8' },
@@ -72,25 +72,24 @@ export const demoSetPieceShort = {
   boardData: {
     steps: shortSteps,
     annotations: [
-      line('short-pass-7', 'pass_line', 'short-1', [pos(32.5, 1.5), pos(18, 22)], { snappedStartRef: 'ball-1' }),
-      line('short-run-11', 'run_path', 'short-1', [pos(27, 14), pos(32, 8)], { linkedRoleId: 'short-role-11' }),
-      line('short-run-8', 'run_path', 'short-2', [pos(4, 24), pos(11, 19.5)], { linkedRoleId: 'short-role-8' }),
-      line('short-pass-10', 'pass_line', 'short-2', [pos(18, 22), pos(11, 19.5)], { snappedStartRef: 'ball-1' }),
-      line('short-shot-8', 'pass_line', 'short-3', [pos(11, 19.5), pos(-3, 0)], { snappedStartRef: 'ball-1', strokeWidth: 3 }),
+      line('short-pass-7', 'pass_line', 'short-1', [pos(0.5, 33.5), pos(18, 22)], { snappedStartRef: 'ball-1' }),
+      line('short-run-11', 'run_path', 'short-1', [pos(8, 18), pos(3, 28)], { linkedRoleId: 'short-role-11' }),
+      line('short-run-8', 'run_path', 'short-2', [pos(24, 6), pos(17, 2)], { linkedRoleId: 'short-role-8' }),
+      line('short-pass-10', 'pass_line', 'short-2', [pos(18, 22), pos(17, 2)], { snappedStartRef: 'ball-1' }),
+      line('short-shot-8', 'pass_line', 'short-3', [pos(17, 2), pos(-0.2, -3)], { snappedStartRef: 'ball-1', strokeWidth: 3 }),
     ],
     entities: [
-      { id: 'ball-1', type: 'ball' as const, position: pos(32.5, 1.5) },
-      { id: 'gk-1', type: 'goalkeeper' as const, position: pos(0, 2) },
-      { id: 'opp-1', type: 'opponent' as const, position: pos(25, 16) },
-      { id: 'opp-2', type: 'opponent' as const, position: pos(21, 26) },
-      { id: 'opp-3', type: 'opponent' as const, position: pos(3.5, 1.5) },
-      { id: 'opp-4', type: 'opponent' as const, position: pos(-3.5, 1.5) },
-      { id: 'opp-5', type: 'opponent' as const, position: pos(-6, 12) },
+      { id: 'ball-1', type: 'ball' as const, position: pos(0.5, 33.5) },
+      { id: 'gk-1', type: 'goalkeeper' as const, position: pos(0.7, -0.3) },
+      { id: 'opp-1', type: 'opponent' as const, position: pos(6.2, 16) },
+      { id: 'opp-2', type: 'opponent' as const, position: pos(0.6, 3.2) },
+      { id: 'opp-3', type: 'opponent' as const, position: pos(5.8, 7.6) },
+      { id: 'opp-4', type: 'opponent' as const, position: pos(11.2, 10.5) },
     ],
     entityStepPositions: {
-      'short-1': { 'ball-1': pos(32.5, 1.5), 'opp-1': pos(25, 16) },
-      'short-2': { 'ball-1': pos(18, 22), 'opp-1': pos(30, 10) },
-      'short-3': { 'ball-1': pos(11, 19.5), 'opp-1': pos(30, 10) },
+      'short-1': { 'ball-1': pos(0.5, 33.5), 'opp-1': pos(6.2, 16) },
+      'short-2': { 'ball-1': pos(18, 22), 'opp-1': pos(3.1, 23.6) },
+      'short-3': { 'ball-1': pos(17, 2), 'opp-1': pos(3.1, 23.6) },
     },
   },
 };

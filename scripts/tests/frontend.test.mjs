@@ -126,19 +126,36 @@ test('the fictional demo has a complete, consistent team, set pieces and matchda
   assert.ok(demoSetPiece.boardData.annotations.some(item => item.linkedRoleId === 'role-9' && item.points.length >= 2));
 });
 
-test('the short-corner demo matches the reel: positions, step-wise movement and one quiz for player 8', () => {
-  const byRole = Object.fromEntries(demoSetPieceShort.roles.map(role => [role.id, role.startPosition]));
+test('the short-corner demo matches the reel (cover-b8.js): positions, legal offside set-up, step-wise movement, quiz for player 8', () => {
+  // Stored 0-100 positions back to metres: depth in front of the goal line, side from the goal centre (+ towards the flag).
+  const m = point => ({ depth: point.y / 100 * 52.5, side: point.x / 100 * 68 - 34 });
+  const near = (point, depth, side) => { const v = m(point); assert.ok(Math.abs(v.depth - depth) < 0.2 && Math.abs(v.side - side) < 0.2, JSON.stringify([v, depth, side])); };
   const board = demoSetPieceShort.boardData;
+  const role = id => demoSetPieceShort.roles.find(item => item.id === id).startPosition;
+  const entity = id => board.entities.find(item => item.id === id).position;
   const stepIds = board.steps.map(step => step.id);
   assert.equal(demoSetPieceShort.title, 'Ecke · Kurz in den Rückraum');
-  // 10 outside the box corner (x 18 m, y 22 m): 50.0 + 18/68 and 22/52.5 of the visible half pitch.
-  assert.deepEqual(byRole['short-role-10'], { x: 76.5, y: 41.9 });
+  near(role('short-role-10'), 18, 22);
+  near(role('short-role-8'), 24, 6);
+  near(role('short-role-11'), 8, 18);
+  near(role('short-role-4'), 4.6, 0.5); near(role('short-role-5'), 4.6, 3.6); near(role('short-role-9'), 2.0, 2.1); near(role('short-role-3'), 2.0, 5.2);
+  near(entity('gk-1'), 0.7, -0.3);
+  near(board.entityStepPositions['short-2']['opp-1'], 3.1, 23.6);
+  // 10 stands outside the penalty area (depth > 16.5 or |side| > 20.16); 8 finishes on its edge (depth 16 to 18).
+  const ten = m(role('short-role-10'));
+  assert.ok(ten.depth > 16.5 || Math.abs(ten.side) > 20.16);
+  const finish = board.annotations.find(item => item.id === 'short-run-8').points.at(-1);
+  assert.ok(m(finish).depth >= 16 && m(finish).depth <= 18);
+  // the five-metre blockers are inside the goal area and not nearer the goal line than the second-last opponent at the 10's pass
+  const atPass = [entity('gk-1'), ...board.entities.filter(item => item.type === 'opponent').map(item => board.entityStepPositions['short-2'][item.id] ?? item.position)];
+  const secondLast = atPass.map(point => m(point).depth).sort((a, b) => a - b)[1];
   for (const id of ['short-role-9', 'short-role-3', 'short-role-4', 'short-role-5']) {
-    // the five-metre box is 5.5 m deep and 18.32 m wide, centred on the goal
-    assert.ok(byRole[id].y <= (5.5 / 52.5) * 100 && Math.abs(byRole[id].x - 50) <= (9.16 / 68) * 100, id);
+    const v = m(role(id));
+    assert.ok(v.depth <= 5.5 && Math.abs(v.side) <= 9.16, id);
+    assert.ok(v.depth >= secondLast, `${id} offside at the pass`);
   }
   for (const annotation of board.annotations) assert.ok(stepIds.includes(annotation.stepId));
-  for (const entity of board.entities) assert.ok(entity.position.x >= 0 && entity.position.x <= 100 && entity.position.y >= 0 && entity.position.y <= 100);
+  for (const item of board.entities) assert.ok(item.position.x >= 0 && item.position.x <= 100 && item.position.y >= 0 && item.position.y <= 100);
   assert.ok(board.annotations.some(item => item.linkedRoleId === 'short-role-11' && item.type === 'run_path'));
   const quiz = demoWalkthroughs.find(item => item.playerId === 'demo-8');
   assert.equal(quiz.setPiece.id, demoSetPieceShort.id);
