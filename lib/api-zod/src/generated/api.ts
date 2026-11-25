@@ -486,11 +486,39 @@ export const joinTeamBodyLastNameMax = 100;
 
 export const joinTeamBodyShirtNumberMax = 99;
 
+export const joinTeamBodyHeightMin = 100;
+export const joinTeamBodyHeightMax = 230;
+
+export const joinTeamBodyHeadingStrengthMax = 10;
+
+export const joinTeamBodySpeedMax = 10;
+
+export const joinTeamBodyTagsMax = 9;
+
 export const JoinTeamBody = zod.object({
   firstName: zod.string().min(1).max(joinTeamBodyFirstNameMax),
   lastName: zod.string().min(1).max(joinTeamBodyLastNameMax),
   shirtNumber: zod.number().min(1).max(joinTeamBodyShirtNumberMax).optional(),
-  dominantFoot: zod.enum(["left", "right", "both"]).optional(),
+  dominantFoot: zod.enum(["left", "right", "both"]),
+  height: zod.number().min(joinTeamBodyHeightMin).max(joinTeamBodyHeightMax),
+  headingStrength: zod.number().min(1).max(joinTeamBodyHeadingStrengthMax),
+  speed: zod.number().min(1).max(joinTeamBodySpeedMax),
+  tags: zod
+    .array(
+      zod.enum([
+        "delivery_specialist",
+        "aerial_threat",
+        "runner",
+        "blocker",
+        "marker",
+        "zonal",
+        "rest_defense",
+        "rebound",
+        "counter",
+      ]),
+    )
+    .min(1)
+    .max(joinTeamBodyTagsMax),
 });
 
 /**

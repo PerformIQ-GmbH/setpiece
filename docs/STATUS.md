@@ -2,6 +2,17 @@
 
 **Stand 07.11.2026: Varianten, Suche und Playbook-Sammlungen sind live unter https://setpiece.performiq.ch/.**
 
+## Standard-Profil beim Beitritt und Rollenvorschläge 25.11.2026 (implementiert, nicht gemergt, nicht deployed)
+
+Branch `ccr-7804b1ac-m73f52`. Anlass (Vince): Viele Spieler zeigten in den Rollenvorschlägen dieselbe Zahl. Ursache belegt: Der Beitritt per QR/Link fragte nur Name, Nummer und Fuss (Fuss mit «rechts» vorausgewählt). Die Bewertung startet ohne Profildaten bei 55. Rollen wurden nur über englische Begriffe erkannt (deutsche Rollennamen = «allgemein» = 55). Die Trainer-Merkmale `strong_header` und `set_piece_specialist` wurden nicht gezählt.
+
+- **Beitritt (Entscheid Vince 25.11.: alles Pflicht):** zweiter Schritt «Dein Standard-Profil» mit Grösse, starkem Fuss (ohne Vorauswahl), Kopfball und Tempo 1-5 (gespeichert als 2-10) sowie Katalog «Was machst du bei Standards gern?» (9 Rollen, mindestens eine). Der Server prüft alle Felder und nimmt nur Katalogmerkmale an; Selbstangaben erhalten das Merkmal `self_reported` («Selbstangabe»).
+- **Bewertung:** deutsche Rollenbegriffe, Katalogmerkmale und alte Trainer-Merkmale zählen; Begründungen auf Deutsch. Ohne Profildaten zeigen Editor und Spieltags-Assistent «Profil unvollständig» statt einer Zahl.
+- **Spielerliste:** Fuss, Grösse, Kopfball und Tempo direkt in der Zeile änderbar. Speichert der Trainer (Zeile oder Dialog), entfällt «Selbstangabe» (Entscheid Vince: Selbstangaben zählen sofort, markiert).
+- Keine Datenbankmigration nötig (bestehende Spalten).
+
+Geprüft (Node 22.23.5, pnpm 10.28.0, da Node 24 hier fehlt): `pnpm typecheck` grün; Standardsuite 130 Tests, 128 bestanden, 2 ohne Datenbank übersprungen; neue Regressionen für Bewertung und Beitrittsprüfung. Browser (Chromium, API durch fiktive Antworten ersetzt): Beitritt bei 390 px ohne horizontales Scrollen, gesendete Daten korrekt; Spielerliste bei 1366 und 390 px, Zeilenänderung entfernt `self_reported`. Nicht geprüft: echte Datenbank, Node 24/pnpm 11.25.0, physisches Handy. Bestehende Spieler behalten ihre Werte; ohne Profildaten erscheinen sie jetzt als «Profil unvollständig».
+
 ## Demo: Eckball «Kurz in den Rückraum» 25.11.2026 (implementiert, nicht deployed)
 
 Branch `ccr-781f8f5c-1b6s2n`. Die öffentliche Demo enthält neben «Ecke · Erster Pfosten» den zweiten Standard «Ecke · Kurz in den Rückraum» (Marketing-Reel): drei Phasen, acht Rollen, fiktive Gegner (Positionen nach dem Reel `cover-b8.js`, Pfostenverteidiger damit die Sichtblocker beim Pass der 10 nicht im Abseits stehen), Spieleraufgabe und Quiz für Spieler 8 («Wann startest du aus dem Rückraum?»). Das Produktbeispiel auf Startseite und Demo-Übersicht wechselt zwischen beiden Standards, Liste, Editoransicht, Spielfeld, Quiz und Trainer-Rückmeldung zeigen beide. Die Legende der Spielertafel ist deutsch (Du, Mitspieler, Gegner, Dein Laufweg, Ball), ebenso die Legende der Demo-Editoransicht, die zuvor ausserhalb des sichtbaren Bereichs lag. Geprüft: `pnpm typecheck` grün, Standardsuite 126 Tests, 124 bestanden, 2 ohne Datenbank übersprungen (Node 22.23.5 und pnpm 10.28.0, da Node 24 in dieser Umgebung fehlt); Browser (Chromium) bei 390 und 1366 px gegen lokalen Production-Build. Nicht geprüft: Node 24/pnpm 11.25.0, echtes Touchgerät. Weiterhin englisch: Spieleransicht `PlayerPWA` und `PlayerQuiz` (echte, datenbankgestützte Links).
