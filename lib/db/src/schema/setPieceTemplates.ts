@@ -29,7 +29,7 @@ export const setPieceTemplatesTable = pgTable("set_piece_templates", {
   description: text("description"),
   boardData: jsonb("board_data").$type<Record<string, unknown>>(),
   previewImageUrl: text("preview_image_url"),
-  defaultRoles: jsonb("default_roles").$type<Array<{ name: string; description: string; startPosition: { x: number; y: number }; coachingPoint: string }>>(),
+  defaultRoles: jsonb("default_roles").$type<Array<{ id?: string; name: string; description: string; startPosition: { x: number; y: number }; coachingPoint: string }>>(),
   coachingNote: text("coaching_note"),
   media: jsonb("media").$type<VideoClip[]>(),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),

@@ -37,6 +37,7 @@ import type {
   CreateShareLinkBody,
   CreateTeamBody,
   ErrorEnvelope,
+  GetAdminStatus200,
   GetBoardPreview200,
   GetQuizQuestionsParams,
   GetReadinessDashboardParams,
@@ -71,6 +72,7 @@ import type {
   RoleAssignment,
   RoleSuggestionsBody,
   RoleSuggestionsResponse,
+  SaveSetPieceAsTemplateBody,
   SetPiece,
   SetPieceCollection,
   SetPieceCollectionInput,
@@ -2253,6 +2255,81 @@ export const useJoinTeam = <
 > => {
   return useMutation(getJoinTeamMutationOptions(options));
 };
+
+/**
+ * @summary Whether the signed-in user is a platform admin
+ */
+export const getGetAdminStatusUrl = () => {
+  return `/api/admin/status`;
+};
+
+export const getAdminStatus = async (
+  options?: RequestInit,
+): Promise<GetAdminStatus200> => {
+  return customFetch<GetAdminStatus200>(getGetAdminStatusUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetAdminStatusQueryKey = () => {
+  return [`/api/admin/status`] as const;
+};
+
+export const getGetAdminStatusQueryOptions = <
+  TData = Awaited<ReturnType<typeof getAdminStatus>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getAdminStatus>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetAdminStatusQueryKey();
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getAdminStatus>>> = ({
+    signal,
+  }) => getAdminStatus({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getAdminStatus>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetAdminStatusQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getAdminStatus>>
+>;
+export type GetAdminStatusQueryError = ErrorType<unknown>;
+
+/**
+ * @summary Whether the signed-in user is a platform admin
+ */
+
+export function useGetAdminStatus<
+  TData = Awaited<ReturnType<typeof getAdminStatus>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getAdminStatus>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetAdminStatusQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
 
 /**
  * @summary List set piece templates
@@ -6301,6 +6378,121 @@ export function useGetBoardPreview<
 
   return { ...query, queryKey: queryOptions.queryKey };
 }
+
+/**
+ * @summary Publish this set piece as a template for all teams (platform admins only)
+ */
+export const getSaveSetPieceAsTemplateUrl = (
+  teamId: string,
+  setPieceId: string,
+) => {
+  return `/api/teams/${teamId}/set-pieces/${setPieceId}/save-as-template`;
+};
+
+export const saveSetPieceAsTemplate = async (
+  teamId: string,
+  setPieceId: string,
+  saveSetPieceAsTemplateBody?: SaveSetPieceAsTemplateBody,
+  options?: RequestInit,
+): Promise<SetPieceTemplate> => {
+  return customFetch<SetPieceTemplate>(
+    getSaveSetPieceAsTemplateUrl(teamId, setPieceId),
+    {
+      ...options,
+      method: "PUT",
+      headers: { "Content-Type": "application/json", ...options?.headers },
+      body: JSON.stringify(saveSetPieceAsTemplateBody),
+    },
+  );
+};
+
+export const getSaveSetPieceAsTemplateMutationOptions = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof saveSetPieceAsTemplate>>,
+    TError,
+    {
+      teamId: string;
+      setPieceId: string;
+      data: BodyType<SaveSetPieceAsTemplateBody>;
+    },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof saveSetPieceAsTemplate>>,
+  TError,
+  {
+    teamId: string;
+    setPieceId: string;
+    data: BodyType<SaveSetPieceAsTemplateBody>;
+  },
+  TContext
+> => {
+  const mutationKey = ["saveSetPieceAsTemplate"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof saveSetPieceAsTemplate>>,
+    {
+      teamId: string;
+      setPieceId: string;
+      data: BodyType<SaveSetPieceAsTemplateBody>;
+    }
+  > = (props) => {
+    const { teamId, setPieceId, data } = props ?? {};
+
+    return saveSetPieceAsTemplate(teamId, setPieceId, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type SaveSetPieceAsTemplateMutationResult = NonNullable<
+  Awaited<ReturnType<typeof saveSetPieceAsTemplate>>
+>;
+export type SaveSetPieceAsTemplateMutationBody =
+  BodyType<SaveSetPieceAsTemplateBody>;
+export type SaveSetPieceAsTemplateMutationError = ErrorType<void>;
+
+/**
+ * @summary Publish this set piece as a template for all teams (platform admins only)
+ */
+export const useSaveSetPieceAsTemplate = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof saveSetPieceAsTemplate>>,
+    TError,
+    {
+      teamId: string;
+      setPieceId: string;
+      data: BodyType<SaveSetPieceAsTemplateBody>;
+    },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof saveSetPieceAsTemplate>>,
+  TError,
+  {
+    teamId: string;
+    setPieceId: string;
+    data: BodyType<SaveSetPieceAsTemplateBody>;
+  },
+  TContext
+> => {
+  return useMutation(getSaveSetPieceAsTemplateMutationOptions(options));
+};
 
 /**
  * @summary List audit events

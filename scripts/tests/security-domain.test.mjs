@@ -6,6 +6,7 @@ import vm from "node:vm";
 import crypto from "node:crypto";
 import * as variantContent from "../../artifacts/api-server/src/lib/variantContent.ts";
 import * as videoClip from "../../artifacts/api-server/src/lib/videoClip.ts";
+import * as platformAdmin from "../../artifacts/api-server/src/lib/platformAdmin.ts";
 import { createRequire } from "node:module";
 import { fileURLToPath } from "node:url";
 
@@ -13,8 +14,9 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..")
 const require = createRequire(path.join(root, "artifacts/api-server/package.json"));
 const ts = createRequire(import.meta.url)("typescript");
 const schema = Object.fromEntries(Object.entries({
-  usersTable: ["id", "email", "passwordHash"], sessionsTable: ["sid", "sess", "expire"],
+  usersTable: ["id", "email", "emailVerified", "passwordHash"], sessionsTable: ["sid", "sess", "expire"],
   passwordResetTokensTable: ["id", "userId", "token", "usedAt", "expiresAt"], emailVerificationTokensTable: ["id", "userId", "usedAt"],
+  setPieceTemplatesTable: ["id", "slug"],
   playersTable: ["id", "teamId"], setPiecesTable: ["id", "teamId", "status"],
   membershipsTable: ["userId", "teamId", "role"], setPieceCollectionsTable: ["id", "teamId"],
   setPieceRolesTable: ["id", "setPieceId", "createdAt", "updatedAt"],
@@ -49,6 +51,8 @@ function database(initial = {}) {
       return { from(table) {
         let rows = data[table.name].map((record) => ({ [table.name]: record }));
         const query = {
+          // `await db.select().from(table)` without where, as drizzle allows.
+          then: (resolve, reject) => query.where(undefined).then(resolve, reject),
           innerJoin(join, condition) {
             rows = rows.flatMap((row) => data[join.name].map((record) => ({ ...row, [join.name]: record }))).filter((row) => matches(row, condition));
             return query;
@@ -610,7 +614,7 @@ function publishingFixture(initial) {
   const db = database(initial), h = harness();
   load("artifacts/api-server/src/routes/setPieces.ts", {
     express: h.express, "@workspace/db": { db, ...schema }, "drizzle-orm": orm, "zod/v4": require("zod/v4"),
-    "../lib/variantContent": variantContent, "../lib/videoClip": videoClip, "../lib/entitlements": { async checkEntitlement() { return true; } }, "../lib/roleSuitability": {},
+    "../lib/variantContent": variantContent, "../lib/videoClip": videoClip, "../lib/platformAdmin": platformAdmin, "../lib/entitlements": { async checkEntitlement() { return true; } }, "../lib/roleSuitability": {},
     "../lib/authorization": { async requireCoachAccess() { return "team"; }, async requireHeadCoachAccess() { return "team"; }, parseParam: value => value },
   });
   return { db, ...h };
@@ -649,6 +653,73 @@ test("video clips are normalized on save, invalid links rejected, and served to 
   s.db.data.setPiecesTable[0].media = stored.media;
   const res = await invoke(s.routes, "GET /p/:shareToken/player/:playerId", request({}, { params: { playerId: "player" } }));
   assert.equal(res.body.setPieces[0].media[0].videoId, "dQw4w9WgXcQ");
+});
+
+test("creating from a template remaps its drawing to the new role ids and copies text and clips", async () => {
+  const board = { schemaVersion: 2, defaultVariantId: "v", variants: [{ id: "v", name: "A", roleTasks: { r1: { description: "x" } }, steps: [{ id: "s", label: "1", sortOrder: 0 }],
+    annotations: [{ id: "a", type: "run_path", linkedRoleId: "r1", stepId: "s", points: [{ x: 1, y: 1 }, { x: 2, y: 2 }] }], entities: [], stepPositions: { s: { r1: { x: 1, y: 1 }, r2: { x: 3, y: 3 } } }, entityStepPositions: {} }] };
+  const clip = { url: "https://storage.googleapis.com/setpiece-mediathek/clips/a.mp4", provider: "file", videoId: "clips/a.mp4", startSec: 0, endSec: null, title: null };
+  const f = publishingFixture({ setPieceTemplatesTable: [{ id: "tpl", boardData: board, media: [clip], description: "Beschreibung", coachingNote: "Hinweis",
+    defaultRoles: [{ id: "r1", name: "Läufer", startPosition: { x: 1, y: 1 } }, { id: "r2", name: "Schütze", startPosition: { x: 3, y: 3 } }] }] });
+  const res = await invoke(f.routes, "POST /teams/:teamId/set-pieces", request({ title: "Meine Ecke", category: "offensive_corner_left", templateId: "tpl" }, { user: { id: "coach" } }));
+  assert.equal(res.statusCode, 201);
+  const roles = f.db.data.setPieceRolesTable;
+  assert.equal(roles.length, 2);
+  const [run, shooter] = roles.map((r) => r.id);
+  const stored = f.db.data.setPiecesTable[0];
+  const variant = stored.boardData.variants[0];
+  assert.equal(variant.annotations[0].linkedRoleId, run, "run follows the new role");
+  assert.deepEqual(Object.keys(variant.roleTasks), [run]);
+  assert.deepEqual(Object.keys(variant.stepPositions.s).sort(), [run, shooter].sort());
+  assert.equal(stored.description, "Beschreibung");
+  assert.equal(stored.coachingNotes, "Hinweis");
+  assert.deepEqual(stored.media, [clip]);
+  assert.equal(res.body.boardData.variants[0].annotations[0].linkedRoleId, run, "response carries the remapped board");
+  assert.equal(board.variants[0].annotations[0].linkedRoleId, "r1", "template itself is not mutated");
+});
+
+test("only verified platform admins can publish a set piece as a template; library sync marker and slugs are set", async () => {
+  assert.equal(platformAdmin.slugify("Täuschung kurz, Angriff lang!"), "taeuschung-kurz-angriff-lang");
+  assert.equal(platformAdmin.slugify("???"), "vorlage");
+  assert.deepEqual([...platformAdmin.adminEmails(" A@x.ch, ,b@X.CH ")], ["a@x.ch", "b@x.ch"]);
+  assert.equal(platformAdmin.isAdminUser({ email: "A@x.ch", emailVerified: true }, new Set(["a@x.ch"])), true);
+  assert.equal(platformAdmin.isAdminUser({ email: "a@x.ch", emailVerified: false }, new Set(["a@x.ch"])), false);
+  assert.equal(platformAdmin.isAdminUser(undefined, new Set(["a@x.ch"])), false);
+
+  const previous = process.env.PLATFORM_ADMIN_EMAILS;
+  process.env.PLATFORM_ADMIN_EMAILS = "admin@example.test";
+  try {
+    const data = publishedQuizData();
+    data.usersTable = [{ id: "coach", email: "coach@example.test", emailVerified: true }, { id: "admin", email: "ADMIN@example.test", emailVerified: true }, { id: "fake", email: "admin@example.test", emailVerified: false }];
+    data.setPiecesTable[0].title = "Täuschung kurz";
+    data.setPiecesTable[0].media = [{ url: "https://youtu.be/dQw4w9WgXcQ", provider: "youtube", videoId: "dQw4w9WgXcQ", startSec: 0, endSec: null, title: null }];
+    const f = publishingFixture(data);
+    const put = (id, body = {}) => invoke(f.routes, "PUT /teams/:teamId/set-pieces/:setPieceId/save-as-template", request(body, { params: { setPieceId: "piece" }, user: { id } }));
+
+    assert.equal((await put("coach")).statusCode, 403, "coach without admin e-mail");
+    assert.equal((await put("fake")).statusCode, 403, "unverified e-mail is no proof");
+    assert.equal(f.db.data.setPieceTemplatesTable.length, 0);
+
+    const created = await put("admin");
+    assert.equal(created.statusCode, 201);
+    const [template] = f.db.data.setPieceTemplatesTable;
+    assert.equal(template.slug, "taeuschung-kurz");
+    assert.ok(template.boardData.editedByAdminAt, "sync marker");
+    assert.equal(template.boardData.publishedContent, undefined, "no per-team publication in a template");
+    assert.deepEqual(template.defaultRoles.map((r) => r.id), f.db.data.setPieceRolesTable.map((r) => r.id));
+    assert.deepEqual(template.media, data.setPiecesTable[0].media);
+    assert.equal((await put("admin")).statusCode, 201);
+    assert.deepEqual(f.db.data.setPieceTemplatesTable.map((t) => t.slug), ["taeuschung-kurz", "taeuschung-kurz-2"]);
+
+    f.db.data.setPiecesTable[0].title = "Neuer Titel";
+    const updated = await put("admin", { templateId: template.id });
+    assert.equal(updated.statusCode, 200);
+    assert.equal(f.db.data.setPieceTemplatesTable[0].title, "Neuer Titel");
+    assert.equal((await put("admin", { templateId: "missing" })).statusCode, 404);
+    assert.equal((await put("admin", { templateId: 5 })).statusCode, 400);
+  } finally {
+    if (previous === undefined) delete process.env.PLATFORM_ADMIN_EMAILS; else process.env.PLATFORM_ADMIN_EMAILS = previous;
+  }
 });
 
 for (const legacyStatus of ["ready", "active_matchday"]) test(`first V2 autosave preserves ${legacyStatus} legacy board, quiz and readiness until explicit publication`, async () => {

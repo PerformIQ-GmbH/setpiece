@@ -2,6 +2,10 @@
 
 **Stand 07.11.2026: Varianten, Suche und Playbook-Sammlungen sind live unter https://setpiece.performiq.ch/.**
 
+## Gezeichnete Vorlagen und Admin-Bearbeitung 26.11.2026 (implementiert, nicht gemergt, nicht deployed)
+
+Alle 29 Vorlagen haben jetzt eine Zeichnung (Schritte, Laufwege, Pässe, Ball, Torhüter, Gegner) aus `scripts/src/library-specs.ts`; `library-board.ts` baut daraus das Board. Beim Übernehmen einer Vorlage schreibt die API die Zeichnung auf die neuen Rollen-IDs um (vorher zeigten Läufe ins Leere) und übernimmt Beschreibung, Hinweis und Videoszenen. Die Vorschaubilder zeigen die ganze Zeichnung statt nur den ersten Schritt. Neu: Admin-Knopf «Vorlage» im Editor (`PUT …/save-as-template`, nur für `PLATFORM_ADMIN_EMAILS` mit bestätigter E-Mail, serverseitig geprüft), Details in [MEDIATHEK](MEDIATHEK.md). Das Bibliotheksskript überspringt im Editor bearbeitete Vorlagen. Keine Schemaänderung, keine neue Migration. Die Zeichnungen sind aus Artikeln und Videoszenen abgeleitet, nicht vermessen. Geprüft: Typecheck, Tests (neue für Übernehmen, Admin, Generator, Bibliotheksdaten), Browser (Vorschaubilder aller 29, Editor mit Schritten, Admin-Dialog) mit gemockter API; nicht gegen eine Datenbank.
+
 ## Videoszenen und deutsche Vorlagenbibliothek 25.11.2026 (implementiert, nicht gemergt, nicht deployed)
 
 Branch `ccr-604afcc9-gn3fc1`, Plan [VIDEO-BIBLIOTHEK-PLAN](VIDEO-BIBLIOTHEK-PLAN.md). Trainer hängen bis zu 5 YouTube-/Vimeo-Ausschnitte mit Start/Ende an einen Standard (Editor → «Videoszenen»); Spieler sehen sie im QR-Link unter der Animation, Vorlagen mit Szenen zeigen «Szene ansehen» und geben die Szenen beim Übernehmen mit. Der Server leitet Anbieter und Video-ID selbst aus dem Link ab (nur https, nur YouTube/Vimeo). Szenen sind Referenzmaterial und gehören nicht zum eingefrorenen Spielerstand: Änderungen sind sofort im Spielerlink sichtbar.

@@ -8,6 +8,7 @@
 import type { SetPieceTemplateDefaultRolesItemStartPosition } from "./setPieceTemplateDefaultRolesItemStartPosition";
 
 export type SetPieceTemplateDefaultRolesItem = {
+  id?: string;
   name?: string;
   description?: string;
   startPosition?: SetPieceTemplateDefaultRolesItemStartPosition;

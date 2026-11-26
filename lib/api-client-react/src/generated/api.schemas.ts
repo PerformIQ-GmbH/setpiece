@@ -228,6 +228,7 @@ export type SetPieceTemplateDefaultRolesItemStartPosition = {
 };
 
 export type SetPieceTemplateDefaultRolesItem = {
+  id?: string;
   name?: string;
   description?: string;
   startPosition?: SetPieceTemplateDefaultRolesItemStartPosition;
@@ -1244,6 +1245,10 @@ export type ListPlayersParams = {
   search?: string;
 };
 
+export type GetAdminStatus200 = {
+  isPlatformAdmin: boolean;
+};
+
 export type ListTemplatesParams = {
   category?: string;
 };
@@ -1280,6 +1285,10 @@ export type UpdateBoardPreview200 = {
 export type GetBoardPreview200 = {
   /** @nullable */
   previewImageUrl?: string | null;
+};
+
+export type SaveSetPieceAsTemplateBody = {
+  templateId?: string;
 };
 
 export type ListAuditEventsParams = {

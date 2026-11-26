@@ -47,6 +47,17 @@ MEDIA_LIBRARY_BASE_URLS=https://storage.googleapis.com/setpiece-mediathek/
 
 Für die Vorlagen der Bibliothek ist das nicht nötig, die kommen über `scripts/src/template-library.ts`.
 
+## Vorlagen als Admin bearbeiten
+
+Vince (und weitere Admins) zeichnen Vorlagen im normalen Editor und veröffentlichen sie für alle Teams:
+
+1. In Replit für den API-Server (Deployment und Entwicklung) die Variable `PLATFORM_ADMIN_EMAILS` setzen, mehrere Adressen mit Komma, zum Beispiel `name@firma.ch`. Es zählt nur ein Konto mit **bestätigter** E-Mail; die Prüfung läuft auf dem Server. Ohne die Variable gibt es keine Admins.
+2. In SETPIECE einen Standard aus der Bibliothek übernehmen und im Editor verbessern (Laufwege, Pässe, Gegner, Schritte, Videoszenen).
+3. Im Editor oben auf **Vorlage** klicken, «Ersetzen: …» oder «Neue Vorlage anlegen» wählen, speichern. Alle Teams sehen die Vorlage sofort. Bereits angelegte Standards der Teams ändern sich nicht.
+4. Eine so gespeicherte Vorlage trägt die Markierung `editedByAdminAt`. Das Bibliotheksskript (`template-library`) überspringt sie künftig und überschreibt sie nicht.
+
+Wer das Original aus dem Code zurückhaben will, löscht die Markierung nicht von Hand, sondern fragt Claude.
+
 ## Anmelden in einer Sitzung
 
 ```sh
