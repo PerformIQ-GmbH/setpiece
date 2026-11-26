@@ -33,3 +33,20 @@ Zum Hochladen auf den SETPIECE-Kanal (nicht gelistet): Den Ausschnitt mit den Ze
 
 - Positionen in den neuen Vorlagen sind aus dem Bild geschätzt, nicht vermessen. In der App nachjustieren, falls nötig.
 - Rechte: Das Premier-League-Video und der Osman-Footy-Short gehören Dritten. Laut Vince liegen Rechte für die Nutzung vor; vor dem Hochladen pro Szene festhalten, für welche Nutzung (App, organische Posts, bezahlte Werbung).
+
+## Mediathek-Links (hochgeladen 26.11.2026)
+
+10 fertig geschnittene Clips ohne Ton, `gs://setpiece-mediathek/clips/`, Link ohne Anmeldung abrufbar (200, video/mp4). In `scripts/src/template-library.ts` als `media` eingetragen; in die App kommen sie erst mit dem Bibliotheksskript.
+
+| Vorlage | Szene | Link |
+|---|---|---|
+| `seitlich-anlegen-direkt` | Liverpool bei Chelsea · 22.09.2019 | https://storage.googleapis.com/setpiece-mediathek/clips/01-seitlich-anlegen-direkt-d60554f080.mp4 |
+| `schneller-freistoss` | Wolverhampton bei Bournemouth · 23.11.2019 | https://storage.googleapis.com/setpiece-mediathek/clips/02-schneller-freistoss-e586ceb647.mp4 |
+| `kurze-ecke-neuer-winkel` | Bournemouth bei Newcastle · 09.11.2019 | https://storage.googleapis.com/setpiece-mediathek/clips/03-kurze-ecke-neuer-winkel-92ed56ddfc.mp4 |
+| `ecke-strafraumrand-volley` | Bradford City gegen Manchester United · 25.03.2000 | https://storage.googleapis.com/setpiece-mediathek/clips/04-ecke-strafraumrand-volley-d6835d584a.mp4 |
+| `chip-hinter-die-linie` | Manchester United gegen Manchester City · 08.03.2020 | https://storage.googleapis.com/setpiece-mediathek/clips/05-chip-hinter-die-linie-2cf2082885.mp4 |
+| `mauer-ende-anspiel` | Wolverhampton gegen Stoke · 14.08.2010 | https://storage.googleapis.com/setpiece-mediathek/clips/06-mauer-ende-anspiel-96257e7108.mp4 |
+| `mauer-ende-anspiel` | Niederlande gegen Argentinien · WM 2022 | https://storage.googleapis.com/setpiece-mediathek/clips/10-mauer-ende-anspiel-70a2351239.mp4 |
+| `freistoss-flach-in-den-lauf` | Everton gegen Southampton · 18.08.2018 | https://storage.googleapis.com/setpiece-mediathek/clips/07-freistoss-flach-in-den-lauf-56817b8bf6.mp4 |
+| `ecke-angetippt-dribbling` | Aston Villa gegen Bournemouth · 09.04.2016 | https://storage.googleapis.com/setpiece-mediathek/clips/08-ecke-angetippt-dribbling-1687798d1b.mp4 |
+| `kette-loest-sich-auf` | Dynamo Dresden gegen VfL Bochum | https://storage.googleapis.com/setpiece-mediathek/clips/09-kette-loest-sich-auf-3b1bca0b70.mp4 |
