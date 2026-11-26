@@ -55,6 +55,8 @@ gcloud auth activate-service-account --key-file="$SCRATCH/gcs-key.json"
 rm "$SCRATCH/gcs-key.json"
 ```
 
+In der Cloud-Umgebung setzt `CLOUDSDK_AUTH_ACCESS_TOKEN` die Anmeldung ausser Kraft (Fehler 401). Bei eigenen `gcloud`-Aufrufen `env -u CLOUDSDK_AUTH_ACCESS_TOKEN gcloud …` verwenden; das Schnittskript tut das selbst. Das Dienstkonto hat nur Objektrechte, `buckets describe` schlägt deshalb fehl; mit `gcloud storage ls` prüfen.
+
 ## Kosten
 
 Speicher in Zürich etwa USD 0.02–0.03 pro GB und Monat; ein Clip hat 5–10 MB. Abrufe aus dem Internet kosten etwa USD 0.12 pro GB. 100 Clips, jeder 1000 Mal angesehen, sind rund 750 GB, also etwa USD 90 im Monat. Bei mehr Nutzung ein CDN davorschalten oder Clips kleiner rechnen.

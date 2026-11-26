@@ -82,8 +82,10 @@ for (const c of cfg.clips) {
     const local = path.join(out, "clips", file);
     const hash = createHash("sha256").update(readFileSync(local)).digest("hex").slice(0, 10);
     const dest = `${upload}/${c.id}-${c.template}-${hash}.mp4`;
+    // Die Cloud-Umgebung setzt einen eigenen Token, der die Dienstkonto-Anmeldung überschreibt und 401 liefert.
+    const { CLOUDSDK_AUTH_ACCESS_TOKEN: _token, ...env } = process.env;
     execFileSync("gcloud", ["storage", "cp", local, dest, "--content-type=video/mp4",
-      "--cache-control=public, max-age=31536000, immutable"], { stdio: "inherit" });
+      "--cache-control=public, max-age=31536000, immutable"], { stdio: "inherit", env });
     url = dest.replace(/^gs:\/\//, "https://storage.googleapis.com/");
   }
   rows.push({ ...c, file, ytTitle, description, url });
