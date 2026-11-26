@@ -1,288 +1,209 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
-import { X, ChevronRight, ChevronLeft, Lightbulb } from 'lucide-react';
+import { useState, useEffect, useCallback, useRef, useLayoutEffect } from 'react';
+import { X, ChevronRight, ChevronLeft, ListChecks } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { computeCardPlacement, MARGIN, type Placement, type Rect } from './tourPlacement';
+import { EDITOR_TOUR, type Tour } from './guidedTours';
 
-interface TutorialStep {
-  title: string;
-  description: string;
-  selector: string;
-  position: 'right' | 'left' | 'bottom' | 'top';
-}
+const isVisible = (el: Element) => {
+  const r = el.getBoundingClientRect();
+  return r.width > 0 && r.height > 0;
+};
 
-const STEPS: TutorialStep[] = [
-  {
-    title: 'Toolbar',
-    description: 'Select tools to place players, draw run paths, and pass lines on the pitch. Toggle "More" to reveal advanced tools.',
-    selector: '[data-tutorial="toolbar"]',
-    position: 'right',
-  },
-  {
-    title: 'The Pitch',
-    description: 'Click on the pitch to place players and draw tactical movements. Double-click or press Enter to finish a path.',
-    selector: '[data-tutorial="pitch"]',
-    position: 'bottom',
-  },
-  {
-    title: 'Roles Panel',
-    description: 'Manage player roles and assign squad members. Each role becomes a marker on the pitch.',
-    selector: '[data-tutorial="inspector"]',
-    position: 'left',
-  },
-  {
-    title: 'Drawing Semantics',
-    description: 'Dashed lines = player runs. Solid lines = passes. Use these conventions to create clear tactical instructions.',
-    selector: '[data-tutorial="pitch"]',
-    position: 'top',
-  },
-  {
-    title: 'Animation & Playback',
-    description: 'Press Play to preview how players move along their paths. Adjust speed and scrub the timeline.',
-    selector: '[data-tutorial="bottombar"]',
-    position: 'top',
-  },
-  {
-    title: 'Export & Share',
-    description: 'Export to PDF, share via QR code, or mark your set piece as ready for matchday.',
-    selector: '[data-tutorial="header"]',
-    position: 'bottom',
-  },
-];
-
-const STORAGE_KEY = 'setpiece-tutorial-completed';
-
-interface Rect {
-  x: number;
-  y: number;
-  width: number;
-  height: number;
+function findTarget(selectors: string[] | undefined): Rect | null {
+  for (const sel of selectors ?? []) {
+    const el = document.querySelector(sel);
+    if (el && isVisible(el)) {
+      const r = el.getBoundingClientRect();
+      return { x: r.x, y: r.y, width: r.width, height: r.height };
+    }
+  }
+  return null;
 }
 
 interface TutorialOverlayProps {
   open: boolean;
   onClose: () => void;
+  mobile?: boolean;
+  /** Welche Tour läuft; Standard ist die Editor-Tour. */
+  tour?: Tour;
 }
 
-export function TutorialOverlay({ open, onClose }: TutorialOverlayProps) {
+export function TutorialOverlay({ open, onClose, mobile: mobileProp, tour = EDITOR_TOUR }: TutorialOverlayProps) {
+  const STEPS = tour.steps;
+  const mobile = mobileProp ?? (typeof window !== 'undefined' && window.innerWidth < 768);
   const [step, setStep] = useState(0);
-  const [targetRect, setTargetRect] = useState<Rect | null>(null);
+  const [target, setTarget] = useState<Rect | null>(null);
+  const [placement, setPlacement] = useState<Placement | null>(null);
   const cardRef = useRef<HTMLDivElement>(null);
-
-  const measureTarget = useCallback((stepIdx: number) => {
-    const selector = STEPS[stepIdx]?.selector;
-    if (!selector) { setTargetRect(null); return; }
-    const el = document.querySelector(selector);
-    if (el && el.getBoundingClientRect().width > 0) {
-      const r = el.getBoundingClientRect();
-      setTargetRect({ x: r.x, y: r.y, width: r.width, height: r.height });
-    } else {
-      setTargetRect(null);
-    }
-  }, []);
-
-  useEffect(() => {
-    if (open) {
-      setStep(0);
-      setTimeout(() => measureTarget(0), 100);
-    }
-  }, [open, measureTarget]);
-
-  useEffect(() => {
-    if (!open) return;
-    measureTarget(step);
-    const handleResize = () => measureTarget(step);
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, [open, step, measureTarget]);
-
-  if (!open) return null;
+  const nextRef = useRef<HTMLButtonElement>(null);
 
   const current = STEPS[step];
   const isLast = step === STEPS.length - 1;
   const isFirst = step === 0;
+  const selectors = mobile ? current?.mobile : current?.desktop;
+  const body = (mobile && current?.mobileBody) || current?.body || [];
+
+  const measure = useCallback(() => {
+    const found = findTarget(selectors);
+    // Ziel (z. B. Feld, Seitenleiste) bei Bedarf in den sichtbaren Bereich holen.
+    setTarget(found);
+  }, [selectors]);
+
+  useEffect(() => { if (open) setStep(0); }, [open]);
+
+  // Messen nach dem Rendern und bei Grössenänderung; kurz verzögert, weil
+  // Schubladen und Layout nach dem Öffnen noch einrasten.
+  useEffect(() => {
+    if (!open) return;
+    measure();
+    const timer = window.setTimeout(measure, 150);
+    window.addEventListener('resize', measure);
+    window.addEventListener('orientationchange', measure);
+    return () => {
+      window.clearTimeout(timer);
+      window.removeEventListener('resize', measure);
+      window.removeEventListener('orientationchange', measure);
+    };
+  }, [open, step, measure]);
+
+  useLayoutEffect(() => {
+    if (!open || !cardRef.current) return;
+    const { width, height } = cardRef.current.getBoundingClientRect();
+    setPlacement(computeCardPlacement(target, { w: width, h: height }, { w: window.innerWidth, h: window.innerHeight }, current?.side));
+  }, [open, step, target, current?.side]);
+
+  const finish = useCallback(() => {
+    try { localStorage.setItem(tour.key, 'true'); } catch { /* private mode */ }
+    onClose();
+  }, [onClose]);
+
+  const next = useCallback(() => (isLast ? finish() : setStep(s => s + 1)), [isLast, finish]);
+  const prev = useCallback(() => setStep(s => Math.max(0, s - 1)), []);
+
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') { e.stopPropagation(); finish(); }
+      else if (e.key === 'ArrowRight') next();
+      else if (e.key === 'ArrowLeft') prev();
+    };
+    window.addEventListener('keydown', onKey, true);
+    return () => window.removeEventListener('keydown', onKey, true);
+  }, [open, next, prev, finish]);
+
+  useEffect(() => { if (open) nextRef.current?.focus({ preventScroll: true }); }, [open, step]);
+
+  if (!open || !current) return null;
+  const Icon = current.icon;
   const PAD = 8;
-
-  const handleComplete = () => {
-    try { localStorage.setItem(STORAGE_KEY, 'true'); } catch {}
-    onClose();
-  };
-
-  const handleSkip = () => {
-    try { localStorage.setItem(STORAGE_KEY, 'true'); } catch {}
-    onClose();
-  };
-
-  const handleNext = () => {
-    if (isLast) {
-      handleComplete();
-    } else {
-      const next = step + 1;
-      setStep(next);
-      setTimeout(() => measureTarget(next), 50);
-    }
-  };
-
-  const handlePrev = () => {
-    if (!isFirst) {
-      const prev = step - 1;
-      setStep(prev);
-      setTimeout(() => measureTarget(prev), 50);
-    }
-  };
-
-  const cutout = targetRect
-    ? {
-        x: targetRect.x - PAD,
-        y: targetRect.y - PAD,
-        w: targetRect.width + PAD * 2,
-        h: targetRect.height + PAD * 2,
-        r: 12,
-      }
-    : null;
-
-  const cardStyle: React.CSSProperties = {};
-  if (targetRect && cutout) {
-    const pos = current.position;
-    const cardW = 320;
-    const cardGap = 16;
-    if (pos === 'right') {
-      cardStyle.position = 'fixed';
-      cardStyle.left = cutout.x + cutout.w + cardGap;
-      cardStyle.top = cutout.y + cutout.h / 2;
-      cardStyle.transform = 'translateY(-50%)';
-    } else if (pos === 'left') {
-      cardStyle.position = 'fixed';
-      cardStyle.left = cutout.x - cardW - cardGap;
-      cardStyle.top = cutout.y + cutout.h / 2;
-      cardStyle.transform = 'translateY(-50%)';
-    } else if (pos === 'bottom') {
-      cardStyle.position = 'fixed';
-      cardStyle.left = cutout.x + cutout.w / 2;
-      cardStyle.top = cutout.y + cutout.h + cardGap;
-      cardStyle.transform = 'translateX(-50%)';
-    } else if (pos === 'top') {
-      cardStyle.position = 'fixed';
-      cardStyle.left = cutout.x + cutout.w / 2;
-      cardStyle.top = cutout.y - cardGap;
-      cardStyle.transform = 'translate(-50%, -100%)';
-    }
-    cardStyle.maxWidth = cardW;
-    cardStyle.width = cardW;
-    cardStyle.zIndex = 110;
-  }
+  const cutout = target ? { x: target.x - PAD, y: target.y - PAD, w: target.width + PAD * 2, h: target.height + PAD * 2 } : null;
+  // Vollbild-Ziele (Feld auf dem Handy) bekommen keinen Ring, nur die Karte.
+  const hugeTarget = !!target && target.width * target.height > window.innerWidth * window.innerHeight * 0.55;
 
   return (
-    <div className="fixed inset-0 z-[100]">
-      <svg className="absolute inset-0 w-full h-full" style={{ pointerEvents: 'none' }}>
-        <defs>
-          <mask id="tutorial-mask">
-            <rect x="0" y="0" width="100%" height="100%" fill="white" />
-            {cutout && (
-              <rect
-                x={cutout.x}
-                y={cutout.y}
-                width={cutout.w}
-                height={cutout.h}
-                rx={cutout.r}
-                fill="black"
-              />
-            )}
-          </mask>
-        </defs>
-        <rect
-          x="0" y="0" width="100%" height="100%"
-          fill="rgba(0,0,0,0.65)"
-          mask="url(#tutorial-mask)"
-          style={{ pointerEvents: 'all' }}
-          onClick={handleSkip}
-        />
-      </svg>
+    <div className="fixed inset-0 z-[100]" role="dialog" aria-modal="true" aria-labelledby="tour-title">
+      {/* Fängt Taps ab; ein Tipp daneben beendet die Tour bewusst nicht. */}
+      <div className="absolute inset-0" aria-hidden="true" />
 
-      {cutout && (
+      {cutout && !hugeTarget ? (
         <div
-          className="absolute border-2 border-primary rounded-xl pointer-events-none animate-pulse"
+          aria-hidden="true"
+          className="absolute rounded-2xl border-2 border-primary pointer-events-none transition-all duration-300 ease-out motion-reduce:transition-none"
           style={{
-            left: cutout.x,
-            top: cutout.y,
-            width: cutout.w,
-            height: cutout.h,
-            zIndex: 105,
-            boxShadow: '0 0 0 4px rgba(16,185,129,0.15)',
+            left: cutout.x, top: cutout.y, width: cutout.w, height: cutout.h,
+            boxShadow: '0 0 0 9999px rgba(3,8,6,0.72), 0 0 0 6px rgba(16,185,129,0.18), 0 0 28px 4px rgba(16,185,129,0.35)',
           }}
         />
+      ) : (
+        <div aria-hidden="true" className="absolute inset-0 pointer-events-none" style={{ background: hugeTarget ? 'rgba(3,8,6,0.45)' : 'rgba(3,8,6,0.72)' }} />
       )}
+
+      {current.celebrate && <Confetti />}
 
       <div
         ref={cardRef}
-        style={targetRect ? cardStyle : { position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', maxWidth: 400, width: '90%', zIndex: 110 }}
-        className="bg-card border border-border rounded-2xl shadow-2xl overflow-hidden animate-in fade-in duration-200"
+        key={step}
+        style={{
+          position: 'fixed',
+          width: `min(${isLast || isFirst ? 400 : 340}px, calc(100vw - ${MARGIN * 2}px))`,
+          left: placement?.left ?? MARGIN,
+          top: placement?.top ?? MARGIN,
+          visibility: placement ? 'visible' : 'hidden',
+          maxHeight: `calc(100dvh - ${MARGIN * 2}px)`,
+        }}
+        className="z-[110] overflow-y-auto rounded-2xl border border-white/10 bg-card shadow-2xl animate-in fade-in slide-in-from-bottom-2 duration-300 motion-reduce:animate-none"
       >
-        <div className="flex items-center justify-between px-4 pt-4 pb-1.5">
-          <div className="flex items-center gap-2.5">
-            <div className="w-7 h-7 rounded-lg bg-primary/15 flex items-center justify-center">
-              <Lightbulb className="w-3.5 h-3.5 text-primary" />
+        <div className="relative px-4 pt-4 pb-3">
+          <button
+            onClick={finish}
+            aria-label="Tour schliessen"
+            className="absolute right-2.5 top-2.5 flex h-9 w-9 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-secondary hover:text-white"
+          >
+            <X className="h-4 w-4" />
+          </button>
+          <div className="flex items-center gap-3 pr-9">
+            <div className={cn('flex h-10 w-10 shrink-0 items-center justify-center rounded-xl', isLast || isFirst ? 'bg-primary text-primary-foreground' : 'bg-primary/15 text-primary')}>
+              <Icon className="h-5 w-5" />
             </div>
-            <div>
-              <p className="text-[9px] text-muted-foreground uppercase tracking-wider font-bold">
-                Step {step + 1} of {STEPS.length}
+            <div className="min-w-0">
+              <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                Schritt {step + 1} von {STEPS.length}
               </p>
-              <h3 className="font-display font-bold text-white text-sm leading-tight">{current.title}</h3>
+              <h3 id="tour-title" className="font-display text-base font-bold leading-tight text-white">{current.title}</h3>
             </div>
           </div>
-          <button
-            onClick={handleSkip}
-            aria-label="Close Tutorial"
-            className="w-6 h-6 rounded-full flex items-center justify-center text-muted-foreground hover:text-white hover:bg-secondary transition-colors"
-          >
-            <X className="w-3.5 h-3.5" />
+
+          <p className="mt-3 rounded-xl bg-primary/10 px-3 py-2 text-[13px] font-semibold leading-snug text-primary">{current.benefit}</p>
+
+          {body.length > 0 && (
+            <ul className="mt-3 space-y-1.5 text-[13px] leading-relaxed text-muted-foreground">
+              {body.map(line => (
+                <li key={line} className="flex gap-2"><span aria-hidden="true" className="mt-[7px] h-1.5 w-1.5 shrink-0 rounded-full bg-primary/70" />{line}</li>
+              ))}
+            </ul>
+          )}
+
+          {current.checklist && (
+            <ul className="mt-3 space-y-2">
+              {(current.checklist ?? []).map(({ icon: ItemIcon, text }, i) => (
+                <li key={text} className="flex items-center gap-3 rounded-xl border border-white/[0.06] bg-white/[0.03] px-3 py-2 text-[13px] text-white">
+                  <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary/15 text-[11px] font-bold text-primary">{i + 1}</span>
+                  <ItemIcon className="h-4 w-4 shrink-0 text-primary" />
+                  {text}
+                </li>
+              ))}
+            </ul>
+          )}
+          {current.checklist && tour.restartHint && (
+            <p className="mt-3 flex items-center gap-2 text-[11px] text-muted-foreground">
+              <ListChecks className="h-3.5 w-3.5 shrink-0" /> {tour.restartHint}
+            </p>
+          )}
+        </div>
+
+        <div className="flex gap-1 px-4 pb-3" aria-hidden="true">
+          {STEPS.map((_, i) => (
+            <div key={i} className={cn('h-1 flex-1 rounded-full transition-colors duration-300', i <= step ? 'bg-primary' : 'bg-border')} />
+          ))}
+        </div>
+
+        <div className="flex items-center justify-between border-t border-border/50 px-3 py-2.5">
+          <button onClick={finish} className="min-h-11 rounded-lg px-3 text-xs text-muted-foreground transition-colors hover:text-white">
+            {isLast ? 'Schliessen' : 'Überspringen'}
           </button>
-        </div>
-
-        <div className="px-4 py-3">
-          <p className="text-[12px] text-muted-foreground leading-relaxed">{current.description}</p>
-        </div>
-
-        <div className="px-4 pb-2">
-          <div className="flex gap-1">
-            {STEPS.map((_, i) => (
-              <div
-                key={i}
-                className={cn(
-                  "h-1 rounded-full flex-1 transition-all",
-                  i <= step ? "bg-primary" : "bg-border"
-                )}
-              />
-            ))}
-          </div>
-        </div>
-
-        <div className="flex items-center justify-between px-4 py-3 border-t border-border/50">
-          <button
-            onClick={handleSkip}
-            className="text-[10px] text-muted-foreground hover:text-white transition-colors px-1.5 py-1"
-          >
-            Skip
-          </button>
-          <div className="flex items-center gap-1.5">
+          <div className="flex items-center gap-2">
             {!isFirst && (
-              <button
-                onClick={handlePrev}
-                aria-label="Previous Step"
-                className="w-7 h-7 rounded-lg border border-border flex items-center justify-center text-muted-foreground hover:text-white hover:border-muted-foreground transition-all"
-              >
-                <ChevronLeft className="w-3.5 h-3.5" />
+              <button onClick={prev} aria-label="Vorheriger Schritt" className="flex h-11 w-11 items-center justify-center rounded-xl border border-border text-muted-foreground transition-all hover:border-muted-foreground hover:text-white">
+                <ChevronLeft className="h-4 w-4" />
               </button>
             )}
             <button
-              onClick={handleNext}
-              className={cn(
-                "h-7 rounded-lg px-3.5 flex items-center gap-1 text-[11px] font-semibold transition-all",
-                isLast
-                  ? "bg-primary text-primary-foreground hover:bg-primary/90"
-                  : "bg-primary/15 text-primary hover:bg-primary/25 border border-primary/30"
-              )}
+              ref={nextRef}
+              onClick={next}
+              className="flex h-11 items-center gap-1.5 rounded-xl bg-primary px-5 text-sm font-semibold text-primary-foreground transition-all hover:bg-primary/90 active:scale-[0.98]"
             >
-              {isLast ? 'Get Started' : 'Next'}
-              {!isLast && <ChevronRight className="w-3 h-3" />}
+              {isLast ? 'Los geht’s' : isFirst ? 'Tour starten' : 'Weiter'}
+              {!isLast && <ChevronRight className="h-4 w-4" />}
             </button>
           </div>
         </div>
@@ -291,14 +212,35 @@ export function TutorialOverlay({ open, onClose }: TutorialOverlayProps) {
   );
 }
 
-export function shouldShowTutorial(): boolean {
+/** Dezentes Konfetti zum Abschluss; bei reduzierter Bewegung statisch aus. */
+function Confetti() {
+  const colors = ['#10b981', '#34d399', '#f59e0b', '#60a5fa', '#f472b6', '#ffffff'];
+  return (
+    <div aria-hidden="true" className="pointer-events-none absolute inset-0 overflow-hidden motion-reduce:hidden">
+      {Array.from({ length: 28 }, (_, i) => (
+        <span
+          key={i}
+          className="absolute top-0 block h-2.5 w-1.5 rounded-[1px]"
+          style={{
+            left: `${(i * 37) % 100}%`,
+            background: colors[i % colors.length],
+            animation: `tour-confetti ${2.2 + (i % 5) * 0.35}s ease-in ${(i % 7) * 0.12}s both`,
+          }}
+        />
+      ))}
+      <style>{`@keyframes tour-confetti{0%{transform:translateY(-10vh) rotate(0);opacity:1}100%{transform:translateY(110vh) rotate(540deg);opacity:0.9}}`}</style>
+    </div>
+  );
+}
+
+export function shouldShowTutorial(key: string = EDITOR_TOUR.key): boolean {
   try {
-    return localStorage.getItem(STORAGE_KEY) !== 'true';
+    return localStorage.getItem(key) !== 'true';
   } catch {
     return false;
   }
 }
 
-export function resetTutorial(): void {
-  try { localStorage.removeItem(STORAGE_KEY); } catch {}
+export function resetTutorial(key: string = EDITOR_TOUR.key): void {
+  try { localStorage.removeItem(key); } catch { /* private mode */ }
 }

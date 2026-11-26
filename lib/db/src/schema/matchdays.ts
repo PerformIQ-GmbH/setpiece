@@ -8,6 +8,8 @@ import { setPiecesTable } from "./setPieces";
 export type MatchdaySquad = {
   starters: string[];
   bench: string[];
+  /** Schützen in Reihenfolge (Spieler-IDs), für den Garderoben-Aushang. */
+  takers?: { penalty: string[]; directFreeKick: string[] };
 };
 
 export const matchdaysTable = pgTable("matchdays", {

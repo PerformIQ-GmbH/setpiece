@@ -6,13 +6,27 @@ import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { StatusBadge } from '@/components/StatusBadge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { UserPlus, Search, Trash2, Edit2, QrCode, Link2, Copy, Check, RefreshCw, Loader2 } from 'lucide-react';
+import { UserPlus, Search, Trash2, Edit2, QrCode, Link2, Copy, Check, RefreshCw, Loader2, HelpCircle } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { QRCodeSVG } from 'qrcode.react';
 import { useConfirm } from '@/hooks/use-confirm';
+import { TutorialOverlay } from '@/components/editor/TutorialOverlay';
+import { ROSTER_TOUR, useGuidedTour } from '@/components/editor/guidedTours';
+import { STANDARD_PROFILE_TAG_OPTIONS, SELF_REPORTED_TAG, tagLabel } from '@/lib/roleSuitability';
 
 const FOOT_OPTIONS = ['right', 'left', 'both'];
-const TAG_OPTIONS = ['tall', 'fast', 'strong_header', 'set_piece_specialist', 'captain', 'penalty_taker', 'goalkeeper', 'defender', 'midfielder', 'forward'];
+const TAG_OPTIONS = [
+  ...STANDARD_PROFILE_TAG_OPTIONS.map(o => o.key as string),
+  'tall', 'fast', 'captain', 'penalty_taker', 'goalkeeper', 'defender', 'midfielder', 'forward',
+];
+/** Speichert der Trainer, gelten die Werte als von ihm bestätigt. */
+const withoutSelfReport = (tags?: string[] | null) => (tags ?? []).filter(t => t !== SELF_REPORTED_TAG);
+type ProfileField = 'height' | 'headingStrength' | 'speed';
+const QUICK_FIELDS: Array<{ field: ProfileField; label: string; min: number; max: number }> = [
+  { field: 'height', label: 'Height (cm)', min: 100, max: 230 },
+  { field: 'headingStrength', label: 'Heading 1-10', min: 1, max: 10 },
+  { field: 'speed', label: 'Speed 1-10', min: 1, max: 10 },
+];
 
 function getAppBaseUrl() {
   if (typeof window !== 'undefined') {
@@ -27,6 +41,7 @@ export default function Players() {
   const teamId = params?.teamId || '';
   const { data: team } = useGetTeam(teamId);
   const { data: players, refetch } = useListPlayers(teamId, undefined, { query: { queryKey: getListPlayersQueryKey(teamId), refetchInterval: 5000 } });
+  const tour = useGuidedTour(ROSTER_TOUR, players !== undefined);
   const createPlayer = useCreatePlayer();
   const updatePlayer = useUpdatePlayer();
   const deletePlayer = useDeletePlayer();
@@ -85,12 +100,13 @@ export default function Players() {
 
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    const tags = withoutSelfReport(form.tags);
     const data = {
       firstName: form.firstName, lastName: form.lastName,
       shirtNumber: form.shirtNumber ? parseInt(form.shirtNumber) : undefined,
       dominantFoot: form.dominantFoot || undefined,
       height: form.height ? parseInt(form.height) : undefined,
-      status: form.status, tags: form.tags.length > 0 ? form.tags : undefined,
+      status: form.status, tags: editingId || tags.length > 0 ? tags : undefined,
       headingStrength: form.headingStrength ? parseInt(form.headingStrength) : undefined,
       speed: form.speed ? parseInt(form.speed) : undefined,
       notes: form.notes || undefined,
@@ -102,6 +118,18 @@ export default function Players() {
     }
     setDialogOpen(false);
     refetch();
+  };
+
+  type RosterPlayer = NonNullable<typeof players>[number];
+  const quickSave = async (p: RosterPlayer, patch: Partial<Record<ProfileField, number>> & { dominantFoot?: string }) => {
+    await updatePlayer.mutateAsync({ teamId, playerId: p.id, data: { ...patch, tags: withoutSelfReport(p.tags) } });
+    refetch();
+  };
+  const onQuickBlur = (p: RosterPlayer, field: ProfileField) => (e: React.FocusEvent<HTMLInputElement>) => {
+    const input = e.currentTarget;
+    if (!input.value || !input.checkValidity()) { input.reportValidity(); return; }
+    const value = parseInt(input.value);
+    if (value !== p[field]) quickSave(p, { [field]: value });
   };
 
   const toggleTag = (tag: string) => {
@@ -161,11 +189,14 @@ export default function Players() {
           <p className="text-muted-foreground text-sm mt-1">{filtered.length} player{filtered.length !== 1 ? 's' : ''}</p>
         </div>
         <div className="flex gap-2">
-          <Button size="sm" variant="outline" onClick={handleOpenInvite} className="border-primary/30 text-primary hover:bg-primary/10">
+          <Button size="sm" variant="outline" onClick={handleOpenInvite} data-tutorial="invite" className="border-primary/30 text-primary hover:bg-primary/10">
             <QrCode className="h-4 w-4 mr-2" /> Invite Players
           </Button>
-          <Button size="sm" onClick={openNew}>
+          <Button size="sm" onClick={openNew} data-tutorial="add-player">
             <UserPlus className="h-4 w-4 mr-2" /> Add Player
+          </Button>
+          <Button size="sm" variant="ghost" onClick={tour.start} aria-label="Tour starten" className="text-muted-foreground hover:text-white">
+            <HelpCircle className="h-4 w-4 mr-1.5" /> Tour
           </Button>
         </div>
       </div>
@@ -184,11 +215,12 @@ export default function Players() {
           className="bg-card border border-border rounded-lg px-3 py-2 text-sm focus:border-primary outline-none text-muted-foreground w-full sm:w-auto"
         >
           <option value="">All Tags</option>
-          {TAG_OPTIONS.map(t => <option key={t} value={t}>{t.replace(/_/g, ' ')}</option>)}
+          {[...TAG_OPTIONS, SELF_REPORTED_TAG].map(t => <option key={t} value={t}>{tagLabel(t)}</option>)}
         </select>
       </div>
 
-      <Card className="bg-card border-border overflow-hidden">
+      <TutorialOverlay open={tour.open} onClose={tour.close} tour={ROSTER_TOUR} />
+      <Card data-tutorial="roster-table" className="bg-card border-border overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-sm text-left">
             <thead className="bg-secondary/50 text-muted-foreground text-xs uppercase font-bold">
@@ -196,6 +228,7 @@ export default function Players() {
                 <th className="px-4 py-3">No.</th>
                 <th className="px-4 py-3">Name</th>
                 <th className="px-4 py-3">Foot</th>
+                {QUICK_FIELDS.map(q => <th key={q.field} className="px-2 py-3 whitespace-nowrap">{q.label}</th>)}
                 <th className="px-4 py-3">Status</th>
                 <th className="px-4 py-3">Tags</th>
                 <th className="px-4 py-3 text-right">Actions</th>
@@ -206,13 +239,42 @@ export default function Players() {
                 <motion.tr key={p.id} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: idx * 0.02 }} className="hover:bg-secondary/20 transition-colors">
                   <td className="px-4 py-3 font-mono font-bold text-primary">{p.shirtNumber || '-'}</td>
                   <td className="px-4 py-3 font-semibold text-white">{p.firstName} {p.lastName}</td>
-                  <td className="px-4 py-3 text-muted-foreground capitalize">{p.dominantFoot || '-'}</td>
+                  <td className="px-4 py-3">
+                    <select
+                      key={`${p.id}-foot-${p.dominantFoot}`}
+                      aria-label={`Foot ${p.firstName} ${p.lastName}`}
+                      defaultValue={p.dominantFoot || ''}
+                      onChange={e => e.target.value && quickSave(p, { dominantFoot: e.target.value })}
+                      className="bg-background border border-border rounded-md px-1.5 py-1 text-xs focus:border-primary outline-none"
+                    >
+                      <option value="" disabled>-</option>
+                      {FOOT_OPTIONS.map(f => <option key={f} value={f}>{f}</option>)}
+                    </select>
+                  </td>
+                  {QUICK_FIELDS.map(q => (
+                    <td key={q.field} className="px-2 py-3">
+                      <input
+                        key={`${p.id}-${q.field}-${p[q.field] ?? ''}`}
+                        type="number" inputMode="numeric" min={q.min} max={q.max}
+                        aria-label={`${q.label} ${p.firstName} ${p.lastName}`}
+                        defaultValue={p[q.field] ?? ''}
+                        placeholder="-"
+                        onBlur={onQuickBlur(p, q.field)}
+                        onKeyDown={e => { if (e.key === 'Enter') e.currentTarget.blur(); }}
+                        className="w-16 bg-background border border-border rounded-md px-1.5 py-1 text-xs focus:border-primary outline-none"
+                      />
+                    </td>
+                  ))}
                   <td className="px-4 py-3"><StatusBadge status={p.status} /></td>
                   <td className="px-4 py-3">
                     <div className="flex flex-wrap gap-1">
                       {p.tags?.map(t => (
-                        <span key={t} className="px-1.5 py-0.5 text-[9px] rounded bg-primary/10 text-primary border border-primary/20 font-medium">
-                          {t.replace(/_/g, ' ')}
+                        <span
+                          key={t}
+                          title={t === SELF_REPORTED_TAG ? 'Vom Spieler beim Beitritt angegeben. Speichern bestätigt die Werte.' : undefined}
+                          className={`px-1.5 py-0.5 text-[9px] rounded border font-medium ${t === SELF_REPORTED_TAG ? 'bg-amber-500/10 text-amber-300 border-amber-500/30' : 'bg-primary/10 text-primary border-primary/20'}`}
+                        >
+                          {tagLabel(t)}
                         </span>
                       ))}
                     </div>
@@ -238,7 +300,7 @@ export default function Players() {
                 </motion.tr>
               ))}
               {filtered.length === 0 && (
-                <tr><td colSpan={6} className="px-4 py-8 text-center text-muted-foreground">No players found.</td></tr>
+                <tr><td colSpan={9} className="px-4 py-8 text-center text-muted-foreground">No players found.</td></tr>
               )}
             </tbody>
           </table>
@@ -288,9 +350,9 @@ export default function Players() {
             <div className="space-y-1">
               <label className="text-xs text-muted-foreground uppercase font-bold tracking-wider">Tags</label>
               <div className="flex flex-wrap gap-1.5">
-                {TAG_OPTIONS.map(tag => (
-                  <button key={tag} type="button" onClick={() => toggleTag(tag)} className={`px-2 py-1 text-xs rounded-md border transition-all ${form.tags.includes(tag) ? 'bg-primary/20 text-primary border-primary/30' : 'bg-secondary text-muted-foreground border-border hover:border-muted-foreground'}`}>
-                    {tag.replace(/_/g, ' ')}
+                {[...new Set([...TAG_OPTIONS, ...withoutSelfReport(form.tags)])].map(tag => (
+                  <button key={tag} type="button" aria-pressed={form.tags.includes(tag)} onClick={() => toggleTag(tag)} className={`px-2 py-1 text-xs rounded-md border transition-all ${form.tags.includes(tag) ? 'bg-primary/20 text-primary border-primary/30' : 'bg-secondary text-muted-foreground border-border hover:border-muted-foreground'}`}>
+                    {tagLabel(tag)}
                   </button>
                 ))}
               </div>

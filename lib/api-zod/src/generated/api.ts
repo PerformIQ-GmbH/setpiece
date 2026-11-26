@@ -486,11 +486,39 @@ export const joinTeamBodyLastNameMax = 100;
 
 export const joinTeamBodyShirtNumberMax = 99;
 
+export const joinTeamBodyHeightMin = 100;
+export const joinTeamBodyHeightMax = 230;
+
+export const joinTeamBodyHeadingStrengthMax = 10;
+
+export const joinTeamBodySpeedMax = 10;
+
+export const joinTeamBodyTagsMax = 9;
+
 export const JoinTeamBody = zod.object({
   firstName: zod.string().min(1).max(joinTeamBodyFirstNameMax),
   lastName: zod.string().min(1).max(joinTeamBodyLastNameMax),
   shirtNumber: zod.number().min(1).max(joinTeamBodyShirtNumberMax).optional(),
-  dominantFoot: zod.enum(["left", "right", "both"]).optional(),
+  dominantFoot: zod.enum(["left", "right", "both"]),
+  height: zod.number().min(joinTeamBodyHeightMin).max(joinTeamBodyHeightMax),
+  headingStrength: zod.number().min(1).max(joinTeamBodyHeadingStrengthMax),
+  speed: zod.number().min(1).max(joinTeamBodySpeedMax),
+  tags: zod
+    .array(
+      zod.enum([
+        "delivery_specialist",
+        "aerial_threat",
+        "runner",
+        "blocker",
+        "marker",
+        "zonal",
+        "rest_defense",
+        "rebound",
+        "counter",
+      ]),
+    )
+    .min(1)
+    .max(joinTeamBodyTagsMax),
 });
 
 /**
@@ -1140,6 +1168,10 @@ export const ListMatchdaysParams = zod.object({
   teamId: zod.coerce.string(),
 });
 
+export const listMatchdaysResponseSquadOneTakersPenaltyMax = 3;
+
+export const listMatchdaysResponseSquadOneTakersDirectFreeKickMax = 3;
+
 export const ListMatchdaysResponseItem = zod.object({
   id: zod.string(),
   teamId: zod.string(),
@@ -1152,6 +1184,16 @@ export const ListMatchdaysResponseItem = zod.object({
       zod.object({
         starters: zod.array(zod.string()),
         bench: zod.array(zod.string()),
+        takers: zod
+          .object({
+            penalty: zod
+              .array(zod.string())
+              .max(listMatchdaysResponseSquadOneTakersPenaltyMax),
+            directFreeKick: zod
+              .array(zod.string())
+              .max(listMatchdaysResponseSquadOneTakersDirectFreeKickMax),
+          })
+          .optional(),
       }),
       zod.null(),
     ])
@@ -1183,6 +1225,10 @@ export const GetMatchdayParams = zod.object({
   matchdayId: zod.coerce.string(),
 });
 
+export const getMatchdayResponseSquadOneTakersPenaltyMax = 3;
+
+export const getMatchdayResponseSquadOneTakersDirectFreeKickMax = 3;
+
 export const GetMatchdayResponse = zod.object({
   id: zod.string(),
   teamId: zod.string(),
@@ -1195,6 +1241,16 @@ export const GetMatchdayResponse = zod.object({
       zod.object({
         starters: zod.array(zod.string()),
         bench: zod.array(zod.string()),
+        takers: zod
+          .object({
+            penalty: zod
+              .array(zod.string())
+              .max(getMatchdayResponseSquadOneTakersPenaltyMax),
+            directFreeKick: zod
+              .array(zod.string())
+              .max(getMatchdayResponseSquadOneTakersDirectFreeKickMax),
+          })
+          .optional(),
       }),
       zod.null(),
     ])
@@ -1242,6 +1298,10 @@ export const UpdateMatchdayParams = zod.object({
   matchdayId: zod.coerce.string(),
 });
 
+export const updateMatchdayBodySquadOneTakersPenaltyMax = 3;
+
+export const updateMatchdayBodySquadOneTakersDirectFreeKickMax = 3;
+
 export const UpdateMatchdayBody = zod.object({
   title: zod.string().optional(),
   date: zod.coerce.date().optional(),
@@ -1252,11 +1312,25 @@ export const UpdateMatchdayBody = zod.object({
       zod.object({
         starters: zod.array(zod.string()),
         bench: zod.array(zod.string()),
+        takers: zod
+          .object({
+            penalty: zod
+              .array(zod.string())
+              .max(updateMatchdayBodySquadOneTakersPenaltyMax),
+            directFreeKick: zod
+              .array(zod.string())
+              .max(updateMatchdayBodySquadOneTakersDirectFreeKickMax),
+          })
+          .optional(),
       }),
       zod.null(),
     ])
     .optional(),
 });
+
+export const updateMatchdayResponseSquadOneTakersPenaltyMax = 3;
+
+export const updateMatchdayResponseSquadOneTakersDirectFreeKickMax = 3;
 
 export const UpdateMatchdayResponse = zod.object({
   id: zod.string(),
@@ -1270,6 +1344,16 @@ export const UpdateMatchdayResponse = zod.object({
       zod.object({
         starters: zod.array(zod.string()),
         bench: zod.array(zod.string()),
+        takers: zod
+          .object({
+            penalty: zod
+              .array(zod.string())
+              .max(updateMatchdayResponseSquadOneTakersPenaltyMax),
+            directFreeKick: zod
+              .array(zod.string())
+              .max(updateMatchdayResponseSquadOneTakersDirectFreeKickMax),
+          })
+          .optional(),
       }),
       zod.null(),
     ])

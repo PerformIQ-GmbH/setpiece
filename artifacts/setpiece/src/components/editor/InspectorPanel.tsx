@@ -7,7 +7,7 @@ import { cn } from '@/lib/utils';
 import { Users, Layers, Trash2, Copy, Plus, ChevronDown, ChevronRight, ArrowLeft, UserRound, Info, Search, X, Sparkles, Loader2, Wand2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { BoardHealth } from './BoardHealth';
-import { BADGE_STYLES, ROLE_CLASS_LABELS } from '@/lib/roleSuitability';
+import { BADGE_STYLES, ROLE_CLASS_LABELS, hasProfileData } from '@/lib/roleSuitability';
 import { useGetSetPieceRoleSuggestions, type RoleEvaluation } from '@workspace/api-client-react';
 import type { SuitabilityBadge } from '@/lib/roleSuitability';
 
@@ -258,11 +258,10 @@ function PlayerCombobox({ players, assignments, roles, currentRoleId, value, onC
                     return (
                       <span
                         className={cn('flex items-center gap-1 px-1.5 py-px rounded-full border text-[8px] font-bold uppercase tracking-wider shrink-0', style.bg, style.text, style.ring)}
-                        title={`${style.label} · ${fit.score}/100`}
+                        title={hasProfileData(p) ? `${style.label} · ${fit.score}/100` : 'Profil unvollständig'}
                       >
                         <span className={cn('w-1 h-1 rounded-full', style.dot)} />
-                        {style.label}
-                        <span className="opacity-70 font-mono">{fit.score}</span>
+                        {hasProfileData(p) ? <>{style.label}<span className="opacity-70 font-mono">{fit.score}</span></> : 'Profil unvollständig'}
                       </span>
                     );
                   })()}
@@ -974,7 +973,7 @@ function RoleFitSection({
                         </span>
                         <span className={cn('flex items-center gap-1 px-1.5 py-0.5 rounded-full border text-[9px] font-bold uppercase tracking-wider shrink-0', style.bg, style.text, style.ring)}>
                           <span className={cn('w-1.5 h-1.5 rounded-full', style.dot)} />
-                          {c.score}
+                          {hasProfileData(p) ? c.score : 'Profil unvollständig'}
                         </span>
                       </button>
                     );

@@ -17,7 +17,7 @@ import {
   X, Info, ShieldAlert, ShieldCheck, ListChecks, HelpCircle, Users,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { BADGE_STYLES, ROLE_CLASS_LABELS } from '@/lib/roleSuitability';
+import { BADGE_STYLES, ROLE_CLASS_LABELS, hasProfileData } from '@/lib/roleSuitability';
 
 interface MatchdayAssistantProps {
   teamId: string;
@@ -160,7 +160,7 @@ export function MatchdayAssistant({ teamId, matchdayId, players, setPieces, star
     : 0;
 
   return (
-    <Card className="mb-5 border-primary/20 bg-gradient-to-br from-primary/[0.04] via-card to-card overflow-hidden">
+    <Card data-tutorial="assistant" className="mb-5 border-primary/20 bg-gradient-to-br from-primary/[0.04] via-card to-card overflow-hidden">
       <CardContent className="p-0">
         <button
           onClick={() => setOpen(o => !o)}
@@ -401,7 +401,7 @@ function AlternativesList({ alternatives, playersById, primaryId }: {
               <span className="text-white/90">{p ? `${p.firstName} ${p.lastName}` : 'Unknown'}</span>
               <span className={cn('flex items-center gap-1 px-1 py-px rounded-full border font-bold uppercase tracking-wider', style.bg, style.text, style.ring)}>
                 <span className={cn('w-1 h-1 rounded-full', style.dot)} />
-                {alt.score}
+                {hasProfileData(p) ? alt.score : 'Profil unvollständig'}
               </span>
             </span>
           );
@@ -431,7 +431,7 @@ function SuggestionRow({ role, playersById, mode }: {
           <span className="text-[9px] uppercase tracking-wider text-muted-foreground">{classLabel}</span>
           {role.missingProfileData && !skipped && (
             <span className="text-[9px] uppercase tracking-wider text-amber-300/80" data-testid={`missing-data-${role.roleId}`}>
-              missing data
+              Profil unvollständig
             </span>
           )}
         </div>
@@ -477,7 +477,7 @@ function SuggestionRow({ role, playersById, mode }: {
             </div>
             <span className={cn('flex items-center gap-1 px-1.5 py-0.5 rounded-full border text-[9px] font-bold uppercase tracking-wider', badge.bg, badge.text, badge.ring)}>
               <span className={cn('w-1.5 h-1.5 rounded-full', badge.dot)} />
-              {badge.label} · {role.score}
+              {role.missingProfileData ? 'Profil unvollständig' : `${badge.label} · ${role.score}`}
             </span>
             {mode === 'replace_all' && existing && existing.id !== player.id && (
               <span className="text-[9px] text-muted-foreground">replaces {existing.firstName}</span>

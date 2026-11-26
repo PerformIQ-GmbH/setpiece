@@ -35,3 +35,4 @@ channel = "stable-25_05"
 [userenv]
 
 [userenv.shared]
+SETPIECE_COMPLIMENTARY_SOLO_EMAILS = "manuel.brusadin@gmail.com"

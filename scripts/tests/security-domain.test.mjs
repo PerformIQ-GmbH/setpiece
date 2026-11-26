@@ -748,3 +748,26 @@ test("matchday removal requires same-team membership and retains activation in o
     assert.equal(f.db.calls.some(call => call.action === "update"), false);
   }
 });
+
+test("join via QR/link requires the complete standard profile and only catalog roles before touching the database", async () => {
+  const db = database(), h = harness();
+  load("artifacts/api-server/src/routes/invites.ts", {
+    express: h.express, "@workspace/db": { db, ...schema, teamInvitesTable: { name: "teamInvitesTable" }, teamsTable: { name: "teamsTable" } },
+    "drizzle-orm": { ...orm, or: (...items) => ({ op: "or", items }) }, crypto, "zod/v4": require("zod/v4"),
+    "../lib/authorization": { async requireCoachAccess() { return "team"; }, parseParam: value => value },
+    "../lib/entitlements": {}, "../lib/pilot": {},
+    "../lib/roleSuitability": load("artifacts/api-server/src/lib/roleSuitability.ts", {}),
+  });
+  const complete = { firstName: "Fiktiv", lastName: "Spieler", dominantFoot: "left", height: 181, headingStrength: 6, speed: 8, tags: ["runner"] };
+  for (const body of [
+    { firstName: "Fiktiv", lastName: "Spieler", dominantFoot: "right" },
+    { ...complete, tags: [] },
+    { ...complete, tags: ["captain"] },
+    { ...complete, tags: ["self_reported"] },
+    { ...complete, height: 260 },
+  ]) {
+    const res = await invoke(h.routes, "POST /join/:token", request(body, { params: { token: "synthetic" } }));
+    assert.equal(res.statusCode, 400, JSON.stringify(body));
+  }
+  assert.deepEqual(db.calls, []);
+});

@@ -37,7 +37,7 @@ export default function DemoTeamDashboard() {
 
       <section className="mb-10 grid items-start gap-6 lg:grid-cols-[1fr_1.1fr]">
         <div><h2 className="font-display text-2xl font-semibold">Eine Variante. Eine Spieleraufgabe. Deine Rückmeldung.</h2><p className="mt-4 leading-relaxed text-muted-foreground">Öffne die Spieleraufgabe und beantworte die Beispielfrage für Spieler 9. Die fiktive Rückmeldung unten und unter «Aufgabenverständnis» reagiert darauf.</p><p className="mt-3 text-sm leading-relaxed text-muted-foreground">Alle Daten sind erfunden. Die Beispielantwort bleibt nur bis zum Neuladen im Browser und wird nicht an den Server gesendet.</p></div>
-        <ProductWalkthrough onAnswer={correct => queryClient.setQueryData(['demo', 'readiness', teamId], demoReadinessForAnswer(correct))} />
+        <ProductWalkthrough onAnswer={(correct, playerId) => queryClient.setQueryData(['demo', 'readiness', teamId], demoReadinessForAnswer(correct, playerId))} />
       </section>
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
         {[

@@ -64,6 +64,19 @@ const ROLE_PRIORITY: RoleClass[] = [
   "generic",
 ];
 
+/**
+ * Katalog «Was machst du bei Standards gern?» aus dem Beitritt per QR/Link.
+ * Die Keys sind die Merkmale, die scorePlayerForRole liest; der Client führt
+ * dieselben Keys mit Beschriftung in artifacts/setpiece/src/lib/roleSuitability.ts.
+ */
+export const STANDARD_PROFILE_TAGS = [
+  "delivery_specialist", "aerial_threat", "runner", "blocker", "marker",
+  "zonal", "rest_defense", "rebound", "counter",
+] as const;
+
+/** Markiert Werte, die der Spieler selbst angegeben hat, bis ein Trainer speichert. */
+export const SELF_REPORTED_TAG = "self_reported";
+
 const TAG_ALIASES: Record<string, string> = {
   "delivery specialist": "delivery_specialist",
   "set piece taker": "delivery_specialist",
@@ -85,6 +98,12 @@ const TAG_ALIASES: Record<string, string> = {
   "blocker": "blocker",
   "screen": "blocker",
   "tall": "aerial_threat",
+  // Merkmale aus der Trainer-Spielerliste, die vorher nirgends gezählt wurden.
+  "strong header": "aerial_threat",
+  "strong_header": "aerial_threat",
+  "set piece specialist": "delivery_specialist",
+  "set_piece_specialist": "delivery_specialist",
+  "zonal": "defender",
 };
 
 export function normalizePlayerTags(tags?: string[] | null): Set<string> {
@@ -92,7 +111,7 @@ export function normalizePlayerTags(tags?: string[] | null): Set<string> {
   if (!tags) return out;
   for (const raw of tags) {
     const t = raw.trim().toLowerCase();
-    if (!t) continue;
+    if (!t || t === SELF_REPORTED_TAG) continue;
     out.add(t.replace(/\s+/g, "_"));
     if (TAG_ALIASES[t]) out.add(TAG_ALIASES[t]);
   }
@@ -117,21 +136,27 @@ export function classifyRole(role: RoleLike): RoleClass[] {
 
   const has = (...needles: string[]) => needles.some(n => haystack.includes(n));
 
-  if (has("delivery", "taker", "deliver", "kicker", "crosser", "corner taker", "free-kick taker", "free kick taker", "in-swinger", "out-swinger"))
+  if (has("delivery", "taker", "deliver", "kicker", "crosser", "corner taker", "free-kick taker", "free kick taker", "in-swinger", "out-swinger",
+    "schütze", "schuetze", "hereingabe", "flankengeber", "treter"))
     matches.push("delivery");
-  if (has("aerial", "header", "head", "near post target", "far post target", "target", "flick on", "flick-on"))
+  if (has("aerial", "header", "head", "near post target", "far post target", "target", "flick on", "flick-on",
+    "kopf", "verlänger", "verlaenger", "zielspieler"))
     matches.push("aerial_target");
-  if (has("mark", "marker", "zonal", "zone defender", "track ", "tracking"))
+  if (has("mark", "marker", "zonal", "zone defender", "track ", "tracking",
+    "deck", "verfolg"))
     matches.push("defensive_marker");
-  if (has("rest defense", "rest defence", "cover", "stay back", "sit back", "back cover"))
+  if (has("rest defense", "rest defence", "cover", "stay back", "sit back", "back cover",
+    "absicher", "restverteidig", "zurückbleib", "zurueckbleib"))
     matches.push("rest_defense");
-  if (has("block", "screen", "pick "))
+  if (has("block", "screen", "pick ", "sperr"))
     matches.push("blocker");
-  if (has("runner", "late run", "run into", "burst", "quick run", "attacking run"))
+  if (has("runner", "late run", "run into", "burst", "quick run", "attacking run",
+    "läufer", "laeufer", "sprint"))
     matches.push("runner");
-  if (has("rebound", "second ball", "edge of box"))
+  if (has("rebound", "second ball", "edge of box",
+    "abpraller", "zweiter ball", "2. ball", "rückraum", "rueckraum", "strafraumgrenze"))
     matches.push("rebound");
-  if (has("counter", "outlet", "transition", "release"))
+  if (has("counter", "outlet", "transition", "release", "konter", "umschalt"))
     matches.push("counter_outlet");
 
   if (matches.length === 0) matches.push("generic");
@@ -175,15 +200,15 @@ export function scorePlayerForRole(
   let hardBlock = false;
   const status = (player.status ?? "active").toLowerCase();
   if (status === "injured") {
-    cautions.push("Currently injured");
+    cautions.push("Aktuell verletzt");
     hardBlock = true;
     score -= 50;
   } else if (status === "suspended") {
-    cautions.push("Currently suspended");
+    cautions.push("Aktuell gesperrt");
     hardBlock = true;
     score -= 50;
   } else if (status === "inactive") {
-    cautions.push("Marked inactive");
+    cautions.push("Als inaktiv markiert");
     hardBlock = true;
     score -= 50;
   }
@@ -198,81 +223,84 @@ export function scorePlayerForRole(
     case "delivery": {
       if (tags.has("delivery_specialist")) {
         score += 30;
-        reasons.push("Tagged as delivery specialist");
+        reasons.push("Laut Profil Standardschütze");
       } else {
-        cautions.push("Not tagged as a delivery specialist");
+        cautions.push("Nicht als Standardschütze markiert");
         score -= 10;
       }
       // Foot preference cue: roles whose name mentions "left" / "right".
       const roleText = (role.name + " " + (role.description ?? "")).toLowerCase();
       if (roleText.includes("left") && foot === "left") {
         score += 10;
-        reasons.push("Left-footed for left-side delivery");
+        reasons.push("Linksfuss für Ausführung von links");
       } else if (roleText.includes("right") && foot === "right") {
         score += 10;
-        reasons.push("Right-footed for right-side delivery");
+        reasons.push("Rechtsfuss für Ausführung von rechts");
       } else if (roleText.includes("left") && foot === "right") {
-        cautions.push("Right-footed in a left-side delivery role");
+        cautions.push("Rechtsfuss in einer Ausführung von links");
         score -= 5;
       } else if (roleText.includes("right") && foot === "left") {
-        cautions.push("Left-footed in a right-side delivery role");
+        cautions.push("Linksfuss in einer Ausführung von rechts");
         score -= 5;
       } else if (foot === "both") {
         score += 4;
-        reasons.push("Two-footed");
+        reasons.push("Beidfüssig");
       }
       break;
     }
     case "aerial_target": {
       if (tags.has("aerial_threat")) {
         score += 18;
-        reasons.push("Tagged as aerial threat");
+        reasons.push("Laut Profil kopfballstark");
       }
       if (heading !== null) {
-        if (heading >= 8) { score += 22; reasons.push(`Strong heading (${heading}/10)`); }
-        else if (heading >= 6) { score += 10; reasons.push(`Solid heading (${heading}/10)`); }
-        else if (heading <= 3) { score -= 18; cautions.push(`Weak heading (${heading}/10)`); }
+        if (heading >= 8) { score += 22; reasons.push(`Starker Kopfball (${heading}/10)`); }
+        else if (heading >= 6) { score += 10; reasons.push(`Solider Kopfball (${heading}/10)`); }
+        else if (heading <= 3) { score -= 18; cautions.push(`Schwacher Kopfball (${heading}/10)`); }
       }
       if (height !== null) {
-        if (height >= 188) { score += 12; reasons.push(`Tall (${height}cm)`); }
+        if (height >= 188) { score += 12; reasons.push(`Gross (${height} cm)`); }
         else if (height >= 180) { score += 5; }
-        else if (height <= 170) { score -= 8; cautions.push(`Short for an aerial target (${height}cm)`); }
+        else if (height <= 170) { score -= 8; cautions.push(`Klein für Kopfballziel (${height} cm)`); }
       }
       break;
     }
     case "defensive_marker": {
-      if (tags.has("defender")) { score += 14; reasons.push("Tagged as defender"); }
+      if (tags.has("defender")) { score += 14; reasons.push("Laut Profil Verteidiger/Decker"); }
       if (heading !== null) {
-        if (heading >= 7) { score += 14; reasons.push(`Strong in the air (${heading}/10)`); }
-        else if (heading <= 3) { score -= 12; cautions.push(`Weak in the air (${heading}/10)`); }
+        if (heading >= 7) { score += 14; reasons.push(`Stark in der Luft (${heading}/10)`); }
+        else if (heading <= 3) { score -= 12; cautions.push(`Schwach in der Luft (${heading}/10)`); }
       }
-      if (height !== null && height >= 185) { score += 8; reasons.push(`Tall marker (${height}cm)`); }
+      if (height !== null && height >= 185) { score += 8; reasons.push(`Grosser Decker (${height} cm)`); }
       break;
     }
     case "rest_defense": {
-      if (tags.has("defender")) { score += 18; reasons.push("Tagged as defender"); }
+      if (tags.has("rest_defense")) { score += 18; reasons.push("Laut Profil Absicherung"); }
+      else if (tags.has("defender")) { score += 18; reasons.push("Laut Profil Verteidiger/Decker"); }
       if (speed !== null) {
-        if (speed >= 7) { score += 12; reasons.push(`Quick recovery (${speed}/10)`); }
-        else if (speed <= 4) { score -= 6; cautions.push(`Limited recovery pace (${speed}/10)`); }
+        if (speed >= 7) { score += 12; reasons.push(`Schnell zurück (${speed}/10)`); }
+        else if (speed <= 4) { score -= 6; cautions.push(`Wenig Tempo zurück (${speed}/10)`); }
       }
       break;
     }
     case "blocker": {
-      if (tags.has("blocker")) { score += 18; reasons.push("Tagged as blocker"); }
-      if (height !== null && height >= 183) { score += 10; reasons.push(`Tall (${height}cm)`); }
+      if (tags.has("blocker")) { score += 18; reasons.push("Laut Profil Blocker"); }
+      if (height !== null && height >= 183) { score += 10; reasons.push(`Gross (${height} cm)`); }
       if (heading !== null && heading >= 6) { score += 6; }
       break;
     }
     case "runner": {
-      if (tags.has("fast")) { score += 14; reasons.push("Tagged as fast"); }
+      if (tags.has("runner")) { score += 14; reasons.push("Laut Profil Läufer"); }
+      else if (tags.has("fast")) { score += 14; reasons.push("Laut Profil schnell"); }
       if (speed !== null) {
-        if (speed >= 8) { score += 22; reasons.push(`High speed (${speed}/10)`); }
-        else if (speed >= 6) { score += 10; reasons.push(`Good speed (${speed}/10)`); }
-        else if (speed <= 4) { score -= 16; cautions.push(`Lacks pace for this run (${speed}/10)`); }
+        if (speed >= 8) { score += 22; reasons.push(`Hohes Tempo (${speed}/10)`); }
+        else if (speed >= 6) { score += 10; reasons.push(`Gutes Tempo (${speed}/10)`); }
+        else if (speed <= 4) { score -= 16; cautions.push(`Zu wenig Tempo für diesen Lauf (${speed}/10)`); }
       }
       break;
     }
     case "rebound": {
+      if (tags.has("rebound")) { score += 14; reasons.push("Laut Profil Abpraller/Rückraum"); }
       if (tags.has("delivery_specialist")) { score += 6; }
       // Generic — value composure (reuse heading slightly as a proxy if no other data).
       score += 3;
@@ -280,9 +308,10 @@ export function scorePlayerForRole(
     }
     case "counter_outlet": {
       if (speed !== null) {
-        if (speed >= 7) { score += 18; reasons.push(`Quick on the break (${speed}/10)`); }
-        else if (speed <= 4) { score -= 10; cautions.push(`Lacks pace for a counter outlet (${speed}/10)`); }
+        if (speed >= 7) { score += 18; reasons.push(`Schnell im Konter (${speed}/10)`); }
+        else if (speed <= 4) { score -= 10; cautions.push(`Zu wenig Tempo für den Konter (${speed}/10)`); }
       }
+      if (tags.has("counter")) { score += 14; reasons.push("Laut Profil Konterspieler"); }
       if (tags.has("fast")) { score += 8; }
       break;
     }
@@ -366,9 +395,9 @@ export interface SuggestAssignmentsInput {
 
 const STARTER_BIAS = 5;
 
-function hasProfileData(p: PlayerLike): boolean {
+export function hasProfileData(p: PlayerLike): boolean {
   return Boolean(
-    (p.tags && p.tags.length > 0) ||
+    normalizePlayerTags(p.tags).size > 0 ||
     (p.headingStrength !== null && p.headingStrength !== undefined) ||
     (p.speed !== null && p.speed !== undefined) ||
     (p.height !== null && p.height !== undefined) ||
@@ -465,8 +494,8 @@ export function suggestAssignments(input: SuggestAssignmentsInput): SetPieceSugg
 
       const missing = pick ? !hasProfileData(pick.player) : false;
       const cautions = pick?.fit.cautions.slice() ?? [];
-      if (pick && missing) cautions.push("No player profile data — recommendation is generic");
-      if (!pick) cautions.push("No available players");
+      if (pick && missing) cautions.push("Profil unvollständig: Vorschlag nur allgemein");
+      if (!pick) cautions.push("Keine verfügbaren Spieler");
 
       roleSuggestions.push({
         roleId: role.id,
