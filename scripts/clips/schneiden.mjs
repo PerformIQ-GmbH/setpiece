@@ -35,18 +35,18 @@ export function seconds(t) {
 
 function filter(fmt, titleFile, sceneFile) {
   const txt = (file, size, color, y, until) =>
-    `drawtext=fontfile=${FONT}:textfile=${file}:fontsize=${size}:fontcolor=${color}:x=48:y=${y}` + (until ? `:enable='lt(t,${until})'` : "");
+    `drawtext=fontfile=${FONT}:textfile=${file}:fontsize=${size}:fontcolor=${color}:x=32:y=${y}` + (until ? `:enable='lt(t,${until})'` : "");
   // Kompilation hat eigene Titelzeile oben: wegschneiden, nur Spielfeld behalten.
   const base = fmt === "portrait-compilation"
-    ? "crop=360:360:0:152,scale=1080:1080:flags=lanczos"
-    : "scale=1280:720:flags=lanczos";
+    ? "crop=360:360:0:152,scale=720:720:flags=lanczos"
+    : "scale=960:540:flags=lanczos";
   return [
     base,
     // Oben, weil Quellen unten eigene Namenseinblendungen haben.
-    `drawbox=x=0:y=0:w=iw:h=130:color=black@0.65:t=fill:enable='lt(t,4.5)'`,
-    txt(titleFile, 46, "white", "16", 4.5),
-    txt(sceneFile, 28, GREEN, "80", 4.5),
-    `drawtext=fontfile=${FONT}:text=SETPIECE:fontsize=26:fontcolor=white@0.85:x=w-tw-28:y=h-th-24`,
+    `drawbox=x=0:y=0:w=iw:h=104:color=black@0.65:t=fill:enable='lt(t,4.5)'`,
+    txt(titleFile, 38, "white", "14", 4.5),
+    txt(sceneFile, 24, GREEN, "66", 4.5),
+    `drawtext=fontfile=${FONT}:text=SETPIECE:fontsize=22:fontcolor=white@0.85:x=w-tw-20:y=h-th-18`,
   ].join(",");
 }
 
@@ -65,7 +65,7 @@ for (const c of cfg.clips) {
   writeFileSync(titleFile, c.title); writeFileSync(sceneFile, c.scene);
   const file = `${c.id}-${c.template}.mp4`;
   execFileSync("ffmpeg", ["-loglevel", "error", "-y", "-ss", String(start), "-t", String(dur), "-i", input,
-    "-vf", filter(src.format, titleFile, sceneFile), "-an", "-c:v", "libx264", "-preset", "medium", "-crf", "20",
+    "-vf", filter(src.format, titleFile, sceneFile), "-an", "-c:v", "libx264", "-preset", "medium", "-crf", "28",
     "-pix_fmt", "yuv420p", "-movflags", "+faststart", path.join(out, "clips", file)], { stdio: "inherit" });
   const ytTitle = `${c.title} | ${c.scene.split(" · ")[0]} | SETPIECE`.slice(0, 100);
   const description = [
