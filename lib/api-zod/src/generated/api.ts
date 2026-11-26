@@ -522,6 +522,13 @@ export const JoinTeamBody = zod.object({
 });
 
 /**
+ * @summary Whether the signed-in user is a platform admin
+ */
+export const GetAdminStatusResponse = zod.object({
+  isPlatformAdmin: zod.boolean(),
+});
+
+/**
  * @summary List set piece templates
  */
 export const ListTemplatesQueryParams = zod.object({
@@ -538,6 +545,7 @@ export const ListTemplatesResponseItem = zod.object({
   defaultRoles: zod
     .array(
       zod.object({
+        id: zod.string().optional(),
         name: zod.string().optional(),
         description: zod.string().optional(),
         startPosition: zod
@@ -586,6 +594,7 @@ export const GetTemplateResponse = zod.object({
   defaultRoles: zod
     .array(
       zod.object({
+        id: zod.string().optional(),
         name: zod.string().optional(),
         description: zod.string().optional(),
         startPosition: zod
@@ -2337,6 +2346,59 @@ export const GetBoardPreviewParams = zod.object({
 
 export const GetBoardPreviewResponse = zod.object({
   previewImageUrl: zod.string().nullish(),
+});
+
+/**
+ * @summary Publish this set piece as a template for all teams (platform admins only)
+ */
+export const SaveSetPieceAsTemplateParams = zod.object({
+  teamId: zod.coerce.string(),
+  setPieceId: zod.coerce.string(),
+});
+
+export const SaveSetPieceAsTemplateBody = zod.object({
+  templateId: zod.string().optional(),
+});
+
+export const SaveSetPieceAsTemplateResponse = zod.object({
+  id: zod.string(),
+  title: zod.string(),
+  category: zod.string(),
+  description: zod.string().nullish(),
+  boardData: zod.object({}).passthrough().nullish(),
+  previewImageUrl: zod.string().nullish(),
+  defaultRoles: zod
+    .array(
+      zod.object({
+        id: zod.string().optional(),
+        name: zod.string().optional(),
+        description: zod.string().optional(),
+        startPosition: zod
+          .object({
+            x: zod.number().optional(),
+            y: zod.number().optional(),
+          })
+          .optional(),
+        coachingPoint: zod.string().optional(),
+      }),
+    )
+    .nullish(),
+  coachingNote: zod.string().nullish(),
+  media: zod
+    .array(
+      zod.object({
+        url: zod.string(),
+        provider: zod.enum(["youtube", "vimeo", "file"]),
+        videoId: zod.string(),
+        hash: zod.string().optional(),
+        startSec: zod.number(),
+        endSec: zod.number().nullable(),
+        title: zod.string().nullable(),
+      }),
+    )
+    .nullish(),
+  createdAt: zod.coerce.date(),
+  updatedAt: zod.coerce.date(),
 });
 
 /**

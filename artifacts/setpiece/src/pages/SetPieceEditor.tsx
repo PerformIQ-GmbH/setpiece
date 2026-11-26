@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { useRoute } from 'wouter';
-import { useGetTeam, useGetSetPiece, useCreateRole, useUpdateRole, useDeleteRole, useUpsertAssignment, useDeleteAssignment, useListPlayers, useUpdateSetPieceStatus, useUpdateSetPiece, updateSetPiece as updateSetPieceRequest } from '@workspace/api-client-react';
+import { useGetTeam, useGetSetPiece, useCreateRole, useUpdateRole, useDeleteRole, useUpsertAssignment, useDeleteAssignment, useListPlayers, useUpdateSetPieceStatus, useUpdateSetPiece, useGetAdminStatus, getGetAdminStatusQueryKey, updateSetPiece as updateSetPieceRequest } from '@workspace/api-client-react';
 import type { SetPieceRole, RoleAssignment } from '@workspace/api-client-react';
 import { EditorCanvas, EditorToolbar, MobileToolDrawer, BottomBar, InspectorPanel, TutorialOverlay, ContextualTip, QuickLegend, PresentationMode, EditorContextMenu, ContextualMiniBar, useEditorStore } from '@/components/editor';
 import type { Point, Annotation, BoardData, EditorCanvasHandle, PitchTheme } from '@/components/editor';
@@ -10,10 +10,11 @@ import { resetTutorial, shouldShowTutorial } from '@/components/editor/TutorialO
 import { resetAllTips } from '@/components/editor/ContextualTip';
 import { StatusBadge } from '@/components/StatusBadge';
 import { VideoClipEditor } from '@/components/VideoClips';
+import { SaveAsTemplateDialog } from '@/components/SaveAsTemplateDialog';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Drawer, DrawerContent, DrawerTitle } from '@/components/ui/drawer';
-import { ArrowLeft, ShieldCheck, Ghost, FileDown, Loader2, Cloud, CloudOff, HelpCircle, Info, Sun, Trees, Moon, MoreVertical, Check, ZoomIn, ZoomOut, Maximize, Clapperboard, Film } from 'lucide-react';
+import { ArrowLeft, ShieldCheck, Ghost, FileDown, Loader2, Cloud, CloudOff, HelpCircle, Info, Sun, Trees, Moon, MoreVertical, Check, ZoomIn, ZoomOut, Maximize, Clapperboard, Film, LayoutTemplate } from 'lucide-react';
 import { recordBoardVideo, shareOrDownloadVideo, videoExportSupported } from '@/components/editor/videoExport';
 import { clampViewAxis } from '@/components/editor/EditorCanvas';
 import { FIFA_PITCH } from '@/utils/pitchGeometry';
@@ -80,6 +81,8 @@ export default function SetPieceEditor() {
   const [helpOpen, setHelpOpen] = useState(false);
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
   const [clipsOpen, setClipsOpen] = useState(false);
+  const [templateOpen, setTemplateOpen] = useState(false);
+  const { data: adminStatus } = useGetAdminStatus({ query: { queryKey: getGetAdminStatusQueryKey(), staleTime: 5 * 60 * 1000, retry: false } });
 
   const showTutorial = useEditorStore((s) => s.showTutorial);
   const setShowTutorial = useEditorStore((s) => s.setShowTutorial);
@@ -293,6 +296,16 @@ export default function SetPieceEditor() {
     const done = () => { pendingMetadataWrites.current.delete(promise); };
     void promise.then(done, done);
     return promise;
+  };
+
+  // Same flush as publishing: the template must contain what is on screen.
+  const flushBoardForTemplate = async () => {
+    await Promise.all(pendingMetadataWrites.current);
+    if (pendingSaveTimerRef.current) {
+      clearTimeout(pendingSaveTimerRef.current);
+      pendingSaveTimerRef.current = null;
+    }
+    return saveBoardData(buildBoardDataPayload());
   };
 
   const handlePublish = async () => {
@@ -955,6 +968,12 @@ export default function SetPieceEditor() {
                 </Button>
               )}
 
+              {adminStatus?.isPlatformAdmin && (
+                <Button size="sm" variant="outline" className="text-[10px] h-6 border-primary/40 text-primary px-2" onClick={() => setTemplateOpen(true)}>
+                  <LayoutTemplate className="w-3 h-3 mr-1" /> Vorlage
+                </Button>
+              )}
+
               <Button size="sm" variant="outline" className="text-[10px] h-6 border-border px-2" onClick={() => setClipsOpen(true)}>
                 <Film className="w-3 h-3 mr-1" /> {t('Video clips')}{setPiece.media?.length ? ` (${setPiece.media.length})` : ''}
               </Button>
@@ -1044,6 +1063,15 @@ export default function SetPieceEditor() {
                         >
                           {exportingVideo ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Clapperboard className="w-3.5 h-3.5" />}
                           {exportingVideo ? t('Recording…') : t('Share Video')}
+                        </button>
+                      )}
+
+                      {adminStatus?.isPlatformAdmin && (
+                        <button
+                          onClick={() => { setMobileMenuOpen(false); setTemplateOpen(true); }}
+                          className="w-full text-left px-3 py-2.5 text-[11px] text-primary hover:bg-secondary transition-colors flex items-center gap-2"
+                        >
+                          <LayoutTemplate className="w-3.5 h-3.5" /> Als Vorlage speichern
                         </button>
                       )}
 
@@ -1327,6 +1355,11 @@ export default function SetPieceEditor() {
         mobile={isMobile}
         onClose={() => setShowTutorial(false)}
       />
+
+      {adminStatus?.isPlatformAdmin && (
+        <SaveAsTemplateDialog open={templateOpen} onOpenChange={setTemplateOpen} teamId={teamId} setPieceId={setPieceId}
+          title={setPiece.title} beforeSave={flushBoardForTemplate} />
+      )}
 
       <Dialog open={clipsOpen} onOpenChange={setClipsOpen}>
         <DialogContent className="bg-card border-border sm:max-w-lg max-h-[85vh] overflow-y-auto">

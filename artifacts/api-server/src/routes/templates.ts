@@ -1,6 +1,7 @@
 import { Router, type IRouter } from "express";
 import { eq } from "drizzle-orm";
-import { db, setPieceTemplatesTable } from "@workspace/db";
+import { db, setPieceTemplatesTable, usersTable } from "@workspace/db";
+import { isAdminUser } from "../lib/platformAdmin";
 import { parseParam } from "../lib/authorization";
 import { z } from "zod/v4";
 
@@ -8,6 +9,13 @@ const router: IRouter = Router();
 
 const templatesQuerySchema = z.object({
   category: z.string().optional(),
+});
+
+// The editor shows the template tools only if this says true; the write route checks again.
+router.get("/admin/status", async (req, res): Promise<void> => {
+  if (!req.isAuthenticated()) { res.json({ isPlatformAdmin: false }); return; }
+  const [account] = await db.select({ email: usersTable.email, emailVerified: usersTable.emailVerified }).from(usersTable).where(eq(usersTable.id, req.user.id));
+  res.json({ isPlatformAdmin: isAdminUser(account) });
 });
 
 router.get("/templates", async (req, res): Promise<void> => {

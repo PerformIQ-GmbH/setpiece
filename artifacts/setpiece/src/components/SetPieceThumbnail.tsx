@@ -51,7 +51,8 @@ export function SetPieceThumbnail({ boardData, category, imageUrl, roles = [] }:
         </marker>
       </defs>
       <PitchLines geometry={geometry} />
-      {(visibleAnnotations.length || rolePositions.length || entityPositions.length ? visibleAnnotations : annotations)
+      {/* Step 1 is often just the set-up; then the preview shows the whole drawing. */}
+      {(visibleAnnotations.length ? visibleAnnotations : annotations)
         .map((annotation, index) => {
           const sourcePoints = annotation.points.filter(isPoint);
           const curved = annotation.type === 'curved_run' || annotation.type === 'curved_cross';

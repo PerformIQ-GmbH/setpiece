@@ -9,6 +9,7 @@ import {
   teamsTable,
   setPieceTemplatesTable,
   auditEventsTable,
+  usersTable,
 } from "@workspace/db";
 import { requireTeamAccess, requireCoachAccess, requireHeadCoachAccess, parseParam } from "../lib/authorization";
 import { checkEntitlement } from "../lib/entitlements";
@@ -16,6 +17,7 @@ import { evaluateRolesForPlayers } from "../lib/roleSuitability";
 import { inArray } from "drizzle-orm";
 import { z } from "zod/v4";
 import { normalizeMedia } from "../lib/videoClip";
+import { isAdminUser, slugify } from "../lib/platformAdmin";
 import { isVariantBoard, publishContent, preservePublication, preserveLegacyPublication, remapBoardRoleIds, withoutPublication, PublicationValidationError } from "../lib/variantContent";
 
 const router: IRouter = Router();
@@ -84,13 +86,18 @@ router.post("/teams/:teamId/set-pieces", async (req, res): Promise<void> => {
   const { title, category, description, boardData, coachingNotes, templateId } = parsed.data;
 
   let finalBoardData = boardData;
+  // Template boards refer to template role ids; they are remapped once the new roles exist.
+  let templateBoard: Record<string, unknown> | null = null;
   let finalRoles: Array<{
+    id?: string;
     name: string;
     description?: string;
     startPosition?: { x: number; y: number };
     coachingPoint?: string;
   }> = [];
   let templateMedia: typeof setPieceTemplatesTable.$inferSelect.media = null;
+  let templateDescription: string | null = null;
+  let templateNote: string | null = null;
 
   if (templateId) {
     const [template] = await db
@@ -98,9 +105,11 @@ router.post("/teams/:teamId/set-pieces", async (req, res): Promise<void> => {
       .from(setPieceTemplatesTable)
       .where(eq(setPieceTemplatesTable.id, templateId));
     if (template) {
-      if (!finalBoardData && template.boardData) finalBoardData = template.boardData;
+      if (!finalBoardData && template.boardData) templateBoard = template.boardData;
       if (template.defaultRoles) finalRoles = template.defaultRoles;
       templateMedia = template.media;
+      templateDescription = template.description;
+      templateNote = template.coachingNote;
     }
   }
 
@@ -110,9 +119,9 @@ router.post("/teams/:teamId/set-pieces", async (req, res): Promise<void> => {
       teamId,
       title,
       category: category as typeof setPiecesTable.$inferInsert.category,
-      description: description || null,
+      description: description || templateDescription,
       boardData: finalBoardData ? withoutPublication(finalBoardData) : null,
-      coachingNotes: coachingNotes || null,
+      coachingNotes: coachingNotes || templateNote,
       media: templateMedia,
       createdBy: req.user!.id,
       updatedBy: req.user!.id,
@@ -120,16 +129,23 @@ router.post("/teams/:teamId/set-pieces", async (req, res): Promise<void> => {
     .returning();
 
   if (finalRoles.length > 0) {
+    const roleIds = new Map<string, string>();
     for (let i = 0; i < finalRoles.length; i++) {
       const role = finalRoles[i];
-      await db.insert(setPieceRolesTable).values({
+      const [created] = await db.insert(setPieceRolesTable).values({
         setPieceId: piece.id,
         name: role.name,
         description: role.description || null,
         startPosition: role.startPosition || null,
         coachingPoint: role.coachingPoint || null,
         sortOrder: i,
-      });
+      }).returning({ id: setPieceRolesTable.id });
+      if (role.id) roleIds.set(role.id, created.id);
+    }
+    if (templateBoard) {
+      const board = remapBoardRoleIds(templateBoard, roleIds);
+      await db.update(setPiecesTable).set({ boardData: board }).where(eq(setPiecesTable.id, piece.id));
+      piece.boardData = board;
     }
   }
 
@@ -560,6 +576,47 @@ router.post(
     res.json({ setPieceId, roles: evaluations });
   },
 );
+
+// Admin only: publish this set piece as (or over) a template that every team sees.
+router.put("/teams/:teamId/set-pieces/:setPieceId/save-as-template", async (req, res): Promise<void> => {
+  const teamId = await requireCoachAccess(req, res);
+  if (!teamId) return;
+  const [account] = await db.select({ email: usersTable.email, emailVerified: usersTable.emailVerified }).from(usersTable).where(eq(usersTable.id, req.user!.id));
+  if (!isAdminUser(account)) { res.status(403).json({ error: "Only platform admins can publish templates" }); return; }
+  const parsed = z.object({ templateId: z.string().min(1).max(255).optional() }).safeParse(req.body ?? {});
+  if (!parsed.success) { res.status(400).json({ error: "Validation failed", details: parsed.error.issues }); return; }
+
+  const setPieceId = parseParam(req.params.setPieceId);
+  const [piece] = await db.select().from(setPiecesTable).where(and(eq(setPiecesTable.id, setPieceId), eq(setPiecesTable.teamId, teamId)));
+  if (!piece) { res.status(404).json({ error: "Set piece not found" }); return; }
+  const roles = (await db.select().from(setPieceRolesTable).where(eq(setPieceRolesTable.setPieceId, setPieceId))).sort((a, b) => a.sortOrder - b.sortOrder);
+
+  const values = {
+    title: piece.title,
+    category: piece.category,
+    description: piece.description,
+    coachingNote: piece.coachingNotes,
+    media: piece.media,
+    defaultRoles: roles.map((r) => ({ id: r.id, name: r.name, description: r.description ?? "", startPosition: { x: r.startPosition?.x ?? 50, y: r.startPosition?.y ?? 50 }, coachingPoint: r.coachingPoint ?? "" })),
+    // Marker: the library sync must not overwrite a template an admin drew by hand.
+    boardData: piece.boardData ? { ...withoutPublication(piece.boardData), editedByAdminAt: new Date().toISOString() } : null,
+  };
+
+  if (parsed.data.templateId) {
+    const [template] = await db.update(setPieceTemplatesTable).set(values).where(eq(setPieceTemplatesTable.id, parsed.data.templateId)).returning();
+    if (!template) { res.status(404).json({ error: "Template not found" }); return; }
+    req.log.info({ templateId: template.id, by: req.user!.id }, "Template updated by platform admin");
+    res.json(template);
+    return;
+  }
+  const taken = new Set((await db.select({ slug: setPieceTemplatesTable.slug }).from(setPieceTemplatesTable)).map((r) => r.slug));
+  const base = slugify(piece.title);
+  let slug = base;
+  for (let n = 2; taken.has(slug); n++) slug = `${base}-${n}`;
+  const [template] = await db.insert(setPieceTemplatesTable).values({ ...values, slug }).returning();
+  req.log.info({ templateId: template.id, by: req.user!.id }, "Template created by platform admin");
+  res.status(201).json(template);
+});
 
 router.get("/teams/:teamId/set-pieces/:setPieceId/preview", async (req, res): Promise<void> => {
   const teamId = await requireTeamAccess(req, res);

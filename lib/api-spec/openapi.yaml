@@ -515,6 +515,23 @@ paths:
         "410":
           description: Token expired or revoked
 
+  /admin/status:
+    get:
+      operationId: getAdminStatus
+      tags: [templates]
+      summary: Whether the signed-in user is a platform admin
+      responses:
+        "200":
+          description: Admin status
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [isPlatformAdmin]
+                properties:
+                  isPlatformAdmin:
+                    type: boolean
+
   # ─── Templates ───
   /templates:
     get:
@@ -1352,6 +1369,39 @@ paths:
                   previewImageUrl:
                     type: [string, 'null']
 
+  /teams/{teamId}/set-pieces/{setPieceId}/save-as-template:
+    put:
+      operationId: saveSetPieceAsTemplate
+      tags: [setPieces]
+      summary: Publish this set piece as a template for all teams (platform admins only)
+      parameters:
+        - $ref: "#/components/parameters/TeamId"
+        - $ref: "#/components/parameters/SetPieceId"
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                templateId:
+                  type: string
+      responses:
+        "200":
+          description: Existing template replaced
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SetPieceTemplate"
+        "201":
+          description: New template created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SetPieceTemplate"
+        "403":
+          description: Not a platform admin
+
   # ─── Audit ───
   /teams/{teamId}/audit:
     get:
@@ -1836,6 +1886,8 @@ components:
           items:
             type: object
             properties:
+              id:
+                type: string
               name:
                 type: string
               description:
