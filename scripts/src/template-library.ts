@@ -185,7 +185,7 @@ export const LIBRARY: Entry[] = [
   },
   {
     slug: "kurze-ecke-neuer-winkel",
-    media: [{"url":"https://storage.googleapis.com/setpiece-mediathek/clips/03-kurze-ecke-neuer-winkel-92ed56ddfc.mp4","provider":"file","videoId":"setpiece-mediathek/clips/03-kurze-ecke-neuer-winkel-92ed56ddfc.mp4","startSec":0,"endSec":null,"title":"Bournemouth bei Newcastle · 09.11.2019"}],
+    media: [{"url":"https://storage.googleapis.com/setpiece-mediathek/clips/03-kurze-ecke-neuer-winkel-92ed56ddfc.mp4","provider":"file","videoId":"clips/03-kurze-ecke-neuer-winkel-92ed56ddfc.mp4","startSec":0,"endSec":null,"title":"Bournemouth bei Newcastle · 09.11.2019"}],
     title: "Kurze Ecke, neuer Flankenwinkel",
     category: "offensive_corner_left",
     description: "Kurz ausgeführte Ecke: Doppelpass mit dem Anspieler, dann Flanke oder Schuss aus einem neuen Winkel. Lockt Verteidiger aus dem Fünfmeterraum und verändert die Ordnung. Vorbilder: Arsenals Rekordtor durch Eberechi Eze nach kurzer Ecke (2025/26) und Harry Wilson, AFC Bournemouth bei Newcastle (9.11.2019). Passt gegen tiefe Abwehr und Manndeckung. Niveau: einfach.",
@@ -343,7 +343,7 @@ export const LIBRARY: Entry[] = [
   // «Ten of the Best»). Positionen aus dem Bild geschätzt. Zuordnung in docs/library/VIDEO-SZENEN.md.
   {
     slug: "kette-loest-sich-auf",
-    media: [{"url":"https://storage.googleapis.com/setpiece-mediathek/clips/09-kette-loest-sich-auf-3b1bca0b70.mp4","provider":"file","videoId":"setpiece-mediathek/clips/09-kette-loest-sich-auf-3b1bca0b70.mp4","startSec":0,"endSec":null,"title":"Dynamo Dresden gegen VfL Bochum"}],
+    media: [{"url":"https://storage.googleapis.com/setpiece-mediathek/clips/09-kette-loest-sich-auf-3b1bca0b70.mp4","provider":"file","videoId":"clips/09-kette-loest-sich-auf-3b1bca0b70.mp4","startSec":0,"endSec":null,"title":"Dynamo Dresden gegen VfL Bochum"}],
     title: "Kette löst sich auf",
     category: "indirect_free_kick_right",
     description: "Freistoss von rechts. Fünf Angreifer stehen eingehakt in einer Kette am Strafraum und laufen beim Anlauf gleichzeitig in fünf Richtungen auseinander: kurzer Pfosten, Mitte, langer Pfosten, Elfmeterpunkt, hinter den langen Pfosten. Die Verteidiger wissen nicht, wen sie nehmen. Vorbild: VfL Bochum bei Dynamo Dresden (Tor am langen Pfosten). Gegen Manndeckung. Niveau: einfach.",
@@ -360,7 +360,7 @@ export const LIBRARY: Entry[] = [
   },
   {
     slug: "freistoss-flach-in-den-lauf",
-    media: [{"url":"https://storage.googleapis.com/setpiece-mediathek/clips/07-freistoss-flach-in-den-lauf-56817b8bf6.mp4","provider":"file","videoId":"setpiece-mediathek/clips/07-freistoss-flach-in-den-lauf-56817b8bf6.mp4","startSec":0,"endSec":null,"title":"Everton gegen Southampton · 18.08.2018"}],
+    media: [{"url":"https://storage.googleapis.com/setpiece-mediathek/clips/07-freistoss-flach-in-den-lauf-56817b8bf6.mp4","provider":"file","videoId":"clips/07-freistoss-flach-in-den-lauf-56817b8bf6.mp4","startSec":0,"endSec":null,"title":"Everton gegen Southampton · 18.08.2018"}],
     title: "Freistoss flach in den Lauf",
     category: "indirect_free_kick_right",
     description: "Halbhoher Freistoss von rechts, alle erwarten die hohe Flanke. Stattdessen spielt der Schütze flach in den Lauf eines Spielers, der aus der Tiefe auf die rechte Strafraumseite kommt. Der legt flach quer durch den Fünfmeterraum, am langen Pfosten wird eingeschoben. Vorbild: Everton gegen Southampton (18.08.2018, Theo Walcott). Niveau: einfach.",
@@ -376,7 +376,7 @@ export const LIBRARY: Entry[] = [
   },
   {
     slug: "mauer-ende-anspiel",
-    media: [{"url":"https://storage.googleapis.com/setpiece-mediathek/clips/06-mauer-ende-anspiel-96257e7108.mp4","provider":"file","videoId":"setpiece-mediathek/clips/06-mauer-ende-anspiel-96257e7108.mp4","startSec":0,"endSec":null,"title":"Wolverhampton gegen Stoke · 14.08.2010"},{"url":"https://storage.googleapis.com/setpiece-mediathek/clips/10-mauer-ende-anspiel-70a2351239.mp4","provider":"file","videoId":"setpiece-mediathek/clips/10-mauer-ende-anspiel-70a2351239.mp4","startSec":0,"endSec":null,"title":"Niederlande gegen Argentinien · WM 2022"}],
+    media: [{"url":"https://storage.googleapis.com/setpiece-mediathek/clips/06-mauer-ende-anspiel-96257e7108.mp4","provider":"file","videoId":"clips/06-mauer-ende-anspiel-96257e7108.mp4","startSec":0,"endSec":null,"title":"Wolverhampton gegen Stoke · 14.08.2010"},{"url":"https://storage.googleapis.com/setpiece-mediathek/clips/10-mauer-ende-anspiel-70a2351239.mp4","provider":"file","videoId":"clips/10-mauer-ende-anspiel-70a2351239.mp4","startSec":0,"endSec":null,"title":"Niederlande gegen Argentinien · WM 2022"}],
     title: "Anspiel ans Ende der Mauer",
     category: "direct_free_kick_central",
     description: "Freistoss vor dem Strafraum, alle erwarten den Schuss. Ein Angreifer stellt sich ans Ende der gegnerischen Mauer. Der Schütze spielt flach neben die Mauer zu ihm, er dreht auf und schiesst. Vorbilder: Niederlande gegen Argentinien, WM-Viertelfinal 2022 (Wout Weghorst zum 2:2 in der Nachspielzeit), und David Jones, Wolverhampton gegen Stoke (14.08.2010). Niveau: einfach bis mittel.",
@@ -392,7 +392,7 @@ export const LIBRARY: Entry[] = [
   },
   {
     slug: "ecke-angetippt-dribbling",
-    media: [{"url":"https://storage.googleapis.com/setpiece-mediathek/clips/08-ecke-angetippt-dribbling-1687798d1b.mp4","provider":"file","videoId":"setpiece-mediathek/clips/08-ecke-angetippt-dribbling-1687798d1b.mp4","startSec":0,"endSec":null,"title":"Aston Villa gegen Bournemouth · 09.04.2016"}],
+    media: [{"url":"https://storage.googleapis.com/setpiece-mediathek/clips/08-ecke-angetippt-dribbling-1687798d1b.mp4","provider":"file","videoId":"clips/08-ecke-angetippt-dribbling-1687798d1b.mp4","startSec":0,"endSec":null,"title":"Aston Villa gegen Bournemouth · 09.04.2016"}],
     title: "Ecke angetippt, dann Dribbling",
     category: "offensive_corner_right",
     description: "Der Schütze tippt den Ball nur kurz an und geht weg, als wollte er die Ecke einem anderen überlassen. Der Ball ist im Spiel. Ein Mitspieler nimmt ihn auf, dribbelt die Torlinie entlang und spielt flach an den kurzen Pfosten. Vorbild: AFC Bournemouth bei Aston Villa (9.4.2016, Steve Cook). Niveau: einfach, nur einmal pro Spiel.",
@@ -408,7 +408,7 @@ export const LIBRARY: Entry[] = [
   },
   {
     slug: "schneller-freistoss",
-    media: [{"url":"https://storage.googleapis.com/setpiece-mediathek/clips/02-schneller-freistoss-e586ceb647.mp4","provider":"file","videoId":"setpiece-mediathek/clips/02-schneller-freistoss-e586ceb647.mp4","startSec":0,"endSec":null,"title":"Wolverhampton bei Bournemouth · 23.11.2019"}],
+    media: [{"url":"https://storage.googleapis.com/setpiece-mediathek/clips/02-schneller-freistoss-e586ceb647.mp4","provider":"file","videoId":"clips/02-schneller-freistoss-e586ceb647.mp4","startSec":0,"endSec":null,"title":"Wolverhampton bei Bournemouth · 23.11.2019"}],
     title: "Schneller Freistoss",
     category: "indirect_free_kick_right",
     description: "Freistoss sofort ausführen, solange der Gegner sich noch dreht und ordnet. Langer Ball die Seite entlang in den Lauf, Flanke von der Grundlinie, Abschluss im Strafraum. Vorbild: Wolverhampton bei AFC Bournemouth (23.11.2019, Raúl Jiménez). Niveau: einfach.",
@@ -423,7 +423,7 @@ export const LIBRARY: Entry[] = [
   },
   {
     slug: "chip-hinter-die-linie",
-    media: [{"url":"https://storage.googleapis.com/setpiece-mediathek/clips/05-chip-hinter-die-linie-2cf2082885.mp4","provider":"file","videoId":"setpiece-mediathek/clips/05-chip-hinter-die-linie-2cf2082885.mp4","startSec":0,"endSec":null,"title":"Manchester United gegen Manchester City · 08.03.2020"}],
+    media: [{"url":"https://storage.googleapis.com/setpiece-mediathek/clips/05-chip-hinter-die-linie-2cf2082885.mp4","provider":"file","videoId":"clips/05-chip-hinter-die-linie-2cf2082885.mp4","startSec":0,"endSec":null,"title":"Manchester United gegen Manchester City · 08.03.2020"}],
     title: "Chip hinter die hohe Abwehrlinie",
     category: "indirect_free_kick_left",
     description: "Weiter Freistoss von links, der Gegner stellt seine Linie hoch an den Strafraum. Statt einer Flanke chippt der Schütze schnell über die Linie in den Lauf eines Stürmers, der aus der Reihe heraus startet. Vorbild: Manchester United gegen Manchester City (8.3.2020, Bruno Fernandes auf Anthony Martial). Niveau: mittel.",
@@ -438,7 +438,7 @@ export const LIBRARY: Entry[] = [
   },
   {
     slug: "seitlich-anlegen-direkt",
-    media: [{"url":"https://storage.googleapis.com/setpiece-mediathek/clips/01-seitlich-anlegen-direkt-d60554f080.mp4","provider":"file","videoId":"setpiece-mediathek/clips/01-seitlich-anlegen-direkt-d60554f080.mp4","startSec":0,"endSec":null,"title":"Liverpool bei Chelsea · 22.09.2019"}],
+    media: [{"url":"https://storage.googleapis.com/setpiece-mediathek/clips/01-seitlich-anlegen-direkt-d60554f080.mp4","provider":"file","videoId":"clips/01-seitlich-anlegen-direkt-d60554f080.mp4","startSec":0,"endSec":null,"title":"Liverpool bei Chelsea · 22.09.2019"}],
     title: "Seitlich anlegen, dann direkt",
     category: "direct_free_kick_central",
     description: "Direkter Freistoss, leicht rechts vor dem Strafraum. Ein Spieler legt den Ball nur einen Meter zur Seite, dadurch verändert sich der Winkel zur Mauer, der Schütze schiesst sofort. Vorbild: Liverpool bei Chelsea (22.9.2019, Mohamed Salah legt ab, Trent Alexander-Arnold trifft). Niveau: einfach, braucht einen guten Schützen.",
@@ -453,7 +453,7 @@ export const LIBRARY: Entry[] = [
   },
   {
     slug: "ecke-strafraumrand-volley",
-    media: [{"url":"https://storage.googleapis.com/setpiece-mediathek/clips/04-ecke-strafraumrand-volley-d6835d584a.mp4","provider":"file","videoId":"setpiece-mediathek/clips/04-ecke-strafraumrand-volley-d6835d584a.mp4","startSec":0,"endSec":null,"title":"Bradford City gegen Manchester United · 25.03.2000"}],
+    media: [{"url":"https://storage.googleapis.com/setpiece-mediathek/clips/04-ecke-strafraumrand-volley-d6835d584a.mp4","provider":"file","videoId":"clips/04-ecke-strafraumrand-volley-d6835d584a.mp4","startSec":0,"endSec":null,"title":"Bradford City gegen Manchester United · 25.03.2000"}],
     title: "Ecke an den Strafraumrand",
     category: "offensive_corner_left",
     description: "Statt in den Strafraum spielt der Schütze den Ball hoch an den Strafraumrand, wo ein Mitspieler spät ankommt und direkt abschliesst. Die Spieler im Strafraum ziehen die Verteidiger zum Tor. Vorbild: Manchester United bei Bradford City (25.3.2000, David Beckham auf Paul Scholes). Niveau: mittel, braucht einen guten Schützen und einen sauberen Abschluss.",
