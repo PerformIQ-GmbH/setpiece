@@ -9,10 +9,11 @@ import { VariantPanel } from '@/components/editor/VariantPanel';
 import { resetTutorial, shouldShowTutorial } from '@/components/editor/TutorialOverlay';
 import { resetAllTips } from '@/components/editor/ContextualTip';
 import { StatusBadge } from '@/components/StatusBadge';
+import { VideoClipEditor } from '@/components/VideoClips';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Drawer, DrawerContent, DrawerTitle } from '@/components/ui/drawer';
-import { ArrowLeft, ShieldCheck, Ghost, FileDown, Loader2, Cloud, CloudOff, HelpCircle, Info, Sun, Trees, Moon, MoreVertical, Check, ZoomIn, ZoomOut, Maximize, Clapperboard } from 'lucide-react';
+import { ArrowLeft, ShieldCheck, Ghost, FileDown, Loader2, Cloud, CloudOff, HelpCircle, Info, Sun, Trees, Moon, MoreVertical, Check, ZoomIn, ZoomOut, Maximize, Clapperboard, Film } from 'lucide-react';
 import { recordBoardVideo, shareOrDownloadVideo, videoExportSupported } from '@/components/editor/videoExport';
 import { clampViewAxis } from '@/components/editor/EditorCanvas';
 import { FIFA_PITCH } from '@/utils/pitchGeometry';
@@ -78,6 +79,7 @@ export default function SetPieceEditor() {
   const [titleDraft, setTitleDraft] = useState('');
   const [helpOpen, setHelpOpen] = useState(false);
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
+  const [clipsOpen, setClipsOpen] = useState(false);
 
   const showTutorial = useEditorStore((s) => s.showTutorial);
   const setShowTutorial = useEditorStore((s) => s.setShowTutorial);
@@ -953,6 +955,10 @@ export default function SetPieceEditor() {
                 </Button>
               )}
 
+              <Button size="sm" variant="outline" className="text-[10px] h-6 border-border px-2" onClick={() => setClipsOpen(true)}>
+                <Film className="w-3 h-3 mr-1" /> {t('Video clips')}{setPiece.media?.length ? ` (${setPiece.media.length})` : ''}
+              </Button>
+
               <Link href={`/teams/${teamId}/ghost/${setPieceId}`}>
                 <Button size="sm" variant="outline" className="text-[10px] h-6 border-border px-2">
                   <Ghost className="w-3 h-3 mr-1" /> Ghost
@@ -1040,6 +1046,13 @@ export default function SetPieceEditor() {
                           {exportingVideo ? t('Recording…') : t('Share Video')}
                         </button>
                       )}
+
+                      <button
+                        onClick={() => { setMobileMenuOpen(false); setClipsOpen(true); }}
+                        className="w-full text-left px-3 py-2.5 text-[11px] text-muted-foreground hover:text-white hover:bg-secondary transition-colors flex items-center gap-2"
+                      >
+                        <Film className="w-3.5 h-3.5" /> {t('Video clips')}
+                      </button>
 
                       <Link href={`/teams/${teamId}/ghost/${setPieceId}`}>
                         <button
@@ -1314,6 +1327,17 @@ export default function SetPieceEditor() {
         mobile={isMobile}
         onClose={() => setShowTutorial(false)}
       />
+
+      <Dialog open={clipsOpen} onOpenChange={setClipsOpen}>
+        <DialogContent className="bg-card border-border sm:max-w-lg max-h-[85vh] overflow-y-auto">
+          <DialogHeader><DialogTitle>{t('Video clips')}</DialogTitle></DialogHeader>
+          <p className="text-sm text-muted-foreground">{t('Show the real scene next to the animation. Players see these clips through their link.')}</p>
+          <VideoClipEditor
+            clips={setPiece.media ?? []}
+            onSave={async media => { await updateSetPiece.mutateAsync({ teamId, setPieceId, data: { media } }); await refetch(); }}
+          />
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={shortcutsOpen} onOpenChange={setShortcutsOpen}>
         <DialogContent className="bg-card border-border sm:max-w-lg max-h-[85vh] overflow-y-auto">

@@ -1782,6 +1782,38 @@ components:
         notes:
           type: string
 
+    VideoClip:
+      type: object
+      required: [url, provider, videoId, startSec, endSec, title]
+      properties:
+        url:
+          type: string
+        provider:
+          type: string
+          enum: [youtube, vimeo, file]
+        videoId:
+          type: string
+        hash:
+          type: string
+        startSec:
+          type: integer
+        endSec:
+          type: [integer, 'null']
+        title:
+          type: [string, 'null']
+    VideoClipInput:
+      type: object
+      required: [url]
+      properties:
+        url:
+          type: string
+        startSec:
+          type: [integer, 'null']
+        endSec:
+          type: [integer, 'null']
+        title:
+          type: [string, 'null']
+
     # ─── Template ───
     SetPieceTemplate:
       type: object
@@ -1819,6 +1851,10 @@ components:
                 type: string
         coachingNote:
           type: [string, 'null']
+        media:
+          type: [array, 'null']
+          items:
+            $ref: "#/components/schemas/VideoClip"
         createdAt:
           type: string
           format: date-time
@@ -1875,6 +1911,10 @@ components:
           type: [string, 'null']
         versionNumber:
           type: integer
+        media:
+          type: [array, 'null']
+          items:
+            $ref: "#/components/schemas/VideoClip"
         coachingNotes:
           type: [string, 'null']
         createdBy:
@@ -1909,6 +1949,10 @@ components:
           type: [string, 'null']
         versionNumber:
           type: integer
+        media:
+          type: [array, 'null']
+          items:
+            $ref: "#/components/schemas/VideoClip"
         lastSavedBoardSnapshot:
           type: [object, 'null']
         coachingNotes:
@@ -1961,6 +2005,11 @@ components:
           type: string
         coachingNotes:
           type: string
+        media:
+          type: array
+          maxItems: 5
+          items:
+            $ref: "#/components/schemas/VideoClipInput"
     UpdateStatusBody:
       type: object
       required: [status]
@@ -2575,6 +2624,10 @@ components:
                 type: [object, 'null']
               coachingNotes:
                 type: [string, 'null']
+              media:
+                type: array
+                items:
+                  $ref: "#/components/schemas/VideoClip"
               roles:
                 type: array
                 items:
@@ -2619,6 +2672,10 @@ components:
                 type: [object, 'null']
               coachingNotes:
                 type: [string, 'null']
+              media:
+                type: array
+                items:
+                  $ref: "#/components/schemas/VideoClip"
               roles:
                 type: array
                 items:

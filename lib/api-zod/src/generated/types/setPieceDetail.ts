@@ -9,6 +9,7 @@ import type { RoleAssignment } from "./roleAssignment";
 import type { SetPieceDetailBoardData } from "./setPieceDetailBoardData";
 import type { SetPieceDetailLastSavedBoardSnapshot } from "./setPieceDetailLastSavedBoardSnapshot";
 import type { SetPieceRole } from "./setPieceRole";
+import type { VideoClip } from "./videoClip";
 
 export interface SetPieceDetail {
   id: string;
@@ -23,6 +24,8 @@ export interface SetPieceDetail {
   /** @nullable */
   previewImageUrl?: string | null;
   versionNumber: number;
+  /** @nullable */
+  media?: VideoClip[] | null;
   /** @nullable */
   lastSavedBoardSnapshot?: SetPieceDetailLastSavedBoardSnapshot;
   /** @nullable */

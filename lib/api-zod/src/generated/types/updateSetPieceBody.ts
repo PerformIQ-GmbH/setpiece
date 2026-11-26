@@ -6,6 +6,7 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { UpdateSetPieceBodyBoardData } from "./updateSetPieceBodyBoardData";
+import type { VideoClipInput } from "./videoClipInput";
 
 export interface UpdateSetPieceBody {
   title?: string;
@@ -13,4 +14,6 @@ export interface UpdateSetPieceBody {
   boardData?: UpdateSetPieceBodyBoardData;
   previewImageUrl?: string;
   coachingNotes?: string;
+  /** @maxItems 5 */
+  media?: VideoClipInput[];
 }

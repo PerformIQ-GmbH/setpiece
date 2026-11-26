@@ -1,0 +1,129 @@
+{
+  "channel": {
+    "name": "SETPIECE by PerformIQ",
+    "appUrl": "https://setpiece.performiq.ch/",
+    "visibility": "unlisted"
+  },
+  "sources": {
+    "pl-ten-of-the-best": {
+      "label": "Premier League, «Ten of the Best»",
+      "format": "landscape"
+    },
+    "osman-top5": {
+      "label": "Short «Top 5 Set Piece Drills», Osman Footy",
+      "format": "portrait-compilation"
+    }
+  },
+  "clips": [
+    {
+      "id": "01",
+      "template": "seitlich-anlegen-direkt",
+      "title": "Seitlich anlegen, dann direkt",
+      "scene": "Liverpool bei Chelsea · 22.09.2019",
+      "source": "pl-ten-of-the-best",
+      "start": "0:26",
+      "end": "0:47",
+      "playlist": "Freistösse",
+      "summary": "Salah legt den Ball einen Meter zur Seite, Alexander-Arnold schiesst sofort. Der neue Winkel überrascht Mauer und Torhüter."
+    },
+    {
+      "id": "02",
+      "template": "schneller-freistoss",
+      "title": "Schneller Freistoss",
+      "scene": "Wolverhampton bei Bournemouth · 23.11.2019",
+      "source": "pl-ten-of-the-best",
+      "start": "0:50",
+      "end": "1:21",
+      "playlist": "Freistösse",
+      "summary": "Der Freistoss wird sofort ausgeführt, während der Gegner sich noch ordnet. Langer Ball, Flanke, Tor durch Jiménez."
+    },
+    {
+      "id": "03",
+      "template": "kurze-ecke-neuer-winkel",
+      "title": "Kurze Ecke, neuer Flankenwinkel",
+      "scene": "Bournemouth bei Newcastle · 09.11.2019",
+      "source": "pl-ten-of-the-best",
+      "start": "1:52.5",
+      "end": "2:13",
+      "playlist": "Eckbälle Angriff",
+      "summary": "Kurz ausgeführt, Flanke aus einem neuen Winkel vom Strafraumeck. Harry Wilson trifft."
+    },
+    {
+      "id": "04",
+      "template": "ecke-strafraumrand-volley",
+      "title": "Ecke an den Strafraumrand",
+      "scene": "Bradford City gegen Manchester United · 25.03.2000",
+      "source": "pl-ten-of-the-best",
+      "start": "2:15",
+      "end": "2:38",
+      "playlist": "Eckbälle Angriff",
+      "summary": "Beckham spielt die Ecke an den Strafraumrand, Scholes kommt spät und nimmt den Ball volley."
+    },
+    {
+      "id": "05",
+      "template": "chip-hinter-die-linie",
+      "title": "Chip hinter die hohe Abwehrlinie",
+      "scene": "Manchester United gegen Manchester City · 08.03.2020",
+      "source": "pl-ten-of-the-best",
+      "start": "2:41.5",
+      "end": "3:05",
+      "playlist": "Freistösse",
+      "summary": "City stellt die Linie hoch. Fernandes chippt schnell dahinter, Martial startet aus der Reihe und trifft."
+    },
+    {
+      "id": "06",
+      "template": "mauer-ende-anspiel",
+      "title": "Anspiel ans Ende der Mauer",
+      "scene": "Wolverhampton gegen Stoke · 14.08.2010",
+      "source": "pl-ten-of-the-best",
+      "start": "3:07",
+      "end": "3:27",
+      "playlist": "Freistösse",
+      "summary": "Statt Schuss ein flacher Pass an das Ende der Mauer, David Jones dreht auf und trifft."
+    },
+    {
+      "id": "07",
+      "template": "freistoss-flach-in-den-lauf",
+      "title": "Freistoss flach in den Lauf",
+      "scene": "Everton gegen Southampton · 18.08.2018",
+      "source": "pl-ten-of-the-best",
+      "start": "3:29",
+      "end": "3:53",
+      "playlist": "Freistösse",
+      "summary": "Alle erwarten die hohe Flanke. Der Ball kommt flach in den Lauf, flache Hereingabe, Walcott schiebt ein."
+    },
+    {
+      "id": "08",
+      "template": "ecke-angetippt-dribbling",
+      "title": "Ecke angetippt, dann Dribbling",
+      "scene": "Aston Villa gegen Bournemouth · 09.04.2016",
+      "source": "pl-ten-of-the-best",
+      "start": "4:12",
+      "end": "4:45",
+      "playlist": "Eckbälle Angriff",
+      "summary": "Der Schütze tippt den Ball nur an und geht weg. Ein Mitspieler dribbelt die Torlinie entlang und legt quer zum Tor."
+    },
+    {
+      "id": "09",
+      "template": "kette-loest-sich-auf",
+      "title": "Kette löst sich auf",
+      "scene": "Dynamo Dresden gegen VfL Bochum",
+      "source": "osman-top5",
+      "start": "0:10",
+      "end": "0:22.5",
+      "playlist": "Freistösse",
+      "summary": "Fünf Spieler stehen eingehakt und laufen beim Anlauf in fünf Richtungen. Tor am langen Pfosten."
+    },
+    {
+      "id": "10",
+      "template": "mauer-ende-anspiel",
+      "title": "Anspiel ans Ende der Mauer (WM 2022)",
+      "scene": "Niederlande gegen Argentinien · WM 2022",
+      "source": "osman-top5",
+      "start": "0:36",
+      "end": "0:48",
+      "playlist": "Freistösse",
+      "summary": "Flacher Pass neben die Mauer zu Weghorst, der aufdreht und zum 2:2 trifft."
+    }
+  ]
+}

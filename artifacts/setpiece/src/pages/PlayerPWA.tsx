@@ -4,6 +4,7 @@ import { useGetPlayerView, useGetPlayerSpecificView, useMarkPlayerReady, getGetP
 import type { PlayerViewDataPlayersItem, PlayerSpecificViewDataSetPiecesItem, PlayerVariantTask } from '@workspace/api-client-react';
 import { Loader2, ShieldAlert, ChevronRight, CheckCircle2, Circle, Search, ArrowLeft, Trophy, Eye, HelpCircle } from 'lucide-react';
 import { PlayerBoardViewer } from '@/components/PlayerBoardViewer';
+import { VideoClipList } from '@/components/VideoClips';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
@@ -276,6 +277,13 @@ export default function PlayerPWA() {
                   players={teamData?.players || []}
                 />
               </div>
+
+              {activeSetPiece.media && activeSetPiece.media.length > 0 && (
+                <div className="mb-6">
+                  <p className="section-label mb-2">Videoszene</p>
+                  <VideoClipList clips={activeSetPiece.media} />
+                </div>
+              )}
 
               {((typeof recognitionCue === 'string' && recognitionCue.trim()) || (typeof teamSignal === 'string' && teamSignal.trim())) && (
                 <div data-tutorial="player-cues" className="bg-white/[0.03] p-5 rounded-2xl border border-white/[0.06] mb-4 space-y-3">

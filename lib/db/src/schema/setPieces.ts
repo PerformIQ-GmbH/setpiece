@@ -4,7 +4,7 @@ import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 import { teamsTable } from "./teams";
 import { usersTable } from "./auth";
-import { setPieceCategoryEnum } from "./setPieceTemplates";
+import { setPieceCategoryEnum, type VideoClip } from "./setPieceTemplates";
 
 export const setPieceStatusEnum = pgEnum("set_piece_status", ["draft", "ready", "active_matchday", "archived"]);
 
@@ -20,6 +20,7 @@ export const setPiecesTable = pgTable("set_pieces", {
   versionNumber: integer("version_number").notNull().default(1),
   lastSavedBoardSnapshot: jsonb("last_saved_board_snapshot").$type<Record<string, unknown>>(),
   coachingNotes: text("coaching_notes"),
+  media: jsonb("media").$type<VideoClip[]>(),
   createdBy: varchar("created_by").references(() => usersTable.id),
   updatedBy: varchar("updated_by").references(() => usersTable.id),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),

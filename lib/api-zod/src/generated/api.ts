@@ -551,6 +551,19 @@ export const ListTemplatesResponseItem = zod.object({
     )
     .nullish(),
   coachingNote: zod.string().nullish(),
+  media: zod
+    .array(
+      zod.object({
+        url: zod.string(),
+        provider: zod.enum(["youtube", "vimeo", "file"]),
+        videoId: zod.string(),
+        hash: zod.string().optional(),
+        startSec: zod.number(),
+        endSec: zod.number().nullable(),
+        title: zod.string().nullable(),
+      }),
+    )
+    .nullish(),
   createdAt: zod.coerce.date(),
   updatedAt: zod.coerce.date(),
 });
@@ -586,6 +599,19 @@ export const GetTemplateResponse = zod.object({
     )
     .nullish(),
   coachingNote: zod.string().nullish(),
+  media: zod
+    .array(
+      zod.object({
+        url: zod.string(),
+        provider: zod.enum(["youtube", "vimeo", "file"]),
+        videoId: zod.string(),
+        hash: zod.string().optional(),
+        startSec: zod.number(),
+        endSec: zod.number().nullable(),
+        title: zod.string().nullable(),
+      }),
+    )
+    .nullish(),
   createdAt: zod.coerce.date(),
   updatedAt: zod.coerce.date(),
 });
@@ -724,6 +750,19 @@ export const ListSetPiecesResponseItem = zod.object({
   boardData: zod.object({}).passthrough().nullish(),
   previewImageUrl: zod.string().nullish(),
   versionNumber: zod.number(),
+  media: zod
+    .array(
+      zod.object({
+        url: zod.string(),
+        provider: zod.enum(["youtube", "vimeo", "file"]),
+        videoId: zod.string(),
+        hash: zod.string().optional(),
+        startSec: zod.number(),
+        endSec: zod.number().nullable(),
+        title: zod.string().nullable(),
+      }),
+    )
+    .nullish(),
   coachingNotes: zod.string().nullish(),
   createdBy: zod.string().nullish(),
   updatedBy: zod.string().nullish(),
@@ -766,6 +805,19 @@ export const GetSetPieceResponse = zod.object({
   boardData: zod.object({}).passthrough().nullish(),
   previewImageUrl: zod.string().nullish(),
   versionNumber: zod.number(),
+  media: zod
+    .array(
+      zod.object({
+        url: zod.string(),
+        provider: zod.enum(["youtube", "vimeo", "file"]),
+        videoId: zod.string(),
+        hash: zod.string().optional(),
+        startSec: zod.number(),
+        endSec: zod.number().nullable(),
+        title: zod.string().nullable(),
+      }),
+    )
+    .nullish(),
   lastSavedBoardSnapshot: zod.object({}).passthrough().nullish(),
   coachingNotes: zod.string().nullish(),
   createdBy: zod.string().nullish(),
@@ -819,12 +871,25 @@ export const UpdateSetPieceParams = zod.object({
   setPieceId: zod.coerce.string(),
 });
 
+export const updateSetPieceBodyMediaMax = 5;
+
 export const UpdateSetPieceBody = zod.object({
   title: zod.string().optional(),
   description: zod.string().optional(),
   boardData: zod.object({}).passthrough().optional(),
   previewImageUrl: zod.string().optional(),
   coachingNotes: zod.string().optional(),
+  media: zod
+    .array(
+      zod.object({
+        url: zod.string(),
+        startSec: zod.number().nullish(),
+        endSec: zod.number().nullish(),
+        title: zod.string().nullish(),
+      }),
+    )
+    .max(updateSetPieceBodyMediaMax)
+    .optional(),
 });
 
 export const UpdateSetPieceResponse = zod.object({
@@ -837,6 +902,19 @@ export const UpdateSetPieceResponse = zod.object({
   boardData: zod.object({}).passthrough().nullish(),
   previewImageUrl: zod.string().nullish(),
   versionNumber: zod.number(),
+  media: zod
+    .array(
+      zod.object({
+        url: zod.string(),
+        provider: zod.enum(["youtube", "vimeo", "file"]),
+        videoId: zod.string(),
+        hash: zod.string().optional(),
+        startSec: zod.number(),
+        endSec: zod.number().nullable(),
+        title: zod.string().nullable(),
+      }),
+    )
+    .nullish(),
   coachingNotes: zod.string().nullish(),
   createdBy: zod.string().nullish(),
   updatedBy: zod.string().nullish(),
@@ -875,6 +953,19 @@ export const UpdateSetPieceStatusResponse = zod.object({
   boardData: zod.object({}).passthrough().nullish(),
   previewImageUrl: zod.string().nullish(),
   versionNumber: zod.number(),
+  media: zod
+    .array(
+      zod.object({
+        url: zod.string(),
+        provider: zod.enum(["youtube", "vimeo", "file"]),
+        videoId: zod.string(),
+        hash: zod.string().optional(),
+        startSec: zod.number(),
+        endSec: zod.number().nullable(),
+        title: zod.string().nullable(),
+      }),
+    )
+    .nullish(),
   coachingNotes: zod.string().nullish(),
   createdBy: zod.string().nullish(),
   updatedBy: zod.string().nullish(),
@@ -1175,6 +1266,19 @@ export const GetMatchdayResponse = zod.object({
       boardData: zod.object({}).passthrough().nullish(),
       previewImageUrl: zod.string().nullish(),
       versionNumber: zod.number(),
+      media: zod
+        .array(
+          zod.object({
+            url: zod.string(),
+            provider: zod.enum(["youtube", "vimeo", "file"]),
+            videoId: zod.string(),
+            hash: zod.string().optional(),
+            startSec: zod.number(),
+            endSec: zod.number().nullable(),
+            title: zod.string().nullable(),
+          }),
+        )
+        .nullish(),
       coachingNotes: zod.string().nullish(),
       createdBy: zod.string().nullish(),
       updatedBy: zod.string().nullish(),
@@ -1499,6 +1603,19 @@ export const GetPlayerViewResponse = zod.object({
       previewImageUrl: zod.string().nullish(),
       boardData: zod.object({}).passthrough().nullish(),
       coachingNotes: zod.string().nullish(),
+      media: zod
+        .array(
+          zod.object({
+            url: zod.string(),
+            provider: zod.enum(["youtube", "vimeo", "file"]),
+            videoId: zod.string(),
+            hash: zod.string().optional(),
+            startSec: zod.number(),
+            endSec: zod.number().nullable(),
+            title: zod.string().nullable(),
+          }),
+        )
+        .optional(),
       roles: zod
         .array(
           zod.object({
@@ -1568,6 +1685,19 @@ export const GetPlayerSpecificViewResponse = zod.object({
       previewImageUrl: zod.string().nullish(),
       boardData: zod.object({}).passthrough().nullish(),
       coachingNotes: zod.string().nullish(),
+      media: zod
+        .array(
+          zod.object({
+            url: zod.string(),
+            provider: zod.enum(["youtube", "vimeo", "file"]),
+            videoId: zod.string(),
+            hash: zod.string().optional(),
+            startSec: zod.number(),
+            endSec: zod.number().nullable(),
+            title: zod.string().nullable(),
+          }),
+        )
+        .optional(),
       roles: zod
         .array(
           zod.object({
@@ -1976,6 +2106,19 @@ export const GetMatchPackDataResponse = zod.object({
     boardData: zod.object({}).passthrough().nullish(),
     previewImageUrl: zod.string().nullish(),
     versionNumber: zod.number(),
+    media: zod
+      .array(
+        zod.object({
+          url: zod.string(),
+          provider: zod.enum(["youtube", "vimeo", "file"]),
+          videoId: zod.string(),
+          hash: zod.string().optional(),
+          startSec: zod.number(),
+          endSec: zod.number().nullable(),
+          title: zod.string().nullable(),
+        }),
+      )
+      .nullish(),
     coachingNotes: zod.string().nullish(),
     createdBy: zod.string().nullish(),
     updatedBy: zod.string().nullish(),
