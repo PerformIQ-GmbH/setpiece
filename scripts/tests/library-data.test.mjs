@@ -42,3 +42,35 @@ test('every template has a drawing whose roles, steps and positions are consiste
     assert.ok(variant.entities.some((x) => x.type === 'ball'), `${e.slug}: ball`);
   }
 });
+
+const LEVELS = ['easy', 'medium', 'hard'];
+const AGAINST = ['zone', 'man', 'hybrid', 'deep', 'high', 'wall', 'unset'];
+
+test('every template has a complete, honest profile (filters, pros, cons, tip, basis, sources)', () => {
+  const slugs = LIBRARY.map((e) => e.slug);
+  const PROFILES = plain(load('library-profiles').PROFILES);
+  assert.deepEqual(Object.keys(PROFILES).filter((slug) => !slugs.includes(slug)), [], 'profiles without template');
+  for (const e of LIBRARY) {
+    const p = e.profile;
+    assert.ok(p, `${e.slug}: profile`);
+    assert.ok(LEVELS.includes(p.level), `${e.slug}: level`);
+    assert.ok(Array.isArray(p.against) && p.against.every((a) => AGAINST.includes(a)), `${e.slug}: against values`);
+    assert.equal(typeof p.juniors, 'boolean', `${e.slug}: juniors`);
+    assert.equal(typeof p.needsHeader, 'boolean', `${e.slug}: needsHeader`);
+    assert.ok(p.effort.length >= 5 && p.effort.length <= 60, `${e.slug}: effort`);
+    assert.ok(p.pros.length >= 2 && p.pros.length <= 4, `${e.slug}: 2 to 4 pros`);
+    assert.ok(p.cons.length >= 2 && p.cons.length <= 3, `${e.slug}: 2 to 3 cons`);
+    for (const line of [...p.pros, ...p.cons]) assert.ok(line.length >= 15 && line.length <= 170, `${e.slug}: line length «${line}»`);
+    assert.ok(p.tip.length >= 15 && p.tip.length <= 200, `${e.slug}: tip`);
+    assert.ok(['research', 'ai'].includes(p.basis), `${e.slug}: basis`);
+    if (p.basis === 'research') assert.ok(p.sources?.length >= 1, `${e.slug}: research needs sources`);
+    for (const src of p.sources ?? []) assert.ok(src.label && /^https:\/\//.test(src.url), `${e.slug}: source url`);
+    // Level must agree with the «Niveau:» sentence in the description.
+    const stated = /Niveau: (einfach|mittel|anspruchsvoll)/.exec(e.description ?? '')?.[1];
+    if (stated) assert.equal(p.level, { einfach: 'easy', mittel: 'medium', anspruchsvoll: 'hard' }[stated], `${e.slug}: level matches description`);
+    // Honesty: no promises of goals.
+    assert.ok(![...p.pros, ...p.cons, p.tip].some((t) => /garantier|sicher(es)? Tor|führt immer/i.test(t)), `${e.slug}: no guarantees`);
+    // Attacking corners and free kicks say against whom they are meant.
+    if (/^(offensive_corner|direct_free_kick|indirect_free_kick)/.test(e.category)) assert.ok(p.against.length >= 1, `${e.slug}: against`);
+  }
+});

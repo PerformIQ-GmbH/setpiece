@@ -217,6 +217,54 @@ export interface VideoClipInput {
   title?: string | null;
 }
 
+export interface TemplateSource {
+  label: string;
+  url: string;
+}
+
+export type TemplateProfileLevel =
+  (typeof TemplateProfileLevel)[keyof typeof TemplateProfileLevel];
+
+export const TemplateProfileLevel = {
+  easy: "easy",
+  medium: "medium",
+  hard: "hard",
+} as const;
+
+export type TemplateProfileAgainstItem =
+  (typeof TemplateProfileAgainstItem)[keyof typeof TemplateProfileAgainstItem];
+
+export const TemplateProfileAgainstItem = {
+  zone: "zone",
+  man: "man",
+  hybrid: "hybrid",
+  deep: "deep",
+  high: "high",
+  wall: "wall",
+  unset: "unset",
+} as const;
+
+export type TemplateProfileBasis =
+  (typeof TemplateProfileBasis)[keyof typeof TemplateProfileBasis];
+
+export const TemplateProfileBasis = {
+  research: "research",
+  ai: "ai",
+} as const;
+
+export interface TemplateProfile {
+  level: TemplateProfileLevel;
+  against: TemplateProfileAgainstItem[];
+  juniors: boolean;
+  needsHeader: boolean;
+  effort: string;
+  pros: string[];
+  cons: string[];
+  tip: string;
+  basis: TemplateProfileBasis;
+  sources?: TemplateSource[];
+}
+
 /**
  * @nullable
  */
@@ -251,6 +299,7 @@ export interface SetPieceTemplate {
   coachingNote?: string | null;
   /** @nullable */
   media?: VideoClip[] | null;
+  profile?: TemplateProfile | null;
   createdAt: string;
   updatedAt: string;
 }

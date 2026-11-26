@@ -572,6 +572,32 @@ export const ListTemplatesResponseItem = zod.object({
       }),
     )
     .nullish(),
+  profile: zod
+    .union([
+      zod.object({
+        level: zod.enum(["easy", "medium", "hard"]),
+        against: zod.array(
+          zod.enum(["zone", "man", "hybrid", "deep", "high", "wall", "unset"]),
+        ),
+        juniors: zod.boolean(),
+        needsHeader: zod.boolean(),
+        effort: zod.string(),
+        pros: zod.array(zod.string()),
+        cons: zod.array(zod.string()),
+        tip: zod.string(),
+        basis: zod.enum(["research", "ai"]),
+        sources: zod
+          .array(
+            zod.object({
+              label: zod.string(),
+              url: zod.string(),
+            }),
+          )
+          .optional(),
+      }),
+      zod.null(),
+    ])
+    .optional(),
   createdAt: zod.coerce.date(),
   updatedAt: zod.coerce.date(),
 });
@@ -621,6 +647,32 @@ export const GetTemplateResponse = zod.object({
       }),
     )
     .nullish(),
+  profile: zod
+    .union([
+      zod.object({
+        level: zod.enum(["easy", "medium", "hard"]),
+        against: zod.array(
+          zod.enum(["zone", "man", "hybrid", "deep", "high", "wall", "unset"]),
+        ),
+        juniors: zod.boolean(),
+        needsHeader: zod.boolean(),
+        effort: zod.string(),
+        pros: zod.array(zod.string()),
+        cons: zod.array(zod.string()),
+        tip: zod.string(),
+        basis: zod.enum(["research", "ai"]),
+        sources: zod
+          .array(
+            zod.object({
+              label: zod.string(),
+              url: zod.string(),
+            }),
+          )
+          .optional(),
+      }),
+      zod.null(),
+    ])
+    .optional(),
   createdAt: zod.coerce.date(),
   updatedAt: zod.coerce.date(),
 });
@@ -2397,6 +2449,32 @@ export const SaveSetPieceAsTemplateResponse = zod.object({
       }),
     )
     .nullish(),
+  profile: zod
+    .union([
+      zod.object({
+        level: zod.enum(["easy", "medium", "hard"]),
+        against: zod.array(
+          zod.enum(["zone", "man", "hybrid", "deep", "high", "wall", "unset"]),
+        ),
+        juniors: zod.boolean(),
+        needsHeader: zod.boolean(),
+        effort: zod.string(),
+        pros: zod.array(zod.string()),
+        cons: zod.array(zod.string()),
+        tip: zod.string(),
+        basis: zod.enum(["research", "ai"]),
+        sources: zod
+          .array(
+            zod.object({
+              label: zod.string(),
+              url: zod.string(),
+            }),
+          )
+          .optional(),
+      }),
+      zod.null(),
+    ])
+    .optional(),
   createdAt: zod.coerce.date(),
   updatedAt: zod.coerce.date(),
 });

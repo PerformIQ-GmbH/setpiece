@@ -18,10 +18,12 @@ Grenze (LAUNCH.md): Wir versprechen keine Tore. Die Statistik beschreibt die Pro
 | «Effizienteste Ecken der Top-5-Ligen: 0,72 xG pro 10 Ecken» (Freiburg) | Tactical Football Analysis, 17.05.2026 |
 
 | «Mainz U19: etwa ein Tor pro 10 Ecken» (Junioren!) | Total Football Analysis, 03.09.2025 |
-| «Ecken zum Tor drehend: 77 Tore, wegdrehend: 11» (Premier League, Opta) | Total Football Analysis, 06.08.2026 |
+| «Zum Tor drehende Ecken: 5,3 % Torquote, wegdrehende: 3,6 %» (Premier League, Opta) | Total Football Analysis, 06.08.2026 |
 | «15 von 20 Premier-League-Klubs haben einen Standardtrainer» | Total Football Analysis, 06.08.2026 |
 
 Stärkster Haken für Amateure: die Junioren-Zahlen (Mainz U19, U17 VAE). Sie zeigen, dass einstudierte Ecken auch ohne Profi-Physis funktionieren. Botschaft «Die Profis haben einen Standardtrainer. Du hast SETPIECE.» ist belegt (15 von 20), verspricht aber keine Tore.
+
+Nicht verwenden: «77 Tore nach zum Tor drehenden Ecken, nur 11 nach wegdrehenden» als Beleg für Wirkung. Das sind Mengen: Die meisten Ecken drehen zum Tor, also fallen dort auch die meisten Tore. Fair vergleichbar ist nur die Torquote (5,3 % gegen 3,6 %).
 
 Nicht verwenden: «Chaos Zone», «Dead-Ball Pressing», «Goalkeeper-Pinning» als Arsenal-Fakten (nicht belegt).
 

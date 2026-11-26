@@ -22,7 +22,7 @@ Damit hat die Bibliothek 21 Vorlagen: 14 Eckbälle (davon 3 Abwehr), 4 Freistös
 | Zahl | Quelle |
 |---|---|
 | Premier League 2025/26: 0,8 Standardtore ohne Elfmeter pro Spiel (Vorjahr 0,6; 2020/21 0,5) | [How Set Pieces Are Reshaping PL](https://totalfootballanalysis.com/set-piece-analysis/premier-league-set-pieces) (06.08.2026, D. Fogarty) |
-| 77 Tore nach zum Tor drehenden Ecken, 11 nach wegdrehenden; Quote 5,3 % gegen 3,6 % (Opta) | ebd. |
+| 77 Tore nach zum Tor drehenden Ecken, 11 nach wegdrehenden; Quote 5,3 % gegen 3,6 % (Opta). **Nur die Quote vergleichen:** 77 gegen 11 sind Mengen, weil die meisten Ecken zum Tor drehen | ebd. |
 | Arsenal: 81 % zum Tor drehend, 58 % in den Fünfmeterraum | ebd. |
 | Weite Einwürfe: fast 4 pro Spiel (mehr als verdoppelt); Leeds 75 Einwürfe → 28 Schüsse, 3,46 xG | ebd. |
 | 15 von 20 Premier-League-Klubs beschäftigen Standardtrainer | ebd. |

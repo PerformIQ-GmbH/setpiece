@@ -21,6 +21,24 @@ export const setPieceCategoryEnum = pgEnum("set_piece_category", [
   "defensive_throw_in",
 ]);
 
+/** Einschätzung einer Vorlage für Trainer: Filter (level, against, juniors, needsHeader) und Erklärung (pros, cons, tip). */
+export type TemplateProfile = {
+  level: "easy" | "medium" | "hard";
+  /** Gegen welche Abwehr oder Situation die Variante gedacht ist; leer bei Abwehr-Vorlagen und Einwürfen. */
+  against: Array<"zone" | "man" | "hybrid" | "deep" | "high" | "wall" | "unset">;
+  juniors: boolean;
+  needsHeader: boolean;
+  /** Trainingsaufwand in Alltagssprache, z. B. «2 × 15 Min.». */
+  effort: string;
+  pros: string[];
+  cons: string[];
+  /** Wichtigster Hinweis oder häufigster Fehler. */
+  tip: string;
+  /** research = aus Spielanalysen mit Quellen, ai = KI-gestützte Einschätzung aus Videoszene und Trainingslehre. */
+  basis: "research" | "ai";
+  sources?: Array<{ label: string; url: string }>;
+};
+
 export const setPieceTemplatesTable = pgTable("set_piece_templates", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   slug: varchar("slug", { length: 100 }),
@@ -32,6 +50,7 @@ export const setPieceTemplatesTable = pgTable("set_piece_templates", {
   defaultRoles: jsonb("default_roles").$type<Array<{ id?: string; name: string; description: string; startPosition: { x: number; y: number }; coachingPoint: string }>>(),
   coachingNote: text("coaching_note"),
   media: jsonb("media").$type<VideoClip[]>(),
+  profile: jsonb("profile").$type<TemplateProfile>(),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
 }, (table) => [uniqueIndex("set_piece_templates_slug_idx").on(table.slug)]);

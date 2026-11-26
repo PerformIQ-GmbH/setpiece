@@ -7,6 +7,7 @@
  */
 import type { SetPieceTemplateBoardData } from "./setPieceTemplateBoardData";
 import type { SetPieceTemplateDefaultRolesItem } from "./setPieceTemplateDefaultRolesItem";
+import type { TemplateProfile } from "./templateProfile";
 import type { VideoClip } from "./videoClip";
 
 export interface SetPieceTemplate {
@@ -25,6 +26,7 @@ export interface SetPieceTemplate {
   coachingNote?: string | null;
   /** @nullable */
   media?: VideoClip[] | null;
+  profile?: TemplateProfile | null;
   createdAt: Date;
   updatedAt: Date;
 }
