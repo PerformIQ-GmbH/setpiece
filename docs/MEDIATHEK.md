@@ -58,6 +58,8 @@ Vince (und weitere Admins) zeichnen Vorlagen im normalen Editor und veröffentli
 
 Wer das Original aus dem Code zurückhaben will, löscht die Markierung nicht von Hand, sondern fragt Claude.
 
+Die Einschätzung einer Vorlage (Vor- und Nachteile, Niveau, «passt gegen», Quellen) liegt in der Spalte `profile` und kommt aus `scripts/src/library-profiles.ts`. «Ersetzen» im Editor lässt sie unberührt; eine neu angelegte Vorlage hat keine und erscheint dann nicht bei den Filtern auf Niveau, Gegner, Junioren und Kopfball. Eine Vorlage, die schon vor dem ersten `template-library --apply` mit der Spalte im Editor bearbeitet wurde, wird vom Skript übersprungen und bekommt die Einschätzung nicht.
+
 ## Anmelden in einer Sitzung
 
 ```sh

@@ -1864,6 +1864,50 @@ components:
         title:
           type: [string, 'null']
 
+    TemplateSource:
+      type: object
+      required: [label, url]
+      properties:
+        label:
+          type: string
+        url:
+          type: string
+    TemplateProfile:
+      type: object
+      required: [level, against, juniors, needsHeader, effort, pros, cons, tip, basis]
+      properties:
+        level:
+          type: string
+          enum: [easy, medium, hard]
+        against:
+          type: array
+          items:
+            type: string
+            enum: [zone, man, hybrid, deep, high, wall, unset]
+        juniors:
+          type: boolean
+        needsHeader:
+          type: boolean
+        effort:
+          type: string
+        pros:
+          type: array
+          items:
+            type: string
+        cons:
+          type: array
+          items:
+            type: string
+        tip:
+          type: string
+        basis:
+          type: string
+          enum: [research, ai]
+        sources:
+          type: array
+          items:
+            $ref: "#/components/schemas/TemplateSource"
+
     # ─── Template ───
     SetPieceTemplate:
       type: object
@@ -1907,6 +1951,10 @@ components:
           type: [array, 'null']
           items:
             $ref: "#/components/schemas/VideoClip"
+        profile:
+          oneOf:
+            - $ref: "#/components/schemas/TemplateProfile"
+            - type: 'null'
         createdAt:
           type: string
           format: date-time

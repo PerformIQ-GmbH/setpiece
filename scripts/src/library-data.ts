@@ -2,6 +2,7 @@
 import type { InsertSetPieceTemplate } from "@workspace/db";
 import { buildBoard } from "./library-board";
 import { SPECS } from "./library-specs";
+import { PROFILES } from "./library-profiles";
 
 type Entry = Omit<InsertSetPieceTemplate, "slug"> & { slug: string };
 
@@ -423,7 +424,7 @@ const RAW: Entry[] = [
     media: [{"url":"https://storage.googleapis.com/setpiece-mediathek/clips/05-chip-hinter-die-linie-2cf2082885.mp4","provider":"file","videoId":"clips/05-chip-hinter-die-linie-2cf2082885.mp4","startSec":0,"endSec":null,"title":"Manchester United gegen Manchester City · 08.03.2020"}],
     title: "Chip hinter die hohe Abwehrlinie",
     category: "indirect_free_kick_left",
-    description: "Weiter Freistoss von links, der Gegner stellt seine Linie hoch an den Strafraum. Statt einer Flanke chippt der Schütze schnell über die Linie in den Lauf eines Stürmers, der aus der Reihe heraus startet. Vorbild: Manchester United gegen Manchester City (8.3.2020, Bruno Fernandes auf Anthony Martial). Niveau: mittel.",
+    description: "Weiter Freistoss von links, der Gegner stellt seine Linie hoch an den Strafraum. Statt einer Flanke chippt der Schütze schnell über die Linie in den Lauf eines Stürmers, der aus der Reihe heraus startet. Vorbild: Manchester United gegen Manchester City (8.3.2020, Tor von Anthony Martial). Niveau: mittel.",
     coachingNote: "Abseits beachten: Der Stürmer startet auf Höhe der Linie und erst beim Schuss. Der Chip muss kurz hinter die Linie, damit der Torhüter nicht herauskommt.",
     defaultRoles: [
       { name: "Schütze", description: "Chippt über die Linie", coachingPoint: "Schnell ausführen, kurzer Lupfer hinter die Linie", startPosition: { x: 18, y: 46 } },
@@ -453,7 +454,7 @@ const RAW: Entry[] = [
     media: [{"url":"https://storage.googleapis.com/setpiece-mediathek/clips/04-ecke-strafraumrand-volley-d6835d584a.mp4","provider":"file","videoId":"clips/04-ecke-strafraumrand-volley-d6835d584a.mp4","startSec":0,"endSec":null,"title":"Bradford City gegen Manchester United · 25.03.2000"}],
     title: "Ecke an den Strafraumrand",
     category: "offensive_corner_left",
-    description: "Statt in den Strafraum spielt der Schütze den Ball hoch an den Strafraumrand, wo ein Mitspieler spät ankommt und direkt abschliesst. Die Spieler im Strafraum ziehen die Verteidiger zum Tor. Vorbild: Manchester United bei Bradford City (25.3.2000, David Beckham auf Paul Scholes). Niveau: mittel, braucht einen guten Schützen und einen sauberen Abschluss.",
+    description: "Statt in den Strafraum spielt der Schütze den Ball hoch an den Strafraumrand, wo ein Mitspieler spät ankommt und direkt abschliesst. Die Spieler im Strafraum ziehen die Verteidiger zum Tor. Vorbild: Manchester United bei Bradford City (25.3.2000, Tor von Paul Scholes). Niveau: mittel, braucht einen guten Schützen und einen sauberen Abschluss.",
     coachingNote: "Der Schütze am Rand startet erst, wenn der Ball unterwegs ist. Volley oder Direktschuss, nicht annehmen. Bleibt der Rand leer, ist die Variante bekannt.",
     defaultRoles: [
       { name: "Schütze", description: "Spielt an den Strafraumrand", coachingPoint: "Halbhoch, auf den Lauf des Schützen", startPosition: { x: 0, y: 0 } },
@@ -470,12 +471,14 @@ const RAW: Entry[] = [
 function withBoard(e: Entry): Entry {
   const spec = SPECS[e.slug];
   if (!spec) throw new Error(`Keine Zeichnung für ${e.slug}`);
+  const profile = PROFILES[e.slug];
+  if (!profile) throw new Error(`Keine Einschätzung für ${e.slug}`);
   const roles = (e.defaultRoles ?? []).map((r, i) => {
     const start = spec.start?.[r.name];
     return { ...r, id: `r${i + 1}`, startPosition: start ? { x: start[0], y: start[1] } : r.startPosition };
   });
   for (const name of Object.keys(spec.start ?? {})) if (!roles.some((r) => r.name === name)) throw new Error(`${e.slug}: Rolle ${name} für start unbekannt`);
-  return { ...e, defaultRoles: roles, boardData: buildBoard(spec, roles) };
+  return { ...e, defaultRoles: roles, boardData: buildBoard(spec, roles), profile };
 }
 
 export const LIBRARY: Entry[] = RAW.map(withBoard);

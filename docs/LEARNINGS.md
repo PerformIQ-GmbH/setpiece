@@ -2,6 +2,9 @@
 
 Dauerhafte technische Fallstricke kurz halten. Aktuelle Aufgaben gehören in STATUS, Geschäftsentscheide in DECISIONS.
 
+- **26.11.2026 · Vorlage übernehmen:** `POST /teams/:id/set-pieces` mit `templateId` legt die Rollen der Vorlage selbst an und schreibt die Zeichnung auf die neuen Rollen-IDs um. Clients dürfen keine Rollen nachlegen (das alte Onboarding verdoppelte sie), sondern lesen sie mit `getSetPiece`.
+- **26.11.2026 · Mobile Browserprüfung:** Mit `isMobile` vergrössert Chromium `innerWidth`, sobald etwas überläuft. Überlauf deshalb gegen die feste Breite (390) messen und Elemente mit `right > 390` auflisten. `vite preview` liefert den letzten Build: vor der Prüfung mit `PORT` und `BASE_PATH` neu bauen.
+
 - **04.11.2026 · Zeicheninteraktion:** Auswahlgriffe müssen über Spieler-Markern liegen, sonst greift man den Spieler statt des gebundenen Endpunkts. Schwebende Leisten mit ihrer tatsächlichen Höhe ausserhalb der Griffe positionieren. Nach Werkzeugwahl muss ein Feldklick den Tastaturfokus zurück auf das Canvas setzen; Texteingaben und Dialoge behalten ihre native Bedienung.
 
 - **31.10.2026 · Editor:** Zeitliche Phasen und alternative Varianten sind unterschiedliche Strukturen. Gegner/Ball/Torwart sind aktuell global positioniert; Alternativen brauchen unabhängige Positionen und versionierte Spielerbestätigungen. Interaktionsfehler im echten Editor nachstellen: Der vermutete Radiererfehler war durch bestehendes Layer-Hit-Testing bereits behoben, während Auswahl-Drag und Farbregler widersprüchlich bleiben.

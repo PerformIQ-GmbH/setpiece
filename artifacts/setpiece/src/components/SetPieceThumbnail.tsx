@@ -8,11 +8,17 @@ function isPoint(point: Partial<Point> | null | undefined): point is Point {
   return !!point && Number.isFinite(point.x) && Number.isFinite(point.y);
 }
 
-export function SetPieceThumbnail({ boardData, category, imageUrl, roles = [] }: {
+export function SetPieceThumbnail({ boardData, category, imageUrl, roles = [], className, stepIndex, label }: {
   boardData?: Partial<BoardData> | null;
   category: string;
   imageUrl?: string | null;
   roles?: { startPosition?: Partial<Point> | null }[] | null;
+  /** Replaces the default small size, e.g. "h-full w-full" to fill a media area. */
+  className?: string;
+  /** Show one step of the drawing (its runs and passes, positions at its start) instead of the overview. */
+  stepIndex?: number | null;
+  /** Spoken description; without it the drawing is decorative. */
+  label?: string;
 }) {
   const arrowId = useId();
   const [failedImage, setFailedImage] = useState<string>();
@@ -23,7 +29,7 @@ export function SetPieceThumbnail({ boardData, category, imageUrl, roles = [] }:
     .filter(annotation => annotation && Array.isArray(annotation.points) && annotation.points.some(isPoint));
   const steps = Array.isArray(board?.steps)
     ? board.steps.filter(Boolean).sort((a, b) => a.sortOrder - b.sortOrder) : [];
-  const step = steps[0];
+  const step = steps[typeof stepIndex === 'number' ? Math.min(Math.max(stepIndex, 0), Math.max(steps.length - 1, 0)) : 0];
   const visibleAnnotations = annotations.filter(annotation => !step || !annotation.stepId ||
     annotation.stepId === step.id || !steps.some(item => item.id === annotation.stepId));
   const entities = (Array.isArray(board?.entities) ? board.entities : []).filter(Boolean);
@@ -33,7 +39,7 @@ export function SetPieceThumbnail({ boardData, category, imageUrl, roles = [] }:
     const position = board?.entityStepPositions?.[step?.id ?? '']?.[entity.id] ?? entity.position;
     return isPoint(position) ? [{ position, type: entity.type }] : [];
   });
-  const thumbnailClass = 'h-20 w-28 shrink-0 rounded-md border border-white/10 sm:h-24 sm:w-32';
+  const thumbnailClass = className ?? 'h-20 w-28 shrink-0 rounded-md border border-white/10 sm:h-24 sm:w-32';
 
   if (!annotations.length && !rolePositions.length && !entityPositions.length) {
     return imageUrl && imageUrl !== failedImage
@@ -44,7 +50,7 @@ export function SetPieceThumbnail({ boardData, category, imageUrl, roles = [] }:
   const geometry = buildPitchGeometry({ width: 128, height: 96, pad: 6, orientation: pitchOrientationForCategory(category) });
   const toPixel = geometry.percentToPixel;
   return (
-    <svg aria-hidden="true" viewBox="0 0 128 96" className={`${thumbnailClass} bg-[#102e28]`}>
+    <svg {...(label ? { role: 'img', 'aria-label': label } : { 'aria-hidden': true })} viewBox="0 0 128 96" className={`${thumbnailClass} bg-[#102e28]`}>
       <defs>
         <marker id={arrowId} viewBox="0 0 6 6" refX="5" refY="3" markerWidth="4" markerHeight="4" orient="auto">
           <path d="M0 0 6 3 0 6Z" fill="context-stroke" />
@@ -52,7 +58,7 @@ export function SetPieceThumbnail({ boardData, category, imageUrl, roles = [] }:
       </defs>
       <PitchLines geometry={geometry} />
       {/* Step 1 is often just the set-up; then the preview shows the whole drawing. */}
-      {(visibleAnnotations.length ? visibleAnnotations : annotations)
+      {(typeof stepIndex === 'number' || visibleAnnotations.length ? visibleAnnotations : annotations)
         .map((annotation, index) => {
           const sourcePoints = annotation.points.filter(isPoint);
           const curved = annotation.type === 'curved_run' || annotation.type === 'curved_cross';
