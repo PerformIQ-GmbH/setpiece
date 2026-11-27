@@ -5,6 +5,7 @@
  * SETPIECE by PerformIQ API
  * OpenAPI spec version: 0.1.0
  */
+import type { TeamComplimentaryAccess } from "./teamComplimentaryAccess";
 import type { TeamTeamColors } from "./teamTeamColors";
 
 export interface Team {
@@ -20,8 +21,10 @@ export interface Team {
   teamColors?: TeamTeamColors;
   ownerId: string;
   tier: string;
-  /** Current usage tier, including an active pilot. tier remains the billing plan. */
+  /** Current usage tier, including active pilot and complimentary access. tier remains the billing plan. */
   effectiveTier?: string;
+  /** @nullable */
+  complimentaryAccess?: TeamComplimentaryAccess;
   /** @nullable */
   pilotExpiresAt?: Date | null;
   pilotAvailable?: boolean;

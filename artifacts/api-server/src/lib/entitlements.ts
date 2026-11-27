@@ -1,7 +1,7 @@
 import { eq, count } from "drizzle-orm";
 import { db, teamsTable, playersTable, setPiecesTable, matchdaysTable, shareLinksTable } from "@workspace/db";
 import type { Request, Response } from "express";
-import { teamPilotAccess } from "./pilot";
+import { teamAccess } from "./teamAccess";
 
 export interface TierLimits {
   maxPlayers: number;
@@ -78,7 +78,7 @@ export async function checkEntitlement(
     return false;
   }
 
-  const { effectiveTier } = await teamPilotAccess(teamId, team.tier);
+  const { effectiveTier } = await teamAccess(teamId, team.tier);
   const limits = getTierLimits(effectiveTier);
   const currentCount = await getEntityCount(entityType, teamId);
   const maxAllowed = getLimitForEntity(limits, entityType);

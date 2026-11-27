@@ -1,5 +1,11 @@
 # Änderungen
 
+## Admin-Bereich · unveröffentlicht
+
+- Neuer Bereich `/admin` für Plattform-Admins (bestätigte E-Mail in `PLATFORM_ADMIN_EMAILS`, serverseitig geprüft, ohne Variable gesperrt): Kennzahlen zu Benutzern, Anmeldungen pro Woche, Teams und Tarifen, Spielern, Standards, Spieltagen, Quiz-Antworten, Pilotcodes und offenen Einladungen. Nur Zahlen, keine personenbezogenen Daten.
+- Benutzerverwaltung mit Suche, Teams, Rollen und wirksamem Tarif. Gratiszugang lässt sich vergeben, ändern und widerrufen und wird protokolliert. Er gilt für Planlimits, Einladungen und die Tarifanzeige.
+- Additive Migration `20261127_complimentary_access.sql` (noch nicht angewandt). Siehe [ADMIN](docs/ADMIN.md).
+
 ## Playbook-Sammlungen · unveröffentlicht
 
 - Eigene Standards nach Titel und Kategorie finden und in benannten Teamsammlungen organisieren. Sammlungen stehen bei der Auswahl von Standards für einen Spieltag als Filter bereit.

@@ -65,6 +65,14 @@ unset PROD_DATABASE_URL
 
 Synthetische Regressionen ergänzen diese Abnahme, ersetzen aber keine Prüfung der verbundenen Dienste. Eine Runtime, die nach fehlgeschlagener Stripe-Initialisierung weiterläuft, gilt nicht automatisch als funktionsfähige Bezahlumgebung.
 
+## Admin-Bereich (`/admin`)
+
+Beschreibung und Kennzahlen: [ADMIN](ADMIN.md).
+
+- **Variable:** `PLATFORM_ADMIN_EMAILS` (Komma-getrennt, zum Beispiel `admin@performiq.ch`) für den API-Server in Deployment und Entwicklung setzen, danach neu deployen. Zählt nur mit bestätigter E-Mail. Ohne Variable antworten alle `/api/platform-admin/*`-Routen mit 403.
+- **Migration:** `lib/db/migrations/20261127_complimentary_access.sql` ist additiv (zwei neue Tabellen `complimentary_access` und `complimentary_access_events`) und wurde auf keiner Datenbank angewandt. Nach Backup in Entwicklung und Produktion gezielt ausführen; Replit-Vorschläge zum Löschen von Tabellen nicht bestätigen. Rückweg: beide Tabellen löschen. Ohne Migration laufen Teamabfragen und Kennzahlen weiter, Benutzersuche und Gratiszugang melden Fehler.
+- **Prüfschritte nach dem Deployment:** (1) Abgemeldet `GET /api/platform-admin/stats` ergibt 401. (2) Mit einem normalen Konto 403. (3) Mit `admin@performiq.ch` (E-Mail bestätigt) erscheint «Admin» im Menü und `/admin` zeigt Zahlen. (4) Testteam: Gratiszugang vergeben, Plan in Einstellungen prüfen, widerrufen; Protokollzeile in `complimentary_access_events` kontrollieren. Keine echten Spielerdaten dafür verwenden.
+
 ## Release und Liveabnahme
 
 - PR, Head-SHA und grüne Linux-/Windows-Checks dokumentieren; Reviewer bestätigt Auth-, Zugriffs- und Zahlungsänderungen.
