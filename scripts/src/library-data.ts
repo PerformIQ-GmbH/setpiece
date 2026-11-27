@@ -467,6 +467,7 @@ const RAW: Entry[] = [
   },
   {
     slug: "corner-man-free-run",
+    media: [{"url":"https://storage.googleapis.com/setpiece-mediathek/clips/11-corner-man-free-run-246b05436a.mp4","provider":"file","videoId":"clips/11-corner-man-free-run-246b05436a.mp4","startSec":0,"endSec":null,"title":"Spielszene, Ecke gegen Manndeckung (laut Bild)"}],
     title: "Ecke gegen Manndeckung: Freilaufen mit Gegenbewegung",
     category: "offensive_corner_right",
     description: "Gegen enge Manndeckung kreuzen zwei Läufer vor der Ausführung, der Zielspieler wartet dahinter und startet erst danach in die frei gewordene Zone am ersten Pfosten. Abgeleitet aus einem Trainingsclip (Einzelbilder ausgewertet); Laufwege und Zeitpunkte sind ein Trainingsvorschlag, nicht vermessen. Niveau: mittel, braucht saubere Zeitabstimmung.",
@@ -482,6 +483,7 @@ const RAW: Entry[] = [
   },
   {
     slug: "corner-man-cross-run",
+    media: [{"url":"https://storage.googleapis.com/setpiece-mediathek/clips/12-corner-man-cross-run-5339794e93.mp4","provider":"file","videoId":"clips/12-corner-man-cross-run-5339794e93.mp4","startSec":0,"endSec":null,"title":"Spielszene, Ecke gegen Manndeckung (laut Bild)"}],
     title: "Ecke gegen Manndeckung: Kreuzlauf mit zwei Zielen",
     category: "offensive_corner_left",
     description: "Zwei Läufer kreuzen sich vor dem Tor, die Ecke kommt scharf und flach an den ersten Pfosten und wird dort verlängert; der andere Läufer ist die zweite Option. Abgeleitet aus einem Trainingsclip (Einzelbilder ausgewertet); Laufwege und Zeitpunkte sind ein Trainingsvorschlag, nicht vermessen. Niveau: mittel, braucht Tempo und genaue Flanken.",
@@ -497,6 +499,7 @@ const RAW: Entry[] = [
   },
   {
     slug: "corner-mixed-zone-gap",
+    media: [{"url":"https://storage.googleapis.com/setpiece-mediathek/clips/13-corner-mixed-zone-gap-ecefb2eac2.mp4","provider":"file","videoId":"clips/13-corner-mixed-zone-gap-ecefb2eac2.mp4","startSec":0,"endSec":null,"title":"Spielszene, Ecke gegen Mischdeckung (laut Bild)"}],
     title: "Ecke gegen Mischdeckung: Lücke hinter der Zonenlinie",
     category: "offensive_corner_right",
     description: "Gegen Mischdeckung (Zonenspieler an den Pfosten und vor dem Tor, dahinter Manndecker) wird die Flanke in die Lücke zwischen Zonenlinie und Manndeckern geschlagen, wo ein Läufer mit Anlauf ankommt. Abgeleitet aus einem Trainingsclip (Einzelbilder ausgewertet); Laufwege und Zeitpunkte sind ein Trainingsvorschlag, nicht vermessen. Niveau: mittel, braucht einen guten Flankengeber.",
@@ -513,6 +516,7 @@ const RAW: Entry[] = [
   },
   {
     slug: "corner-short-feint",
+    media: [{"url":"https://storage.googleapis.com/setpiece-mediathek/clips/14-corner-short-feint-5e4026f40e.mp4","provider":"file","videoId":"clips/14-corner-short-feint-5e4026f40e.mp4","startSec":0,"endSec":null,"title":"Spielszene, kurze Ecke (laut Bild)"}],
     title: "Ecke: Kurz mit Antäuschung",
     category: "offensive_corner_left",
     description: "Der Schütze deutet die Flanke an, ein Mitspieler läuft zum Ball und lässt ihn passieren, der Ball geht flach auf den dritten Spieler, der aus freiem Winkel flankt. Abgeleitet aus einem Trainingsclip (Einzelbilder ausgewertet); Laufwege und Zeitpunkte sind ein Trainingsvorschlag, nicht vermessen. Niveau: einfach, braucht gute Absprache.",
@@ -528,6 +532,7 @@ const RAW: Entry[] = [
   },
   {
     slug: "corner-def-mixed",
+    media: [{"url":"https://storage.googleapis.com/setpiece-mediathek/clips/15-corner-def-mixed-436c10e7ea.mp4","provider":"file","videoId":"clips/15-corner-def-mixed-436c10e7ea.mp4","startSec":0,"endSec":null,"title":"Spielszene, Sicht der Verteidiger (laut Bild)"}],
     title: "Ecke verteidigen: Mischdeckung mit Pfostenspielern",
     category: "defensive_corner_left",
     description: "Eigene Mischdeckung: zwei Pfostenspieler, ein Zonenspieler vor dem Tor, zwei Manndecker und ein Sammler in der Klärungszone. Abgeleitet aus einem Trainingsclip (Einzelbilder ausgewertet); Laufwege und Zeitpunkte sind ein Trainingsvorschlag, nicht vermessen. Niveau: mittel, Zuordnungen müssen vorher feststehen.",
@@ -543,6 +548,7 @@ const RAW: Entry[] = [
   },
   {
     slug: "freistoss-zwei-am-ball-fluegel",
+    media: [{"url":"https://storage.googleapis.com/setpiece-mediathek/clips/16-freistoss-zwei-am-ball-fluegel-af957c55d5.mp4","provider":"file","videoId":"clips/16-freistoss-zwei-am-ball-fluegel-af957c55d5.mp4","startSec":0,"endSec":null,"title":"Spielszene, Freistoss mit zwei Spielern am Ball (laut Bild)"}],
     title: "Freistoss Halbraum: Zwei am Ball und Flügel-1v1",
     category: "direct_free_kick_right",
     description: "Zwei Spieler stehen am Ball, der Zweite läuft über den Ball, der Schütze spielt kurz auf den Flügel, wo der Flügelspieler das 1v1 sucht und flankt. Die Mauer steht rund 9,5 m vom Ball. Abgeleitet aus einem Trainingsclip (Einzelbilder ausgewertet); Laufwege und Zeitpunkte sind ein Trainingsvorschlag, nicht vermessen. Niveau: mittel, nur als Trainingsvorschlag zu verstehen.",
@@ -558,6 +564,7 @@ const RAW: Entry[] = [
   },
   {
     slug: "corner-edge-cluster",
+    media: [{"url":"https://storage.googleapis.com/setpiece-mediathek/clips/17-corner-edge-cluster-488a3612a9.mp4","provider":"file","videoId":"clips/17-corner-edge-cluster-488a3612a9.mp4","startSec":0,"endSec":null,"title":"Spielszene, Ecke in den Pulk (laut Bild)"}],
     title: "Ecke: Pulk binden, Kantenspieler zieht nach",
     category: "offensive_corner_right",
     description: "Mehrere Angreifer binden die Gegner im Torraum, die Ecke geht in den Pulk und wird zur unbesetzten Strafraumkante verlängert, wo ein Spieler aus dem Lauf abschliesst. Abgeleitet aus einem Trainingsclip (Einzelbilder ausgewertet); Laufwege und Zeitpunkte sind ein Trainingsvorschlag, nicht vermessen. Der Clip war schwer lesbar (Ausführung und Torschütze unklar). Niveau: mittel, braucht einen sauberen Abschluss aus dem Lauf.",
@@ -573,6 +580,7 @@ const RAW: Entry[] = [
   },
   {
     slug: "corner-short-edge-cross",
+    media: [{"url":"https://storage.googleapis.com/setpiece-mediathek/clips/18-corner-short-edge-cross-0d02579c37.mp4","provider":"file","videoId":"clips/18-corner-short-edge-cross-0d02579c37.mp4","startSec":0,"endSec":null,"title":"Spielszene, kurze Ecke (laut Bild)"},{"url":"https://storage.googleapis.com/setpiece-mediathek/clips/21-corner-short-edge-cross-3845b3d365.mp4","provider":"file","videoId":"clips/21-corner-short-edge-cross-3845b3d365.mp4","startSec":0,"endSec":null,"title":"Spielszene, kurze Ecke (laut Bild)"}],
     title: "Ecke: Kurz und Flanke von der Strafraumkante",
     category: "offensive_corner_right",
     description: "Der Schütze spielt kurz auf einen Partner an der Linie, der im ersten Kontakt zum Flankengeber an der Strafraumkante weiterleitet; dieser flankt in den Lauf des Zielspielers. Abgeleitet aus einem Trainingsclip (Einzelbilder ausgewertet); Laufwege und Zeitpunkte sind ein Trainingsvorschlag, nicht vermessen. Niveau: einfach, braucht saubere Pässe und einen guten Flankengeber.",
@@ -588,6 +596,7 @@ const RAW: Entry[] = [
   },
   {
     slug: "kickoff-outside-runner",
+    media: [{"url":"https://storage.googleapis.com/setpiece-mediathek/clips/19-kickoff-outside-runner-364eb39832.mp4","provider":"file","videoId":"clips/19-kickoff-outside-runner-364eb39832.mp4","startSec":0,"endSec":null,"title":"Spielszene mit Grafik der Quelle (laut Bild)"}],
     title: "Anstoss: Rückpass und Diagonalball auf den Aussenläufer",
     category: "kickoff",
     description: "Anstoss: Rückpass auf den Spielverteiler, vier Läufer starten gleichzeitig, die Diagonale geht auf den Aussenläufer, der mit dem Innenläufer ein 2v1 am Flügel erzeugt. Abgeleitet aus einem Trainingsclip (Einzelbilder ausgewertet); Laufwege und Zeitpunkte sind ein Trainingsvorschlag, nicht vermessen. Niveau: mittel, braucht einen langen Diagonalpass.",
@@ -604,6 +613,7 @@ const RAW: Entry[] = [
   },
   {
     slug: "kickoff-inside-run",
+    media: [{"url":"https://storage.googleapis.com/setpiece-mediathek/clips/20-kickoff-inside-run-18aab64716.mp4","provider":"file","videoId":"clips/20-kickoff-inside-run-18aab64716.mp4","startSec":0,"endSec":null,"title":"Spielszene mit Grafik der Quelle (laut Bild)"}],
     title: "Anstoss: Innenlauf hinter die Kette",
     category: "kickoff",
     description: "Anstoss: Rückpass, dann ein langer Ball in die Lücke zwischen Aussen- und Innenverteidiger. Der Innenläufer startet vom Flügel diagonal nach innen und schliesst aus dem Lauf ab. Abgeleitet aus einem Trainingsclip (Einzelbilder ausgewertet); Laufwege und Zeitpunkte sind ein Trainingsvorschlag, nicht vermessen. Niveau: mittel, braucht einen präzisen langen Ball.",

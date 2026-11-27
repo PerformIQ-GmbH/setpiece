@@ -12,6 +12,46 @@
     "osman-top5": {
       "label": "Short «Top 5 Set Piece Drills», Osman Footy",
       "format": "portrait-compilation"
+    },
+    "corner-mann-2": {
+      "label": "Clip «Corner vs Manndeckung-2» (TV-Bild)",
+      "format": "landscape",
+      "hinweis": "besser ersetzen: fremde Einblendungen (Spielstand, Sender)"
+    },
+    "corner-mann-5": {
+      "label": "Clip «Corner vs Manndeckung-5» (TV-Bild)",
+      "format": "landscape",
+      "hinweis": "besser ersetzen: fremde Einblendungen (Spielstand)"
+    },
+    "corner-misch-1": {
+      "label": "Clip «Corner vs Mischdeckung-1» (TV-Bild)",
+      "format": "landscape",
+      "hinweis": "besser ersetzen: fremde Einblendungen (Spielstand)"
+    },
+    "corner-off-2": {
+      "label": "Clip «Corner OFF-2 kurz Antäuschung» (TV-Bild)",
+      "format": "landscape",
+      "hinweis": "besser ersetzen: fremde Einblendungen (Senderlogo)"
+    },
+    "corner-kurz-12": {
+      "label": "Clip «Corner Kurz-12» (TV-Bild)",
+      "format": "landscape",
+      "hinweis": "besser ersetzen: fremde Einblendungen (Spielstand, Sender)"
+    },
+    "esp-freistoss": {
+      "label": "Clip «Out OFF Verlagerung Flügel 1v1 u Freistoss ESP» (TV-Bild)",
+      "format": "landscape",
+      "hinweis": "besser ersetzen: fremde Einblendungen (Spielstand, Turnierlogo)"
+    },
+    "kickoff-routine": {
+      "label": "Video «Effective Kick off routine (updated drawings)»",
+      "format": "landscape",
+      "hinweis": "besser ersetzen: fremde Grafiken (Laufwege, Beschriftungen) und Senderlogos"
+    },
+    "training-ground": {
+      "label": "Video «Straight off the Training Ground: The Best Set-Piece Corners»",
+      "format": "landscape",
+      "hinweis": "besser ersetzen: fremde Einblendungen (Ligalogo, Spielernamen)"
     }
   },
   "clips": [
@@ -124,6 +164,127 @@
       "end": "0:48",
       "playlist": "Freistösse",
       "summary": "Flacher Pass neben die Mauer zu Weghorst, der aufdreht und zum 2:2 trifft."
+    },
+    {
+      "id": "11",
+      "template": "corner-man-free-run",
+      "title": "Ecke gegen Manndeckung: Freilaufen mit Gegenbewegung",
+      "scene": "Spielszene, Ecke gegen Manndeckung (laut Bild)",
+      "source": "corner-mann-2",
+      "start": "0:00",
+      "end": "0:09.8",
+      "playlist": "Eckbälle Angriff",
+      "summary": "Aufstellung vor der Ecke gegen enge Manndeckung, dann Ausführung aus zweiter Kameraperspektive."
+    },
+    {
+      "id": "12",
+      "template": "corner-man-cross-run",
+      "title": "Ecke gegen Manndeckung: Kreuzlauf mit zwei Zielen",
+      "scene": "Spielszene, Ecke gegen Manndeckung (laut Bild)",
+      "source": "corner-mann-5",
+      "start": "0:00",
+      "end": "0:08.6",
+      "playlist": "Eckbälle Angriff",
+      "summary": "Ecke gegen Manndeckung, Läufe vor dem Tor und Abschluss nach der Hereingabe."
+    },
+    {
+      "id": "13",
+      "template": "corner-mixed-zone-gap",
+      "title": "Ecke gegen Mischdeckung: Lücke hinter der Zonenlinie",
+      "scene": "Spielszene, Ecke gegen Mischdeckung (laut Bild)",
+      "source": "corner-misch-1",
+      "start": "0:01.2",
+      "end": "0:10.1",
+      "playlist": "Eckbälle Angriff",
+      "summary": "Ecke gegen Zonenspieler vor dem Tor und Manndecker dahinter, Ball in die Lücke dazwischen."
+    },
+    {
+      "id": "14",
+      "template": "corner-short-feint",
+      "title": "Ecke: Kurz mit Antäuschung",
+      "scene": "Spielszene, kurze Ecke (laut Bild)",
+      "source": "corner-off-2",
+      "start": "0:06.5",
+      "end": "0:15.9",
+      "playlist": "Eckbälle Angriff",
+      "summary": "Kurz ausgeführte Ecke nach Antäuschung, Flanke aus neuem Winkel und Abschluss am Tor."
+    },
+    {
+      "id": "15",
+      "template": "corner-def-mixed",
+      "title": "Ecke verteidigen: Mischdeckung mit Pfostenspielern",
+      "scene": "Spielszene, Sicht der Verteidiger (laut Bild)",
+      "source": "corner-misch-1",
+      "start": "0:01.2",
+      "end": "0:10.1",
+      "playlist": "Eckbälle Abwehr",
+      "summary": "Dieselbe Ecke aus Sicht der Abwehr: Zonenspieler vor dem Tor, Manndecker dahinter."
+    },
+    {
+      "id": "16",
+      "template": "freistoss-zwei-am-ball-fluegel",
+      "title": "Freistoss Halbraum: Zwei am Ball und Flügel-1v1",
+      "scene": "Spielszene, Freistoss mit zwei Spielern am Ball (laut Bild)",
+      "source": "esp-freistoss",
+      "start": "1:04",
+      "end": "1:18",
+      "playlist": "Freistösse",
+      "summary": "Zwei Spieler stehen am Ball, Mauer und Strafraum sind besetzt, dann die Ausführung in den Strafraum. Kurzpass auf den Flügel ist im Clip nicht zu sehen."
+    },
+    {
+      "id": "17",
+      "template": "corner-edge-cluster",
+      "title": "Ecke: Pulk binden, Kantenspieler zieht nach",
+      "scene": "Spielszene, Ecke in den Pulk (laut Bild)",
+      "source": "training-ground",
+      "start": "3:29.6",
+      "end": "3:34.9",
+      "playlist": "Eckbälle Angriff",
+      "summary": "Ecke in den besetzten Torraum, Abschluss nach Verlängerung. Kurze Szene, Ablauf schwer lesbar."
+    },
+    {
+      "id": "18",
+      "template": "corner-short-edge-cross",
+      "title": "Ecke: Kurz und Flanke von der Strafraumkante",
+      "scene": "Spielszene, kurze Ecke (laut Bild)",
+      "source": "training-ground",
+      "start": "4:59.1",
+      "end": "5:10.9",
+      "playlist": "Eckbälle Angriff",
+      "summary": "Kurz ausgeführte Ecke, Flanke von der Strafraumkante in den Lauf, Kopfball."
+    },
+    {
+      "id": "19",
+      "template": "kickoff-outside-runner",
+      "title": "Anstoss: Rückpass und Diagonalball auf den Aussenläufer",
+      "scene": "Spielszene mit Grafik der Quelle (laut Bild)",
+      "source": "kickoff-routine",
+      "start": "0:04",
+      "end": "0:24",
+      "playlist": "Anstoss",
+      "summary": "Rückpass nach dem Anstoss, vier Läufer starten, Diagonalball auf den Aussenläufer und 2v1 am Flügel."
+    },
+    {
+      "id": "20",
+      "template": "kickoff-inside-run",
+      "title": "Anstoss: Innenlauf hinter die Kette",
+      "scene": "Spielszene mit Grafik der Quelle (laut Bild)",
+      "source": "kickoff-routine",
+      "start": "0:28.5",
+      "end": "0:41.8",
+      "playlist": "Anstoss",
+      "summary": "Rückpass nach dem Anstoss, langer Ball in die Schnittstelle, Läufer kommt vom Flügel nach innen und schliesst ab."
+    },
+    {
+      "id": "21",
+      "template": "corner-short-edge-cross",
+      "title": "Ecke: Kurz und Flanke von der Strafraumkante",
+      "scene": "Spielszene, kurze Ecke (laut Bild)",
+      "source": "corner-kurz-12",
+      "start": "0:01",
+      "end": "0:14.8",
+      "playlist": "Eckbälle Angriff",
+      "summary": "Kurz ausgeführte Ecke, der Ball wird Richtung Strafraumkante getragen und von dort hereingegeben. Abweichung zur Vorlage: Dribbling statt Weiterleitung im ersten Kontakt."
     }
   ]
 }

@@ -5,8 +5,8 @@
 // Mit --upload landen die Clips in Google Cloud Storage (gcloud muss angemeldet sein) und
 // media.json enthält die fertigen Einträge pro Vorlage für scripts/src/template-library.ts.
 // Mit --logo steht statt des Schriftzugs das Logo halbtransparent unten rechts.
-// Braucht ffmpeg (Pfad über FFMPEG, sonst aus PATH). Ton wird entfernt; Quellvideos nie ins Repo legen.
-import { execFileSync } from "node:child_process";
+// Braucht ffmpeg (Pfad über FFMPEG, sonst aus PATH), zum Hochladen gcloud (Pfad über GCLOUD, sonst aus PATH). Ton wird entfernt; Quellvideos nie ins Repo legen.
+import { execFileSync, execSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { cpSync, mkdirSync, readFileSync, writeFileSync, mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -30,6 +30,12 @@ for (let i = 0; i < args.length; i++) {
   else if (args[i] === "--logo") logo = path.resolve(args[++i]);
 }
 const FFMPEG = process.env.FFMPEG ?? "ffmpeg";
+// gcloud ist unter Windows eine .cmd-Datei: nur über die Shell startbar, Argumente selbst in Anführungszeichen.
+const GCLOUD = process.env.GCLOUD ?? (process.platform === "win32" ? "gcloud.cmd" : "gcloud");
+function gcloud(args, opts) {
+  if (process.platform !== "win32") return execFileSync(GCLOUD, args, opts);
+  return execSync([GCLOUD, ...args].map((a) => `"${a}"`).join(" "), opts);
+}
 const DEFAULT_FONT = process.platform === "win32" ? "C:/Windows/Fonts/arialbd.ttf" : "/usr/share/fonts/opentype/inter/Inter-Bold.otf";
 const GREEN = "0x1CCA79"; // App-Primärfarbe hsl(152 76% 45%)
 
@@ -45,15 +51,21 @@ export function seconds(t) {
   return parts.reduce((acc, p) => acc * 60 + p, 0);
 }
 
+/** Schriftgrösse des Titels: 38 px, bei langen Titeln kleiner, damit die Zeile ins Bild passt. */
+export function titleSize(fmt, title) {
+  const width = fmt === "portrait-compilation" ? 720 : 960;
+  return Math.max(22, Math.min(38, Math.floor((width - 64) / (String(title).length * 0.6))));
+}
+
 /** Filtergraph: Video in [0:v]; mit Logo zusätzlich [1:v], Ausgabe [out]. */
-export function filterGraph(fmt, titleFile, sceneFile, withLogo) {
-  const chain = filter(fmt, titleFile, sceneFile, withLogo);
+export function filterGraph(fmt, titleFile, sceneFile, withLogo, size = 38) {
+  const chain = filter(fmt, titleFile, sceneFile, withLogo, size);
   if (!withLogo) return `[0:v]${chain}[out]`;
   // Logo auf 11 % der Bildbreite, 55 % Deckkraft, unten rechts mit Rand: sichtbar, aber unaufdringlich.
   return `[0:v]${chain}[v];[1:v]format=rgba,colorchannelmixer=aa=0.55[l0];[l0][v]scale2ref=w=main_w*0.11:h=ow/mdar[l][v2];[v2][l]overlay=x=W-w-20:y=H-h-18[out]`;
 }
 
-function filter(fmt, titleFile, sceneFile, withLogo = false) {
+function filter(fmt, titleFile, sceneFile, withLogo = false, size = 38) {
   const txt = (file, size, color, y, until) =>
     `drawtext=fontfile='${FONT}':textfile='${filterPath(file)}':fontsize=${size}:fontcolor=${color}:x=32:y=${y}` + (until ? `:enable='lt(t,${until})'` : "");
   // Kompilation hat eigene Titelzeile oben: wegschneiden, nur Spielfeld behalten.
@@ -64,7 +76,7 @@ function filter(fmt, titleFile, sceneFile, withLogo = false) {
     base,
     // Oben, weil Quellen unten eigene Namenseinblendungen haben.
     `drawbox=x=0:y=0:w=iw:h=104:color=black@0.65:t=fill:enable='lt(t,4.5)'`,
-    txt(titleFile, 38, "white", "14", 4.5),
+    txt(titleFile, size, "white", "14", 4.5),
     txt(sceneFile, 24, GREEN, "66", 4.5),
     ...(withLogo ? [] : [`drawtext=fontfile='${FONT}':text=SETPIECE:fontsize=22:fontcolor=white@0.85:x=w-tw-20:y=h-th-18`]),
   ].join(",");
@@ -86,7 +98,7 @@ for (const c of cfg.clips) {
   const file = `${c.id}-${c.template}.mp4`;
   execFileSync(FFMPEG, ["-loglevel", "error", "-y", "-ss", String(start), "-t", String(dur), "-i", input,
     ...(logo ? ["-i", logo] : []),
-    "-filter_complex", filterGraph(src.format, titleFile, sceneFile, Boolean(logo)), "-map", "[out]",
+    "-filter_complex", filterGraph(src.format, titleFile, sceneFile, Boolean(logo), titleSize(src.format, c.title)), "-map", "[out]",
     "-an", "-c:v", "libx264", "-preset", "medium", "-crf", "28",
     "-pix_fmt", "yuv420p", "-movflags", "+faststart", path.join(out, "clips", file)], { stdio: "inherit" });
   const ytTitle = `${c.title} | ${c.scene.split(" · ")[0]} | SETPIECE`.slice(0, 100);
@@ -106,7 +118,8 @@ for (const c of cfg.clips) {
     const dest = `${upload}/${c.id}-${c.template}-${hash}.mp4`;
     // Die Cloud-Umgebung setzt einen eigenen Token, der die Dienstkonto-Anmeldung überschreibt und 401 liefert.
     const { CLOUDSDK_AUTH_ACCESS_TOKEN: _token, ...env } = process.env;
-    execFileSync("gcloud", ["storage", "cp", local, dest, "--content-type=video/mp4",
+    // --no-clobber: vorhandene Dateien im Bucket nie überschreiben.
+    gcloud(["storage", "cp", "--no-clobber", local, dest, "--content-type=video/mp4",
       "--cache-control=public, max-age=31536000, immutable"], { stdio: "inherit", env });
     url = dest.replace(/^gs:\/\//, "https://storage.googleapis.com/");
   }
