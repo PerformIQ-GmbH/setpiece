@@ -1,7 +1,7 @@
 // Filter, Sortierung und Beschriftungen der Vorlagenbibliothek. Reine Logik ohne Importe,
 // damit sie sich ohne Browser testen lässt (scripts/tests/template-filters.test.mjs).
 
-export type Kind = 'corner' | 'free_kick' | 'throw_in';
+export type Kind = 'corner' | 'free_kick' | 'throw_in' | 'kickoff';
 export type Side = 'attack' | 'defense';
 export type Level = 'easy' | 'medium' | 'hard';
 export type Against = 'zone' | 'man' | 'hybrid' | 'deep' | 'high' | 'wall' | 'unset';
@@ -30,7 +30,7 @@ export interface TemplateFilters {
 
 export const NO_FILTERS: TemplateFilters = { kind: 'all', side: 'all', level: 'all', against: 'all', withVideo: false, juniors: false, noHeader: false, query: '' };
 
-export const KIND_LABELS: Record<Kind, string> = { corner: 'Ecke', free_kick: 'Freistoss', throw_in: 'Einwurf' };
+export const KIND_LABELS: Record<Kind, string> = { corner: 'Ecke', free_kick: 'Freistoss', throw_in: 'Einwurf', kickoff: 'Anstoss' };
 export const SIDE_LABELS: Record<Side, string> = { attack: 'Angriff', defense: 'Abwehr' };
 export const LEVEL_LABELS: Record<Level, string> = { easy: 'Einfach', medium: 'Mittel', hard: 'Anspruchsvoll' };
 export const AGAINST_LABELS: Record<Against, string> = {
@@ -39,13 +39,14 @@ export const AGAINST_LABELS: Record<Against, string> = {
 const LEVEL_ORDER: Record<Level, number> = { easy: 0, medium: 1, hard: 2 };
 
 export const kindOf = (category: string): Kind =>
-  category.includes('corner') ? 'corner' : category.includes('free_kick') ? 'free_kick' : 'throw_in';
+  category.includes('corner') ? 'corner' : category.includes('free_kick') ? 'free_kick' : category.includes('kickoff') ? 'kickoff' : 'throw_in';
 export const sideOf = (category: string): Side => (category.startsWith('defensive') ? 'defense' : 'attack');
 export const hasVideo = (t: TemplateLike): boolean => (t.media?.length ?? 0) > 0;
 
-/** «Ecke links · Angriff», «Direkter Freistoss · Mitte», «Einwurf · Abwehr». */
+/** «Ecke links · Angriff», «Direkter Freistoss · Mitte», «Einwurf · Abwehr», «Anstoss». */
 export function categoryLabel(category: string): string {
   const kind = kindOf(category);
+  if (kind === 'kickoff') return KIND_LABELS.kickoff; // gibt es nur im Angriff, ohne Seitenzusatz
   const where = category.endsWith('_left') ? 'links' : category.endsWith('_right') ? 'rechts' : category.endsWith('_central') ? 'Mitte' : category.endsWith('_wide') ? 'aussen' : '';
   if (kind === 'free_kick') return `${category.startsWith('direct') ? 'Direkter' : 'Indirekter'} Freistoss${where ? ` · ${where}` : ''}`;
   return `${kind === 'corner' ? `Ecke${where ? ` ${where}` : ''}` : 'Einwurf'} · ${SIDE_LABELS[sideOf(category)]}`;
@@ -90,14 +91,14 @@ export function availableAgainst(templates: TemplateLike[]): Against[] {
 
 const ALLOWED_LEVELS: Record<Experience, Level[]> = { none: ['easy'], some: ['easy', 'medium'], lots: ['easy', 'medium', 'hard'] };
 
-/** Onboarding: passende Einstiegsvorlagen, mit Video zuerst, quer über Ecke, Freistoss und Einwurf gemischt. */
+/** Onboarding: passende Einstiegsvorlagen, mit Video zuerst, quer über Ecke, Freistoss, Einwurf und Anstoss gemischt. */
 export function recommendTemplates<T extends TemplateLike>(templates: T[], experience: Experience, kind: Kind | 'all', limit = 6): T[] {
   const allowed = ALLOWED_LEVELS[experience];
   const pool = sortTemplates(templates.filter(t => t.profile && allowed.includes(t.profile.level) && (kind === 'all' || kindOf(t.category) === kind)));
   const byVideo = [...pool.filter(hasVideo), ...pool.filter(t => !hasVideo(t))];
   if (kind !== 'all') return byVideo.slice(0, limit);
   // Abwechselnd je Art nehmen, damit nicht nur Ecken erscheinen.
-  const kinds: Kind[] = ['corner', 'free_kick', 'throw_in'];
+  const kinds = Object.keys(KIND_LABELS) as Kind[];
   const lanes = kinds.map(k => byVideo.filter(t => kindOf(t.category) === k));
   const out: T[] = [];
   for (let i = 0; out.length < limit && lanes.some(l => i < l.length); i++) for (const lane of lanes) if (lane[i] && out.length < limit) out.push(lane[i]);

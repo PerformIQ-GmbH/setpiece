@@ -55,6 +55,7 @@ const CATEGORY_DE: Record<string, string> = {
   indirect_free_kick_right: 'Freistoss indirekt rechts',
   attacking_throw_in: 'Einwurf offensiv',
   defensive_throw_in: 'Einwurf defensiv',
+  kickoff: 'Anstoss',
 };
 
 export const categoryDe = (c: string) => CATEGORY_DE[c] ?? c.replace(/_/g, ' ');

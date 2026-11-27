@@ -36,7 +36,7 @@ function Toggle({ label, on, onChange }: { label: string; on: boolean; onChange:
 }
 
 /**
- * Filters of the template library. The kind (corner, free kick, throw-in) is always visible;
+ * Filters of the template library. The kind (corner, free kick, throw-in, kick-off) is always visible;
  * the rest sits behind «Filter» on small screens and is open on wide ones.
  */
 export function TemplateFilterBar({ templates, filters, onChange, shown }: {

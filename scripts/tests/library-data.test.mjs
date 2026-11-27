@@ -77,7 +77,7 @@ test('every template has a complete, honest profile (filters, pros, cons, tip, b
 
 const NEW_SLUGS = ['corner-man-free-run', 'corner-man-cross-run', 'corner-mixed-zone-gap', 'corner-short-feint', 'corner-def-mixed',
   'freistoss-zwei-am-ball-fluegel', 'corner-edge-cluster', 'corner-short-edge-cross', 'kickoff-outside-runner', 'kickoff-inside-run'];
-const metres = (e, p) => [(p.x * 68) / 100, (p.y * (e.category.endsWith('throw_in') ? 105 : 52.5)) / 100];
+const metres = (e, p) => [(p.x * 68) / 100, (p.y * (['throw_in', 'kickoff'].some((k) => e.category.endsWith(k)) ? 105 : 52.5)) / 100];
 const dist = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1]);
 
 test('slugs and titles are unique, the ten clip templates are present with texts', () => {
@@ -96,6 +96,16 @@ test('slugs and titles are unique, the ten clip templates are present with texts
   }
 });
 
+test('the two Anstoss templates use the kickoff category, not Einwurf', () => {
+  for (const slug of ['kickoff-outside-runner', 'kickoff-inside-run']) {
+    const e = LIBRARY.find((x) => x.slug === slug);
+    assert.equal(e.category, 'kickoff', slug);
+    assert.match(e.title, /^Anstoss: /, `${slug}: title keeps the prefix`);
+    assert.doesNotMatch(e.description, /technisch bei den Einwürfen|keine eigene Anstoss-Kategorie/, `${slug}: outdated workaround note removed`);
+  }
+  assert.deepEqual(LIBRARY.filter((e) => e.category === 'kickoff').map((e) => e.slug).sort(), ['kickoff-inside-run', 'kickoff-outside-runner']);
+});
+
 test('free kicks keep the wall at least 9.15 m from the ball', () => {
   for (const e of LIBRARY.filter((x) => x.category.includes('free_kick'))) {
     const v = e.boardData.variants[0];
@@ -107,7 +117,7 @@ test('free kicks keep the wall at least 9.15 m from the ball', () => {
 test('clip templates: markers apart, runs chain, passes start at the ball holder and end at a player or the goal', () => {
   for (const slug of NEW_SLUGS) {
     const e = LIBRARY.find((x) => x.slug === slug);
-    const full = e.category.endsWith('throw_in');
+    const full = ['throw_in', 'kickoff'].some((k) => e.category.endsWith(k));
     const v = e.boardData.variants[0];
     const ids = e.defaultRoles.map((r) => r.id);
     const roleAt = (step) => ids.map((id) => metres(e, v.stepPositions[step][id]));

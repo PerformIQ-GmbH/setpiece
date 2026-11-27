@@ -19,6 +19,8 @@ export const setPieceCategoryEnum = pgEnum("set_piece_category", [
   "indirect_free_kick_right",
   "attacking_throw_in",
   "defensive_throw_in",
+  // Anstoss (nur Angriff, ganzes Spielfeld); Migration 20261127_kickoff_category.sql
+  "kickoff",
 ]);
 
 /** Einschätzung einer Vorlage für Trainer: Filter (level, against, juniors, needsHeader) und Erklärung (pros, cons, tip). */
