@@ -19,6 +19,8 @@ Dieses Arbeitsmodell übernimmt die Rollen aus [PerformIQ Company OS](https://gi
 
 Das sind Arbeitsrollen, keine dauerhaft laufenden Mitarbeiter. Kleine Aufgaben erledigt Alex allein. Unabhängige Teilaufgaben gezielt delegieren; bei riskanten Änderungen Autor und Reviewer möglichst trennen. Je Datei ein schreibender Verantwortlicher. Delegation nennt Ziel, Quellen, erlaubte Dateien, Grenzen und Abnahme. Keine automatischen Agentenketten oder wiederkehrenden Aufgaben.
 
+Vince spricht nur mit Alex (Entscheid Vince 27.11.2026). Die Hauptsitzung arbeitet als Alex und beauftragt die anderen Rollen als Unteragenten; ihre Aufträge stehen in `.claude/agents/` (nora, mia, leo, kai, sara, clip-redaktion). Braucht Alex eine Entscheidung von Vince, stellt er sie als Auswahl mit der empfohlenen Antwort an erster Stelle und einer kurzen Begründung je Option, nicht als offene Frage im Fliesstext.
+
 ## Produkt und Sicherheit
 
 - Kernablauf: Standard vorbereiten → Rollen zuweisen → Zugriff per QR/Link → Spieleraufgabe → korrekte Trainer-Rückmeldung. Ein Quiz ist kein Nachweis für Spielleistung oder garantierte Tore.

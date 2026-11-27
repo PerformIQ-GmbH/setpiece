@@ -1,31 +1,43 @@
 // Schneidet Szenen aus Quellvideos nach clips.json, setzt Titel-Einblendung und
 // SETPIECE-Kennung, und schreibt Upload-Liste (CSV + Markdown) für den Kanal.
 // Aufruf: node scripts/clips/schneiden.mjs --src pl-ten-of-the-best=/pfad/a.mp4 --src osman-top5=/pfad/b.mp4
-//          [--out DIR] [--only 01,02] [--upload gs://setpiece-mediathek/clips]
+//          [--out DIR] [--only 01,02] [--upload gs://setpiece-mediathek/clips] [--logo /pfad/symbol-weiss-512.png]
 // Mit --upload landen die Clips in Google Cloud Storage (gcloud muss angemeldet sein) und
 // media.json enthält die fertigen Einträge pro Vorlage für scripts/src/template-library.ts.
-// Braucht ffmpeg. Ton wird entfernt; Quellvideos nie ins Repo legen.
+// Mit --logo steht statt des Schriftzugs das Logo halbtransparent unten rechts.
+// Braucht ffmpeg (Pfad über FFMPEG, sonst aus PATH). Ton wird entfernt; Quellvideos nie ins Repo legen.
 import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { cpSync, mkdirSync, readFileSync, writeFileSync, mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 
-const here = path.dirname(new URL(import.meta.url).pathname);
+// fileURLToPath statt .pathname: sonst bricht der Pfad unter Windows und bei Leerzeichen.
+const here = path.dirname(fileURLToPath(import.meta.url));
 const cfg = JSON.parse(readFileSync(path.join(here, "clips.json"), "utf8"));
 const args = process.argv.slice(2);
 const srcPaths = {};
 let out = path.resolve("setpiece-videos");
 let only = null;
 let upload = null;
+let logo = null;
 for (let i = 0; i < args.length; i++) {
   if (args[i] === "--src") { const [k, v] = args[++i].split(/=(.*)/s); srcPaths[k] = v; }
   else if (args[i] === "--out") out = path.resolve(args[++i]);
   else if (args[i] === "--only") only = new Set(args[++i].split(","));
   else if (args[i] === "--upload") upload = args[++i].replace(/\/+$/, "");
+  else if (args[i] === "--logo") logo = path.resolve(args[++i]);
 }
-const FONT = process.env.FONT ?? "/usr/share/fonts/opentype/inter/Inter-Bold.otf";
+const FFMPEG = process.env.FFMPEG ?? "ffmpeg";
+const DEFAULT_FONT = process.platform === "win32" ? "C:/Windows/Fonts/arialbd.ttf" : "/usr/share/fonts/opentype/inter/Inter-Bold.otf";
 const GREEN = "0x1CCA79"; // App-Primärfarbe hsl(152 76% 45%)
+
+/** Pfad für ffmpeg-Filteroptionen: Schrägstriche, Doppelpunkt und Apostroph maskiert (Windows-Laufwerk C:). */
+export function filterPath(p) {
+  return String(p).replace(/\\/g, "/").replace(/:/g, "\\:").replace(/'/g, "\\'");
+}
+const FONT = filterPath(process.env.FONT ?? DEFAULT_FONT);
 
 export function seconds(t) {
   const parts = String(t).split(":").map(Number);
@@ -33,9 +45,17 @@ export function seconds(t) {
   return parts.reduce((acc, p) => acc * 60 + p, 0);
 }
 
-function filter(fmt, titleFile, sceneFile) {
+/** Filtergraph: Video in [0:v]; mit Logo zusätzlich [1:v], Ausgabe [out]. */
+export function filterGraph(fmt, titleFile, sceneFile, withLogo) {
+  const chain = filter(fmt, titleFile, sceneFile, withLogo);
+  if (!withLogo) return `[0:v]${chain}[out]`;
+  // Logo auf 11 % der Bildbreite, 55 % Deckkraft, unten rechts mit Rand: sichtbar, aber unaufdringlich.
+  return `[0:v]${chain}[v];[1:v]format=rgba,colorchannelmixer=aa=0.55[l0];[l0][v]scale2ref=w=main_w*0.11:h=ow/mdar[l][v2];[v2][l]overlay=x=W-w-20:y=H-h-18[out]`;
+}
+
+function filter(fmt, titleFile, sceneFile, withLogo = false) {
   const txt = (file, size, color, y, until) =>
-    `drawtext=fontfile=${FONT}:textfile=${file}:fontsize=${size}:fontcolor=${color}:x=32:y=${y}` + (until ? `:enable='lt(t,${until})'` : "");
+    `drawtext=fontfile='${FONT}':textfile='${filterPath(file)}':fontsize=${size}:fontcolor=${color}:x=32:y=${y}` + (until ? `:enable='lt(t,${until})'` : "");
   // Kompilation hat eigene Titelzeile oben: wegschneiden, nur Spielfeld behalten.
   const base = fmt === "portrait-compilation"
     ? "crop=360:360:0:152,scale=720:720:flags=lanczos"
@@ -46,7 +66,7 @@ function filter(fmt, titleFile, sceneFile) {
     `drawbox=x=0:y=0:w=iw:h=104:color=black@0.65:t=fill:enable='lt(t,4.5)'`,
     txt(titleFile, 38, "white", "14", 4.5),
     txt(sceneFile, 24, GREEN, "66", 4.5),
-    `drawtext=fontfile=${FONT}:text=SETPIECE:fontsize=22:fontcolor=white@0.85:x=w-tw-20:y=h-th-18`,
+    ...(withLogo ? [] : [`drawtext=fontfile='${FONT}':text=SETPIECE:fontsize=22:fontcolor=white@0.85:x=w-tw-20:y=h-th-18`]),
   ].join(",");
 }
 
@@ -64,8 +84,10 @@ for (const c of cfg.clips) {
   const titleFile = path.join(tmp, `${c.id}-t.txt`), sceneFile = path.join(tmp, `${c.id}-s.txt`);
   writeFileSync(titleFile, c.title); writeFileSync(sceneFile, c.scene);
   const file = `${c.id}-${c.template}.mp4`;
-  execFileSync("ffmpeg", ["-loglevel", "error", "-y", "-ss", String(start), "-t", String(dur), "-i", input,
-    "-vf", filter(src.format, titleFile, sceneFile), "-an", "-c:v", "libx264", "-preset", "medium", "-crf", "28",
+  execFileSync(FFMPEG, ["-loglevel", "error", "-y", "-ss", String(start), "-t", String(dur), "-i", input,
+    ...(logo ? ["-i", logo] : []),
+    "-filter_complex", filterGraph(src.format, titleFile, sceneFile, Boolean(logo)), "-map", "[out]",
+    "-an", "-c:v", "libx264", "-preset", "medium", "-crf", "28",
     "-pix_fmt", "yuv420p", "-movflags", "+faststart", path.join(out, "clips", file)], { stdio: "inherit" });
   const ytTitle = `${c.title} | ${c.scene.split(" · ")[0]} | SETPIECE`.slice(0, 100);
   const description = [
