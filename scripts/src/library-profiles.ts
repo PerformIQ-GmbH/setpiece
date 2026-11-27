@@ -461,4 +461,218 @@ export const PROFILES: Record<string, TemplateProfile> = {
     tip: "Die kurzen Spieler bewegen sich vor dem Wurf weg und kommen dann entgegen, damit sie frei sind.",
     basis: "ai",
   },
+
+  // ─── Aus Trainings- und Spielclips (27.11.2026): KI-Einschätzung, keine Recherche ───
+  "corner-man-free-run": {
+    "level": "medium",
+    "against": [
+      "man"
+    ],
+    "juniors": false,
+    "needsHeader": true,
+    "effort": "ca. 3 × 15 Min.",
+    "pros": [
+      "Nutzt aus, dass Manndecker jedem Lauf folgen: Die Gegenspieler stören sich beim Kreuzen gegenseitig.",
+      "Der Zielspieler kommt mit Anlauf in einen Raum, den die Abwehr selbst geöffnet hat.",
+      "Mit einer Ausweichlösung am zweiten Pfosten und einem Rückraumspieler abgesichert."
+    ],
+    "cons": [
+      "Das Timing der Läufe braucht viele Wiederholungen, sonst läuft der Zielspieler zu früh los.",
+      "Die Läufe dürfen nicht zum Block werden: Stehenbleiben im Weg ist ein Foul.",
+      "Gegen Raumdeckung bringt das Kreuzen wenig."
+    ],
+    "tip": "Erst ohne Gegner üben, dann mit Manndeckern: Der Zielspieler startet erst, wenn die Läufer sich gekreuzt haben.",
+    "basis": "ai"
+  },
+  "corner-man-cross-run": {
+    "level": "medium",
+    "against": [
+      "man"
+    ],
+    "juniors": false,
+    "needsHeader": true,
+    "effort": "ca. 2 × 15 Min.",
+    "pros": [
+      "Zwei echte Ziele: Die Abwehr muss sich entscheiden, wem sie folgt.",
+      "Der Ball kommt flach und scharf, das ist für den Torhüter schwer zu lesen.",
+      "Nur wenige Spieler im Ablauf, die übrigen sichern ab."
+    ],
+    "cons": [
+      "Eine scharfe, flache Ecke über die ganze Breite gelingt nicht jedem Schützen.",
+      "Ein zusätzlicher Gegner am ersten Pfosten kann den Ball abfangen.",
+      "Die Läufer brauchen Tempo und Abstimmung, sonst stehen sie sich im Weg."
+    ],
+    "tip": "Der Schütze wartet mit dem Schuss, bis der ferne Läufer die Kreuzung verlassen hat.",
+    "basis": "ai"
+  },
+  "corner-mixed-zone-gap": {
+    "level": "medium",
+    "against": [
+      "hybrid"
+    ],
+    "juniors": false,
+    "needsHeader": true,
+    "effort": "ca. 2 × 15 Min.",
+    "pros": [
+      "Zonen- und Manndecker sind sich in der Lücke dazwischen oft uneins, wer zuständig ist.",
+      "Der Läufer kommt mit Anlauf gegen Verteidiger, die zum Ball schauen.",
+      "Ein Zweitballspieler und ein Rückraumspieler sichern ab."
+    ],
+    "cons": [
+      "Die Lücke ist schmal: Die Flanke muss auf wenige Meter genau kommen.",
+      "Gegen reine Manndeckung gibt es keine Lücke, der Ablauf bringt dort nichts Besonderes.",
+      "Der Lockläufer muss glaubhaft starten, sonst bindet er niemanden."
+    ],
+    "tip": "Den Zielraum mit Hütchen markieren und die Flanke zuerst ohne Gegner üben.",
+    "basis": "ai"
+  },
+  "corner-short-feint": {
+    "level": "easy",
+    "against": [
+      "deep",
+      "man"
+    ],
+    "juniors": true,
+    "needsHeader": false,
+    "effort": "ca. 15 Min. in einer Einheit",
+    "pros": [
+      "Wenige Spieler im Ablauf, die Täuschung ist leicht zu erklären.",
+      "Zieht einen Gegner aus dem Strafraum und öffnet einen freien Flankenwinkel.",
+      "Passt auch für Junioren, weil keine Kopfballstärke nötig ist."
+    ],
+    "cons": [
+      "Funktioniert nur, wenn ein Gegner auf die kurze Ecke reagiert.",
+      "Ein Fehler in der Absprache (wer lässt durch, wer nimmt an) kostet den Ball.",
+      "Die Flanke aus dem neuen Winkel muss trotzdem genau kommen."
+    ],
+    "tip": "Vor jedem Versuch ein Handzeichen vereinbaren, wer den Ball durchlässt.",
+    "basis": "ai"
+  },
+  "corner-def-mixed": {
+    "level": "medium",
+    "against": [],
+    "juniors": true,
+    "needsHeader": true,
+    "effort": "ca. 2 × 15 Min.",
+    "pros": [
+      "Klare Aufgaben: Pfosten, Zone, Mann und Sammler sind getrennt.",
+      "Der Sammler sichert den zweiten Ball, nicht nur die erste Klärung.",
+      "Lässt sich mit der eigenen Aufstellung der Mannschaft leicht anpassen."
+    ],
+    "cons": [
+      "Wechselt der Gegner den Zielspieler, müssen die Manndecker Zuordnungen sofort tauschen.",
+      "Pfostenspieler binden zwei Spieler, die im Zweikampf fehlen.",
+      "Ohne feste Zuordnung vor dem Spiel entstehen Lücken."
+    ],
+    "tip": "Die Zuordnung vor jeder Ecke laut ansagen, besonders wenn der Gegner Läufer vertauscht.",
+    "basis": "ai"
+  },
+  "freistoss-zwei-am-ball-fluegel": {
+    "level": "medium",
+    "against": [
+      "wall",
+      "man"
+    ],
+    "juniors": false,
+    "needsHeader": true,
+    "effort": "ca. 2 × 15 Min.",
+    "pros": [
+      "Die Mauer steht auf das Zentrum, der Flügel bleibt offen.",
+      "Die Täuschung bindet Mauer und Torhüter, bevor der Pass kommt.",
+      "Der Flügelspieler hat gegen den allein stehenden Aussenverteidiger Platz."
+    ],
+    "cons": [
+      "Ob der Kurzpass im Originalclip Teil der Variante war, ist nicht belegt; die Vorlage ist ein Vorschlag.",
+      "Das 1v1 hängt an einem Flügelspieler mit gutem Dribbling.",
+      "Verlangsamt sich der Ablauf, ordnet sich die Abwehr neu."
+    ],
+    "tip": "Die Mauer vor dem Ausführen mit Hütchen genau auf 9,15 m stellen, sonst stimmt der Ablauf nicht.",
+    "basis": "ai"
+  },
+  "corner-edge-cluster": {
+    "level": "medium",
+    "against": [
+      "man",
+      "deep"
+    ],
+    "juniors": false,
+    "needsHeader": true,
+    "effort": "ca. 2 × 15 Min.",
+    "pros": [
+      "Der Pulk bindet viele Gegner, die Strafraumkante bleibt frei.",
+      "Der Kantenspieler hat Anlauf und freie Sicht.",
+      "Ein Zweitball-Plan ist schon eingebaut."
+    ],
+    "cons": [
+      "Der Ablauf stammt aus einem schwer lesbaren Clip und ist ein Trainingsvorschlag.",
+      "Der Pulk muss den Ball treffen, sonst fehlt die Verlängerung.",
+      "Steht ein Gegner an der Strafraumkante, ist die Variante bekannt."
+    ],
+    "tip": "Zuerst nur die Verlängerung zur Kante üben, dann den Lauf des Kantenspielers dazunehmen.",
+    "basis": "ai"
+  },
+  "corner-short-edge-cross": {
+    "level": "easy",
+    "against": [
+      "zone",
+      "man"
+    ],
+    "juniors": true,
+    "needsHeader": true,
+    "effort": "ca. 15 Min. in einer Einheit",
+    "pros": [
+      "Ein freier Flankenwinkel ohne Zweikampf, wenn niemand herausrückt.",
+      "Wenige Pässe, gut für Mannschaften mit sicherer Passtechnik.",
+      "Der Zielspieler startet mit Anlauf hinter der Zonenlinie."
+    ],
+    "cons": [
+      "Rückt ein Gegner heraus, ist der Ablauf blockiert.",
+      "Verliert der Partner den ersten Kontakt, ist der Ball weg.",
+      "Es braucht einen Kopfballspieler als Ziel."
+    ],
+    "tip": "Den Partner an der Linie zuerst ohne Gegner dreimal wiederholen lassen, damit der Pass im ersten Kontakt sitzt.",
+    "basis": "ai"
+  },
+  "kickoff-outside-runner": {
+    "level": "medium",
+    "against": [
+      "high"
+    ],
+    "juniors": false,
+    "needsHeader": false,
+    "effort": "ca. 2 × 15 Min.",
+    "pros": [
+      "Überrascht eine Abwehr, die nach dem Anstoss noch nicht geordnet steht.",
+      "Vier gleichzeitige Läufe binden die Abwehrkette.",
+      "Am Flügel entsteht ein 2v1 gegen einen allein stehenden Aussenverteidiger."
+    ],
+    "cons": [
+      "Braucht einen Spieler mit sicherem langen Diagonalpass.",
+      "Wer Ziel der vier Läufe ist, blieb im Clip offen; die Vorlage ist ein Trainingsvorschlag.",
+      "Presst der Gegner anders, geht die Diagonale ins Leere."
+    ],
+    "tip": "Zuerst Rückpass und Starttempo ohne Gegner üben; die Diagonale erst, wenn alle vier gleichzeitig starten.",
+    "basis": "ai"
+  },
+  "kickoff-inside-run": {
+    "level": "medium",
+    "against": [
+      "high"
+    ],
+    "juniors": false,
+    "needsHeader": false,
+    "effort": "ca. 2 × 15 Min.",
+    "pros": [
+      "Nutzt die Lücke in einer Kette, die auf einer Linie steht.",
+      "Der Läufer kommt mit Tempo von hinten, Verteidiger müssen drehen.",
+      "Zwei weitere Läufer binden die Innenverteidiger."
+    ],
+    "cons": [
+      "Der lange Ball muss auf wenige Meter genau in die Lücke fallen.",
+      "Der Läufer darf nicht zu früh starten, sonst ist er im Abseits.",
+      "Gegen eine tiefe Abwehr gibt es keinen Raum hinter der Kette."
+    ],
+    "tip": "Die Abseitslinie beim Training von einem Trainer an der Seitenlinie anzeigen lassen.",
+    "basis": "ai"
+  },
 };

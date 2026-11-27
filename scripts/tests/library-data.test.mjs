@@ -74,3 +74,69 @@ test('every template has a complete, honest profile (filters, pros, cons, tip, b
     if (/^(offensive_corner|direct_free_kick|indirect_free_kick)/.test(e.category)) assert.ok(p.against.length >= 1, `${e.slug}: against`);
   }
 });
+
+const NEW_SLUGS = ['corner-man-free-run', 'corner-man-cross-run', 'corner-mixed-zone-gap', 'corner-short-feint', 'corner-def-mixed',
+  'freistoss-zwei-am-ball-fluegel', 'corner-edge-cluster', 'corner-short-edge-cross', 'kickoff-outside-runner', 'kickoff-inside-run'];
+const metres = (e, p) => [(p.x * 68) / 100, (p.y * (e.category.endsWith('throw_in') ? 105 : 52.5)) / 100];
+const dist = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1]);
+
+test('slugs and titles are unique, the ten clip templates are present with texts', () => {
+  assert.equal(new Set(LIBRARY.map((e) => e.slug)).size, LIBRARY.length, 'slugs unique');
+  assert.equal(new Set(LIBRARY.map((e) => e.title)).size, LIBRARY.length, 'titles unique');
+  assert.ok(LIBRARY.length >= 39);
+  for (const slug of NEW_SLUGS) {
+    const e = LIBRARY.find((x) => x.slug === slug);
+    assert.ok(e, `${slug} exists`);
+    assert.ok(e.title && e.description?.length > 60 && e.coachingNote?.length > 60, `${slug}: texts`);
+    assert.match(e.description, /Trainingsclip/, `${slug}: names its clip origin`);
+    assert.match(e.coachingNote, /Rückmeldung nach dem Training/, `${slug}: feedback line`);
+    assert.equal(e.profile.basis, 'ai', `${slug}: clip-derived, no research claim`);
+    const ids = e.boardData.variants[0].steps.length;
+    assert.ok(ids >= 4, `${slug}: at least four steps`);
+  }
+});
+
+test('free kicks keep the wall at least 9.15 m from the ball', () => {
+  for (const e of LIBRARY.filter((x) => x.category.includes('free_kick'))) {
+    const v = e.boardData.variants[0];
+    const ball = metres(e, v.entityStepPositions.s1['ball-1']);
+    for (const [id, p] of Object.entries(v.entityStepPositions.s1)) if (id.startsWith('opp-')) assert.ok(dist(metres(e, p), ball) >= 9.15, `${e.slug}: ${id} only ${dist(metres(e, p), ball).toFixed(1)} m from the ball`);
+  }
+});
+
+test('clip templates: markers apart, runs chain, passes start at the ball holder and end at a player or the goal', () => {
+  for (const slug of NEW_SLUGS) {
+    const e = LIBRARY.find((x) => x.slug === slug);
+    const full = e.category.endsWith('throw_in');
+    const v = e.boardData.variants[0];
+    const ids = e.defaultRoles.map((r) => r.id);
+    const roleAt = (step) => ids.map((id) => metres(e, v.stepPositions[step][id]));
+    for (const s of v.steps) {
+      const marks = [...roleAt(s.id).map((p) => ['role', p]), ...Object.entries(v.entityStepPositions[s.id]).filter(([id]) => id !== 'ball-1').map(([id, p]) => [id, metres(e, p)])];
+      for (let i = 0; i < marks.length; i++) for (let j = i + 1; j < marks.length; j++) {
+        const wall = e.category.includes('free_kick') && marks[i][0].startsWith('opp-') && marks[j][0].startsWith('opp-'); // Mauer steht Schulter an Schulter
+        assert.ok(dist(marks[i][1], marks[j][1]) >= (wall ? 1.5 : full ? 2.5 : 2), `${slug} ${s.id}: two markers on top of each other`);
+      }
+    }
+    const defensive = e.category.startsWith('defensive');
+    v.annotations.forEach((a) => {
+      const i = v.steps.findIndex((s) => s.id === a.stepId);
+      const first = metres(e, a.points[0]), last = metres(e, a.points.at(-1));
+      if (a.type.includes('run')) {
+        assert.equal(a.points.length, 2, `${slug}: run without detours`);
+        assert.ok(dist(first, metres(e, v.stepPositions[a.stepId][a.linkedRoleId])) < 0.2, `${slug}: run starts at its player`);
+        if (v.steps[i + 1]) assert.ok(dist(last, metres(e, v.stepPositions[v.steps[i + 1].id][a.linkedRoleId])) < 0.2, `${slug}: run ends where the next step starts`);
+      } else {
+        if (!defensive) assert.ok(roleAt(a.stepId).some((p) => dist(p, first) <= (full ? 3 : 2.5)), `${slug}: pass starts at a player`);
+        const goal = last[1] < 1 && last[0] > 30.3 && last[0] < 37.7;
+        const next = v.steps[i + 1] ? roleAt(v.steps[i + 1].id) : v.annotations.filter((q) => q.stepId === a.stepId && q.linkedRoleId).map((q) => metres(e, q.points.at(-1)));
+        assert.ok(goal || next.some((p) => dist(p, last) <= 1), `${slug}: pass ends at a player or in the goal`);
+      }
+    });
+    if (full) { // Anstoss: Gegner in ihrer Hälfte und ≥ 9,15 m vom Ball, Angreifer in der eigenen Hälfte
+      const ball = metres(e, v.entityStepPositions.s1['ball-1']);
+      for (const [id, p] of Object.entries(v.entityStepPositions.s1)) if (id.startsWith('opp-')) { const m = metres(e, p); assert.ok(m[1] <= 52.5 && dist(m, ball) >= 9.15, `${slug}: ${id} illegal at kick-off`); }
+      for (const p of roleAt('s1')) assert.ok(p[1] >= 52.5, `${slug}: attacker in the opponent half at kick-off`);
+    }
+  }
+});
