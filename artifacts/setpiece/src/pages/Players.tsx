@@ -372,26 +372,27 @@ export default function Players() {
         <DialogContent className="bg-card border-border sm:max-w-md">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <QrCode className="w-5 h-5 text-primary" /> Invite Players
+              <QrCode className="w-5 h-5 text-primary" /> Spieler einladen
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-5 pt-2">
             <p className="text-sm text-muted-foreground">
-              Share this link or QR code with your players. They can register themselves directly into your squad.
+              Teile diesen Link oder QR-Code mit deinen Spielern. Sie tragen sich selbst in deinen Kader ein.
             </p>
 
             <div className="space-y-1">
-              <label className="text-xs text-muted-foreground uppercase font-bold tracking-wider">Link Expiry</label>
+              <label htmlFor="invite-expiry" className="text-xs text-muted-foreground uppercase font-bold tracking-wider">Link gültig</label>
               <select
+                id="invite-expiry"
                 value={inviteExpiryHours}
                 onChange={e => setInviteExpiryHours(e.target.value)}
                 className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm focus:border-primary outline-none text-muted-foreground"
               >
-                <option value="">No expiry</option>
-                <option value="24">24 hours</option>
-                <option value="48">48 hours</option>
-                <option value="168">1 week</option>
-                <option value="720">30 days</option>
+                <option value="">Unbegrenzt</option>
+                <option value="24">24 Stunden</option>
+                <option value="48">48 Stunden</option>
+                <option value="168">1 Woche</option>
+                <option value="720">30 Tage</option>
               </select>
             </div>
 
@@ -404,20 +405,20 @@ export default function Players() {
                 </div>
 
                 <div className="flex items-center gap-2">
-                  <div className="flex-1 bg-background border border-border rounded-lg px-3 py-2 text-xs text-muted-foreground truncate flex items-center gap-2">
+                  <div className="min-w-0 flex-1 bg-background border border-border rounded-lg px-3 py-2 text-xs text-muted-foreground flex items-center gap-2">
                     <Link2 className="w-3.5 h-3.5 shrink-0 text-primary" />
                     <span className="truncate">{joinUrl}</span>
                   </div>
-                  <Button size="sm" variant="outline" onClick={handleCopy} className="shrink-0 border-border">
+                  <Button size="sm" variant="outline" onClick={handleCopy} aria-label="Link kopieren" className="shrink-0 border-border h-9 w-9 p-0">
                     {copied ? <Check className="w-4 h-4 text-green-400" /> : <Copy className="w-4 h-4" />}
                   </Button>
                 </div>
 
                 {activeInvite && (
                   <div className="flex items-center justify-between text-xs text-muted-foreground bg-background rounded-lg px-3 py-2 border border-border">
-                    <span>Used {activeInvite.useCount} time{activeInvite.useCount !== 1 ? 's' : ''}</span>
+                    <span>{activeInvite.useCount}× verwendet</span>
                     {activeInvite.expiresAt && (
-                      <span>Expires {new Date(activeInvite.expiresAt).toLocaleDateString()}</span>
+                      <span>Läuft ab am {new Date(activeInvite.expiresAt).toLocaleDateString('de-CH')}</span>
                     )}
                   </div>
                 )}
@@ -431,7 +432,7 @@ export default function Players() {
                     className="flex-1 text-muted-foreground hover:text-destructive"
                   >
                     <Trash2 className="w-4 h-4 mr-2" />
-                    Revoke
+                    Sperren
                   </Button>
                   <Button
                     size="sm"
@@ -441,7 +442,7 @@ export default function Players() {
                     className="flex-1 text-muted-foreground hover:text-white"
                   >
                     {createInvite.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <RefreshCw className="w-4 h-4 mr-2" />}
-                    Regenerate
+                    Neuer Link
                   </Button>
                 </div>
               </>
@@ -452,7 +453,7 @@ export default function Players() {
                 className="w-full bg-emerald-600 hover:bg-emerald-700 text-white"
               >
                 {createInvite.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Link2 className="w-4 h-4 mr-2" />}
-                Create Invite Link
+                Einladungslink erstellen
               </Button>
             )}
           </div>
