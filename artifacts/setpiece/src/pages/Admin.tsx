@@ -49,7 +49,7 @@ function SignupChart({ weeks }: { weeks: { week: string; count: number }[] }) {
         </div>)}
       </div>
       <div className="mt-1 flex gap-1 sm:gap-2" aria-hidden="true">
-        {weeks.map((week, index) => <span key={week.week} className="min-w-0 flex-1 truncate text-center text-[10px] text-muted-foreground">
+        {weeks.map((week, index) => <span key={week.week} className="min-w-0 flex-1 overflow-visible whitespace-nowrap text-center text-[10px] text-muted-foreground">
           {index % 2 === (weeks.length - 1) % 2 ? weekLabel(week.week) : ''}
         </span>)}
       </div>
