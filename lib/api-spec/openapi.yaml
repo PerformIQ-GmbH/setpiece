@@ -1683,7 +1683,18 @@ components:
           type: string
         effectiveTier:
           type: string
-          description: Current usage tier, including an active pilot. tier remains the billing plan.
+          description: Current usage tier, including active pilot and complimentary access. tier remains the billing plan.
+        complimentaryAccess:
+          type: [object, 'null']
+          required: [tier, expiresAt, active]
+          properties:
+            tier:
+              type: string
+            expiresAt:
+              type: [string, 'null']
+              format: date-time
+            active:
+              type: boolean
         pilotExpiresAt:
           type: [string, 'null']
           format: date-time

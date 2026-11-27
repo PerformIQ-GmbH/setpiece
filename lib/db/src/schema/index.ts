@@ -14,3 +14,4 @@ export * from "./matchdays";
 export * from "./auditEvents";
 export * from "./teamInvites";
 export * from "./pilotAccess";
+export * from "./complimentaryAccess";

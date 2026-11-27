@@ -8,6 +8,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Link, useLocation } from 'wouter';
 import { motion } from 'framer-motion';
 import { PilotStatus } from '@/components/PilotAccessPanel';
+import { teamPlanLabel } from '@/lib/team-plan';
 
 export default function Dashboard() {
   const { data: teams, isLoading, isError, refetch } = useListTeams();
@@ -111,7 +112,7 @@ export default function Dashboard() {
                       <Users className="h-6 w-6 text-primary" />
                     </div>
                     <span className="text-xs font-medium px-2 py-1 rounded-md bg-secondary text-secondary-foreground border border-border">
-                      {team.effectiveTier === 'solo_coach' && team.tier === 'free' ? 'Solo Coach · Pilot' : team.tier === 'free' ? 'Kostenlos' : team.tier === 'solo_coach' ? 'Solo Coach' : 'Team'}
+                      {teamPlanLabel(team)}
                     </span>
                   </div>
                   

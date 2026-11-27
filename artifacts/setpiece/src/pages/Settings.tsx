@@ -8,14 +8,9 @@ import { t, getLangSetting, setLangSetting } from '@/lib/i18n';
 import { useInstallPrompt } from '@/hooks/useInstallPrompt';
 import { motion } from 'framer-motion';
 import { PilotAccessPanel } from '@/components/PilotAccessPanel';
+import { teamPlanLabel, tierLabel } from '@/lib/team-plan';
 
 const BASE = import.meta.env.BASE_URL || '/';
-
-const TIER_LABELS: Record<string, string> = {
-  free: 'Free',
-  solo_coach: 'Solo Coach',
-  team: 'Team',
-};
 
 export default function Settings() {
   const { data: auth } = useGetCurrentAuthUser();
@@ -125,7 +120,12 @@ export default function Settings() {
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm text-muted-foreground">Current Plan</p>
-                    <p className="text-lg font-bold text-white">{team.effectiveTier === 'solo_coach' && team.tier === 'free' ? 'Solo Coach · Pilot' : TIER_LABELS[team.tier] || team.tier}</p>
+                    <p className="text-lg font-bold text-white">{teamPlanLabel(team)}</p>
+                    {team.complimentaryAccess?.active && <p className="text-sm text-muted-foreground">
+                      Gratiszugang {tierLabel(team.complimentaryAccess.tier)} {team.complimentaryAccess.expiresAt
+                        ? `bis ${new Date(team.complimentaryAccess.expiresAt).toLocaleString('de-CH', { dateStyle: 'medium', timeStyle: 'short' })}`
+                        : 'unbefristet'}
+                    </p>}
                   </div>
                   {team.tier !== 'free' && team.stripeCustomerId ? (
                     <Button

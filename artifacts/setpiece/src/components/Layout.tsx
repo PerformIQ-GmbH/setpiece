@@ -1,9 +1,9 @@
 import React from 'react';
 import { Link, useLocation, useRoute } from 'wouter';
-import { useGetCurrentAuthUser } from '@workspace/api-client-react';
+import { useGetCurrentAuthUser, useGetAdminStatus, getGetAdminStatusQueryKey } from '@workspace/api-client-react';
 import { 
   Home, Users, LayoutDashboard, Calendar, Activity, Settings, 
-  LogOut, Loader2, Menu, Move, CreditCard, ChevronLeft
+  LogOut, Loader2, Menu, Move, CreditCard, ChevronLeft, Shield
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
@@ -23,6 +23,8 @@ interface CoachLayoutProps {
 export function CoachLayout({ children, teamId, teamName }: CoachLayoutProps) {
   const [location] = useLocation();
   const { data: auth, isLoading } = useGetCurrentAuthUser();
+  // Nur Anzeige des Menüpunkts; jede Adminroute prüft die Berechtigung serverseitig erneut.
+  const { data: adminStatus } = useGetAdminStatus({ query: { queryKey: getGetAdminStatusQueryKey(), staleTime: 5 * 60 * 1000, retry: false } });
   const queryClient = useQueryClient();
   const [signingOut, setSigningOut] = React.useState(false);
 
@@ -42,6 +44,7 @@ export function CoachLayout({ children, teamId, teamName }: CoachLayoutProps) {
     { icon: Home, label: t('Dashboard'), path: '/dashboard' },
     { icon: CreditCard, label: t('Pricing'), path: '/pricing' },
     { icon: Settings, label: t('Settings'), path: '/settings' },
+    ...(adminStatus?.isPlatformAdmin ? [{ icon: Shield, label: 'Admin', path: '/admin' }] : []),
   ];
 
   const teamNav = teamId ? [

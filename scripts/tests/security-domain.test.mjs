@@ -826,7 +826,7 @@ test("join via QR/link requires the complete standard profile and only catalog r
     express: h.express, "@workspace/db": { db, ...schema, teamInvitesTable: { name: "teamInvitesTable" }, teamsTable: { name: "teamsTable" } },
     "drizzle-orm": { ...orm, or: (...items) => ({ op: "or", items }) }, crypto, "zod/v4": require("zod/v4"),
     "../lib/authorization": { async requireCoachAccess() { return "team"; }, parseParam: value => value },
-    "../lib/entitlements": {}, "../lib/pilot": {},
+    "../lib/entitlements": {}, "../lib/pilot": {}, "../lib/teamAccess": {},
     "../lib/roleSuitability": load("artifacts/api-server/src/lib/roleSuitability.ts", {}),
   });
   const complete = { firstName: "Fiktiv", lastName: "Spieler", dominantFoot: "left", height: 181, headingStrength: 6, speed: 8, tags: ["runner"] };

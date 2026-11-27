@@ -28,6 +28,7 @@ const MatchdayDetail = lazy(() => import("./pages/MatchdayDetail"));
 const Readiness = lazy(() => import("./pages/Readiness"));
 const GhostMode = lazy(() => import("./pages/GhostMode"));
 const Settings = lazy(() => import("./pages/Settings"));
+const Admin = lazy(() => import("./pages/Admin"));
 const PlayerPWA = lazy(() => import("./pages/PlayerPWA"));
 const PlayerQuiz = lazy(() => import("./pages/PlayerQuiz"));
 const Onboarding = lazy(() => import("./pages/Onboarding"));
@@ -82,6 +83,7 @@ function AppRouter() {
       <Route path="/kontakt" component={Contact} />
       <Route path="/datenschutz" component={Privacy} />
       <Route path="/settings" component={Settings} />
+      <Route path="/admin" component={Admin} />
       <Route path="/join/:token" component={JoinTeam} />
       <Route path="/p/:shareToken" component={PlayerPWA} />
       <Route path="/p/:shareToken/quiz" component={PlayerQuiz} />
