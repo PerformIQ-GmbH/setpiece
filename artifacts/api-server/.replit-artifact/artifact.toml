@@ -29,7 +29,7 @@ PORT = "8080"
 NODE_ENV = "production"
 APP_DOMAIN = "setpiece.performiq.ch"
 ALLOWED_ORIGINS = "https://setpiece.performiq.ch"
-SETPIECE_PILOT_ENABLED = "true"
+SETPIECE_PILOT_ENABLED = "false"
 
 [services.production.health.startup]
 path = "/api/healthz"
