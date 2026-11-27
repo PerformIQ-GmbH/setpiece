@@ -1,6 +1,19 @@
 # Status · SETPIECE
 
-**Stand 07.11.2026: Varianten, Suche und Playbook-Sammlungen sind live unter https://setpiece.performiq.ch/.**
+**Stand 27.11.2026: Admin-Bereich, 39 Vorlagen, Anstoss-Kategorie und bezahlter Checkout sind live unter https://setpiece.performiq.ch/.**
+
+## Release 27.11.2026 (gemergt und auf Replit veröffentlicht)
+
+- **PR #20, Admin-Bereich:** `/admin` für Plattform-Admins (bestätigte E-Mail in `PLATFORM_ADMIN_EMAILS`, serverseitig geprüft). Kennzahlen zu Benutzern, Teams nach Tarif, Spielern, Standards und Quiz, Benutzersuche, Gratiszugänge mit Protokoll. Details in [ADMIN](ADMIN.md). Im Browser mit angemeldetem Admin bestätigt (4 Benutzer, 5 Teams).
+- **PR #21, Vorlagen:** 10 neue Vorlagen aus Trainings- und Spielclips (Ecken gegen Mann- und Mischdeckung, kurze Ecke mit Antäuschung, Eckabwehr, Freistoss mit zwei Spielern am Ball, zwei Eckvarianten, zwei Anstösse), Hinweistexte bei 7 bestehenden und korrigierte Mauerabstände bei 4 Freistössen. Quellen und Zeitstempel in [CLIP-VORLAGEN](library/CLIP-VORLAGEN.md). Die Zeichnungen sind aus Fernsehbildern abgeleitet, nicht vermessen; sechs davon wurden nur über Tests geprüft, nicht im echten Editor.
+- **PR #22, Anstoss:** eigene Kategorie `kickoff` (nur Angriff, ganzes Spielfeld).
+- **Datenbank:** Die additiven Migrationen `20261127_complimentary_access.sql` und `20261127_kickoff_category.sql` liefen über den Replit-Publish in die Produktion (Replit zeigte das SQL vorher: Enumwert, zwei Tabellen, Fremdschlüssel, kein Drop). Backup: Point-in-time-Recovery der Produktionsdatenbank (7 Tage, aktiv); kein eigener Dump. Das Bibliotheksskript synchronisierte danach die Vorlagen: 39 Vorlagen in der Live-API, davon 2 in `kickoff`; 4 Benutzer und 5 Teams unverändert.
+- **Stripe live:** Verbindung im Replit-Projekt für die Umgebung Live (Konto «performIQ», `acct_1SbiuiPvV9uq8joX`). `stripe-setup` im Live-Modus (Trockenlauf, dann Schreiblauf, ohne Promo-Code): Produkte Solo Coach (CHF 8/Monat) und Team (CHF 19/Monat), verwalteter Webhook auf `/api/billing/webhook` (enabled), Schema `stripe` und Preise in der Produktion synchronisiert.
+- **PR #23, Pilotmodus aus:** `SETPIECE_PILOT_ENABLED = "false"`. In der Produktion war kein Pilot-Code eingelöst (5 Plätze, 0 eingelöst). Live-Preisseite zeigt Solo Coach und Team als buchbar.
+- **Geprüft öffentlich:** Health 200; Webhook ohne Signatur 400; Admin-Endpunkt ohne Login 401; Preise buchbar. **Nicht geprüft:** ein echter Kaufabschluss bis zur Freischaltung eines Teams, Wirkung eines echten Stripe-Ereignisses auf den Webhook, kein Rabattcode («Erster Monat gratis» ist nicht angelegt).
+- **Betrieb offen:** Secret `PROD_DATABASE_URL` in Replit nach Abschluss löschen. Beim ersten echten Abschluss Webhook-Zustellung in Stripe und `Bezahlte Abos` im Admin-Bereich prüfen.
+- Der frühere Eintrag «nicht gemergt» zu Onboarding, Vorlagenfilter und Entwürfen (PR #19) ist überholt: gemergt und mit diesem Release veröffentlicht.
+
 
 ## Onboarding, Vorlagenfilter und Entwürfe verwalten 26.11.2026 (implementiert und im Browser geprüft, nicht gemergt, nicht deployed)
 
