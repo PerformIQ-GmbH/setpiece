@@ -28,6 +28,7 @@ const LIST = [
   T('t-easy', 'attacking_throw_in', profile('easy', { against: ['high'] })),
   T('d-corner', 'defensive_corner_left', profile('medium', { against: ['zone'] }), { title: 'Eckball verteidigen', description: 'Raumdeckung am Fünfmeterraum' }),
   T('legacy', 'attacking_throw_in', null),
+  T('k-med', 'kickoff', profile('medium', { against: ['high'] })),
 ];
 
 test('category labels read like a coach talks', () => {
@@ -37,6 +38,9 @@ test('category labels read like a coach talks', () => {
   assert.equal(categoryLabel('indirect_free_kick_wide'), 'Indirekter Freistoss · aussen');
   assert.equal(categoryLabel('attacking_throw_in'), 'Einwurf · Angriff');
   assert.equal(categoryLabel('defensive_throw_in'), 'Einwurf · Abwehr');
+  assert.equal(categoryLabel('kickoff'), 'Anstoss');
+  assert.equal(kindOf('kickoff'), 'kickoff');
+  assert.equal(sideOf('kickoff'), 'attack');
   assert.equal(kindOf('defensive_corner_left'), 'corner');
   assert.equal(sideOf('defensive_throw_in'), 'defense');
 });
@@ -49,6 +53,15 @@ test('no filter shows everything, each filter narrows, combined filters intersec
   assert.deepEqual(ids(filterTemplates(LIST, { ...NO_FILTERS, level: 'easy', kind: 'corner' })), ['c-easy', 'c-easy-clip']);
   assert.deepEqual(ids(filterTemplates(LIST, { ...NO_FILTERS, against: 'man' })), ['c-hard', 'c-easy']);
   assert.deepEqual(ids(filterTemplates(LIST, { ...NO_FILTERS, level: 'easy', withVideo: true })), ['c-easy-clip', 'f-easy']);
+});
+
+test('Anstoss is its own kind: filter, label and attack side', () => {
+  assert.deepEqual(ids(filterTemplates(LIST, { ...NO_FILTERS, kind: 'kickoff' })), ['k-med']);
+  assert.ok(!ids(filterTemplates(LIST, { ...NO_FILTERS, kind: 'throw_in' })).includes('k-med'), 'no longer listed under Einwurf');
+  assert.deepEqual(ids(filterTemplates(LIST, { ...NO_FILTERS, kind: 'kickoff', side: 'defense' })), []);
+  assert.deepEqual(ids(filterTemplates(LIST, { ...NO_FILTERS, kind: 'kickoff', side: 'attack' })), ['k-med']);
+  assert.deepEqual(ids(recommendTemplates(LIST, 'some', 'kickoff', 6)), ['k-med']);
+  assert.ok(ids(recommendTemplates(LIST, 'some', 'all', 20)).includes('k-med'));
 });
 
 test('templates without an assessment are hidden as soon as a profile filter is on, not before', () => {
@@ -81,7 +94,7 @@ test('activeFilterCount counts only the filters in use', () => {
 });
 
 test('sorting: easy first, then clips first, then title; templates without assessment last', () => {
-  assert.deepEqual(ids(sortTemplates(LIST)), ['c-easy-clip', 'f-easy', 'c-easy', 't-easy', 'd-corner', 'f-med', 'c-hard', 'legacy']);
+  assert.deepEqual(ids(sortTemplates(LIST)), ['c-easy-clip', 'f-easy', 'c-easy', 't-easy', 'd-corner', 'f-med', 'k-med', 'c-hard', 'legacy']);
   const before = ids(LIST);
   sortTemplates(LIST);
   assert.deepEqual(ids(LIST), before, 'input list is not reordered');

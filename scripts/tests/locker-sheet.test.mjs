@@ -15,7 +15,12 @@ vm.runInNewContext(compiled, { module: mod, exports: mod.exports, require: (name
   if (name === "./pitchGeometry") return { pitchOrientationForCategory: () => "half", buildPitchGeometry: () => ({ pitchW: 68, pitchH: 52.5 }) };
   throw new Error(`unexpected import ${name}`);
 } });
-const { buildLockerSheet, tilesPerPage } = mod.exports;
+const { buildLockerSheet, tilesPerPage, categoryDe, isDefensive } = mod.exports;
+
+test("Anstoss has a German label and counts as attack", () => {
+  assert.equal(categoryDe("kickoff"), "Anstoss");
+  assert.equal(isDefensive("kickoff"), false);
+});
 
 // Minimales jsPDF-Double: zeichnet Texte und Bilder mit Seite und Position auf.
 function fakePdf() {

@@ -1,7 +1,9 @@
 // Curated template library. Each entry is keyed by a stable slug; the sync
 // updates existing rows by slug and inserts new ones, so edits here reach the
-// production library without duplicates. Run only after the migration
-// lib/db/migrations/20261125_template_library_media.sql:
+// production library without duplicates. The category is part of the update, so a
+// changed category (e.g. the Anstoss templates, now «kickoff») reaches existing rows too.
+// Run only after the migrations lib/db/migrations/20261125_template_library_media.sql
+// (and, for «kickoff», 20261127_kickoff_category.sql; without it the write fails):
 //   pnpm --filter @workspace/scripts template-library            (dry run)
 //   pnpm --filter @workspace/scripts template-library -- --apply (writes)
 import { db, setPieceTemplatesTable } from "@workspace/db";

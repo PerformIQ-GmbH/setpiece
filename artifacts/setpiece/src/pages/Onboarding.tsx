@@ -513,7 +513,7 @@ export default function Onboarding() {
                     <div className="space-y-4">
                       <p className="text-sm text-muted-foreground">Starte mit einer bewährten Variante. Du siehst die echte Szene und die Zeichnung. Alles lässt sich im Editor an dein Team anpassen.</p>
                       <div role="group" aria-label="Art" className="flex flex-wrap gap-1.5">
-                        {(['all', 'corner', 'free_kick', 'throw_in'] as const).map(k => (
+                        {(['all', ...(Object.keys(KIND_LABELS) as Kind[])] as const).map(k => (
                           <button key={k} type="button" aria-pressed={kind === k} onClick={() => setKind(k)} className={choice(kind === k)}>{k === 'all' ? 'Alle' : KIND_LABELS[k]}</button>
                         ))}
                       </div>

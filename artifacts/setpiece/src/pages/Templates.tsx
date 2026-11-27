@@ -38,6 +38,7 @@ const CATEGORIES = [
   'indirect_free_kick_right',
   'attacking_throw_in',
   'defensive_throw_in',
+  'kickoff',
 ];
 
 type PieceView = 'active' | 'draft' | 'ready' | 'archived';

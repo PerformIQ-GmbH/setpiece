@@ -173,7 +173,7 @@ test('arcs use open curve output and categories share one orientation resolver',
   }
   assert.equal(pitchOrientationForCategory('corner'), 'half');
   assert.equal(pitchOrientationForCategory('free_kick'), 'half');
-  for (const category of ['throw_in', 'penalty', 'open_play', 'unknown']) {
+  for (const category of ['throw_in', 'kickoff', 'penalty', 'open_play', 'unknown']) {
     assert.equal(pitchOrientationForCategory(category), 'full');
   }
 });
@@ -196,6 +196,7 @@ test('every database category and the public demo select the established pitch c
     indirect_free_kick_right: 'half',
     attacking_throw_in: 'full',
     defensive_throw_in: 'full',
+    kickoff: 'full',
   };
   assert.deepEqual(categories.sort(), Object.keys(expected).sort(), 'cover every real enum category');
   for (const category of categories) {

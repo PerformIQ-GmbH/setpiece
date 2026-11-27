@@ -1,5 +1,10 @@
 # Änderungen
 
+## Anstoss als eigene Kategorie · unveröffentlicht
+
+- Anstösse haben eine eigene Art «Anstoss» (Wert `kickoff`, nur Angriff, ganzes Spielfeld) im Vorlagenfilter, im Onboarding, beim Anlegen leerer Standards und im Aushang. Die zwei Anstoss-Vorlagen erscheinen nicht mehr unter «Einwurf».
+- Betrieb: additive Migration `lib/db/migrations/20261127_kickoff_category.sql` (neuer Enumwert). Reihenfolge: Backup, Migration, Deploy, danach `template-library --apply`, das die Kategorie der beiden Vorlagen per slug umstellt.
+
 ## Playbook-Sammlungen · unveröffentlicht
 
 - Eigene Standards nach Titel und Kategorie finden und in benannten Teamsammlungen organisieren. Sammlungen stehen bei der Auswahl von Standards für einen Spieltag als Filter bereit.

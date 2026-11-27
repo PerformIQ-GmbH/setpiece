@@ -589,8 +589,8 @@ const RAW: Entry[] = [
   {
     slug: "kickoff-outside-runner",
     title: "Anstoss: Rückpass und Diagonalball auf den Aussenläufer",
-    category: "attacking_throw_in",
-    description: "Anstoss: Rückpass auf den Spielverteiler, vier Läufer starten gleichzeitig, die Diagonale geht auf den Aussenläufer, der mit dem Innenläufer ein 2v1 am Flügel erzeugt. Abgeleitet aus einem Trainingsclip (Einzelbilder ausgewertet); Laufwege und Zeitpunkte sind ein Trainingsvorschlag, nicht vermessen. Die Vorlage liegt technisch bei den Einwürfen, weil es keine eigene Anstoss-Kategorie gibt. Niveau: mittel, braucht einen langen Diagonalpass.",
+    category: "kickoff",
+    description: "Anstoss: Rückpass auf den Spielverteiler, vier Läufer starten gleichzeitig, die Diagonale geht auf den Aussenläufer, der mit dem Innenläufer ein 2v1 am Flügel erzeugt. Abgeleitet aus einem Trainingsclip (Einzelbilder ausgewertet); Laufwege und Zeitpunkte sind ein Trainingsvorschlag, nicht vermessen. Niveau: mittel, braucht einen langen Diagonalpass.",
     coachingNote: "Signal: zurück und lang. Alle vier Läufer starten mit dem Rückpass. Beim Anstoss stehen die Gegner mindestens 9,15 m vom Ball, die Angreifer in der eigenen Hälfte. Ausweichlösung: Ist der Aussenverteidiger schon herausgerückt, flach zum Spielverteiler und neu aufbauen. Rückmeldung nach dem Training: Starteten alle vier Läufer mit dem Rückpass, kam die Diagonale im Lauf an, und entstand am Flügel ein 2v1?",
     defaultRoles: [
       { name: "Anstoss-Spieler", description: "Spielt den Anstoss kurz zurück", coachingPoint: "Ball kurz zurück auf den Spielverteiler", startPosition: { x: 53.2, y: 51.6 } },
@@ -605,8 +605,8 @@ const RAW: Entry[] = [
   {
     slug: "kickoff-inside-run",
     title: "Anstoss: Innenlauf hinter die Kette",
-    category: "attacking_throw_in",
-    description: "Anstoss: Rückpass, dann ein langer Ball in die Lücke zwischen Aussen- und Innenverteidiger. Der Innenläufer startet vom Flügel diagonal nach innen und schliesst aus dem Lauf ab. Abgeleitet aus einem Trainingsclip (Einzelbilder ausgewertet); Laufwege und Zeitpunkte sind ein Trainingsvorschlag, nicht vermessen. Die Vorlage liegt technisch bei den Einwürfen, weil es keine eigene Anstoss-Kategorie gibt. Niveau: mittel, braucht einen präzisen langen Ball.",
+    category: "kickoff",
+    description: "Anstoss: Rückpass, dann ein langer Ball in die Lücke zwischen Aussen- und Innenverteidiger. Der Innenläufer startet vom Flügel diagonal nach innen und schliesst aus dem Lauf ab. Abgeleitet aus einem Trainingsclip (Einzelbilder ausgewertet); Laufwege und Zeitpunkte sind ein Trainingsvorschlag, nicht vermessen. Niveau: mittel, braucht einen präzisen langen Ball.",
     coachingNote: "Signal: innen. Der Läufer lässt die Kette erst mit dem langen Ball hinter sich. Beim Anstoss stehen die Gegner mindestens 9,15 m vom Ball, die Angreifer in der eigenen Hälfte. Ausweichlösung: Ist die Schnittstelle geschlossen, zurück zum Spielverteiler und neu aufbauen. Rückmeldung nach dem Training: Startete der Läufer aus dem Halbraum erst mit dem langen Ball, und kam er im Lauf zum Abschluss?",
     defaultRoles: [
       { name: "Anstoss-Spieler", description: "Spielt den Anstoss kurz zurück", coachingPoint: "Ball kurz zurück auf den Spielverteiler", startPosition: { x: 52.9, y: 51.6 } },
