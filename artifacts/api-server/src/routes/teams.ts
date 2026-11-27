@@ -4,7 +4,7 @@ import { db, teamsTable, membershipsTable } from "@workspace/db";
 import { parseParam, requireTeamAccess, requireHeadCoachAccess } from "../lib/authorization";
 import { z } from "zod/v4";
 import pilotRouter from "./pilot";
-import { teamPilotAccess } from "../lib/pilot";
+import { teamAccess } from "../lib/teamAccess";
 
 const router: IRouter = Router();
 
@@ -45,7 +45,7 @@ router.get("/teams", async (req, res): Promise<void> => {
       .select()
       .from(teamsTable)
       .where(eq(teamsTable.id, m.teamId));
-    if (team) allTeams.push({ ...team, ...await teamPilotAccess(team.id, team.tier) });
+    if (team) allTeams.push({ ...team, ...await teamAccess(team.id, team.tier) });
   }
 
   res.json(allTeams);
@@ -82,7 +82,7 @@ router.post("/teams", async (req, res): Promise<void> => {
     role: "head_coach",
   });
 
-  res.status(201).json({ ...team, ...await teamPilotAccess(team.id, team.tier) });
+  res.status(201).json({ ...team, ...await teamAccess(team.id, team.tier) });
 });
 
 router.get("/teams/:teamId", async (req, res): Promise<void> => {
@@ -97,7 +97,7 @@ router.get("/teams/:teamId", async (req, res): Promise<void> => {
     res.status(404).json({ error: "Team not found" });
     return;
   }
-  res.json({ ...team, ...await teamPilotAccess(team.id, team.tier) });
+  res.json({ ...team, ...await teamAccess(team.id, team.tier) });
 });
 
 router.patch("/teams/:teamId", async (req, res): Promise<void> => {
@@ -128,7 +128,7 @@ router.patch("/teams/:teamId", async (req, res): Promise<void> => {
     res.status(404).json({ error: "Team not found" });
     return;
   }
-  res.json({ ...team, ...await teamPilotAccess(team.id, team.tier) });
+  res.json({ ...team, ...await teamAccess(team.id, team.tier) });
 });
 
 router.use(pilotRouter);

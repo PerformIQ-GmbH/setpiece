@@ -128,6 +128,7 @@ export * from "./submitQuizBodyAnswersItem";
 export * from "./suggestionAlternative";
 export * from "./suitabilityBadge";
 export * from "./team";
+export * from "./teamComplimentaryAccess";
 export * from "./teamInvite";
 export * from "./teamTeamColors";
 export * from "./templateProfile";
