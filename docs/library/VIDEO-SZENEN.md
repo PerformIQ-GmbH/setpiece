@@ -50,3 +50,23 @@ Zum Hochladen auf den SETPIECE-Kanal (nicht gelistet): Den Ausschnitt mit den Ze
 | `freistoss-flach-in-den-lauf` | Everton gegen Southampton · 18.08.2018 | https://storage.googleapis.com/setpiece-mediathek/clips/07-freistoss-flach-in-den-lauf-56817b8bf6.mp4 |
 | `ecke-angetippt-dribbling` | Aston Villa gegen Bournemouth · 09.04.2016 | https://storage.googleapis.com/setpiece-mediathek/clips/08-ecke-angetippt-dribbling-1687798d1b.mp4 |
 | `kette-loest-sich-auf` | Dynamo Dresden gegen VfL Bochum | https://storage.googleapis.com/setpiece-mediathek/clips/09-kette-loest-sich-auf-3b1bca0b70.mp4 |
+
+## Clips zu den Vorlagen 31 bis 40 (hochgeladen 27.11.2026)
+
+11 Clips ohne Ton, mit Logo unten rechts, lokal geschnitten (`clips\fertig\clips`), Link ohne Anmeldung abrufbar (200, video/mp4). Quellen sind Vince' Clips in `setpiece.performiq` (nicht im Repo). Szenen ohne Vereins- und Personennamen, «laut Bild». In `scripts/src/library-data.ts` als `media` eingetragen; in die App kommen sie erst mit dem Bibliotheksskript.
+
+Alle Quellen tragen fremde Einblendungen (Spielstand, Sender- oder Ligalogo, beim Anstoss-Video zusätzlich gezeichnete Laufwege und Beschriftungen): **besser ersetzen**, sobald eigenes Material vorliegt.
+
+| Clip | Vorlage | Quelle | Zeit | Link |
+|---|---|---|---|---|
+| 11 | `corner-man-free-run` | «Corner vs Manndeckung-2» | 0:00–0:09.8 (mit Nahaufnahme und zweiter Perspektive) | https://storage.googleapis.com/setpiece-mediathek/clips/11-corner-man-free-run-246b05436a.mp4 |
+| 12 | `corner-man-cross-run` | «Corner vs Manndeckung-5» | 0:00–0:08.6 (Jubel danach weggelassen) | https://storage.googleapis.com/setpiece-mediathek/clips/12-corner-man-cross-run-5339794e93.mp4 |
+| 13 | `corner-mixed-zone-gap` | «Corner vs Mischdeckung-1» | 0:01.2–0:10.1 | https://storage.googleapis.com/setpiece-mediathek/clips/13-corner-mixed-zone-gap-ecefb2eac2.mp4 |
+| 14 | `corner-short-feint` | «Corner OFF-2 kurz Antäuschung» | 0:06.5–0:15.9 (Jubel und Übergang am Anfang weggelassen) | https://storage.googleapis.com/setpiece-mediathek/clips/14-corner-short-feint-5e4026f40e.mp4 |
+| 15 | `corner-def-mixed` | «Corner vs Mischdeckung-1» (Sicht der Verteidiger) | 0:01.2–0:10.1 | https://storage.googleapis.com/setpiece-mediathek/clips/15-corner-def-mixed-436c10e7ea.mp4 |
+| 16 | `freistoss-zwei-am-ball-fluegel` | «Out OFF Verlagerung Flügel 1v1 u Freistoss ESP» | 1:04–1:18 (Kurzpass auf den Flügel nicht im Bild) | https://storage.googleapis.com/setpiece-mediathek/clips/16-freistoss-zwei-am-ball-fluegel-af957c55d5.mp4 |
+| 17 | `corner-edge-cluster` | «Straight off the Training Ground» | 3:29.6–3:34.9 (nur 5 s, Ausführung nicht im Bild) | https://storage.googleapis.com/setpiece-mediathek/clips/17-corner-edge-cluster-488a3612a9.mp4 |
+| 18 | `corner-short-edge-cross` | «Straight off the Training Ground» | 4:59.1–5:10.9 | https://storage.googleapis.com/setpiece-mediathek/clips/18-corner-short-edge-cross-0d02579c37.mp4 |
+| 19 | `kickoff-outside-runner` | «Effective Kick off routine» | 0:04–0:24 | https://storage.googleapis.com/setpiece-mediathek/clips/19-kickoff-outside-runner-364eb39832.mp4 |
+| 20 | `kickoff-inside-run` | «Effective Kick off routine» | 0:28.5–0:41.8 | https://storage.googleapis.com/setpiece-mediathek/clips/20-kickoff-inside-run-18aab64716.mp4 |
+| 21 | `corner-short-edge-cross` (zweites Beispiel) | «Corner Kurz-12» | 0:01–0:14.8 (Dribbling statt Weiterleitung im ersten Kontakt) | https://storage.googleapis.com/setpiece-mediathek/clips/21-corner-short-edge-cross-3845b3d365.mp4 |
